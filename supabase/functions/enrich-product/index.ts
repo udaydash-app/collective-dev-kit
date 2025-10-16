@@ -67,62 +67,73 @@ serve(async (req) => {
       const description = aiData.choices?.[0]?.message?.content?.trim() || null;
       console.log('Generated description:', description ? 'Success' : 'No description returned');
 
-      // Search for product image from web
-      console.log('Searching for product image from web...');
+      // Search for product image from Pexels
+      console.log('Searching for product image from Pexels...');
       let imageUrl = null;
       
       try {
-        // Search for product images on the web
-        const searchQuery = `${productName} product photo`;
-        const searchResponse = await fetch(`https://api.search.brave.com/res/v1/images/search?q=${encodeURIComponent(searchQuery)}&count=5`, {
-          headers: {
-            'Accept': 'application/json',
-            'X-Subscription-Token': Deno.env.get('BRAVE_SEARCH_API_KEY') || ''
-          }
-        });
+        const pexelsApiKey = Deno.env.get('PEXELS_API_KEY');
+        if (!pexelsApiKey) {
+          console.log('Pexels API key not configured, skipping image search');
+        } else {
+          const searchQuery = `${productName} product`;
+          const searchResponse = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5`,
+            {
+              headers: {
+                'Authorization': pexelsApiKey
+              }
+            }
+          );
 
-        if (searchResponse.ok) {
-          const searchData = await searchResponse.json();
-          const imageResults = searchData.results || [];
-          
-          // Try to download the first few images until one succeeds
-          for (const result of imageResults.slice(0, 3)) {
-            try {
-              const imageDownloadResponse = await fetch(result.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-              });
-              
-              if (imageDownloadResponse.ok) {
-                const imageBlob = await imageDownloadResponse.arrayBuffer();
-                const fileName = `${productId}-${Date.now()}.jpg`;
-                
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('product-images')
-                  .upload(fileName, imageBlob, {
-                    contentType: 'image/jpeg',
-                    upsert: false
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const photos = searchData.photos || [];
+            
+            if (photos.length > 0) {
+              // Try to download the first few images until one succeeds
+              for (const photo of photos.slice(0, 3)) {
+                try {
+                  const imageDownloadResponse = await fetch(photo.src.large, {
+                    headers: { 'User-Agent': 'Mozilla/5.0' }
                   });
-
-                if (!uploadError && uploadData) {
-                  const { data: { publicUrl } } = supabase.storage
-                    .from('product-images')
-                    .getPublicUrl(uploadData.path);
                   
-                  imageUrl = publicUrl;
-                  console.log('Downloaded and uploaded image:', imageUrl);
-                  break; // Success, stop trying
+                  if (imageDownloadResponse.ok) {
+                    const imageBlob = await imageDownloadResponse.arrayBuffer();
+                    const fileName = `${productId}-${Date.now()}.jpg`;
+                    
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                      .from('product-images')
+                      .upload(fileName, imageBlob, {
+                        contentType: 'image/jpeg',
+                        upsert: false
+                      });
+
+                    if (!uploadError && uploadData) {
+                      const { data: { publicUrl } } = supabase.storage
+                        .from('product-images')
+                        .getPublicUrl(uploadData.path);
+                      
+                      imageUrl = publicUrl;
+                      console.log('Downloaded and uploaded image from Pexels:', imageUrl);
+                      break; // Success, stop trying
+                    }
+                  }
+                } catch (downloadError) {
+                  console.log('Failed to download image, trying next:', downloadError);
+                  continue;
                 }
               }
-            } catch (downloadError) {
-              console.log('Failed to download image, trying next:', downloadError);
-              continue;
+            } else {
+              console.log('No images found on Pexels for:', searchQuery);
             }
+          } else {
+            const errorText = await searchResponse.text();
+            console.log('Pexels API error:', searchResponse.status, errorText);
           }
-        } else {
-          console.log('Image search failed:', searchResponse.status);
         }
       } catch (imageError) {
-        console.error('Error searching/downloading image:', imageError);
+        console.error('Error searching/downloading image from Pexels:', imageError);
         // Continue without image if search fails
       }
 
