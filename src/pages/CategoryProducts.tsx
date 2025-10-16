@@ -133,8 +133,18 @@ export default function CategoryProducts() {
               <Card key={product.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <Link to={`/product/${product.id}`}>
-                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center mb-3 text-6xl">
-                      {product.image_url || "📦"}
+                    <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-3">
+                      {product.image_url ? (
+                        <img 
+                          src={product.image_url} 
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-6xl">
+                          📦
+                        </div>
+                      )}
                     </div>
                     <h3 className="font-medium text-sm mb-1">{product.name}</h3>
                     <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
