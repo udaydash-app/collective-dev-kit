@@ -116,6 +116,12 @@ export default function OrderDetails() {
 
       if (orderError) throw orderError;
 
+      if (!orderData) {
+        setOrder(null);
+        setLoading(false);
+        return;
+      }
+
       const { data: itemsData, error: itemsError } = await supabase
         .from("order_items")
         .select(`
@@ -125,7 +131,7 @@ export default function OrderDetails() {
             image_url
           )
         `)
-        .eq("order_id", id);
+        .eq("order_id", orderData.id);
 
       if (itemsError) throw itemsError;
 
