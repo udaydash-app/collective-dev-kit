@@ -1,1 +1,7 @@
 project_id = "wvdrsofehwiopbkzrqit"
+
+[functions.ai-search]
+verify_jwt = false
+
+[functions.import-products]
+verify_jwt = false
