@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 import { usePageView } from "@/hooks/useAnalytics";
 
 interface Product {
@@ -140,7 +141,7 @@ export default function CategoryProducts() {
                   </Link>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-primary">
-                      ${product.price.toFixed(2)}
+                      {formatCurrency(product.price)}
                     </span>
                     <Button 
                       size="icon" 

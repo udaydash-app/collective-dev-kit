@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePageView } from "@/hooks/useAnalytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface CartItem {
   id: string;
@@ -195,7 +196,7 @@ export default function Cart() {
                           </Button>
                         </div>
                         <span className="text-lg font-bold text-primary">
-                          ${(item.products.price * item.quantity).toFixed(2)}
+                          {formatCurrency(item.products.price * item.quantity)}
                         </span>
                       </div>
                     </div>
@@ -209,7 +210,7 @@ export default function Cart() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-lg font-semibold">Total</span>
                   <span className="text-2xl font-bold text-primary">
-                    ${calculateTotal().toFixed(2)}
+                    {formatCurrency(calculateTotal())}
                   </span>
                 </div>
                 <Link to="/checkout">

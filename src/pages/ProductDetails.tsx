@@ -8,6 +8,7 @@ import { ArrowLeft, Minus, Plus, Heart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView, useAnalytics } from "@/hooks/useAnalytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -191,7 +192,7 @@ export default function ProductDetails() {
 
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-primary">
-                ${product?.price.toFixed(2)}
+                {product && formatCurrency(product.price)}
               </span>
             </div>
 
@@ -244,7 +245,7 @@ export default function ProductDetails() {
               </Button>
             </div>
             <Button size="lg" className="flex-1" onClick={addToCart} disabled={!product}>
-              Add to Cart • ${((product?.price || 0) * quantity).toFixed(2)}
+              Add to Cart • {formatCurrency((product?.price || 0) * quantity)}
             </Button>
           </div>
         </div>

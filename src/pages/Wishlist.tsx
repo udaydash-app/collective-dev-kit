@@ -8,6 +8,7 @@ import { Heart, ShoppingCart, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface WishlistItem {
   id: string;
@@ -173,7 +174,7 @@ export default function Wishlist() {
                         {item.products.description}
                       </p>
                       <p className="text-lg font-bold text-primary mb-3">
-                        ${item.products.price.toFixed(2)}
+                        {formatCurrency(item.products.price)}
                       </p>
                       <div className="flex gap-2">
                         <Button
