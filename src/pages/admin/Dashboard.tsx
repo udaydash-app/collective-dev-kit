@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
@@ -118,7 +119,7 @@ export default function AdminDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats?.revenue.toFixed(2) || 0}</div>
+              <div className="text-2xl font-bold">{formatCurrency(stats?.revenue || 0)}</div>
               <p className="text-xs text-muted-foreground">
                 <TrendingUp className="inline h-3 w-3 text-green-500" /> +12% from last period
               </p>
@@ -233,7 +234,7 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">${Number(order.total).toFixed(2)}</p>
+                        <p className="font-semibold">{formatCurrency(Number(order.total))}</p>
                         <p className="text-sm text-muted-foreground capitalize">{order.status}</p>
                       </div>
                     </div>
