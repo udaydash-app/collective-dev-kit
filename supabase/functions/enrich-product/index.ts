@@ -67,40 +67,68 @@ serve(async (req) => {
       const description = aiData.choices?.[0]?.message?.content?.trim() || null;
       console.log('Generated description:', description ? 'Success' : 'No description returned');
 
-      // Search for image on Unsplash
-      console.log('Searching for product image...');
+      // Generate product image using AI
+      console.log('Generating product image with AI...');
       let imageUrl = null;
       
       try {
         const imageController = new AbortController();
-        const imageTimeoutId = setTimeout(() => imageController.abort(), 5000); // 5 second timeout
+        const imageTimeoutId = setTimeout(() => imageController.abort(), 30000); // 30 second timeout for image generation
         
-        const unsplashResponse = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(productName)}&per_page=1&orientation=squarish`,
-          {
-            headers: {
-              'Authorization': 'Client-ID 5K_OOvNKE9Kbb3kaqXHlJgLjKKMIkJKkp1FINRvUflk'
-            },
-            signal: imageController.signal,
-          }
-        );
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [
+              {
+                role: 'user',
+                content: `Generate a high-quality, professional product photo of ${productName}. The image should be clean, well-lit, and suitable for an e-commerce grocery store. Square aspect ratio, white or neutral background.`
+              }
+            ],
+            modalities: ['image', 'text']
+          }),
+          signal: imageController.signal,
+        });
 
         clearTimeout(imageTimeoutId);
 
-        if (unsplashResponse.ok) {
-          const unsplashData = await unsplashResponse.json();
-          if (unsplashData.results && unsplashData.results.length > 0) {
-            imageUrl = unsplashData.results[0].urls.regular;
-            console.log('Found image:', imageUrl);
-          } else {
-            console.log('No images found on Unsplash for:', productName);
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          
+          if (base64Image) {
+            // Upload the base64 image to Supabase Storage
+            const imageBuffer = Uint8Array.from(atob(base64Image.split(',')[1]), c => c.charCodeAt(0));
+            const fileName = `${productId}-${Date.now()}.png`;
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('product-images')
+              .upload(fileName, imageBuffer, {
+                contentType: 'image/png',
+                upsert: false
+              });
+
+            if (!uploadError && uploadData) {
+              const { data: { publicUrl } } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(uploadData.path);
+              
+              imageUrl = publicUrl;
+              console.log('Generated and uploaded image:', imageUrl);
+            } else {
+              console.error('Error uploading image:', uploadError);
+            }
           }
         } else {
-          console.log('Unsplash API error:', unsplashResponse.status);
+          console.log('Image generation API error:', imageResponse.status, await imageResponse.text());
         }
       } catch (imageError) {
-        console.error('Error fetching image:', imageError);
-        // Continue without image if search fails
+        console.error('Error generating/uploading image:', imageError);
+        // Continue without image if generation fails
       }
 
       // Update product in database
