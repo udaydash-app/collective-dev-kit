@@ -21,6 +21,7 @@ interface Address {
   city: string;
   state: string;
   zip_code: string;
+  phone: string | null;
   is_default: boolean;
 }
 
@@ -38,6 +39,7 @@ export default function Addresses() {
     city: "",
     state: "",
     zip_code: "",
+    phone: "",
   });
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function Addresses() {
         city: address.city,
         state: address.state,
         zip_code: address.zip_code,
+        phone: address.phone || "",
       });
     } else {
       setEditingAddress(null);
@@ -94,6 +97,7 @@ export default function Addresses() {
         city: "",
         state: "",
         zip_code: "",
+        phone: "",
       });
     }
     setDialogOpen(true);
@@ -104,7 +108,7 @@ export default function Addresses() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      if (!formData.label || !formData.address_line1 || !formData.city) {
+      if (!formData.label || !formData.address_line1 || !formData.city || !formData.phone) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -117,6 +121,7 @@ export default function Addresses() {
         city: formData.city,
         state: formData.state || "",
         zip_code: formData.zip_code || "",
+        phone: formData.phone,
         is_default: addresses.length === 0,
       };
 
@@ -250,6 +255,11 @@ export default function Addresses() {
                       <p className="text-sm text-muted-foreground">
                         {addr.city}, {addr.state} {addr.zip_code}
                       </p>
+                      {addr.phone && (
+                        <p className="text-sm text-muted-foreground">
+                          Phone: {addr.phone}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {!addr.is_default && (
@@ -328,6 +338,16 @@ export default function Addresses() {
                   placeholder="Apartment, suite, etc. (optional)"
                   value={formData.address_line2}
                   onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+225 XX XX XX XX XX"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
