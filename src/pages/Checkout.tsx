@@ -11,6 +11,7 @@ import { ArrowLeft, MapPin, Clock, Coins, Banknote, Smartphone } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface Address {
   id: string;
@@ -28,6 +29,14 @@ interface PaymentMethod {
   type: string;
   label: string;
   is_default: boolean;
+}
+
+interface CartItem {
+  id: string;
+  quantity: number;
+  products: {
+    price: number;
+  };
 }
 
 const timeSlots = [
@@ -57,6 +66,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [selectedPayment, setSelectedPayment] = useState("");
@@ -73,7 +83,7 @@ export default function Checkout() {
       navigate("/auth/login");
       return;
     }
-    await Promise.all([fetchAddresses(), fetchPaymentMethods()]);
+    await Promise.all([fetchAddresses(), fetchPaymentMethods(), fetchCartItems()]);
   };
 
   const fetchAddresses = async () => {
@@ -123,6 +133,37 @@ export default function Checkout() {
       setLoading(false);
     }
   };
+
+  const fetchCartItems = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("cart_items")
+        .select(`
+          id,
+          quantity,
+          products (
+            price
+          )
+        `)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setCartItems(data || []);
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+    }
+  };
+
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => total + (item.products.price * item.quantity), 0);
+  };
+
+  const deliveryFee = 500; // 500 FCFA
+  const tax = calculateSubtotal() * 0.1; // 10% tax
+  const total = calculateSubtotal() + deliveryFee + tax;
 
   const handlePlaceOrder = () => {
     if (!selectedAddress) {
@@ -318,20 +359,20 @@ export default function Checkout() {
             <h3 className="font-semibold mb-3">Order Summary</h3>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>$45.97</span>
+              <span>{formatCurrency(calculateSubtotal())}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Delivery Fee</span>
-              <span>$4.99</span>
+              <span>{formatCurrency(deliveryFee)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Tax</span>
-              <span>$3.68</span>
+              <span>{formatCurrency(tax)}</span>
             </div>
             <div className="h-px bg-border my-2" />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span className="text-primary">$54.64</span>
+              <span className="text-primary">{formatCurrency(total)}</span>
             </div>
           </CardContent>
         </Card>

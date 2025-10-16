@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Coins, Banknote, Smartphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 const paymentMethods = [
   { id: "store_credit", type: "store_credit", label: "Store Credit", icon: Coins, isDefault: true },
@@ -95,7 +96,7 @@ export default function Payment() {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-muted-foreground">Total Amount</p>
-                <p className="text-2xl font-bold text-primary">$54.64</p>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(54640)}</p>
               </div>
               <div className="text-right text-sm text-muted-foreground">
                 <p>Delivery: Today, 2-4 PM</p>
