@@ -84,7 +84,9 @@ export default function OrderDetails() {
         return;
       }
 
-      const { data: orderData, error: orderError } = await supabase
+      // Try to query by order_number first (if id looks like an order number)
+      // Otherwise try by UUID
+      let orderQuery = supabase
         .from("orders")
         .select(`
           *,
@@ -101,9 +103,16 @@ export default function OrderDetails() {
             type
           )
         `)
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", user.id);
+
+      // Check if id looks like a UUID (contains dashes) or order number
+      if (id?.includes('-')) {
+        orderQuery = orderQuery.eq("id", id);
+      } else {
+        orderQuery = orderQuery.eq("order_number", id);
+      }
+
+      const { data: orderData, error: orderError } = await orderQuery.maybeSingle();
 
       if (orderError) throw orderError;
 
