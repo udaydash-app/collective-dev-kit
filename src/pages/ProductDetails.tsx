@@ -170,8 +170,18 @@ export default function ProductDetails() {
         </div>
 
         <div className="px-4 pb-6 space-y-6">
-          <div className="aspect-square bg-muted rounded-2xl flex items-center justify-center text-9xl">
-            {product?.image_url || "📦"}
+          <div className="aspect-square bg-muted rounded-2xl overflow-hidden">
+            {product?.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-9xl">
+                📦
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
