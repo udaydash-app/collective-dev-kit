@@ -277,6 +277,12 @@ export default function AdminDashboard() {
                 <CardDescription>Configure app settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <Link to="/admin/orders">
+                  <Button className="w-full">
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Manage Orders
+                  </Button>
+                </Link>
                 <Link to="/admin/import-products">
                   <Button className="w-full">
                     <Package className="mr-2 h-4 w-4" />
