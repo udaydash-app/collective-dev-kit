@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 export default function Register() {
+  const navigate = useNavigate();
+  const { trackEvent } = useAnalytics();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -16,10 +21,73 @@ export default function Register() {
     confirmPassword: "",
     agreeToTerms: false,
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Auth logic will be added later
+
+    // Validation
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (!formData.agreeToTerms) {
+      toast.error("Please agree to the Terms and Conditions");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: formData.name,
+            phone: formData.phone,
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes("already registered")) {
+          toast.error("This email is already registered. Please sign in instead.");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+
+      if (data.user) {
+        trackEvent("user_signup", { method: "email" });
+        
+        // Check if email confirmation is required
+        if (data.user.identities && data.user.identities.length === 0) {
+          toast.success("Please check your email to verify your account");
+        } else {
+          toast.success("Account created successfully!");
+          navigate("/");
+        }
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,8 +177,8 @@ export default function Register() {
                   I agree to the Terms and Conditions
                 </label>
               </div>
-              <Button type="submit" className="w-full" size="lg">
-                Create Account
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
 
