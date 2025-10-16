@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import CategoryProducts from "./pages/CategoryProducts";
 import ProductDetails from "./pages/ProductDetails";
 import ProductImport from "./pages/admin/ProductImport";
+import AdminDashboard from "./pages/admin/Dashboard";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
 import Stores from "./pages/Stores";
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:id" element={<CategoryProducts />} />
           <Route path="/product/:id" element={<ProductDetails />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/import-products" element={<ProductImport />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
