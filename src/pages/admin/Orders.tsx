@@ -31,14 +31,13 @@ export default function AdminOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter],
     queryFn: async () => {
       let query = supabase
         .from('orders')
         .select(`
           *,
-          profiles(full_name),
           stores(name),
           addresses(address_line1, city)
         `)
@@ -49,10 +48,34 @@ export default function AdminOrders() {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching orders:', error);
+        throw error;
+      }
+      
+      // Fetch user names separately
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(order => order.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        
+        // Map profiles to orders
+        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+        return data.map(order => ({
+          ...order,
+          customer_name: profileMap.get(order.user_id) || 'Unknown'
+        }));
+      }
+      
+      return data || [];
     }
   });
+
+  if (queryError) {
+    console.error('Query error:', queryError);
+  }
 
   const updateOrderStatus = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
@@ -158,7 +181,7 @@ export default function AdminOrders() {
                           {order.order_number}
                         </TableCell>
                         <TableCell>
-                          {order.profiles?.full_name || 'Unknown'}
+                          {order.customer_name || 'Unknown'}
                         </TableCell>
                         <TableCell>
                           {order.stores?.name || 'Unknown'}
