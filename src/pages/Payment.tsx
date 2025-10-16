@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 
 interface CartItem {
   id: string;
+  product_id: string;
   quantity: number;
   products: {
     price: number;
@@ -48,6 +49,7 @@ export default function Payment() {
         .from("cart_items")
         .select(`
           id,
+          product_id,
           quantity,
           products (
             price
@@ -76,12 +78,100 @@ export default function Payment() {
   const handleCompleteOrder = async () => {
     setIsProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to complete your order");
+        navigate("/auth/login");
+        return;
+      }
+
+      // Get checkout data from localStorage (set by Checkout page)
+      const checkoutData = JSON.parse(localStorage.getItem('checkout_data') || '{}');
+      
+      if (!checkoutData.addressId || !checkoutData.paymentMethodId) {
+        toast.error("Missing checkout information. Please go back to checkout.");
+        navigate("/checkout");
+        return;
+      }
+
+      // Get the default store
+      const { data: storeData } = await supabase
+        .from("stores")
+        .select("id")
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+
+      if (!storeData) {
+        toast.error("No active store found");
+        return;
+      }
+
+      // Calculate totals
+      const subtotal = calculateSubtotal();
+      const orderTotal = total;
+
+      // Generate order number
+      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert([{
+          user_id: user.id,
+          order_number: orderNumber,
+          store_id: storeData.id,
+          address_id: checkoutData.addressId,
+          payment_method_id: checkoutData.paymentMethodId,
+          subtotal: subtotal,
+          delivery_fee: deliveryFee,
+          tax: tax,
+          total: orderTotal,
+          delivery_time_slot: checkoutData.timeSlot || 'Today, 2:00 PM - 4:00 PM',
+          delivery_instructions: checkoutData.instructions || null,
+          status: 'pending',
+          payment_status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items from cart
+      const orderItems = cartItems.map(item => ({
+        order_id: orderData.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_price: item.products.price,
+        subtotal: item.products.price * item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Clear cart
+      const { error: clearCartError } = await supabase
+        .from("cart_items")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (clearCartError) throw clearCartError;
+
+      // Clear checkout data
+      localStorage.removeItem('checkout_data');
+
       toast.success("Order placed successfully! Your groceries are on the way.");
-      navigate("/order/confirmation/12345");
-    }, 2000);
+      navigate(`/order/confirmation/${orderData.order_number}`);
+    } catch (error) {
+      console.error("Error creating order:", error);
+      toast.error("Failed to place order. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (

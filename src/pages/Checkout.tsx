@@ -174,6 +174,17 @@ export default function Checkout() {
       toast.error("Please select a payment method");
       return;
     }
+
+    // Save checkout data to localStorage for Payment page
+    const checkoutData = {
+      addressId: selectedAddress,
+      paymentMethodId: selectedPayment,
+      timeSlot: timeSlots.find(s => s.id === selectedSlot)?.time || '',
+      instructions: instructions,
+      storeId: null // Will be set when we have store selection
+    };
+    localStorage.setItem('checkout_data', JSON.stringify(checkoutData));
+
     navigate("/checkout/payment");
   };
 
