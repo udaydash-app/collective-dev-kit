@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, MapPin, CreditCard, Clock, Coins, Banknote, Wallet } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Coins, Banknote, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
@@ -43,10 +43,12 @@ const getPaymentIcon = (type: string) => {
       return Coins;
     case "cash_on_delivery":
       return Banknote;
-    case "digital_wallet":
-      return Wallet;
+    case "wave_money":
+      return Smartphone;
+    case "orange_money":
+      return Smartphone;
     default:
-      return CreditCard;
+      return Coins;
   }
 };
 
@@ -207,7 +209,7 @@ export default function Checkout() {
         {/* Payment Method */}
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" />
+            <Coins className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Payment Method</h2>
           </div>
           {loading ? (
@@ -230,6 +232,7 @@ export default function Checkout() {
               <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
                 {paymentMethods.map((method) => {
                   const Icon = getPaymentIcon(method.type);
+                  const isMobileMoney = method.type === "wave_money" || method.type === "orange_money";
                   return (
                     <Card key={method.id}>
                       <CardContent className="p-4">
@@ -247,6 +250,11 @@ export default function Checkout() {
                                 </span>
                               )}
                             </div>
+                            {isMobileMoney && selectedPayment === method.id && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Pay To: <span className="font-mono font-semibold text-foreground">+225 07 79 78 47 83</span>
+                              </p>
+                            )}
                           </label>
                         </div>
                       </CardContent>

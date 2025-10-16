@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, CreditCard, Wallet } from "lucide-react";
+import { ArrowLeft, Coins, Banknote, Smartphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const paymentMethods = [
-  { id: "card1", type: "card", label: "•••• 4242", icon: CreditCard, isDefault: true },
-  { id: "card2", type: "card", label: "•••• 5555", icon: CreditCard, isDefault: false },
-  { id: "wallet", type: "wallet", label: "Digital Wallet", icon: Wallet, isDefault: false },
+  { id: "store_credit", type: "store_credit", label: "Store Credit", icon: Coins, isDefault: true },
+  { id: "cash", type: "cash_on_delivery", label: "Cash on Delivery", icon: Banknote, isDefault: false },
+  { id: "wave", type: "wave_money", label: "Wave Money", icon: Smartphone, isDefault: false },
+  { id: "orange", type: "orange_money", label: "Orange Money", icon: Smartphone, isDefault: false },
 ];
 
 export default function Payment() {
@@ -53,6 +54,7 @@ export default function Payment() {
           <RadioGroup value={selectedMethod} onValueChange={setSelectedMethod}>
             {paymentMethods.map((method) => {
               const Icon = method.icon;
+              const isMobileMoney = method.type === "wave_money" || method.type === "orange_money";
               return (
                 <Card key={method.id}>
                   <CardContent className="p-4">
@@ -60,12 +62,19 @@ export default function Payment() {
                       <RadioGroupItem value={method.id} id={method.id} />
                       <Icon className="h-5 w-5 text-muted-foreground" />
                       <label htmlFor={method.id} className="flex-1 cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{method.label}</span>
-                          {method.isDefault && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                              Default
-                            </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{method.label}</span>
+                            {method.isDefault && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          {isMobileMoney && selectedMethod === method.id && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Pay To: <span className="font-mono font-semibold text-foreground">+225 07 79 78 47 83</span>
+                            </p>
                           )}
                         </div>
                       </label>

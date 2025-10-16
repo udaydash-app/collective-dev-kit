@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Plus, CreditCard, Wallet, Coins, Banknote } from "lucide-react";
+import { ArrowLeft, Plus, Coins, Banknote, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
@@ -30,10 +30,12 @@ const getPaymentIcon = (type: string) => {
       return Coins;
     case "cash_on_delivery":
       return Banknote;
-    case "digital_wallet":
-      return Wallet;
+    case "wave_money":
+      return Smartphone;
+    case "orange_money":
+      return Smartphone;
     default:
-      return CreditCard;
+      return Coins;
   }
 };
 
@@ -44,7 +46,7 @@ export default function PaymentMethods() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newMethod, setNewMethod] = useState({
-    type: "card",
+    type: "store_credit",
     label: "",
     last_four: "",
     expiry_month: "",
@@ -89,12 +91,6 @@ export default function PaymentMethods() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Validation for card types
-      if (newMethod.type === "card" && (!newMethod.last_four || !newMethod.expiry_month || !newMethod.expiry_year)) {
-        toast.error("Please fill in all card details");
-        return;
-      }
-
       if (!newMethod.label) {
         toast.error("Please enter a label for this payment method");
         return;
@@ -107,13 +103,6 @@ export default function PaymentMethods() {
         is_default: paymentMethods.length === 0,
       };
 
-      // Only add card-specific fields for card type
-      if (newMethod.type === "card") {
-        methodData.last_four = newMethod.last_four;
-        methodData.expiry_month = parseInt(newMethod.expiry_month);
-        methodData.expiry_year = parseInt(newMethod.expiry_year);
-      }
-
       const { error } = await supabase
         .from("payment_methods")
         .insert(methodData);
@@ -123,7 +112,7 @@ export default function PaymentMethods() {
       toast.success("Payment method added");
       setDialogOpen(false);
       setNewMethod({
-        type: "card",
+        type: "store_credit",
         label: "",
         last_four: "",
         expiry_month: "",
@@ -236,6 +225,11 @@ export default function PaymentMethods() {
                             </span>
                           )}
                         </div>
+                        {(method.type === "wave_money" || method.type === "orange_money") && (
+                          <p className="text-sm text-muted-foreground">
+                            Pay To: <span className="font-mono">+225 07 79 78 47 83</span>
+                          </p>
+                        )}
                         {method.expiry_month && method.expiry_year && (
                           <p className="text-sm text-muted-foreground">
                             Expires {method.expiry_month}/{method.expiry_year}
@@ -294,10 +288,10 @@ export default function PaymentMethods() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="card">Credit/Debit Card</SelectItem>
-                    <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
                     <SelectItem value="store_credit">Store Credit</SelectItem>
                     <SelectItem value="cash_on_delivery">Cash on Delivery</SelectItem>
+                    <SelectItem value="wave_money">Wave Money</SelectItem>
+                    <SelectItem value="orange_money">Orange Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -305,45 +299,26 @@ export default function PaymentMethods() {
               <div className="space-y-2">
                 <Label>Label</Label>
                 <Input
-                  placeholder="e.g., Visa ending in 1234"
+                  placeholder={
+                    newMethod.type === "wave_money" ? "e.g., Wave Money Account" :
+                    newMethod.type === "orange_money" ? "e.g., Orange Money Account" :
+                    newMethod.type === "store_credit" ? "e.g., My Store Credit" :
+                    "e.g., Cash on Delivery"
+                  }
                   value={newMethod.label}
                   onChange={(e) => setNewMethod({ ...newMethod, label: e.target.value })}
                 />
               </div>
 
-              {newMethod.type === "card" && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Last 4 Digits</Label>
-                    <Input
-                      placeholder="1234"
-                      maxLength={4}
-                      value={newMethod.last_four}
-                      onChange={(e) => setNewMethod({ ...newMethod, last_four: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Expiry Month</Label>
-                      <Input
-                        placeholder="MM"
-                        maxLength={2}
-                        value={newMethod.expiry_month}
-                        onChange={(e) => setNewMethod({ ...newMethod, expiry_month: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Expiry Year</Label>
-                      <Input
-                        placeholder="YYYY"
-                        maxLength={4}
-                        value={newMethod.expiry_year}
-                        onChange={(e) => setNewMethod({ ...newMethod, expiry_year: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </>
+              {(newMethod.type === "wave_money" || newMethod.type === "orange_money") && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-1">Payment Instructions</p>
+                    <p className="text-sm text-muted-foreground">
+                      Pay To: <span className="font-mono font-semibold text-foreground">+225 07 79 78 47 83</span>
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </div>
             <DialogFooter>
