@@ -1,13 +1,22 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Coins, Banknote, Smartphone } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+
+interface CartItem {
+  id: string;
+  quantity: number;
+  products: {
+    price: number;
+  };
+}
 
 const paymentMethods = [
   { id: "store_credit", type: "store_credit", label: "Store Credit", icon: Coins, isDefault: true },
@@ -20,6 +29,49 @@ export default function Payment() {
   const navigate = useNavigate();
   const [selectedMethod, setSelectedMethod] = useState(paymentMethods[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCartItems();
+  }, []);
+
+  const fetchCartItems = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth/login");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("cart_items")
+        .select(`
+          id,
+          quantity,
+          products (
+            price
+          )
+        `)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setCartItems(data || []);
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      toast.error("Failed to load cart items");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => total + (item.products.price * item.quantity), 0);
+  };
+
+  const deliveryFee = 500;
+  const tax = calculateSubtotal() * 0.1;
+  const total = calculateSubtotal() + deliveryFee + tax;
 
   const handleCompleteOrder = async () => {
     setIsProcessing(true);
@@ -27,10 +79,7 @@ export default function Payment() {
     // Simulate payment processing
     setTimeout(() => {
       setIsProcessing(false);
-      toast({
-        title: "Order placed successfully!",
-        description: "Your groceries are on the way.",
-      });
+      toast.success("Order placed successfully! Your groceries are on the way.");
       navigate("/order/confirmation/12345");
     }, 2000);
   };
@@ -92,15 +141,27 @@ export default function Payment() {
 
         {/* Order Total */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Amount</p>
-                <p className="text-2xl font-bold text-primary">{formatCurrency(54640)}</p>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-semibold">Order Summary</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatCurrency(calculateSubtotal())}</span>
               </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <p>Delivery: Today, 2-4 PM</p>
-                <p>123 Main St, Apt 4B</p>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery Fee</span>
+                <span>{formatCurrency(deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax (10%)</span>
+                <span>{formatCurrency(tax)}</span>
+              </div>
+              <div className="h-px bg-border my-2" />
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(total)}</p>
+                </div>
               </div>
             </div>
           </CardContent>
