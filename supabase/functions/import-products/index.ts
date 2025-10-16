@@ -69,7 +69,7 @@ Return ONLY a valid JSON array with this exact structure:
   }
 ]
 
-Extract up to 20 products. Be accurate with prices and match products to the closest available category.` 
+IMPORTANT: If price is not found or is 0, set price to 0 (it can be updated later by admin). Extract up to 20 products. Match products to the closest available category.`
           },
           { role: "user", content: `Extract products from this content:\n\n${textContent.slice(0, 8000)}` },
         ],
@@ -104,7 +104,7 @@ Extract up to 20 products. Be accurate with prices and match products to the clo
     const productsToInsert = extractedProducts.map((p: any) => ({
       name: p.name,
       description: p.description,
-      price: p.price,
+      price: typeof p.price === 'number' ? p.price : 0, // Default to 0 if price is missing
       unit: p.unit || 'each',
       category_id: categoryMap[p.category_name?.toLowerCase()] || null,
       store_id: storeId,

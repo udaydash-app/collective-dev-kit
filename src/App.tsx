@@ -17,6 +17,7 @@ import ProductDetails from "./pages/ProductDetails";
 import ProductImport from "./pages/admin/ProductImport";
 import AdminDashboard from "./pages/admin/Dashboard";
 import Analytics from "./pages/admin/Analytics";
+import Products from "./pages/admin/Products";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/import-products" element={<AdminRoute><ProductImport /></AdminRoute>} />
           <Route path="/admin/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
+          <Route path="/admin/products" element={<AdminRoute><Products /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />

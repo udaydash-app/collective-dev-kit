@@ -435,7 +435,7 @@ export type Database = {
           name: string
           nutritional_info: Json | null
           original_price: number | null
-          price: number
+          price: number | null
           stock_quantity: number | null
           store_id: string
           tags: string[] | null
@@ -454,7 +454,7 @@ export type Database = {
           name: string
           nutritional_info?: Json | null
           original_price?: number | null
-          price: number
+          price?: number | null
           stock_quantity?: number | null
           store_id: string
           tags?: string[] | null
@@ -473,7 +473,7 @@ export type Database = {
           name?: string
           nutritional_info?: Json | null
           original_price?: number | null
-          price?: number
+          price?: number | null
           stock_quantity?: number | null
           store_id?: string
           tags?: string[] | null

@@ -18,6 +18,7 @@ import {
   Shield,
   Upload,
   BarChart3,
+  Box,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ const menuItems = [
 
 const adminMenuItems = [
   { icon: Upload, label: "Import Products", path: "/admin/import-products" },
+  { icon: Box, label: "Manage Products", path: "/admin/products" },
   { icon: Shield, label: "Admin Dashboard", path: "/admin/dashboard" },
   { icon: BarChart3, label: "Analytics", path: "/admin/analytics" },
 ];
