@@ -15,10 +15,14 @@ import {
   ChevronRight,
   Store,
   Heart,
+  Shield,
+  Upload,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
+import { useAdmin } from "@/hooks/useAdmin";
 
 const menuItems = [
   { icon: Heart, label: "My Wishlist", path: "/wishlist" },
@@ -30,9 +34,16 @@ const menuItems = [
   { icon: HelpCircle, label: "Help & Support", path: "/support" },
 ];
 
+const adminMenuItems = [
+  { icon: Upload, label: "Import Products", path: "/admin/import-products" },
+  { icon: Shield, label: "Admin Dashboard", path: "/admin/dashboard" },
+  { icon: BarChart3, label: "Analytics", path: "/admin/analytics" },
+];
+
 export default function Profile() {
   usePageView("Profile");
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -122,6 +133,29 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Admin Menu - Only show for admin users */}
+        {user && isAdmin && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground px-2 mb-2">Admin Tools</h3>
+            {adminMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Card className="hover:shadow-md transition-shadow border-primary/20">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Icon className="h-5 w-5 text-primary" />
+                        <span className="font-medium">{item.label}</span>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Menu Items - Only show if logged in */}
         {user && (
