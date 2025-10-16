@@ -67,11 +67,51 @@ serve(async (req) => {
       const description = aiData.choices?.[0]?.message?.content?.trim() || null;
       console.log('Generated description:', description ? 'Success' : 'No description returned');
 
+      // Search for image on Unsplash
+      console.log('Searching for product image...');
+      let imageUrl = null;
+      
+      try {
+        const imageController = new AbortController();
+        const imageTimeoutId = setTimeout(() => imageController.abort(), 5000); // 5 second timeout
+        
+        const unsplashResponse = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(productName)}&per_page=1&orientation=squarish`,
+          {
+            headers: {
+              'Authorization': 'Client-ID 5K_OOvNKE9Kbb3kaqXHlJgLjKKMIkJKkp1FINRvUflk'
+            },
+            signal: imageController.signal,
+          }
+        );
+
+        clearTimeout(imageTimeoutId);
+
+        if (unsplashResponse.ok) {
+          const unsplashData = await unsplashResponse.json();
+          if (unsplashData.results && unsplashData.results.length > 0) {
+            imageUrl = unsplashData.results[0].urls.regular;
+            console.log('Found image:', imageUrl);
+          } else {
+            console.log('No images found on Unsplash for:', productName);
+          }
+        } else {
+          console.log('Unsplash API error:', unsplashResponse.status);
+        }
+      } catch (imageError) {
+        console.error('Error fetching image:', imageError);
+        // Continue without image if search fails
+      }
+
       // Update product in database
-      if (description) {
+      const updates: any = {};
+      if (description) updates.description = description;
+      if (imageUrl) updates.image_url = imageUrl;
+
+      if (Object.keys(updates).length > 0) {
         const { error: updateError } = await supabase
           .from('products')
-          .update({ description })
+          .update(updates)
           .eq('id', productId);
 
         if (updateError) {
@@ -79,13 +119,14 @@ serve(async (req) => {
           throw updateError;
         }
 
-        console.log('Product description updated successfully');
+        console.log('Product updated successfully with:', Object.keys(updates).join(', '));
       }
 
       return new Response(
         JSON.stringify({ 
           success: true,
           description,
+          imageUrl,
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
