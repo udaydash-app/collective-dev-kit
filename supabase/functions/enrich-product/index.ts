@@ -67,18 +67,47 @@ serve(async (req) => {
       const description = aiData.choices?.[0]?.message?.content?.trim() || null;
       console.log('Generated description:', description ? 'Success' : 'No description returned');
 
-      // Search for product image from Pexels
-      console.log('Searching for product image from Pexels...');
+      // Get better search keywords using AI
+      console.log('Generating search keywords for product image...');
       let imageUrl = null;
       
       try {
+        // First, use AI to get better search keywords
+        const keywordResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a product categorization expert. Given a product name, return only 2-3 simple search keywords that would find relevant product photos. Keep it short and generic (e.g., "chocolate bar", "baby cream", "rice bag").'
+              },
+              {
+                role: 'user',
+                content: `Product: ${productName}\n\nReturn only the search keywords, nothing else.`
+              }
+            ],
+          }),
+        });
+
+        let searchKeywords = productName;
+        if (keywordResponse.ok) {
+          const keywordData = await keywordResponse.json();
+          searchKeywords = keywordData.choices?.[0]?.message?.content?.trim() || productName;
+          console.log('Search keywords generated:', searchKeywords);
+        }
+
+        // Now search Pexels with better keywords
         const pexelsApiKey = Deno.env.get('PEXELS_API_KEY');
         if (!pexelsApiKey) {
           console.log('Pexels API key not configured, skipping image search');
         } else {
-          const searchQuery = `${productName} product`;
           const searchResponse = await fetch(
-            `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5`,
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchKeywords)}&per_page=5&orientation=square`,
             {
               headers: {
                 'Authorization': pexelsApiKey
@@ -91,41 +120,38 @@ serve(async (req) => {
             const photos = searchData.photos || [];
             
             if (photos.length > 0) {
-              // Try to download the first few images until one succeeds
-              for (const photo of photos.slice(0, 3)) {
-                try {
-                  const imageDownloadResponse = await fetch(photo.src.large, {
-                    headers: { 'User-Agent': 'Mozilla/5.0' }
-                  });
+              // Get the first high-quality image
+              const photo = photos[0];
+              try {
+                const imageDownloadResponse = await fetch(photo.src.large, {
+                  headers: { 'User-Agent': 'Mozilla/5.0' }
+                });
+                
+                if (imageDownloadResponse.ok) {
+                  const imageBlob = await imageDownloadResponse.arrayBuffer();
+                  const fileName = `${productId}-${Date.now()}.jpg`;
                   
-                  if (imageDownloadResponse.ok) {
-                    const imageBlob = await imageDownloadResponse.arrayBuffer();
-                    const fileName = `${productId}-${Date.now()}.jpg`;
-                    
-                    const { data: uploadData, error: uploadError } = await supabase.storage
-                      .from('product-images')
-                      .upload(fileName, imageBlob, {
-                        contentType: 'image/jpeg',
-                        upsert: false
-                      });
+                  const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('product-images')
+                    .upload(fileName, imageBlob, {
+                      contentType: 'image/jpeg',
+                      upsert: false
+                    });
 
-                    if (!uploadError && uploadData) {
-                      const { data: { publicUrl } } = supabase.storage
-                        .from('product-images')
-                        .getPublicUrl(uploadData.path);
-                      
-                      imageUrl = publicUrl;
-                      console.log('Downloaded and uploaded image from Pexels:', imageUrl);
-                      break; // Success, stop trying
-                    }
+                  if (!uploadError && uploadData) {
+                    const { data: { publicUrl } } = supabase.storage
+                      .from('product-images')
+                      .getPublicUrl(uploadData.path);
+                    
+                    imageUrl = publicUrl;
+                    console.log('Downloaded and uploaded image from Pexels:', imageUrl);
                   }
-                } catch (downloadError) {
-                  console.log('Failed to download image, trying next:', downloadError);
-                  continue;
                 }
+              } catch (downloadError) {
+                console.log('Failed to download image:', downloadError);
               }
             } else {
-              console.log('No images found on Pexels for:', searchQuery);
+              console.log('No images found on Pexels for:', searchKeywords);
             }
           } else {
             const errorText = await searchResponse.text();
@@ -133,7 +159,7 @@ serve(async (req) => {
           }
         }
       } catch (imageError) {
-        console.error('Error searching/downloading image from Pexels:', imageError);
+        console.error('Error searching/downloading image:', imageError);
         // Continue without image if search fails
       }
 
