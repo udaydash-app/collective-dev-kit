@@ -105,11 +105,11 @@ export default function OrderDetails() {
         `)
         .eq("user_id", user.id);
 
-      // Check if id looks like a UUID (contains dashes) or order number
-      if (id?.includes('-')) {
-        orderQuery = orderQuery.eq("id", id);
-      } else {
+      // Check if id looks like an order number (starts with ORD-) or UUID
+      if (id?.startsWith('ORD-')) {
         orderQuery = orderQuery.eq("order_number", id);
+      } else {
+        orderQuery = orderQuery.eq("id", id);
       }
 
       const { data: orderData, error: orderError } = await orderQuery.maybeSingle();
