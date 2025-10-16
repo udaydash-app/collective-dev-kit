@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,59 @@ import { Search, X, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 const recentSearches = ["Organic milk", "Fresh bananas", "Whole wheat bread"];
 const trendingSearches = ["Greek yogurt", "Avocados", "Salmon", "Almond milk"];
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string | null;
+  description: string | null;
+  unit: string;
+}
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      searchProducts(searchQuery);
+    } else {
+      setProducts([]);
+    }
+  }, [searchQuery]);
+
+  const searchProducts = async (query: string) => {
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, price, image_url, description, unit')
+        .ilike('name', `%${query}%`)
+        .eq('is_available', true)
+        .limit(20);
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search Failed",
+        description: "Unable to search products",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleAISearch = async () => {
     if (!searchQuery.trim()) return;
@@ -131,6 +175,50 @@ export default function SearchPage() {
               </div>
             </section>
           </>
+        )}
+
+        {isSearching && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {!isSearching && searchQuery && products.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Search Results ({products.length})</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {products.map((product) => (
+                <Link key={product.id} to={`/product/${product.id}`}>
+                  <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="aspect-square bg-muted rounded-lg mb-3 overflow-hidden">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
+                      <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!isSearching && searchQuery && products.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No products found for "{searchQuery}"</p>
+          </div>
         )}
 
         {aiSuggestions && (
