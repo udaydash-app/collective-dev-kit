@@ -108,14 +108,25 @@ export default function Payment() {
         return;
       }
 
-      // Calculate totals
-      const subtotal = calculateSubtotal();
-      const orderTotal = total;
+      // Calculate totals server-side to prevent price manipulation
+      const { data: calculatedTotals, error: calculationError } = await supabase
+        .rpc('calculate_order_total', {
+          p_user_id: user.id,
+          p_delivery_fee: deliveryFee,
+          p_tax_rate: 0.1
+        })
+        .single();
+
+      if (calculationError || !calculatedTotals) {
+        console.error('Error calculating order total:', calculationError);
+        toast.error("Error calculating order total. Please try again.");
+        return;
+      }
 
       // Generate order number
       const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-      // Create the order
+      // Create the order with server-validated totals
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert([{
@@ -124,10 +135,10 @@ export default function Payment() {
           store_id: storeData.id,
           address_id: checkoutData.addressId,
           payment_method_id: checkoutData.paymentMethodId,
-          subtotal: subtotal,
-          delivery_fee: deliveryFee,
-          tax: tax,
-          total: orderTotal,
+          subtotal: calculatedTotals.subtotal,
+          delivery_fee: calculatedTotals.delivery_fee,
+          tax: calculatedTotals.tax,
+          total: calculatedTotals.total,
           delivery_time_slot: checkoutData.timeSlot || 'Today, 2:00 PM - 4:00 PM',
           delivery_instructions: checkoutData.instructions || null,
           status: 'pending',

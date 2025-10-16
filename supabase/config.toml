@@ -4,13 +4,13 @@ project_id = "wvdrsofehwiopbkzrqit"
 verify_jwt = false
 
 [functions.import-products]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-products-excel]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-order-confirmation]
 verify_jwt = false
 
 [functions.enrich-product]
-verify_jwt = false
+verify_jwt = true

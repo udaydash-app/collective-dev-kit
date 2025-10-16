@@ -17,12 +17,44 @@ serve(async (req) => {
   let productsImported = 0;
 
   try {
-    const { products, storeId } = await req.json();
-    console.log('Importing products from Excel:', products.length, 'rows');
+    // Verify admin access
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get user from JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify admin role
+    const { data: isAdmin, error: roleError } = await supabase
+      .rpc('verify_admin_access', { p_user_id: user.id })
+      .single();
+
+    if (roleError || !isAdmin) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { products, storeId } = await req.json();
+    console.log('Importing products from Excel:', products.length, 'rows');
 
     // Get categories for matching
     const { data: categories } = await supabase

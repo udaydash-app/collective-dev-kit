@@ -639,6 +639,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_order_total: {
+        Args: {
+          p_delivery_fee?: number
+          p_tax_rate?: number
+          p_user_id: string
+        }
+        Returns: {
+          delivery_fee: number
+          subtotal: number
+          tax: number
+          total: number
+        }[]
+      }
       generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -648,6 +661,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      verify_admin_access: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
     }

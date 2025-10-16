@@ -12,8 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const { productId, productName } = await req.json();
-    console.log('Enriching product:', productName, 'with ID:', productId);
+    // Verify admin access
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -26,6 +32,32 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get user from JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify admin role
+    const { data: isAdmin, error: roleError } = await supabase
+      .rpc('verify_admin_access', { p_user_id: user.id })
+      .single();
+
+    if (roleError || !isAdmin) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { productId, productName } = await req.json();
+    console.log('Enriching product:', productName, 'with ID:', productId);
 
     // Generate description using Lovable AI with timeout
     console.log('Generating description with AI...');
