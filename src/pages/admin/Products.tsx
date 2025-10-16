@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Product {
@@ -50,6 +50,7 @@ export default function Products() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -292,6 +293,12 @@ export default function Products() {
     );
   }
 
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.categories?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
@@ -308,8 +315,26 @@ export default function Products() {
           </Button>
         </div>
 
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search products by name, description, or category..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            </p>
+          )}
+        </div>
+
         <div className="grid gap-4">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <Card key={product.id}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
@@ -385,10 +410,12 @@ export default function Products() {
           ))}
         </div>
 
-        {products.length === 0 && (
+        {filteredProducts.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
-              <p className="text-muted-foreground">No products found</p>
+              <p className="text-muted-foreground">
+                {searchQuery ? `No products found matching "${searchQuery}"` : "No products found"}
+              </p>
             </CardContent>
           </Card>
         )}
