@@ -43,7 +43,9 @@ import {
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -56,6 +58,26 @@ export default function AdminOrders() {
     }
     setExpandedOrders(newExpanded);
   };
+
+  // Search available products
+  const { data: availableProducts } = useQuery({
+    queryKey: ['available-products', productSearch],
+    queryFn: async () => {
+      let query = supabase
+        .from('products')
+        .select('id, name, price, unit, image_url, store_id')
+        .eq('is_available', true)
+        .limit(10);
+
+      if (productSearch) {
+        query = query.ilike('name', `%${productSearch}%`);
+      }
+
+      const { data } = await query;
+      return data || [];
+    },
+    enabled: addProductDialogOpen
+  });
 
   const { data: orders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter],
@@ -161,6 +183,76 @@ export default function AdminOrders() {
       toast.success('Item removed from order');
     },
     onError: () => toast.error('Failed to remove item')
+  });
+
+  const addProductToOrder = useMutation({
+    mutationFn: async ({ orderId, productId }: { orderId: string; productId: string }) => {
+      // Get product details
+      const { data: product } = await supabase
+        .from('products')
+        .select('price')
+        .eq('id', productId)
+        .single();
+
+      if (!product) throw new Error('Product not found');
+
+      // Check if product already in order
+      const { data: existingItem } = await supabase
+        .from('order_items')
+        .select('id, quantity')
+        .eq('order_id', orderId)
+        .eq('product_id', productId)
+        .maybeSingle();
+
+      if (existingItem) {
+        // Update quantity if already exists
+        const { error } = await supabase
+          .from('order_items')
+          .update({ 
+            quantity: existingItem.quantity + 1,
+            subtotal: Number(product.price) * (existingItem.quantity + 1)
+          })
+          .eq('id', existingItem.id);
+        
+        if (error) throw error;
+      } else {
+        // Insert new item
+        const { error } = await supabase
+          .from('order_items')
+          .insert({
+            order_id: orderId,
+            product_id: productId,
+            quantity: 1,
+            unit_price: product.price,
+            subtotal: product.price
+          });
+
+        if (error) throw error;
+      }
+
+      // Recalculate order total
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('subtotal')
+        .eq('order_id', orderId);
+
+      const subtotal = items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0;
+      const deliveryFee = 500; // Fixed delivery fee
+      const tax = subtotal * 0.1; // 10% tax
+      const total = subtotal + deliveryFee + tax;
+
+      await supabase
+        .from('orders')
+        .update({ subtotal, tax, total })
+        .eq('id', orderId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      setAddProductDialogOpen(false);
+      setProductSearch("");
+      toast.success('Product added to order');
+    },
+    onError: () => toast.error('Failed to add product')
   });
 
   const updateOrderStatus = useMutation({
@@ -338,9 +430,21 @@ export default function AdminOrders() {
                               <div className="p-4 space-y-4">
                                 <div className="flex items-center justify-between mb-4">
                                   <h4 className="font-semibold">Order Products</h4>
-                                  <span className="text-sm text-muted-foreground">
-                                    Delivery: {order.addresses?.address_line1}, {order.addresses?.city}
-                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedOrderId(order.id);
+                                        setAddProductDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Add Product
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground">
+                                      Delivery: {order.addresses?.address_line1}, {order.addresses?.city}
+                                    </span>
+                                  </div>
                                 </div>
                                 {order.items && order.items.length > 0 ? (
                                   <div className="space-y-3">
@@ -429,6 +533,66 @@ export default function AdminOrders() {
       </main>
 
       <BottomNav />
+
+      {/* Add Product Dialog */}
+      <Dialog open={addProductDialogOpen} onOpenChange={setAddProductDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Product to Order</DialogTitle>
+            <DialogDescription>
+              Search and select a product to add to this order
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Input
+              placeholder="Search products..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+            />
+
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {availableProducts?.map((product: any) => (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                  onClick={() => {
+                    if (selectedOrderId) {
+                      addProductToOrder.mutate({
+                        orderId: selectedOrderId,
+                        productId: product.id
+                      });
+                    }
+                  }}
+                >
+                  {product.image_url && (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatCurrency(Number(product.price))} / {product.unit}
+                    </p>
+                  </div>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+              ))}
+              {availableProducts?.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  No products found
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
