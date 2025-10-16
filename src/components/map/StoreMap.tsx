@@ -2,16 +2,23 @@ import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
 import { useMemo } from 'react';
 
 interface Store {
-  id: number;
+  id: string;
   name: string;
   address: string;
-  latitude?: number;
-  longitude?: number;
+  city: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+interface UserLocation {
+  latitude: number;
+  longitude: number;
 }
 
 interface StoreMapProps {
   stores: Store[];
-  onStoreSelect?: (storeId: number) => void;
+  userLocation?: UserLocation | null;
+  onStoreSelect?: (storeId: string) => void;
 }
 
 const mapContainerStyle = {
@@ -25,10 +32,17 @@ const center = {
   lng: -4.0083,
 };
 
-export function StoreMap({ stores, onStoreSelect }: StoreMapProps) {
+export function StoreMap({ stores, userLocation, onStoreSelect }: StoreMapProps) {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY', // User needs to replace this
   });
+
+  const mapCenter = useMemo(() => {
+    if (userLocation) {
+      return { lat: userLocation.latitude, lng: userLocation.longitude };
+    }
+    return center;
+  }, [userLocation]);
 
   const markers = useMemo(() => {
     return stores.map((store) => ({
@@ -60,8 +74,8 @@ export function StoreMap({ stores, onStoreSelect }: StoreMapProps) {
   return (
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
-      center={center}
-      zoom={12}
+      center={mapCenter}
+      zoom={userLocation ? 13 : 12}
       options={{
         zoomControl: true,
         streetViewControl: false,
@@ -69,6 +83,23 @@ export function StoreMap({ stores, onStoreSelect }: StoreMapProps) {
         fullscreenControl: true,
       }}
     >
+      {/* User location marker */}
+      {userLocation && (
+        <Marker
+          position={{ lat: userLocation.latitude, lng: userLocation.longitude }}
+          title="Your Location"
+          icon={{
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#22C55E",
+            fillOpacity: 1,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 2,
+          }}
+        />
+      )}
+      
+      {/* Store markers */}
       {markers.map((marker) => (
         <Marker
           key={marker.id}
