@@ -23,6 +23,7 @@ interface Product {
   category_id: string | null;
   store_id: string;
   is_available: boolean;
+  is_featured?: boolean;
   stock_quantity: number;
   categories?: { name: string };
   stores?: { name: string };
@@ -122,6 +123,7 @@ export default function Products() {
       category_id: formData.get("category_id") as string || null,
       stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
       is_available: formData.get("is_available") === "true",
+      is_featured: formData.get("is_featured") === "true",
     };
 
     try {
@@ -302,7 +304,7 @@ export default function Products() {
                         {product.description}
                       </p>
                     )}
-                    <div className="flex gap-4 text-sm">
+                    <div className="flex flex-wrap gap-3 text-sm">
                       <span className="font-semibold text-primary">
                         {formatCurrency(product.price)}
                       </span>
@@ -311,6 +313,11 @@ export default function Products() {
                       <span className={product.is_available ? "text-green-600" : "text-red-600"}>
                         {product.is_available ? "Available" : "Unavailable"}
                       </span>
+                      {product.is_featured && (
+                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                          Featured
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -407,18 +414,34 @@ export default function Products() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="is_available">Availability</Label>
-                  <Select name="is_available" defaultValue={editingProduct.is_available.toString()}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="true">Available</SelectItem>
-                      <SelectItem value="false">Unavailable</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="is_available">Availability</Label>
+                    <Select name="is_available" defaultValue={editingProduct.is_available.toString()}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Available</SelectItem>
+                        <SelectItem value="false">Unavailable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="is_featured">Featured Product</Label>
+                    <Select name="is_featured" defaultValue={editingProduct.is_featured?.toString() || "false"}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Yes - Show on Home Page</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
 
                 <div className="flex gap-2 justify-end">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
