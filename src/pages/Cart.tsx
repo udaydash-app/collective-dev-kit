@@ -158,8 +158,18 @@ export default function Cart() {
               <Card key={item.id}>
                 <CardContent className="p-4">
                   <div className="flex gap-4">
-                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center text-4xl">
-                      {item.products.image_url || "🛒"}
+                    <div className="w-20 h-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                      {item.products.image_url ? (
+                        <img 
+                          src={item.products.image_url} 
+                          alt={item.products.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl">
+                          🛒
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
