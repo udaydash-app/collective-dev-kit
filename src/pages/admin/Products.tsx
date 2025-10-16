@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Product {
@@ -45,6 +45,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProducts();
@@ -159,6 +160,65 @@ export default function Products() {
     }
   };
 
+  const handleEnrichProduct = async (product: Product) => {
+    setEnrichingIds(prev => new Set(prev).add(product.id));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-product', {
+        body: {
+          productId: product.id,
+          productName: product.name,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success("Product enriched with AI-generated content!");
+        fetchProducts();
+      } else {
+        throw new Error(data.error || "Failed to enrich product");
+      }
+    } catch (error) {
+      console.error("Error enriching product:", error);
+      toast.error("Failed to enrich product");
+    } finally {
+      setEnrichingIds(prev => {
+        const next = new Set(prev);
+        next.delete(product.id);
+        return next;
+      });
+    }
+  };
+
+  const handleEnrichAll = async () => {
+    const productsToEnrich = products.filter(p => !p.description || !p.image_url);
+    if (productsToEnrich.length === 0) {
+      toast.info("All products already have descriptions and images!");
+      return;
+    }
+
+    if (!confirm(`This will enrich ${productsToEnrich.length} products with AI-generated descriptions and images. Continue?`)) {
+      return;
+    }
+
+    toast.info(`Enriching ${productsToEnrich.length} products... This may take a few minutes.`);
+    
+    let successCount = 0;
+    for (const product of productsToEnrich) {
+      try {
+        await handleEnrichProduct(product);
+        successCount++;
+        // Add a small delay to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to enrich ${product.name}:`, error);
+      }
+    }
+
+    toast.success(`Successfully enriched ${successCount} out of ${productsToEnrich.length} products!`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -178,6 +238,13 @@ export default function Products() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Product Management</h1>
+          <Button 
+            onClick={handleEnrichAll}
+            className="gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Enrich All Products
+          </Button>
         </div>
 
         <div className="grid gap-4">
@@ -185,9 +252,17 @@ export default function Products() {
             <Card key={product.id}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center text-4xl flex-shrink-0">
-                    {product.image_url || "📦"}
-                  </div>
+                  {product.image_url ? (
+                    <img 
+                      src={product.image_url} 
+                      alt={product.name}
+                      className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center text-4xl flex-shrink-0">
+                      📦
+                    </div>
+                  )}
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -197,6 +272,15 @@ export default function Products() {
                         </p>
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEnrichProduct(product)}
+                          disabled={enrichingIds.has(product.id)}
+                          title="Add AI description and image"
+                        >
+                          <Sparkles className={`h-4 w-4 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

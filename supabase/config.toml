@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-order-confirmation]
 verify_jwt = false
+
+[functions.enrich-product]
+verify_jwt = false
