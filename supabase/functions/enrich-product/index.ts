@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const { productId, productName } = await req.json();
-    console.log('Starting product enrichment for:', productName, 'ID:', productId);
+    console.log('Enriching product:', productName, 'ID:', productId);
 
     // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
