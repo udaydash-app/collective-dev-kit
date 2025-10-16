@@ -8,7 +8,7 @@ export const Header = () => {
     <header className="sticky top-0 z-40 bg-card border-b border-border">
       <div className="flex items-center justify-between h-14 px-4 max-w-screen-xl mx-auto">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="Global Market" className="h-10 w-auto" />
+          <img src={logo} alt="Global Market" className="h-14 w-auto" />
         </Link>
         
         <Button variant="ghost" size="sm" className="text-muted-foreground">
