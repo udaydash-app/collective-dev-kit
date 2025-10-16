@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Product {
@@ -47,6 +47,9 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -107,26 +110,78 @@ export default function Products() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    setSelectedImage(null);
+    setPreviewUrl(null);
     setIsDialogOpen(true);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setPreviewUrl(null);
+  };
+
+  const uploadImage = async (file: File, productId: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${productId}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingProduct) return;
 
-    const formData = new FormData(e.currentTarget);
-    const updates = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      price: parseFloat(formData.get("price") as string) || 0,
-      unit: formData.get("unit") as string,
-      category_id: formData.get("category_id") as string || null,
-      stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
-      is_available: formData.get("is_available") === "true",
-      is_featured: formData.get("is_featured") === "true",
-    };
+    setUploadingImage(true);
 
     try {
+      const formData = new FormData(e.currentTarget);
+      const updates: any = {
+        name: formData.get("name") as string,
+        description: formData.get("description") as string,
+        price: parseFloat(formData.get("price") as string) || 0,
+        unit: formData.get("unit") as string,
+        category_id: formData.get("category_id") as string || null,
+        stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
+        is_available: formData.get("is_available") === "true",
+        is_featured: formData.get("is_featured") === "true",
+      };
+
+      // Upload new image if selected
+      if (selectedImage) {
+        const imageUrl = await uploadImage(selectedImage, editingProduct.id);
+        if (imageUrl) {
+          updates.image_url = imageUrl;
+        }
+      }
+
       const { error } = await supabase
         .from("products")
         .update(updates)
@@ -136,10 +191,14 @@ export default function Products() {
 
       toast.success("Product updated successfully");
       setIsDialogOpen(false);
+      setSelectedImage(null);
+      setPreviewUrl(null);
       fetchProducts();
     } catch (error) {
       console.error("Error updating product:", error);
       toast.error("Failed to update product");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -352,6 +411,50 @@ export default function Products() {
                 </div>
 
                 <div>
+                  <Label htmlFor="image">Product Image</Label>
+                  <div className="space-y-3">
+                    {(previewUrl || editingProduct.image_url) && (
+                      <div className="relative w-32 h-32">
+                        <img 
+                          src={previewUrl || editingProduct.image_url || ''} 
+                          alt="Product preview"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        {previewUrl && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-6 w-6"
+                            onClick={handleRemoveImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('image')?.click()}
+                        className="gap-2"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {editingProduct.image_url ? 'Change Image' : 'Upload Image'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
@@ -447,7 +550,9 @@ export default function Products() {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Save Changes</Button>
+                  <Button type="submit" disabled={uploadingImage}>
+                    {uploadingImage ? 'Uploading...' : 'Save Changes'}
+                  </Button>
                 </div>
               </form>
             )}
