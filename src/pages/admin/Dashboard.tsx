@@ -239,6 +239,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                  <Link to="/admin/orders">
+                    <Button className="w-full mt-4">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      View All Orders
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
