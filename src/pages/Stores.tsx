@@ -4,6 +4,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, MapPin, Clock, Phone } from "lucide-react";
+import { StoreMap } from "@/components/map/StoreMap";
 
 const stores = [
   {
@@ -39,8 +40,8 @@ export default function Stores() {
           <h1 className="text-2xl font-bold">Store Locator</h1>
         </div>
 
-        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-          <p className="text-muted-foreground">Map view placeholder</p>
+        <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+          <StoreMap stores={stores} />
         </div>
 
         <div className="space-y-4">
