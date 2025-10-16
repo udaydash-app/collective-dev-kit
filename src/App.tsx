@@ -29,6 +29,7 @@ import OrderDetails from "./pages/OrderDetails";
 import Addresses from "./pages/profile/Addresses";
 import PaymentMethods from "./pages/profile/PaymentMethods";
 import NotFound from "./pages/NotFound";
+import { AdminRoute } from "./components/auth/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -43,9 +44,9 @@ const App = () => (
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:id" element={<CategoryProducts />} />
           <Route path="/product/:id" element={<ProductDetails />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/import-products" element={<ProductImport />} />
-          <Route path="/admin/analytics" element={<Analytics />} />
+          <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/import-products" element={<AdminRoute><ProductImport /></AdminRoute>} />
+          <Route path="/admin/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
