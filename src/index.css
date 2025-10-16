@@ -2,6 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* Fresh Green - Primary */
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Deep Navy - Secondary */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Warm Orange - Accent */
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Background colors */
+    --background: 210 20% 98%;
+    --foreground: 217 33% 17%;
+    
+    /* Card backgrounds */
+    --card: 0 0% 100%;
+    --card-foreground: 217 33% 17%;
+    
+    /* Muted elements */
+    --muted: 210 20% 95%;
+    --muted-foreground: 217 16% 45%;
+    
+    /* Borders */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 142 71% 45%;
+    
+    /* Status colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 217 33% 10%;
+    --foreground: 0 0% 95%;
+    --card: 217 33% 15%;
+    --card-foreground: 0 0% 95%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 142 71% 45%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
