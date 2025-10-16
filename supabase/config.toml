@@ -6,5 +6,8 @@ verify_jwt = false
 [functions.import-products]
 verify_jwt = false
 
+[functions.import-products-excel]
+verify_jwt = false
+
 [functions.send-order-confirmation]
 verify_jwt = false
