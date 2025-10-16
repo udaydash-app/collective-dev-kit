@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { Activity, ShoppingBag, TrendingUp, Users } from "lucide-react";
 import { usePageView } from "@/hooks/useAnalytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface AnalyticsSummary {
   totalEvents: number;
@@ -156,7 +157,7 @@ export default function Analytics() {
               <TrendingUp className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${summary.totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(summary.totalRevenue)}</div>
             </CardContent>
           </Card>
 
