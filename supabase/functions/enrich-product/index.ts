@@ -67,68 +67,63 @@ serve(async (req) => {
       const description = aiData.choices?.[0]?.message?.content?.trim() || null;
       console.log('Generated description:', description ? 'Success' : 'No description returned');
 
-      // Generate product image using AI
-      console.log('Generating product image with AI...');
+      // Search for product image from web
+      console.log('Searching for product image from web...');
       let imageUrl = null;
       
       try {
-        const imageController = new AbortController();
-        const imageTimeoutId = setTimeout(() => imageController.abort(), 30000); // 30 second timeout for image generation
-        
-        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
+        // Search for product images on the web
+        const searchQuery = `${productName} product photo`;
+        const searchResponse = await fetch(`https://api.search.brave.com/res/v1/images/search?q=${encodeURIComponent(searchQuery)}&count=5`, {
           headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-image-preview',
-            messages: [
-              {
-                role: 'user',
-                content: `Generate a high-quality, professional product photo of ${productName}. The image should be clean, well-lit, and suitable for an e-commerce grocery store. Square aspect ratio, white or neutral background.`
-              }
-            ],
-            modalities: ['image', 'text']
-          }),
-          signal: imageController.signal,
+            'Accept': 'application/json',
+            'X-Subscription-Token': Deno.env.get('BRAVE_SEARCH_API_KEY') || ''
+          }
         });
 
-        clearTimeout(imageTimeoutId);
-
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          const imageResults = searchData.results || [];
           
-          if (base64Image) {
-            // Upload the base64 image to Supabase Storage
-            const imageBuffer = Uint8Array.from(atob(base64Image.split(',')[1]), c => c.charCodeAt(0));
-            const fileName = `${productId}-${Date.now()}.png`;
-            
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('product-images')
-              .upload(fileName, imageBuffer, {
-                contentType: 'image/png',
-                upsert: false
+          // Try to download the first few images until one succeeds
+          for (const result of imageResults.slice(0, 3)) {
+            try {
+              const imageDownloadResponse = await fetch(result.url, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
               });
-
-            if (!uploadError && uploadData) {
-              const { data: { publicUrl } } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(uploadData.path);
               
-              imageUrl = publicUrl;
-              console.log('Generated and uploaded image:', imageUrl);
-            } else {
-              console.error('Error uploading image:', uploadError);
+              if (imageDownloadResponse.ok) {
+                const imageBlob = await imageDownloadResponse.arrayBuffer();
+                const fileName = `${productId}-${Date.now()}.jpg`;
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('product-images')
+                  .upload(fileName, imageBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                  });
+
+                if (!uploadError && uploadData) {
+                  const { data: { publicUrl } } = supabase.storage
+                    .from('product-images')
+                    .getPublicUrl(uploadData.path);
+                  
+                  imageUrl = publicUrl;
+                  console.log('Downloaded and uploaded image:', imageUrl);
+                  break; // Success, stop trying
+                }
+              }
+            } catch (downloadError) {
+              console.log('Failed to download image, trying next:', downloadError);
+              continue;
             }
           }
         } else {
-          console.log('Image generation API error:', imageResponse.status, await imageResponse.text());
+          console.log('Image search failed:', searchResponse.status);
         }
       } catch (imageError) {
-        console.error('Error generating/uploading image:', imageError);
-        // Continue without image if generation fails
+        console.error('Error searching/downloading image:', imageError);
+        // Continue without image if search fails
       }
 
       // Update product in database
