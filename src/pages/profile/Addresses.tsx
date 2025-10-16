@@ -104,7 +104,7 @@ export default function Addresses() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      if (!formData.label || !formData.address_line1 || !formData.city || !formData.state || !formData.zip_code) {
+      if (!formData.label || !formData.address_line1 || !formData.city) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -115,8 +115,8 @@ export default function Addresses() {
         address_line1: formData.address_line1,
         address_line2: formData.address_line2 || null,
         city: formData.city,
-        state: formData.state,
-        zip_code: formData.zip_code,
+        state: formData.state || "",
+        zip_code: formData.zip_code || "",
         is_default: addresses.length === 0,
       };
 
@@ -341,7 +341,7 @@ export default function Addresses() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="state">State/Region *</Label>
+                  <Label htmlFor="state">State/Region</Label>
                   <Input
                     id="state"
                     placeholder="State"
@@ -351,7 +351,7 @@ export default function Addresses() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="zip_code">Zip/Postal Code *</Label>
+                <Label htmlFor="zip_code">Zip/Postal Code</Label>
                 <Input
                   id="zip_code"
                   placeholder="Zip code"
