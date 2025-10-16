@@ -103,7 +103,7 @@ serve(async (req) => {
 
         // Now search Google Custom Search with better keywords
         const googleSearchApiKey = Deno.env.get('GOOGLE_SEARCH_API_KEY');
-        const googleCseId = Deno.env.get('GOOGLE_CSE_ID');
+        const googleCseId = Deno.env.get('GOOGLE_SEARCH_CSE_ID');
         
         if (!googleSearchApiKey || !googleCseId) {
           console.log('Google Search API not configured, skipping image search');
