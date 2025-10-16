@@ -121,11 +121,11 @@ export default function Addresses() {
     setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setFormData({
-          ...formData,
+        setFormData(prev => ({
+          ...prev,
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        });
+        }));
         toast.success("Location captured successfully!");
         setGettingLocation(false);
       },
