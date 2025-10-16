@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Plus, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, MapPin, Loader2, Navigation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView } from "@/hooks/useAnalytics";
@@ -22,6 +22,8 @@ interface Address {
   state: string;
   zip_code: string;
   phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
   is_default: boolean;
 }
 
@@ -32,6 +34,7 @@ export default function Addresses() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [formData, setFormData] = useState({
     label: "",
     address_line1: "",
@@ -40,6 +43,8 @@ export default function Addresses() {
     state: "",
     zip_code: "",
     phone: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
   useEffect(() => {
@@ -87,6 +92,8 @@ export default function Addresses() {
         state: address.state,
         zip_code: address.zip_code,
         phone: address.phone || "",
+        latitude: address.latitude ? Number(address.latitude) : null,
+        longitude: address.longitude ? Number(address.longitude) : null,
       });
     } else {
       setEditingAddress(null);
@@ -98,9 +105,37 @@ export default function Addresses() {
         state: "",
         zip_code: "",
         phone: "",
+        latitude: null,
+        longitude: null,
       });
     }
     setDialogOpen(true);
+  };
+
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData({
+          ...formData,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        toast.success("Location captured successfully!");
+        setGettingLocation(false);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast.error("Unable to get your location. Please enable location services.");
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSaveAddress = async () => {
@@ -122,6 +157,8 @@ export default function Addresses() {
         state: formData.state || "",
         zip_code: formData.zip_code || "",
         phone: formData.phone,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         is_default: addresses.length === 0,
       };
 
@@ -313,6 +350,35 @@ export default function Addresses() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Location Coordinates</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.latitude && formData.longitude 
+                      ? `📍 ${formData.latitude.toFixed(6)}, ${formData.longitude.toFixed(6)}`
+                      : "No location selected"}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGetCurrentLocation}
+                  disabled={gettingLocation}
+                  className="gap-2"
+                >
+                  {gettingLocation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Getting...
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="h-4 w-4" />
+                      Use Current Location
+                    </>
+                  )}
+                </Button>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="label">Label *</Label>
                 <Input
