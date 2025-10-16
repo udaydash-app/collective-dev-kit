@@ -1,15 +1,113 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Minus, Plus, Heart } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { usePageView, useAnalytics } from "@/hooks/useAnalytics";
 
 export default function ProductDetails() {
+  usePageView("Product Details");
+  const { trackEvent } = useAnalytics();
   const { id } = useParams();
+  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkWishlistStatus();
+  }, [id]);
+
+  const checkWishlistStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("wishlist")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("product_id", id)
+        .maybeSingle();
+
+      setIsFavorite(!!data);
+    } catch (error) {
+      console.error("Error checking wishlist:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth/login");
+        return;
+      }
+
+      if (isFavorite) {
+        await supabase
+          .from("wishlist")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("product_id", id);
+        
+        setIsFavorite(false);
+        toast.success("Removed from wishlist");
+        trackEvent("remove_from_wishlist", { product_id: id });
+      } else {
+        await supabase
+          .from("wishlist")
+          .insert({ user_id: user.id, product_id: id });
+        
+        setIsFavorite(true);
+        toast.success("Added to wishlist");
+        trackEvent("add_to_wishlist", { product_id: id });
+      }
+    } catch (error) {
+      console.error("Error toggling wishlist:", error);
+      toast.error("Failed to update wishlist");
+    }
+  };
+
+  const addToCart = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth/login");
+        return;
+      }
+
+      const { data: existingItem } = await supabase
+        .from("cart_items")
+        .select("id, quantity")
+        .eq("user_id", user.id)
+        .eq("product_id", id)
+        .maybeSingle();
+
+      if (existingItem) {
+        await supabase
+          .from("cart_items")
+          .update({ quantity: existingItem.quantity + quantity })
+          .eq("id", existingItem.id);
+      } else {
+        await supabase
+          .from("cart_items")
+          .insert({ user_id: user.id, product_id: id, quantity });
+      }
+
+      toast.success("Added to cart");
+      trackEvent("add_to_cart", { product_id: id, quantity });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add to cart");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -38,7 +136,8 @@ export default function ProductDetails() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={toggleWishlist}
+                disabled={loading}
               >
                 <Heart className={isFavorite ? "fill-primary text-primary" : ""} />
               </Button>
@@ -99,7 +198,7 @@ export default function ProductDetails() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <Button size="lg" className="flex-1">
+            <Button size="lg" className="flex-1" onClick={addToCart}>
               Add to Cart • ${(2.99 * quantity).toFixed(2)}
             </Button>
           </div>

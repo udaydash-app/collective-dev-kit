@@ -13,9 +13,11 @@ import {
   LogOut,
   ChevronRight,
   Store,
+  Heart,
 } from "lucide-react";
 
 const menuItems = [
+  { icon: Heart, label: "My Wishlist", path: "/wishlist" },
   { icon: Package, label: "Order History", path: "/orders" },
   { icon: MapPin, label: "Addresses", path: "/profile/addresses" },
   { icon: CreditCard, label: "Payment Methods", path: "/profile/payment-methods" },

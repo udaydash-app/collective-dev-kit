@@ -15,6 +15,8 @@ import CategoryProducts from "./pages/CategoryProducts";
 import ProductDetails from "./pages/ProductDetails";
 import ProductImport from "./pages/admin/ProductImport";
 import AdminDashboard from "./pages/admin/Dashboard";
+import Analytics from "./pages/admin/Analytics";
+import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
 import Stores from "./pages/Stores";
@@ -42,6 +44,8 @@ const App = () => (
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/import-products" element={<ProductImport />} />
+          <Route path="/admin/analytics" element={<Analytics />} />
+          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

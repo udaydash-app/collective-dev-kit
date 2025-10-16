@@ -12,6 +12,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let logStatus = 'success';
+  let errorMessage = null;
+  let productsImported = 0;
+
   try {
     const { url, storeId } = await req.json();
     console.log('Importing products from:', url);
@@ -114,6 +119,18 @@ Extract up to 20 products. Be accurate with prices and match products to the clo
 
     if (error) throw error;
 
+    productsImported = insertedProducts?.length || 0;
+    const executionTime = Date.now() - startTime;
+
+    // Log successful import
+    await supabase.from('import_logs').insert({
+      url,
+      store_id: storeId,
+      status: logStatus,
+      products_imported: productsImported,
+      execution_time_ms: executionTime,
+    });
+
     console.log('Inserted products:', insertedProducts?.length);
 
     return new Response(JSON.stringify({ 
@@ -125,6 +142,31 @@ Extract up to 20 products. Be accurate with prices and match products to the clo
     });
   } catch (error) {
     console.error('Import error:', error);
+    logStatus = 'error';
+    errorMessage = error instanceof Error ? error.message : "Import failed";
+    const executionTime = Date.now() - startTime;
+
+    // Log failed import - need to re-parse body
+    try {
+      const bodyText = await req.text();
+      const { url: errorUrl, storeId: errorStoreId } = JSON.parse(bodyText);
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      await supabase.from('import_logs').insert({
+        url: errorUrl,
+        store_id: errorStoreId,
+        status: logStatus,
+        products_imported: 0,
+        error_message: errorMessage,
+        execution_time_ms: executionTime,
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : "Import failed",
       details: error instanceof Error ? error.stack : undefined

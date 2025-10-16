@@ -250,8 +250,15 @@ export default function AdminDashboard() {
                 <CardDescription>Performance metrics and insights</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Analytics dashboard coming soon...</p>
-                <p className="text-sm mt-2">Track conversion rates, popular products, peak hours, and more.</p>
+                <p className="text-muted-foreground mb-4">
+                  View detailed analytics including user behavior, event tracking, and import logs.
+                </p>
+                <Link to="/admin/analytics">
+                  <Button className="w-full">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Open Analytics Dashboard
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </TabsContent>
