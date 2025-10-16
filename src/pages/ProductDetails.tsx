@@ -9,6 +9,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView, useAnalytics } from "@/hooks/useAnalytics";
 
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  unit: string;
+  image_url: string | null;
+  nutritional_info: any;
+}
+
 export default function ProductDetails() {
   usePageView("Product Details");
   const { trackEvent } = useAnalytics();
@@ -17,15 +27,36 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
+    fetchProduct();
     checkWishlistStatus();
   }, [id]);
+
+  const fetchProduct = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setProduct(data);
+    } catch (error) {
+      console.error("Error fetching product:", error);
+      toast.error("Failed to load product");
+    }
+  };
 
   const checkWishlistStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data } = await supabase
         .from("wishlist")
@@ -109,6 +140,21 @@ export default function ProductDetails() {
     }
   };
 
+  if (!product && !loading) {
+    return (
+      <div className="min-h-screen bg-background pb-32">
+        <Header />
+        <main className="max-w-screen-xl mx-auto px-4 py-12 text-center">
+          <h1 className="text-2xl font-bold mb-4">Product not found</h1>
+          <Link to="/categories">
+            <Button>Browse Categories</Button>
+          </Link>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-32">
       <Header />
@@ -124,14 +170,14 @@ export default function ProductDetails() {
 
         <div className="px-4 pb-6 space-y-6">
           <div className="aspect-square bg-muted rounded-2xl flex items-center justify-center text-9xl">
-            🍌
+            {product?.image_url || "📦"}
           </div>
 
           <div className="space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold mb-1">Organic Bananas</h1>
-                <p className="text-muted-foreground">Fresh • per bunch</p>
+                <h1 className="text-2xl font-bold mb-1">{product?.name || "Loading..."}</h1>
+                <p className="text-muted-foreground">{product?.unit}</p>
               </div>
               <Button
                 variant="ghost"
@@ -144,38 +190,37 @@ export default function ProductDetails() {
             </div>
 
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-primary">$2.99</span>
-              <span className="text-sm text-muted-foreground line-through">$3.99</span>
+              <span className="text-3xl font-bold text-primary">
+                ${product?.price.toFixed(2)}
+              </span>
             </div>
 
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-sm text-muted-foreground">
-                  Fresh organic bananas, perfect for snacking or adding to smoothies. Rich in potassium and natural energy.
-                </p>
-              </CardContent>
-            </Card>
+            {product?.description && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-2">Description</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {product.description}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">Nutritional Info</h3>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Calories</span>
-                    <span>105 per banana</span>
+            {product?.nutritional_info && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-2">Nutritional Info</h3>
+                  <div className="space-y-1 text-sm">
+                    {Object.entries(product.nutritional_info).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-muted-foreground capitalize">{key}</span>
+                        <span>{value as string}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Potassium</span>
-                    <span>422mg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Fiber</span>
-                    <span>3.1g</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -198,8 +243,8 @@ export default function ProductDetails() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <Button size="lg" className="flex-1" onClick={addToCart}>
-              Add to Cart • ${(2.99 * quantity).toFixed(2)}
+            <Button size="lg" className="flex-1" onClick={addToCart} disabled={!product}>
+              Add to Cart • ${((product?.price || 0) * quantity).toFixed(2)}
             </Button>
           </div>
         </div>
