@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { LocationDialog } from "./LocationDialog";
+import { LanguageSelector } from "./LanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Header = () => {
@@ -53,6 +54,8 @@ export const Header = () => {
             <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="text-sm truncate">{currentLocation}</span>
           </Button>
+          
+          <LanguageSelector />
           
           <Link to="/notifications">
             <Button variant="ghost" size="icon">
