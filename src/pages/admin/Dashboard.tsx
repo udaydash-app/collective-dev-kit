@@ -274,25 +274,27 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>System Settings</CardTitle>
-                <CardDescription>Configure app settings</CardDescription>
+                <CardDescription>Configure app settings and company information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Link to="/admin/orders">
+                <Link to="/admin/settings">
                   <Button className="w-full">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Company Settings
+                  </Button>
+                </Link>
+                <Link to="/admin/orders">
+                  <Button variant="outline" className="w-full">
                     <ShoppingCart className="mr-2 h-4 w-4" />
                     Manage Orders
                   </Button>
                 </Link>
                 <Link to="/admin/import-products">
-                  <Button className="w-full">
+                  <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Import Products
                   </Button>
                 </Link>
-                <Button variant="outline" className="w-full">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Email Notifications
-                </Button>
                 <Button variant="outline" className="w-full">
                   <Users className="mr-2 h-4 w-4" />
                   User Management

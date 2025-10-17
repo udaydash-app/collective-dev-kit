@@ -530,6 +530,48 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          company_address: string | null
+          company_email: string | null
+          company_name: string
+          company_phone: string | null
+          created_at: string
+          favicon_url: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string | null
+          created_at?: string
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string | null
+          created_at?: string
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stores: {
         Row: {
           address: string
