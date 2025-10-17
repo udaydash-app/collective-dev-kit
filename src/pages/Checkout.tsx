@@ -161,10 +161,6 @@ export default function Checkout() {
     return cartItems.reduce((total, item) => total + (item.products.price * item.quantity), 0);
   };
 
-  const deliveryFee = 500; // 500 FCFA
-  const tax = calculateSubtotal() * 0.1; // 10% tax
-  const total = calculateSubtotal() + deliveryFee + tax;
-
   const handlePlaceOrder = () => {
     if (!selectedAddress) {
       toast.error("Please select a delivery address");
@@ -368,23 +364,13 @@ export default function Checkout() {
         <Card>
           <CardContent className="p-4 space-y-2">
             <h3 className="font-semibold mb-3">Order Summary</h3>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(calculateSubtotal())}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Delivery Fee</span>
-              <span>{formatCurrency(deliveryFee)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
-            <div className="h-px bg-border my-2" />
             <div className="flex justify-between font-semibold text-lg">
-              <span>Total</span>
-              <span className="text-primary">{formatCurrency(total)}</span>
+              <span>Subtotal</span>
+              <span className="text-primary">{formatCurrency(calculateSubtotal())}</span>
             </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Additional delivery fees and taxes (if any) will be added by the store when confirming your order.
+            </p>
           </CardContent>
         </Card>
 

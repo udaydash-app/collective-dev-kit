@@ -46,6 +46,10 @@ export default function AdminOrders() {
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
+  const [confirmOrderDialogOpen, setConfirmOrderDialogOpen] = useState(false);
+  const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
+  const [deliveryFee, setDeliveryFee] = useState("0");
+  const [taxRate, setTaxRate] = useState("0");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -256,17 +260,54 @@ export default function AdminOrders() {
   });
 
   const updateOrderStatus = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status })
-        .eq('id', orderId);
+    mutationFn: async ({ orderId, status, deliveryFee, taxRate }: { 
+      orderId: string; 
+      status: string;
+      deliveryFee?: number;
+      taxRate?: number;
+    }) => {
+      // If confirming order with fees/tax, recalculate total
+      if (status === 'confirmed' && (deliveryFee !== undefined || taxRate !== undefined)) {
+        // Get order items to calculate subtotal
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('subtotal')
+          .eq('order_id', orderId);
 
-      if (error) throw error;
+        const subtotal = items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0;
+        const delivery = deliveryFee || 0;
+        const tax = subtotal * (taxRate || 0);
+        const total = subtotal + delivery + tax;
+
+        const { error } = await supabase
+          .from('orders')
+          .update({ 
+            status,
+            subtotal,
+            delivery_fee: delivery,
+            tax,
+            total
+          })
+          .eq('id', orderId);
+
+        if (error) throw error;
+      } else {
+        // Simple status update
+        const { error } = await supabase
+          .from('orders')
+          .update({ status })
+          .eq('id', orderId);
+
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
       toast.success('Order status updated successfully');
+      setConfirmOrderDialogOpen(false);
+      setOrderToConfirm(null);
+      setDeliveryFee("0");
+      setTaxRate("0");
     },
     onError: (error) => {
       toast.error('Failed to update order status');
@@ -290,8 +331,25 @@ export default function AdminOrders() {
     );
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    updateOrderStatus.mutate({ orderId, status: newStatus });
+  const handleStatusChange = (orderId: string, newStatus: string, order: any) => {
+    // If changing to confirmed from pending, show dialog to set delivery fee and tax
+    if (newStatus === 'confirmed' && order.status === 'pending') {
+      setOrderToConfirm(order);
+      setConfirmOrderDialogOpen(true);
+    } else {
+      updateOrderStatus.mutate({ orderId, status: newStatus });
+    }
+  };
+
+  const handleConfirmOrder = () => {
+    if (!orderToConfirm) return;
+    
+    updateOrderStatus.mutate({ 
+      orderId: orderToConfirm.id, 
+      status: 'confirmed',
+      deliveryFee: Number(deliveryFee),
+      taxRate: Number(taxRate) / 100 // Convert percentage to decimal
+    });
   };
 
   return (
@@ -406,7 +464,7 @@ export default function AdminOrders() {
                               {order.status !== 'delivered' && order.status !== 'cancelled' && (
                                 <Select
                                   value={order.status}
-                                  onValueChange={(value) => handleStatusChange(order.id, value)}
+                                  onValueChange={(value) => handleStatusChange(order.id, value, order)}
                                 >
                                   <SelectTrigger className="w-[140px]">
                                     <SelectValue />
@@ -533,6 +591,108 @@ export default function AdminOrders() {
       </main>
 
       <BottomNav />
+
+      {/* Confirm Order Dialog */}
+      <Dialog open={confirmOrderDialogOpen} onOpenChange={setConfirmOrderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Order #{orderToConfirm?.order_number}</DialogTitle>
+            <DialogDescription>
+              Set delivery fees and tax for this order before confirming
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Customer</label>
+              <p className="text-sm text-muted-foreground">{orderToConfirm?.customer_name}</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Order Subtotal</label>
+              <p className="text-lg font-semibold">{formatCurrency(Number(orderToConfirm?.subtotal || 0))}</p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="delivery-fee" className="text-sm font-medium">
+                Delivery Fee (FCFA)
+              </label>
+              <Input
+                id="delivery-fee"
+                type="number"
+                min="0"
+                step="100"
+                value={deliveryFee}
+                onChange={(e) => setDeliveryFee(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="tax-rate" className="text-sm font-medium">
+                Tax Rate (%)
+              </label>
+              <Input
+                id="tax-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal:</span>
+                <span>{formatCurrency(Number(orderToConfirm?.subtotal || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery Fee:</span>
+                <span>{formatCurrency(Number(deliveryFee || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax ({taxRate}%):</span>
+                <span>{formatCurrency(Number(orderToConfirm?.subtotal || 0) * (Number(taxRate || 0) / 100))}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                <span>Total:</span>
+                <span className="text-primary">
+                  {formatCurrency(
+                    Number(orderToConfirm?.subtotal || 0) + 
+                    Number(deliveryFee || 0) + 
+                    (Number(orderToConfirm?.subtotal || 0) * (Number(taxRate || 0) / 100))
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => {
+                  setConfirmOrderDialogOpen(false);
+                  setOrderToConfirm(null);
+                  setDeliveryFee("0");
+                  setTaxRate("0");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1"
+                onClick={handleConfirmOrder}
+                disabled={updateOrderStatus.isPending}
+              >
+                {updateOrderStatus.isPending ? "Confirming..." : "Confirm Order"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Product Dialog */}
       <Dialog open={addProductDialogOpen} onOpenChange={setAddProductDialogOpen}>

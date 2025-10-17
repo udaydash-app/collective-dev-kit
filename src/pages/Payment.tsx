@@ -71,10 +71,6 @@ export default function Payment() {
     return cartItems.reduce((total, item) => total + (item.products.price * item.quantity), 0);
   };
 
-  const deliveryFee = 500;
-  const tax = calculateSubtotal() * 0.1;
-  const total = calculateSubtotal() + deliveryFee + tax;
-
   const handleCompleteOrder = async () => {
     setIsProcessing(true);
     
@@ -108,12 +104,12 @@ export default function Payment() {
         return;
       }
 
-      // Calculate totals server-side to prevent price manipulation
+      // Calculate totals server-side (no delivery fee or tax at checkout)
       const { data: calculatedTotals, error: calculationError } = await supabase
         .rpc('calculate_order_total', {
           p_user_id: user.id,
-          p_delivery_fee: deliveryFee,
-          p_tax_rate: 0.1
+          p_delivery_fee: 0,
+          p_tax_rate: 0
         })
         .single();
 
@@ -245,25 +241,15 @@ export default function Payment() {
           <CardContent className="p-4 space-y-3">
             <h3 className="font-semibold">Order Summary</h3>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(calculateSubtotal())}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Delivery Fee</span>
-                <span>{formatCurrency(deliveryFee)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax (10%)</span>
-                <span>{formatCurrency(tax)}</span>
-              </div>
-              <div className="h-px bg-border my-2" />
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(total)}</p>
+                  <p className="text-sm text-muted-foreground">Order Subtotal</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(calculateSubtotal())}</p>
                 </div>
               </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Additional delivery fees and taxes (if any) will be added by the store when confirming your order.
+              </p>
             </div>
           </CardContent>
         </Card>
