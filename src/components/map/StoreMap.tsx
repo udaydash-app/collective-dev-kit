@@ -1,5 +1,19 @@
-import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useMemo } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix default marker icon issue with Leaflet + Webpack/Vite
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+});
 
 interface Store {
   id: string;
@@ -21,93 +35,80 @@ interface StoreMapProps {
   onStoreSelect?: (storeId: string) => void;
 }
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '100%',
-};
-
 // Abidjan, Côte d'Ivoire coordinates
-const center = {
-  lat: 5.3600,
-  lng: -4.0083,
-};
+const defaultCenter: [number, number] = [5.3600, -4.0083];
+
+// Custom user location icon
+const userIcon = L.divIcon({
+  className: 'custom-user-marker',
+  html: '<div style="background-color: #22C55E; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
 
 export function StoreMap({ stores, userLocation, onStoreSelect }: StoreMapProps) {
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY', // User needs to replace this
-  });
-
-  const mapCenter = useMemo(() => {
+  const mapCenter = useMemo((): [number, number] => {
     if (userLocation) {
-      return { lat: userLocation.latitude, lng: userLocation.longitude };
+      return [userLocation.latitude, userLocation.longitude];
     }
-    return center;
+    return defaultCenter;
   }, [userLocation]);
 
-  const markers = useMemo(() => {
+  const storeMarkers = useMemo(() => {
     return stores.map((store) => ({
       id: store.id,
-      position: {
-        lat: store.latitude || center.lat,
-        lng: store.longitude || center.lng,
-      },
+      position: [
+        store.latitude || defaultCenter[0],
+        store.longitude || defaultCenter[1],
+      ] as [number, number],
       title: store.name,
+      address: store.address,
+      city: store.city,
     }));
   }, [stores]);
 
-  if (loadError) {
-    return (
-      <div className="flex items-center justify-center h-full bg-muted rounded-lg">
-        <p className="text-destructive">Error loading map</p>
-      </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center h-full bg-muted rounded-lg">
-        <p className="text-muted-foreground">Loading map...</p>
-      </div>
-    );
-  }
-
   return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={mapCenter}
-      zoom={userLocation ? 13 : 12}
-      options={{
-        zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: true,
-      }}
-    >
-      {/* User location marker */}
-      {userLocation && (
-        <Marker
-          position={{ lat: userLocation.latitude, lng: userLocation.longitude }}
-          title="Your Location"
-          icon={{
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: "#22C55E",
-            fillOpacity: 1,
-            strokeColor: "#FFFFFF",
-            strokeWeight: 2,
-          }}
+    <div style={{ width: '100%', height: '100%' }}>
+      <MapContainer
+        center={mapCenter}
+        zoom={userLocation ? 13 : 12}
+        style={{ width: '100%', height: '100%', borderRadius: '0.5rem' }}
+        zoomControl={true}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-      )}
-      
-      {/* Store markers */}
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          position={marker.position}
-          title={marker.title}
-          onClick={() => onStoreSelect?.(marker.id)}
-        />
-      ))}
-    </GoogleMap>
+        
+        {/* User location marker */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.latitude, userLocation.longitude]}
+            icon={userIcon}
+          >
+            <Popup>Your Location</Popup>
+          </Marker>
+        )}
+        
+        {/* Store markers */}
+        {storeMarkers.map((marker) => (
+          <Marker
+            key={marker.id}
+            position={marker.position}
+            eventHandlers={{
+              click: () => onStoreSelect?.(marker.id),
+            }}
+          >
+            <Popup>
+              <div className="text-sm">
+                <h3 className="font-semibold">{marker.title}</h3>
+                <p className="text-muted-foreground">{marker.address}</p>
+                <p className="text-muted-foreground">{marker.city}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
