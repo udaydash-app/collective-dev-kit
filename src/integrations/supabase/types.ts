@@ -537,10 +537,13 @@ export type Database = {
           company_name: string
           company_phone: string | null
           created_at: string
+          currency: string | null
           favicon_url: string | null
           id: string
+          language: string | null
           logo_url: string | null
           primary_color: string | null
+          region: string | null
           secondary_color: string | null
           updated_at: string
         }
@@ -550,10 +553,13 @@ export type Database = {
           company_name?: string
           company_phone?: string | null
           created_at?: string
+          currency?: string | null
           favicon_url?: string | null
           id?: string
+          language?: string | null
           logo_url?: string | null
           primary_color?: string | null
+          region?: string | null
           secondary_color?: string | null
           updated_at?: string
         }
@@ -563,10 +569,13 @@ export type Database = {
           company_name?: string
           company_phone?: string | null
           created_at?: string
+          currency?: string | null
           favicon_url?: string | null
           id?: string
+          language?: string | null
           logo_url?: string | null
           primary_color?: string | null
+          region?: string | null
           secondary_color?: string | null
           updated_at?: string
         }

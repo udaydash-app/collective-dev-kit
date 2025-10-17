@@ -22,6 +22,9 @@ interface Settings {
   favicon_url: string | null;
   primary_color: string;
   secondary_color: string;
+  region: string;
+  language: string;
+  currency: string;
 }
 
 export default function AdminSettings() {
@@ -34,6 +37,9 @@ export default function AdminSettings() {
   const [secondaryColor, setSecondaryColor] = useState("#1E293B");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [region, setRegion] = useState("Côte d'Ivoire");
+  const [language, setLanguage] = useState("en");
+  const [currency, setCurrency] = useState("XOF");
 
   const queryClient = useQueryClient();
 
@@ -60,6 +66,9 @@ export default function AdminSettings() {
       setLogoUrl(settings.logo_url || "");
       setPrimaryColor(settings.primary_color);
       setSecondaryColor(settings.secondary_color);
+      setRegion(settings.region);
+      setLanguage(settings.language);
+      setCurrency(settings.currency);
       if (settings.logo_url) {
         setLogoPreview(settings.logo_url);
       }
@@ -126,6 +135,9 @@ export default function AdminSettings() {
         logo_url: finalLogoUrl || null,
         primary_color: primaryColor,
         secondary_color: secondaryColor,
+        region: region,
+        language: language,
+        currency: currency,
       };
 
       if (settings?.id) {
@@ -308,6 +320,47 @@ export default function AdminSettings() {
                     />
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Regional Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Regional Settings</CardTitle>
+              <CardDescription>
+                Configure region, language and currency preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="region">Region</Label>
+                <Input
+                  id="region"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="Enter region"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="language">Language</Label>
+                <Input
+                  id="language"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  placeholder="e.g., en, fr"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Input
+                  id="currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  placeholder="e.g., XOF, USD, EUR"
+                />
               </div>
             </CardContent>
           </Card>
