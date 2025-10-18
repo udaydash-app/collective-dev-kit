@@ -293,11 +293,14 @@ export default function Products() {
     );
   }
 
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.categories?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const query = searchQuery.toLowerCase();
+    return (
+      product.name.toLowerCase().includes(query) ||
+      (product.description?.toLowerCase() || '').includes(query) ||
+      (product.categories?.name?.toLowerCase() || '').includes(query)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-background pb-20">
