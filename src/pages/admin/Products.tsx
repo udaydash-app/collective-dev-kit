@@ -70,6 +70,7 @@ export default function Products() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      console.log('Admin: Fetched products count:', data?.length || 0);
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -301,6 +302,8 @@ export default function Products() {
       (product.categories?.name?.toLowerCase() || '').includes(query)
     );
   });
+
+  console.log('Admin: Total products:', products.length, 'Filtered:', filteredProducts.length, 'Search:', searchQuery);
 
   return (
     <div className="min-h-screen bg-background pb-20">
