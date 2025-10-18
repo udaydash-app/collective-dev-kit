@@ -137,6 +137,14 @@ export default function Products() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check if file type is supported
+      const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!supportedTypes.includes(file.type)) {
+        toast.error(`${file.type.split('/')[1].toUpperCase()} format is not supported. Please use JPG, PNG, WEBP, or GIF.`);
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -487,7 +495,7 @@ export default function Products() {
                       <Input
                         id="image"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                         onChange={handleImageSelect}
                         className="hidden"
                       />
