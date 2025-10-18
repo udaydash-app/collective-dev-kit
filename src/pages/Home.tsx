@@ -26,9 +26,19 @@ interface FeaturedProduct {
   unit: string;
 }
 
+interface Offer {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  discount_percentage: number | null;
+  link_url: string | null;
+}
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +68,18 @@ export default function Home() {
 
       if (productsError) throw productsError;
       setFeaturedProducts(productsData || []);
+
+      // Fetch active offers
+      const { data: offersData, error: offersError } = await supabase
+        .from("offers")
+        .select("id, title, description, image_url, discount_percentage, link_url")
+        .eq("is_active", true)
+        .lte("start_date", new Date().toISOString())
+        .gte("end_date", new Date().toISOString())
+        .order("display_order", { ascending: true });
+
+      if (offersError) throw offersError;
+      setOffers(offersData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
@@ -116,6 +138,50 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
           <p className="text-muted-foreground">What would you like to order today?</p>
         </div>
+
+        {/* Offers Section */}
+        {offers.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Special Offers</h2>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {offers.map((offer) => (
+                <Card key={offer.id} className="flex-shrink-0 w-[320px] hover:shadow-md transition-shadow">
+                  <CardContent className="p-0">
+                    {offer.image_url ? (
+                      <img 
+                        src={offer.image_url} 
+                        alt={offer.title}
+                        className="w-full h-40 object-cover rounded-t-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                        <span className="text-6xl">🎁</span>
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                      {offer.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                      )}
+                      {offer.discount_percentage && (
+                        <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
+                          {offer.discount_percentage}% OFF
+                        </div>
+                      )}
+                      {offer.link_url && (
+                        <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" className="w-full mt-2">
+                            View Offer
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Featured Deals Carousel */}
         <section className="space-y-3">

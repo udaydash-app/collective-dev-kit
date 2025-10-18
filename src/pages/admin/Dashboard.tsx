@@ -14,7 +14,8 @@ import {
   Store,
   BarChart3,
   Settings,
-  Tags
+  Tags,
+  Tag
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -311,6 +312,12 @@ export default function AdminDashboard() {
                   <Button variant="outline" className="w-full">
                     <Tags className="mr-2 h-4 w-4" />
                     Manage Categories
+                  </Button>
+                </Link>
+                <Link to="/admin/offers">
+                  <Button variant="outline" className="w-full">
+                    <Tag className="mr-2 h-4 w-4" />
+                    Manage Offers
                   </Button>
                 </Link>
                 <Button variant="outline" className="w-full">
