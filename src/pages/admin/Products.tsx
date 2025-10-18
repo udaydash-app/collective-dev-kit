@@ -68,7 +68,7 @@ export default function Products() {
           stores(name)
         `)
         .order("created_at", { ascending: false })
-        .limit(5000);
+        .range(0, 4999);
 
       if (error) throw error;
       console.log('Admin: Fetched products count:', data?.length || 0);
