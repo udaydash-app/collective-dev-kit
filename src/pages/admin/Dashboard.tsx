@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Store,
   BarChart3,
-  Settings
+  Settings,
+  Tags
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -146,9 +147,14 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalProducts || 0}</div>
-              <Link to="/admin/import-products">
-                <p className="text-xs text-primary hover:underline">Import more products</p>
-              </Link>
+              <div className="flex flex-col gap-1 mt-2">
+                <Link to="/admin/products">
+                  <p className="text-xs text-primary hover:underline">Manage products</p>
+                </Link>
+                <Link to="/admin/categories">
+                  <p className="text-xs text-primary hover:underline">Manage categories</p>
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
@@ -289,10 +295,22 @@ export default function AdminDashboard() {
                     Manage Orders
                   </Button>
                 </Link>
+                <Link to="/admin/products">
+                  <Button variant="outline" className="w-full">
+                    <Package className="mr-2 h-4 w-4" />
+                    Manage Products
+                  </Button>
+                </Link>
                 <Link to="/admin/import-products">
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Import Products
+                  </Button>
+                </Link>
+                <Link to="/admin/categories">
+                  <Button variant="outline" className="w-full">
+                    <Tags className="mr-2 h-4 w-4" />
+                    Manage Categories
                   </Button>
                 </Link>
                 <Button variant="outline" className="w-full">
