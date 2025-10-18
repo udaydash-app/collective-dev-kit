@@ -60,19 +60,35 @@ export default function Products() {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select(`
-          *,
-          categories(name),
-          stores(name)
-        `)
-        .order("created_at", { ascending: false })
-        .range(0, 4999);
+      let allProducts: Product[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      console.log('Admin: Fetched products count:', data?.length || 0);
-      setProducts(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("products")
+          .select(`
+            *,
+            categories(name),
+            stores(name)
+          `)
+          .order("created_at", { ascending: false })
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allProducts = [...allProducts, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log('Admin: Fetched products count:', allProducts.length);
+      setProducts(allProducts);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to load products");
