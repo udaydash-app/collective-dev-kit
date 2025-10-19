@@ -35,10 +35,19 @@ interface Offer {
   link_url: string | null;
 }
 
+interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  background_color: string;
+  text_color: string;
+}
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,6 +89,20 @@ export default function Home() {
 
       if (offersError) throw offersError;
       setOffers(offersData || []);
+
+      // Fetch active announcement
+      const { data: announcementData, error: announcementError } = await supabase
+        .from("announcements")
+        .select("id, title, message, background_color, text_color")
+        .eq("is_active", true)
+        .lte("start_date", new Date().toISOString())
+        .gte("end_date", new Date().toISOString())
+        .order("display_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (announcementError) throw announcementError;
+      setAnnouncement(announcementData);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
@@ -131,6 +154,19 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      
+      {/* Announcement Ribbon */}
+      {announcement && (
+        <div 
+          className="py-2 px-4 text-center text-sm font-medium"
+          style={{ 
+            backgroundColor: announcement.background_color,
+            color: announcement.text_color
+          }}
+        >
+          <span className="font-semibold">{announcement.title}:</span> {announcement.message}
+        </div>
+      )}
       
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {/* Welcome Section */}

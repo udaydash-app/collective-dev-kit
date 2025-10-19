@@ -95,6 +95,48 @@ export type Database = {
         }
         Relationships: []
       }
+      announcements: {
+        Row: {
+          background_color: string | null
+          created_at: string | null
+          display_order: number | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          message: string
+          start_date: string
+          text_color: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          message: string
+          start_date?: string
+          text_color?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          start_date?: string
+          text_color?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
