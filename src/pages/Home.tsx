@@ -42,6 +42,10 @@ interface Announcement {
   background_color: string;
   text_color: string;
   background_image_url: string | null;
+  title_font_size: string;
+  title_font_weight: string;
+  message_font_size: string;
+  message_font_weight: string;
 }
 
 export default function Home() {
@@ -94,7 +98,7 @@ export default function Home() {
       // Fetch active announcement
       const { data: announcementData, error: announcementError } = await supabase
         .from("announcements")
-        .select("id, title, message, background_color, text_color, background_image_url")
+        .select("id, title, message, background_color, text_color, background_image_url, title_font_size, title_font_weight, message_font_size, message_font_weight")
         .eq("is_active", true)
         .lte("start_date", new Date().toISOString())
         .gte("end_date", new Date().toISOString())
@@ -174,8 +178,12 @@ export default function Home() {
             <div className="absolute inset-0 bg-black/40" />
           )}
           <div className="relative z-10">
-            <h2 className="text-lg md:text-xl font-bold mb-1">{announcement.title}</h2>
-            <p className="text-sm md:text-base font-normal">{announcement.message}</p>
+            <h2 className={`${announcement.title_font_size} ${announcement.title_font_weight} mb-1`}>
+              {announcement.title}
+            </h2>
+            <p className={`${announcement.message_font_size} ${announcement.message_font_weight}`}>
+              {announcement.message}
+            </p>
           </div>
         </div>
       )}

@@ -105,9 +105,13 @@ export type Database = {
           id: string
           is_active: boolean | null
           message: string
+          message_font_size: string | null
+          message_font_weight: string | null
           start_date: string
           text_color: string | null
           title: string
+          title_font_size: string | null
+          title_font_weight: string | null
           updated_at: string | null
         }
         Insert: {
@@ -119,9 +123,13 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           message: string
+          message_font_size?: string | null
+          message_font_weight?: string | null
           start_date?: string
           text_color?: string | null
           title: string
+          title_font_size?: string | null
+          title_font_weight?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -133,9 +141,13 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           message?: string
+          message_font_size?: string | null
+          message_font_weight?: string | null
           start_date?: string
           text_color?: string | null
           title?: string
+          title_font_size?: string | null
+          title_font_weight?: string | null
           updated_at?: string | null
         }
         Relationships: []

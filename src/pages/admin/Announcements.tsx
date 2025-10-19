@@ -36,6 +36,10 @@ interface Announcement {
   background_color: string;
   text_color: string;
   background_image_url: string | null;
+  title_font_size: string;
+  title_font_weight: string;
+  message_font_size: string;
+  message_font_weight: string;
   display_order: number;
   created_at: string;
 }
@@ -56,6 +60,10 @@ export default function AdminAnnouncements() {
     background_color: "#22C55E",
     text_color: "#FFFFFF",
     background_image_url: "",
+    title_font_size: "text-xl",
+    title_font_weight: "font-bold",
+    message_font_size: "text-base",
+    message_font_weight: "font-normal",
     display_order: 0,
   });
 
@@ -129,6 +137,10 @@ export default function AdminAnnouncements() {
       background_color: announcement.background_color,
       text_color: announcement.text_color,
       background_image_url: announcement.background_image_url || "",
+      title_font_size: announcement.title_font_size,
+      title_font_weight: announcement.title_font_weight,
+      message_font_size: announcement.message_font_size,
+      message_font_weight: announcement.message_font_weight,
       display_order: announcement.display_order,
     });
     setDialogOpen(true);
@@ -165,6 +177,10 @@ export default function AdminAnnouncements() {
       background_color: "#22C55E",
       text_color: "#FFFFFF",
       background_image_url: "",
+      title_font_size: "text-xl",
+      title_font_weight: "font-bold",
+      message_font_size: "text-base",
+      message_font_weight: "font-normal",
       display_order: 0,
     });
   };
@@ -273,6 +289,63 @@ export default function AdminAnnouncements() {
                       onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Title Font Size</Label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.title_font_size}
+                    onChange={(e) => setFormData({ ...formData, title_font_size: e.target.value })}
+                  >
+                    <option value="text-sm">Small</option>
+                    <option value="text-base">Base</option>
+                    <option value="text-lg">Large</option>
+                    <option value="text-xl">Extra Large</option>
+                    <option value="text-2xl">2X Large</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Title Font Weight</Label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.title_font_weight}
+                    onChange={(e) => setFormData({ ...formData, title_font_weight: e.target.value })}
+                  >
+                    <option value="font-normal">Normal</option>
+                    <option value="font-medium">Medium</option>
+                    <option value="font-semibold">Semi Bold</option>
+                    <option value="font-bold">Bold</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Message Font Size</Label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.message_font_size}
+                    onChange={(e) => setFormData({ ...formData, message_font_size: e.target.value })}
+                  >
+                    <option value="text-xs">Extra Small</option>
+                    <option value="text-sm">Small</option>
+                    <option value="text-base">Base</option>
+                    <option value="text-lg">Large</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Message Font Weight</Label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.message_font_weight}
+                    onChange={(e) => setFormData({ ...formData, message_font_weight: e.target.value })}
+                  >
+                    <option value="font-light">Light</option>
+                    <option value="font-normal">Normal</option>
+                    <option value="font-medium">Medium</option>
+                    <option value="font-semibold">Semi Bold</option>
+                  </select>
                 </div>
 
                 <div className="space-y-2">
