@@ -208,13 +208,13 @@ export default function AdminAnnouncements() {
                 Add Announcement
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingAnnouncement ? "Edit Announcement" : "Create New Announcement"}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 pr-2">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title</Label>
                   <Input
