@@ -632,9 +632,41 @@ export default function Products() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="price">Price (FCFA)</Label>
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      defaultValue={editingProduct.price}
+                      required={variants.length === 0}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="unit">Unit</Label>
+                    <Select name="unit" defaultValue={editingProduct.unit} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                        <SelectItem value="gm">Grams (gm)</SelectItem>
+                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                        <SelectItem value="ltr">Liters (ltr)</SelectItem>
+                        <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                        <SelectItem value="dozen">Dozen</SelectItem>
+                        <SelectItem value="pack">Pack</SelectItem>
+                        <SelectItem value="box">Box</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Product Variants (Units & Prices)</Label>
+                    <Label>Product Variants (Optional - Different sizes/units)</Label>
                     <Button type="button" size="sm" onClick={() => setShowVariants(!showVariants)} variant="outline">
                       {showVariants ? 'Hide' : 'Show'} Variants ({variants.length})
                     </Button>
@@ -721,40 +753,6 @@ export default function Products() {
                         <Plus className="h-4 w-4 mr-2" />
                         Add Variant
                       </Button>
-                    </div>
-                  )}
-                  
-                  {!showVariants && variants.length === 0 && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="price">Price (FCFA)</Label>
-                        <Input
-                          id="price"
-                          name="price"
-                          type="number"
-                          step="0.01"
-                          defaultValue={editingProduct.price}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="unit">Unit</Label>
-                        <Select name="unit" defaultValue={editingProduct.unit} required>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select unit" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pcs">Pieces (pcs)</SelectItem>
-                            <SelectItem value="gm">Grams (gm)</SelectItem>
-                            <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                            <SelectItem value="ltr">Liters (ltr)</SelectItem>
-                            <SelectItem value="ml">Milliliters (ml)</SelectItem>
-                            <SelectItem value="dozen">Dozen</SelectItem>
-                            <SelectItem value="pack">Pack</SelectItem>
-                            <SelectItem value="box">Box</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
                   )}
                 </div>
