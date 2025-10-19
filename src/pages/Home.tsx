@@ -170,8 +170,9 @@ export default function Home() {
             backgroundImage: announcement.background_image_url 
               ? `url(${announcement.background_image_url})` 
               : undefined,
-            backgroundSize: 'cover',
+            backgroundSize: 'contain',
             backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
           }}
         >
           {announcement.background_image_url && (
