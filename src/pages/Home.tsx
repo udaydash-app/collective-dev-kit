@@ -24,6 +24,12 @@ interface FeaturedProduct {
   original_price: number | null;
   image_url: string | null;
   unit: string;
+  product_variants?: Array<{
+    id: string;
+    price: number;
+    quantity?: number;
+    unit: string;
+  }>;
 }
 
 interface Offer {
@@ -75,7 +81,15 @@ export default function Home() {
       // Fetch featured products
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, price, original_price, image_url, unit")
+        .select(`
+          id, 
+          name, 
+          price, 
+          original_price, 
+          image_url, 
+          unit,
+          product_variants(id, price, quantity, unit)
+        `)
         .eq("is_featured", true)
         .eq("is_available", true)
         .limit(10);
@@ -301,22 +315,37 @@ export default function Home() {
                             </h3>
                           </Link>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-bold text-primary">
-                              {formatCurrency(product.price)}
-                            </span>
-                            {product.original_price && product.original_price > product.price && (
-                              <span className="text-xs text-muted-foreground line-through">
-                                {formatCurrency(product.original_price)}
+                            {product.product_variants && product.product_variants.length > 0 ? (
+                              <span className="text-sm font-medium text-primary">
+                                Select variant
                               </span>
+                            ) : (
+                              <>
+                                <span className="text-lg font-bold text-primary">
+                                  {formatCurrency(product.price)}
+                                </span>
+                                {product.original_price && product.original_price > product.price && (
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    {formatCurrency(product.original_price)}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                           <Button 
                             size="sm" 
                             className="mt-2 w-full gap-1"
-                            onClick={() => handleAddToCart(product.id)}
+                            onClick={() => {
+                              if (product.product_variants && product.product_variants.length > 0) {
+                                // Navigate to product page to select variant
+                                window.location.href = `/product/${product.id}`;
+                              } else {
+                                handleAddToCart(product.id);
+                              }
+                            }}
                           >
                             <Plus className="h-3 w-3" />
-                            Add to Cart
+                            {product.product_variants && product.product_variants.length > 0 ? 'View Options' : 'Add to Cart'}
                           </Button>
                         </div>
                       </div>

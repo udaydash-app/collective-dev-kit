@@ -17,6 +17,12 @@ interface Product {
   price: number;
   unit: string;
   image_url: string | null;
+  product_variants?: Array<{
+    id: string;
+    price: number;
+    quantity?: number;
+    unit: string;
+  }>;
 }
 
 export default function CategoryProducts() {
@@ -46,7 +52,14 @@ export default function CategoryProducts() {
         // Then get products for this category
         const { data, error } = await supabase
           .from("products")
-          .select("id, name, price, unit, image_url")
+          .select(`
+            id, 
+            name, 
+            price, 
+            unit, 
+            image_url,
+            product_variants(id, price, quantity, unit)
+          `)
           .eq("category_id", category.id)
           .eq("is_available", true);
 
@@ -150,15 +163,26 @@ export default function CategoryProducts() {
                     <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
                   </Link>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-primary">
-                      {formatCurrency(product.price)}
-                    </span>
+                    {product.product_variants && product.product_variants.length > 0 ? (
+                      <span className="text-sm font-medium text-primary">
+                        Select variant
+                      </span>
+                    ) : (
+                      <span className="text-lg font-bold text-primary">
+                        {formatCurrency(product.price)}
+                      </span>
+                    )}
                     <Button 
                       size="icon" 
                       variant="outline"
                       onClick={(e) => {
                         e.preventDefault();
-                        quickAddToCart(product.id);
+                        if (product.product_variants && product.product_variants.length > 0) {
+                          // Navigate to product page to select variant
+                          window.location.href = `/product/${product.id}`;
+                        } else {
+                          quickAddToCart(product.id);
+                        }
                       }}
                     >
                       <Plus className="h-4 w-4" />
