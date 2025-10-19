@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import logo from "@/assets/logo.png";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -69,8 +70,8 @@ export default function Login() {
       <main className="flex-1 flex items-center justify-center px-4 pb-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-primary-foreground font-bold text-2xl">GM</span>
+            <div className="flex items-center justify-center mx-auto mb-4">
+              <img src={logo} alt="Global Market" className="h-20 w-20 object-contain" />
             </div>
             <CardTitle className="text-2xl">Welcome back</CardTitle>
             <CardDescription>Sign in to your Global Market account</CardDescription>
