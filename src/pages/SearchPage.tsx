@@ -20,6 +20,12 @@ interface Product {
   image_url: string | null;
   description: string | null;
   unit: string;
+  product_variants?: Array<{
+    id: string;
+    price: number;
+    quantity?: number;
+    unit: string;
+  }>;
 }
 
 export default function SearchPage() {
@@ -43,7 +49,15 @@ export default function SearchPage() {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, image_url, description, unit')
+        .select(`
+          id, 
+          name, 
+          price, 
+          image_url, 
+          description, 
+          unit,
+          product_variants(id, price, quantity, unit)
+        `)
         .ilike('name', `%${query}%`)
         .eq('is_available', true)
         .limit(20);
@@ -206,7 +220,11 @@ export default function SearchPage() {
                       </div>
                       <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
                       <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
-                      <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
+                      {product.product_variants && product.product_variants.length > 0 ? (
+                        <p className="text-sm font-medium text-primary">Select variant for price</p>
+                      ) : (
+                        <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
+                      )}
                     </CardContent>
                   </Card>
                 </Link>

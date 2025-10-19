@@ -64,6 +64,8 @@ export default function CategoryProducts() {
           .eq("is_available", true);
 
         if (error) throw error;
+        
+        console.log('CategoryProducts: Fetched products with variants:', data);
         setProducts(data || []);
       }
     } catch (error) {
@@ -164,8 +166,8 @@ export default function CategoryProducts() {
                   </Link>
                   <div className="flex items-center justify-between">
                     {product.product_variants && product.product_variants.length > 0 ? (
-                      <span className="text-sm font-medium text-primary">
-                        Select variant
+                      <span className="text-xs font-medium text-primary">
+                        From {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))}
                       </span>
                     ) : (
                       <span className="text-lg font-bold text-primary">
