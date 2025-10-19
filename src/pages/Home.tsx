@@ -314,13 +314,17 @@ export default function Home() {
                               {product.name}
                             </h3>
                           </Link>
-                          <div className="flex items-baseline gap-2">
+                          <div>
                             {product.product_variants && product.product_variants.length > 0 ? (
-                              <span className="text-sm font-medium text-primary">
-                                Select variant
-                              </span>
+                              <div className="space-y-1">
+                                {product.product_variants.map((variant) => (
+                                  <p key={variant.id} className="text-xs font-medium text-primary">
+                                    {variant.quantity} {variant.unit}: {formatCurrency(variant.price)}
+                                  </p>
+                                ))}
+                              </div>
                             ) : (
-                              <>
+                              <div className="flex items-baseline gap-2">
                                 <span className="text-lg font-bold text-primary">
                                   {formatCurrency(product.price)}
                                 </span>
@@ -329,7 +333,7 @@ export default function Home() {
                                     {formatCurrency(product.original_price)}
                                   </span>
                                 )}
-                              </>
+                              </div>
                             )}
                           </div>
                           <Button 

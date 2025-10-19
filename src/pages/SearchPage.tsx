@@ -221,7 +221,13 @@ export default function SearchPage() {
                       <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
                       <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
                       {product.product_variants && product.product_variants.length > 0 ? (
-                        <p className="text-sm font-medium text-primary">Select variant for price</p>
+                        <div className="space-y-1">
+                          {product.product_variants.map((variant) => (
+                            <p key={variant.id} className="text-xs font-medium text-primary">
+                              {variant.quantity} {variant.unit}: {formatCurrency(variant.price)}
+                            </p>
+                          ))}
+                        </div>
                       ) : (
                         <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
                       )}
