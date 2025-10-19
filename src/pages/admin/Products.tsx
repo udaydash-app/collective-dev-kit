@@ -13,6 +13,16 @@ import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  unit: string;
+  price: number;
+  stock_quantity: number;
+  is_available: boolean;
+  is_default: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -27,6 +37,7 @@ interface Product {
   stock_quantity: number;
   categories?: { name: string };
   stores?: { name: string };
+  product_variants?: ProductVariant[];
 }
 
 interface Category {
@@ -52,6 +63,8 @@ export default function Products() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [showVariants, setShowVariants] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -72,7 +85,8 @@ export default function Products() {
           .select(`
             *,
             categories(name),
-            stores(name)
+            stores(name),
+            product_variants(*)
           `)
           .order("created_at", { ascending: false })
           .range(from, from + batchSize - 1);
@@ -133,7 +147,62 @@ export default function Products() {
     setSelectedImage(null);
     setPreviewUrl(null);
     setImageUrl("");
+    setVariants(product.product_variants || []);
+    setShowVariants(false);
     setIsDialogOpen(true);
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, {
+      id: `temp-${Date.now()}`,
+      product_id: editingProduct?.id || '',
+      unit: 'pcs',
+      price: 0,
+      stock_quantity: 0,
+      is_available: true,
+      is_default: variants.length === 0,
+    }]);
+  };
+
+  const updateVariant = (index: number, field: keyof ProductVariant, value: any) => {
+    const newVariants = [...variants];
+    newVariants[index] = { ...newVariants[index], [field]: value };
+    setVariants(newVariants);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const saveVariants = async (productId: string) => {
+    try {
+      // Delete existing variants
+      await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', productId);
+
+      // Insert new variants
+      if (variants.length > 0) {
+        const variantsToInsert = variants.map(v => ({
+          product_id: productId,
+          unit: v.unit,
+          price: v.price,
+          stock_quantity: v.stock_quantity,
+          is_available: v.is_available,
+          is_default: v.is_default,
+        }));
+
+        const { error } = await supabase
+          .from('product_variants')
+          .insert(variantsToInsert);
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error saving variants:', error);
+      throw error;
+    }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,11 +291,15 @@ export default function Products() {
 
       if (error) throw error;
 
+      // Save variants
+      await saveVariants(editingProduct.id);
+
       toast.success("Product updated successfully");
       setIsDialogOpen(false);
       setSelectedImage(null);
       setPreviewUrl(null);
       setImageUrl("");
+      setVariants([]);
       fetchProducts();
     } catch (error) {
       console.error("Error updating product:", error);
@@ -427,11 +500,24 @@ export default function Products() {
                       </p>
                     )}
                     <div className="flex flex-wrap gap-3 text-sm">
-                      <span className="font-semibold text-primary">
-                        {formatCurrency(product.price)}
-                      </span>
-                      <span>Unit: {product.unit}</span>
-                      <span>Stock: {product.stock_quantity}</span>
+                      {product.product_variants && product.product_variants.length > 0 ? (
+                        <>
+                          <span className="font-semibold text-primary">
+                            {product.product_variants.length} variant{product.product_variants.length > 1 ? 's' : ''}
+                          </span>
+                          <span>
+                            {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-primary">
+                            {formatCurrency(product.price)}
+                          </span>
+                          <span>Unit: {product.unit}</span>
+                          <span>Stock: {product.stock_quantity}</span>
+                        </>
+                      )}
                       <span className={product.is_available ? "text-green-600" : "text-red-600"}>
                         {product.is_available ? "Available" : "Unavailable"}
                       </span>
@@ -541,37 +627,120 @@ export default function Products() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="price">Price (FCFA)</Label>
-                    <Input
-                      id="price"
-                      name="price"
-                      type="number"
-                      step="0.01"
-                      defaultValue={editingProduct.price}
-                      required
-                    />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Product Variants (Units & Prices)</Label>
+                    <Button type="button" size="sm" onClick={() => setShowVariants(!showVariants)} variant="outline">
+                      {showVariants ? 'Hide' : 'Show'} Variants ({variants.length})
+                    </Button>
                   </div>
-
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Select name="unit" defaultValue={editingProduct.unit} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pcs">Pieces (pcs)</SelectItem>
-                        <SelectItem value="gm">Grams (gm)</SelectItem>
-                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                        <SelectItem value="ltr">Liters (ltr)</SelectItem>
-                        <SelectItem value="ml">Milliliters (ml)</SelectItem>
-                        <SelectItem value="dozen">Dozen</SelectItem>
-                        <SelectItem value="pack">Pack</SelectItem>
-                        <SelectItem value="box">Box</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  
+                  {showVariants && (
+                    <div className="space-y-3 p-4 border rounded-lg">
+                      {variants.map((variant, index) => (
+                        <div key={variant.id} className="grid grid-cols-12 gap-2 items-end">
+                          <div className="col-span-3">
+                            <Label className="text-xs">Unit</Label>
+                            <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pcs">Pieces</SelectItem>
+                                <SelectItem value="gm">Grams</SelectItem>
+                                <SelectItem value="kg">Kilograms</SelectItem>
+                                <SelectItem value="ltr">Liters</SelectItem>
+                                <SelectItem value="ml">Milliliters</SelectItem>
+                                <SelectItem value="dozen">Dozen</SelectItem>
+                                <SelectItem value="pack">Pack</SelectItem>
+                                <SelectItem value="box">Box</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="col-span-3">
+                            <Label className="text-xs">Price (FCFA)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={variant.price}
+                              onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Stock</Label>
+                            <Input
+                              type="number"
+                              value={variant.stock_quantity}
+                              onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Available</Label>
+                            <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Yes</SelectItem>
+                                <SelectItem value="false">No</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="col-span-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => removeVariant(index)}
+                              className="h-9 w-full"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <Button type="button" size="sm" onClick={addVariant} variant="outline" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Variant
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {!showVariants && variants.length === 0 && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="price">Price (FCFA)</Label>
+                        <Input
+                          id="price"
+                          name="price"
+                          type="number"
+                          step="0.01"
+                          defaultValue={editingProduct.price}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="unit">Unit</Label>
+                        <Select name="unit" defaultValue={editingProduct.unit} required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                            <SelectItem value="gm">Grams (gm)</SelectItem>
+                            <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                            <SelectItem value="ltr">Liters (ltr)</SelectItem>
+                            <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                            <SelectItem value="dozen">Dozen</SelectItem>
+                            <SelectItem value="pack">Pack</SelectItem>
+                            <SelectItem value="box">Box</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
