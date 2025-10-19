@@ -10,6 +10,18 @@ import { toast } from "sonner";
 import { usePageView, useAnalytics } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
 
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  unit: string;
+  quantity?: number;
+  label?: string;
+  price: number;
+  stock_quantity: number;
+  is_available: boolean;
+  is_default: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -18,6 +30,7 @@ interface Product {
   unit: string;
   image_url: string | null;
   nutritional_info: any;
+  product_variants?: ProductVariant[];
 }
 
 export default function ProductDetails() {
@@ -29,6 +42,7 @@ export default function ProductDetails() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   useEffect(() => {
     fetchProduct();
@@ -39,12 +53,21 @@ export default function ProductDetails() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select(`
+          *,
+          product_variants(*)
+        `)
         .eq("id", id)
         .single();
 
       if (error) throw error;
       setProduct(data);
+      
+      // Set default variant if available
+      if (data.product_variants && data.product_variants.length > 0) {
+        const defaultVariant = data.product_variants.find((v: ProductVariant) => v.is_default) || data.product_variants[0];
+        setSelectedVariant(defaultVariant);
+      }
     } catch (error) {
       console.error("Error fetching product:", error);
       toast.error("Failed to load product");
@@ -115,11 +138,23 @@ export default function ProductDetails() {
         return;
       }
 
+      const cartItem: any = {
+        user_id: user.id,
+        product_id: id,
+        quantity
+      };
+
+      // Add variant_id if a variant is selected
+      if (selectedVariant) {
+        cartItem.variant_id = selectedVariant.id;
+      }
+
       const { data: existingItem } = await supabase
         .from("cart_items")
         .select("id, quantity")
         .eq("user_id", user.id)
         .eq("product_id", id)
+        .eq("variant_id", selectedVariant?.id || null)
         .maybeSingle();
 
       if (existingItem) {
@@ -130,11 +165,11 @@ export default function ProductDetails() {
       } else {
         await supabase
           .from("cart_items")
-          .insert({ user_id: user.id, product_id: id, quantity });
+          .insert(cartItem);
       }
 
       toast.success("Added to cart");
-      trackEvent("add_to_cart", { product_id: id, quantity });
+      trackEvent("add_to_cart", { product_id: id, quantity, variant_id: selectedVariant?.id });
     } catch (error) {
       console.error("Error adding to cart:", error);
       toast.error("Failed to add to cart");
@@ -188,7 +223,12 @@ export default function ProductDetails() {
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-2xl font-bold mb-1">{product?.name || "Loading..."}</h1>
-                <p className="text-muted-foreground">{product?.unit}</p>
+                <p className="text-muted-foreground">
+                  {selectedVariant 
+                    ? `${selectedVariant.quantity || ''} ${selectedVariant.unit}`.trim()
+                    : product?.unit
+                  }
+                </p>
               </div>
               <Button
                 variant="ghost"
@@ -202,9 +242,35 @@ export default function ProductDetails() {
 
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-primary">
-                {product && formatCurrency(product.price)}
+                {product && formatCurrency(selectedVariant?.price || product.price)}
               </span>
             </div>
+
+            {product?.product_variants && product.product_variants.length > 0 && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-3">Select Size</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {product.product_variants.map((variant) => (
+                      <Button
+                        key={variant.id}
+                        variant={selectedVariant?.id === variant.id ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3"
+                        onClick={() => setSelectedVariant(variant)}
+                        disabled={!variant.is_available}
+                      >
+                        <span className="font-semibold">
+                          {variant.quantity || ''} {variant.unit}
+                        </span>
+                        <span className="text-xs mt-1">
+                          {formatCurrency(variant.price)}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {product?.description && (
               <Card>
@@ -255,7 +321,7 @@ export default function ProductDetails() {
               </Button>
             </div>
             <Button size="lg" className="flex-1" onClick={addToCart} disabled={!product}>
-              Add to Cart • {formatCurrency((product?.price || 0) * quantity)}
+              Add to Cart • {formatCurrency((selectedVariant?.price || product?.price || 0) * quantity)}
             </Button>
           </div>
         </div>
