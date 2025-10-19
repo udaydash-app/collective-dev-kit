@@ -71,7 +71,7 @@ export default function Login() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mx-auto mb-4">
-              <img src={logo} alt="Global Market" className="h-20 w-20 object-contain" />
+              <img src={logo} alt="Global Market" className="h-32 w-32 object-contain" />
             </div>
             <CardTitle className="text-2xl">Welcome back</CardTitle>
             <CardDescription>Sign in to your Global Market account</CardDescription>
