@@ -543,8 +543,10 @@ export type Database = {
           id: string
           is_available: boolean | null
           is_default: boolean | null
+          label: string | null
           price: number
           product_id: string
+          quantity: number | null
           stock_quantity: number | null
           unit: string
           updated_at: string
@@ -554,8 +556,10 @@ export type Database = {
           id?: string
           is_available?: boolean | null
           is_default?: boolean | null
+          label?: string | null
           price: number
           product_id: string
+          quantity?: number | null
           stock_quantity?: number | null
           unit: string
           updated_at?: string
@@ -565,8 +569,10 @@ export type Database = {
           id?: string
           is_available?: boolean | null
           is_default?: boolean | null
+          label?: string | null
           price?: number
           product_id?: string
+          quantity?: number | null
           stock_quantity?: number | null
           unit?: string
           updated_at?: string

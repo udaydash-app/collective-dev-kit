@@ -17,6 +17,8 @@ interface ProductVariant {
   id: string;
   product_id: string;
   unit: string;
+  quantity?: number;
+  label?: string;
   price: number;
   stock_quantity: number;
   is_available: boolean;
@@ -157,6 +159,7 @@ export default function Products() {
       id: `temp-${Date.now()}`,
       product_id: editingProduct?.id || '',
       unit: 'pcs',
+      quantity: 1,
       price: 0,
       stock_quantity: 0,
       is_available: true,
@@ -187,6 +190,8 @@ export default function Products() {
         const variantsToInsert = variants.map(v => ({
           product_id: productId,
           unit: v.unit,
+          quantity: v.quantity,
+          label: v.label || `${v.quantity || ''} ${v.unit}`.trim(),
           price: v.price,
           stock_quantity: v.stock_quantity,
           is_available: v.is_available,
@@ -639,21 +644,32 @@ export default function Products() {
                     <div className="space-y-3 p-4 border rounded-lg">
                       {variants.map((variant, index) => (
                         <div key={variant.id} className="grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-3">
+                          <div className="col-span-2">
+                            <Label className="text-xs">Quantity</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={variant.quantity || ''}
+                              onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="h-9"
+                              placeholder="500"
+                            />
+                          </div>
+                          <div className="col-span-2">
                             <Label className="text-xs">Unit</Label>
                             <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
                               <SelectTrigger className="h-9">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pcs">Pieces</SelectItem>
-                                <SelectItem value="gm">Grams</SelectItem>
-                                <SelectItem value="kg">Kilograms</SelectItem>
-                                <SelectItem value="ltr">Liters</SelectItem>
-                                <SelectItem value="ml">Milliliters</SelectItem>
-                                <SelectItem value="dozen">Dozen</SelectItem>
-                                <SelectItem value="pack">Pack</SelectItem>
-                                <SelectItem value="box">Box</SelectItem>
+                                <SelectItem value="pcs">pcs</SelectItem>
+                                <SelectItem value="gm">gm</SelectItem>
+                                <SelectItem value="kg">kg</SelectItem>
+                                <SelectItem value="ltr">ltr</SelectItem>
+                                <SelectItem value="ml">ml</SelectItem>
+                                <SelectItem value="dozen">dozen</SelectItem>
+                                <SelectItem value="pack">pack</SelectItem>
+                                <SelectItem value="box">box</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -688,7 +704,7 @@ export default function Products() {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-1">
                             <Button
                               type="button"
                               size="sm"
