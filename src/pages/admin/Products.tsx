@@ -556,12 +556,21 @@ export default function Products() {
 
                   <div>
                     <Label htmlFor="unit">Unit</Label>
-                    <Input
-                      id="unit"
-                      name="unit"
-                      defaultValue={editingProduct.unit}
-                      required
-                    />
+                    <Select name="unit" defaultValue={editingProduct.unit} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                        <SelectItem value="gm">Grams (gm)</SelectItem>
+                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                        <SelectItem value="ltr">Liters (ltr)</SelectItem>
+                        <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                        <SelectItem value="dozen">Dozen</SelectItem>
+                        <SelectItem value="pack">Pack</SelectItem>
+                        <SelectItem value="box">Box</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
