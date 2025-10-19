@@ -50,6 +50,7 @@ export default function Products() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -131,6 +132,7 @@ export default function Products() {
     setEditingProduct(product);
     setSelectedImage(null);
     setPreviewUrl(null);
+    setImageUrl("");
     setIsDialogOpen(true);
   };
 
@@ -157,6 +159,7 @@ export default function Products() {
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setPreviewUrl(null);
+    setImageUrl("");
   };
 
   const uploadImage = async (file: File, productId: string): Promise<string | null> => {
@@ -203,10 +206,13 @@ export default function Products() {
 
       // Upload new image if selected
       if (selectedImage) {
-        const imageUrl = await uploadImage(selectedImage, editingProduct.id);
-        if (imageUrl) {
-          updates.image_url = imageUrl;
+        const uploadedUrl = await uploadImage(selectedImage, editingProduct.id);
+        if (uploadedUrl) {
+          updates.image_url = uploadedUrl;
         }
+      } else if (imageUrl.trim()) {
+        // Use provided image URL
+        updates.image_url = imageUrl.trim();
       }
 
       const { error } = await supabase
@@ -220,6 +226,7 @@ export default function Products() {
       setIsDialogOpen(false);
       setSelectedImage(null);
       setPreviewUrl(null);
+      setImageUrl("");
       fetchProducts();
     } catch (error) {
       console.error("Error updating product:", error);
@@ -471,14 +478,14 @@ export default function Products() {
                 <div>
                   <Label htmlFor="image">Product Image</Label>
                   <div className="space-y-3">
-                    {(previewUrl || editingProduct.image_url) && (
+                    {(previewUrl || imageUrl || editingProduct.image_url) && (
                       <div className="relative w-32 h-32">
                         <img 
-                          src={previewUrl || editingProduct.image_url || ''} 
+                          src={previewUrl || imageUrl || editingProduct.image_url || ''} 
                           alt="Product preview"
                           className="w-full h-full object-cover rounded-lg"
                         />
-                        {previewUrl && (
+                        {(previewUrl || imageUrl) && (
                           <Button
                             type="button"
                             size="icon"
@@ -491,23 +498,35 @@ export default function Products() {
                         )}
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="image"
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('image')?.click()}
-                        className="gap-2"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {editingProduct.image_url ? 'Change Image' : 'Upload Image'}
-                      </Button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="image"
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('image')?.click()}
+                          className="gap-2"
+                        >
+                          <Upload className="h-4 w-4" />
+                          {editingProduct.image_url ? 'Change Image' : 'Upload Image'}
+                        </Button>
+                      </div>
+                      <div>
+                        <Label htmlFor="imageUrl" className="text-sm text-muted-foreground">Or paste image URL:</Label>
+                        <Input
+                          id="imageUrl"
+                          type="url"
+                          placeholder="https://example.com/image.jpg"
+                          value={imageUrl}
+                          onChange={(e) => setImageUrl(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
