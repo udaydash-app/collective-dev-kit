@@ -98,6 +98,7 @@ export type Database = {
       announcements: {
         Row: {
           background_color: string | null
+          background_image_url: string | null
           created_at: string | null
           display_order: number | null
           end_date: string
@@ -111,6 +112,7 @@ export type Database = {
         }
         Insert: {
           background_color?: string | null
+          background_image_url?: string | null
           created_at?: string | null
           display_order?: number | null
           end_date: string
@@ -124,6 +126,7 @@ export type Database = {
         }
         Update: {
           background_color?: string | null
+          background_image_url?: string | null
           created_at?: string | null
           display_order?: number | null
           end_date?: string

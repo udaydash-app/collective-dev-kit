@@ -41,6 +41,7 @@ interface Announcement {
   message: string;
   background_color: string;
   text_color: string;
+  background_image_url: string | null;
 }
 
 export default function Home() {
@@ -93,7 +94,7 @@ export default function Home() {
       // Fetch active announcement
       const { data: announcementData, error: announcementError } = await supabase
         .from("announcements")
-        .select("id, title, message, background_color, text_color")
+        .select("id, title, message, background_color, text_color, background_image_url")
         .eq("is_active", true)
         .lte("start_date", new Date().toISOString())
         .gte("end_date", new Date().toISOString())
@@ -158,13 +159,24 @@ export default function Home() {
       {/* Announcement Ribbon */}
       {announcement && (
         <div 
-          className="py-2 px-4 text-center text-sm font-medium"
+          className="relative py-4 px-4 text-center overflow-hidden"
           style={{ 
             backgroundColor: announcement.background_color,
-            color: announcement.text_color
+            color: announcement.text_color,
+            backgroundImage: announcement.background_image_url 
+              ? `url(${announcement.background_image_url})` 
+              : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
           }}
         >
-          <span className="font-semibold">{announcement.title}:</span> {announcement.message}
+          {announcement.background_image_url && (
+            <div className="absolute inset-0 bg-black/40" />
+          )}
+          <div className="relative z-10">
+            <h2 className="text-lg md:text-xl font-bold mb-1">{announcement.title}</h2>
+            <p className="text-sm md:text-base font-normal">{announcement.message}</p>
+          </div>
         </div>
       )}
       

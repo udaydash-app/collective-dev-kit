@@ -35,6 +35,7 @@ interface Announcement {
   end_date: string;
   background_color: string;
   text_color: string;
+  background_image_url: string | null;
   display_order: number;
   created_at: string;
 }
@@ -54,6 +55,7 @@ export default function AdminAnnouncements() {
     end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     background_color: "#22C55E",
     text_color: "#FFFFFF",
+    background_image_url: "",
     display_order: 0,
   });
 
@@ -126,6 +128,7 @@ export default function AdminAnnouncements() {
       end_date: announcement.end_date.split('T')[0],
       background_color: announcement.background_color,
       text_color: announcement.text_color,
+      background_image_url: announcement.background_image_url || "",
       display_order: announcement.display_order,
     });
     setDialogOpen(true);
@@ -161,6 +164,7 @@ export default function AdminAnnouncements() {
       end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       background_color: "#22C55E",
       text_color: "#FFFFFF",
+      background_image_url: "",
       display_order: 0,
     });
   };
@@ -237,6 +241,17 @@ export default function AdminAnnouncements() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="background_image_url">Background Image URL (optional)</Label>
+                  <Input
+                    id="background_image_url"
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.background_image_url}
+                    onChange={(e) => setFormData({ ...formData, background_image_url: e.target.value })}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
