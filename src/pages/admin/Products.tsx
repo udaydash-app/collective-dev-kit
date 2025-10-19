@@ -150,7 +150,7 @@ export default function Products() {
     setPreviewUrl(null);
     setImageUrl("");
     setVariants(product.product_variants || []);
-    setShowVariants(false);
+    setShowVariants(true); // Show variants section by default
     setIsDialogOpen(true);
   };
 
