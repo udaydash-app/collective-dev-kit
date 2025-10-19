@@ -182,10 +182,27 @@ export default function Home() {
             <h2 className={`${announcement.title_font_size} ${announcement.title_font_weight} mb-1`}>
               {announcement.title}
             </h2>
-            <p className={`${announcement.message_font_size} ${announcement.message_font_weight}`}>
-              {announcement.message}
-            </p>
+            <div className="overflow-hidden">
+              <p 
+                className={`${announcement.message_font_size} ${announcement.message_font_weight} whitespace-nowrap inline-block`}
+                style={{
+                  animation: 'marquee 20s linear infinite',
+                }}
+              >
+                {announcement.message}
+              </p>
+            </div>
           </div>
+          <style>{`
+            @keyframes marquee {
+              0% {
+                transform: translateX(100%);
+              }
+              100% {
+                transform: translateX(-100%);
+              }
+            }
+          `}</style>
         </div>
       )}
       
