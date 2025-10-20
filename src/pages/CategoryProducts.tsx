@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { usePageView } from "@/hooks/useAnalytics";
+import { useCart } from "@/hooks/useCart";
 
 interface Product {
   id: string;
@@ -29,6 +30,7 @@ export default function CategoryProducts() {
   usePageView("Category Products");
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,36 +79,7 @@ export default function CategoryProducts() {
   };
 
   const quickAddToCart = async (productId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth/login");
-        return;
-      }
-
-      const { data: existingItem } = await supabase
-        .from("cart_items")
-        .select("id, quantity")
-        .eq("user_id", user.id)
-        .eq("product_id", productId)
-        .maybeSingle();
-
-      if (existingItem) {
-        await supabase
-          .from("cart_items")
-          .update({ quantity: existingItem.quantity + 1 })
-          .eq("id", existingItem.id);
-      } else {
-        await supabase
-          .from("cart_items")
-          .insert({ user_id: user.id, product_id: productId, quantity: 1 });
-      }
-
-      toast.success("Added to cart");
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      toast.error("Failed to add to cart");
-    }
+    await addItem(productId, 1);
   };
 
   return (
