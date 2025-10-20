@@ -230,9 +230,9 @@ export default function Home() {
         {offers.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Special Offers</h2>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex flex-col md:flex-row md:overflow-x-auto gap-4 pb-2 scrollbar-hide">
               {offers.map((offer) => (
-                <Card key={offer.id} className="flex-shrink-0 w-[320px] hover:shadow-md transition-shadow">
+                <Card key={offer.id} className="w-full md:flex-shrink-0 md:w-[320px] hover:shadow-md transition-shadow">
                   <CardContent className="p-0">
                     {offer.image_url ? (
                       <img 
