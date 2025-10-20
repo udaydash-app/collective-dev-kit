@@ -199,7 +199,7 @@ export default function Home() {
               <p 
                 className={`${announcement.message_font_size} ${announcement.message_font_weight} whitespace-nowrap inline-block`}
                 style={{
-                  animation: 'marquee 20s linear infinite',
+                  animation: 'marquee 40s linear infinite',
                 }}
               >
                 {announcement.message}
