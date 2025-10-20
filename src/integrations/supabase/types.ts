@@ -409,7 +409,7 @@ export type Database = {
       }
       orders: {
         Row: {
-          address_id: string
+          address_id: string | null
           created_at: string
           delivered_at: string | null
           delivery_date: string | null
@@ -427,10 +427,10 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
-          address_id: string
+          address_id?: string | null
           created_at?: string
           delivered_at?: string | null
           delivery_date?: string | null
@@ -448,10 +448,10 @@ export type Database = {
           tax?: number
           total: number
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
-          address_id?: string
+          address_id?: string | null
           created_at?: string
           delivered_at?: string | null
           delivery_date?: string | null
@@ -469,7 +469,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

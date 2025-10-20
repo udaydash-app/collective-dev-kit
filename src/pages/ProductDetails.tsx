@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePageView, useAnalytics } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
+import { useCart } from "@/hooks/useCart";
 
 interface ProductVariant {
   id: string;
@@ -36,6 +37,7 @@ interface Product {
 export default function ProductDetails() {
   usePageView("Product Details");
   const { trackEvent } = useAnalytics();
+  const { addItem } = useCart();
   const { id } = useParams();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
@@ -131,48 +133,13 @@ export default function ProductDetails() {
   };
 
   const addToCart = async () => {
+    if (!id) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth/login");
-        return;
-      }
-
-      const cartItem: any = {
-        user_id: user.id,
-        product_id: id,
-        quantity
-      };
-
-      // Add variant_id if a variant is selected
-      if (selectedVariant) {
-        cartItem.variant_id = selectedVariant.id;
-      }
-
-      const { data: existingItem } = await supabase
-        .from("cart_items")
-        .select("id, quantity")
-        .eq("user_id", user.id)
-        .eq("product_id", id)
-        .eq("variant_id", selectedVariant?.id || null)
-        .maybeSingle();
-
-      if (existingItem) {
-        await supabase
-          .from("cart_items")
-          .update({ quantity: existingItem.quantity + quantity })
-          .eq("id", existingItem.id);
-      } else {
-        await supabase
-          .from("cart_items")
-          .insert(cartItem);
-      }
-
-      toast.success("Added to cart");
+      await addItem(id, quantity);
       trackEvent("add_to_cart", { product_id: id, quantity, variant_id: selectedVariant?.id });
     } catch (error) {
       console.error("Error adding to cart:", error);
-      toast.error("Failed to add to cart");
     }
   };
 

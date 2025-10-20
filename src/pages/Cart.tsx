@@ -1,116 +1,17 @@
-import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShoppingBag, Minus, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
-
-interface CartItem {
-  id: string;
-  quantity: number;
-  product_id: string;
-  products: {
-    id: string;
-    name: string;
-    price: number;
-    unit: string;
-    image_url: string | null;
-  };
-}
+import { useCart } from "@/hooks/useCart";
 
 export default function Cart() {
   usePageView("Cart");
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCartItems();
-  }, []);
-
-  const fetchCartItems = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("cart_items")
-        .select(`
-          id,
-          quantity,
-          product_id,
-          products (
-            id,
-            name,
-            price,
-            unit,
-            image_url
-          )
-        `)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-      setCartItems(data || []);
-    } catch (error) {
-      console.error("Error fetching cart:", error);
-      toast.error("Failed to load cart");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateQuantity = async (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    
-    try {
-      const { error } = await supabase
-        .from("cart_items")
-        .update({ quantity: newQuantity })
-        .eq("id", itemId);
-
-      if (error) throw error;
-      
-      setCartItems(items =>
-        items.map(item =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
-        )
-      );
-    } catch (error) {
-      console.error("Error updating quantity:", error);
-      toast.error("Failed to update quantity");
-    }
-  };
-
-  const removeItem = async (itemId: string) => {
-    try {
-      const { error } = await supabase
-        .from("cart_items")
-        .delete()
-        .eq("id", itemId);
-
-      if (error) throw error;
-      
-      setCartItems(items => items.filter(item => item.id !== itemId));
-      toast.success("Item removed from cart");
-    } catch (error) {
-      console.error("Error removing item:", error);
-      toast.error("Failed to remove item");
-    }
-  };
-
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      return total + (item.products.price * item.quantity);
-    }, 0);
-  };
+  const { cartItems, loading, isGuest, updateQuantity, removeItem, calculateTotal } = useCart();
 
   const cartEmpty = cartItems.length === 0;
 
@@ -180,7 +81,7 @@ export default function Cart() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(isGuest ? item.product_id : item.id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -191,7 +92,7 @@ export default function Cart() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity - 1)}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -200,7 +101,7 @@ export default function Cart() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity + 1)}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -223,7 +124,7 @@ export default function Cart() {
                     {formatCurrency(calculateTotal())}
                   </span>
                 </div>
-                <Link to="/checkout">
+                <Link to={isGuest ? "/guest-checkout" : "/checkout"}>
                   <Button size="lg" className="w-full">
                     Proceed to Checkout
                   </Button>

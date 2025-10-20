@@ -31,6 +31,7 @@ import Support from "./pages/Support";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import GuestCheckout from "./pages/GuestCheckout";
 import OrderDetails from "./pages/OrderDetails";
 import Addresses from "./pages/profile/Addresses";
 import PaymentMethods from "./pages/profile/PaymentMethods";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/guest-checkout" element={<GuestCheckout />} />
           <Route path="/checkout/payment" element={<Payment />} />
           <Route path="/order/confirmation/:orderId" element={<OrderConfirmation />} />
           <Route path="/order/:id" element={<OrderDetails />} />
