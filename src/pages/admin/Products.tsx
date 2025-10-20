@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProductVariant {
   id: string;
@@ -67,6 +68,7 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [showVariants, setShowVariants] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProducts();
@@ -333,6 +335,48 @@ export default function Products() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedProducts.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedProducts.size} products?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .in("id", Array.from(selectedProducts));
+
+      if (error) throw error;
+
+      toast.success(`${selectedProducts.size} products deleted successfully`);
+      setSelectedProducts(new Set());
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting products:", error);
+      toast.error("Failed to delete products");
+    }
+  };
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === filteredProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
   const handleEnrichProduct = async (product: Product) => {
     setEnrichingIds(prev => new Set(prev).add(product.id));
     
@@ -422,16 +466,28 @@ export default function Products() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Product Management</h1>
-          <Button 
-            onClick={handleEnrichAll}
-            className="gap-2"
-          >
-            <Sparkles className="h-4 w-4" />
-            Enrich All Products
-          </Button>
+          <div className="flex gap-2">
+            {selectedProducts.size > 0 && (
+              <Button 
+                onClick={handleBulkDelete}
+                variant="destructive"
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected ({selectedProducts.size})
+              </Button>
+            )}
+            <Button 
+              onClick={handleEnrichAll}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Enrich All Products
+            </Button>
+          </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -442,8 +498,20 @@ export default function Products() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          {filteredProducts.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="select-all"
+                checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              <Label htmlFor="select-all" className="text-sm font-normal cursor-pointer">
+                Select All ({filteredProducts.length} products)
+              </Label>
+            </div>
+          )}
           {searchQuery && (
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground">
               Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
             </p>
           )}
@@ -454,6 +522,11 @@ export default function Products() {
             <Card key={product.id}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
+                  <Checkbox
+                    checked={selectedProducts.has(product.id)}
+                    onCheckedChange={() => toggleProductSelection(product.id)}
+                    className="mt-1"
+                  />
                   {product.image_url ? (
                     <img 
                       src={product.image_url} 
