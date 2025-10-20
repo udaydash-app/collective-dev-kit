@@ -60,10 +60,22 @@ export default function Home() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentOfferIndex, setCurrentOfferIndex] = useState(0);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Auto-advance offers carousel
+  useEffect(() => {
+    if (offers.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentOfferIndex((prev) => (prev + 1) % offers.length);
+    }, 4000); // Change offer every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [offers.length]);
 
   const fetchData = async () => {
     try {
@@ -226,46 +238,73 @@ export default function Home() {
           <p className="text-muted-foreground">What would you like to order today?</p>
         </div>
 
-        {/* Offers Section */}
+        {/* Offers Section - Auto-playing Carousel */}
         {offers.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Special Offers</h2>
-            <div className="flex flex-col md:flex-row md:overflow-x-auto gap-4 pb-2 scrollbar-hide">
-              {offers.map((offer) => (
-                <Card key={offer.id} className="w-full md:flex-shrink-0 md:w-[320px] hover:shadow-md transition-shadow">
-                  <CardContent className="p-0">
-                    {offer.image_url ? (
-                      <img 
-                        src={offer.image_url} 
-                        alt={offer.title}
-                        className="w-full h-40 object-cover rounded-t-lg"
-                      />
-                    ) : (
-                      <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
-                        <span className="text-6xl">🎁</span>
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
-                      {offer.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
-                      )}
-                      {offer.discount_percentage && (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
-                          {offer.discount_percentage}% OFF
-                        </div>
-                      )}
-                      {offer.link_url && (
-                        <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" className="w-full mt-2">
-                            View Offer
-                          </Button>
-                        </a>
-                      )}
+            <div className="relative">
+              <div className="overflow-hidden">
+                <div 
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{ transform: `translateX(-${currentOfferIndex * 100}%)` }}
+                >
+                  {offers.map((offer) => (
+                    <div key={offer.id} className="w-full flex-shrink-0">
+                      <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-0">
+                          {offer.image_url ? (
+                            <img 
+                              src={offer.image_url} 
+                              alt={offer.title}
+                              className="w-full h-40 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                              <span className="text-6xl">🎁</span>
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                            {offer.description && (
+                              <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                            )}
+                            {offer.discount_percentage && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
+                                {offer.discount_percentage}% OFF
+                              </div>
+                            )}
+                            {offer.link_url && (
+                              <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" className="w-full mt-2">
+                                  View Offer
+                                </Button>
+                              </a>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  ))}
+                </div>
+              </div>
+              
+              {/* Carousel Indicators */}
+              {offers.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3">
+                  {offers.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentOfferIndex(index)}
+                      className={`h-2 rounded-full transition-all ${
+                        index === currentOfferIndex 
+                          ? 'w-6 bg-primary' 
+                          : 'w-2 bg-muted-foreground/30'
+                      }`}
+                      aria-label={`Go to offer ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         )}
