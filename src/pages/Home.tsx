@@ -252,39 +252,68 @@ export default function Home() {
                 >
                   {offers.map((offer) => (
                     <div key={offer.id} className="w-full flex-shrink-0">
-                      <Card className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-0">
-                          {offer.image_url ? (
-                            <img 
-                              src={offer.image_url} 
-                              alt={offer.title}
-                              className="w-full h-40 object-cover rounded-t-lg"
-                            />
-                          ) : (
-                            <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
-                              <span className="text-6xl">🎁</span>
-                            </div>
-                          )}
-                          <div className="p-4">
-                            <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
-                            {offer.description && (
-                              <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
-                            )}
-                            {offer.discount_percentage && (
-                              <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
-                                {offer.discount_percentage}% OFF
+                      {offer.link_url ? (
+                        <a 
+                          href={offer.link_url} 
+                          target={offer.link_url.startsWith('http') ? "_blank" : undefined}
+                          rel={offer.link_url.startsWith('http') ? "noopener noreferrer" : undefined}
+                          className="block"
+                        >
+                          <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer">
+                            <CardContent className="p-0">
+                              {offer.image_url ? (
+                                <img 
+                                  src={offer.image_url} 
+                                  alt={offer.title}
+                                  className="w-full h-40 object-cover rounded-t-lg"
+                                />
+                              ) : (
+                                <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                                  <span className="text-6xl">🎁</span>
+                                </div>
+                              )}
+                              <div className="p-4">
+                                <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                                {offer.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                                )}
+                                {offer.discount_percentage && (
+                                  <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                                    {offer.discount_percentage}% OFF
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </a>
+                      ) : (
+                        <Card className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-0">
+                            {offer.image_url ? (
+                              <img 
+                                src={offer.image_url} 
+                                alt={offer.title}
+                                className="w-full h-40 object-cover rounded-t-lg"
+                              />
+                            ) : (
+                              <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                                <span className="text-6xl">🎁</span>
                               </div>
                             )}
-                            {offer.link_url && (
-                              <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" className="w-full mt-2">
-                                  View Offer
-                                </Button>
-                              </a>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
+                            <div className="p-4">
+                              <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                              {offer.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                              )}
+                              {offer.discount_percentage && (
+                                <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                                  {offer.discount_percentage}% OFF
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -312,39 +341,69 @@ export default function Home() {
             {/* Desktop: Stacked Horizontal */}
             <div className="hidden md:flex md:gap-4 md:overflow-x-auto scrollbar-hide">
               {offers.map((offer) => (
-                <Card key={offer.id} className="hover:shadow-md transition-shadow flex-shrink-0 w-[380px]">
-                  <CardContent className="p-0">
-                    {offer.image_url ? (
-                      <img 
-                        src={offer.image_url} 
-                        alt={offer.title}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
-                        <span className="text-6xl">🎁</span>
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
-                      {offer.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
-                      )}
-                      {offer.discount_percentage && (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
-                          {offer.discount_percentage}% OFF
+                offer.link_url ? (
+                  <a 
+                    key={offer.id}
+                    href={offer.link_url} 
+                    target={offer.link_url.startsWith('http') ? "_blank" : undefined}
+                    rel={offer.link_url.startsWith('http') ? "noopener noreferrer" : undefined}
+                    className="block"
+                  >
+                    <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer flex-shrink-0 w-[380px]">
+                      <CardContent className="p-0">
+                        {offer.image_url ? (
+                          <img 
+                            src={offer.image_url} 
+                            alt={offer.title}
+                            className="w-full h-48 object-cover rounded-t-lg"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                            <span className="text-6xl">🎁</span>
+                          </div>
+                        )}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                          {offer.description && (
+                            <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                          )}
+                          {offer.discount_percentage && (
+                            <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                              {offer.discount_percentage}% OFF
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </a>
+                ) : (
+                  <Card key={offer.id} className="hover:shadow-md transition-shadow flex-shrink-0 w-[380px]">
+                    <CardContent className="p-0">
+                      {offer.image_url ? (
+                        <img 
+                          src={offer.image_url} 
+                          alt={offer.title}
+                          className="w-full h-48 object-cover rounded-t-lg"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                          <span className="text-6xl">🎁</span>
                         </div>
                       )}
-                      {offer.link_url && (
-                        <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" className="w-full mt-2">
-                            View Offer
-                          </Button>
-                        </a>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                        {offer.description && (
+                          <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                        )}
+                        {offer.discount_percentage && (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                            {offer.discount_percentage}% OFF
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
               ))}
             </div>
           </section>
