@@ -309,10 +309,10 @@ export default function Home() {
               )}
             </div>
 
-            {/* Desktop: Stacked Vertical */}
-            <div className="hidden md:flex md:flex-col md:gap-4">
+            {/* Desktop: Stacked Horizontal */}
+            <div className="hidden md:flex md:gap-4 md:overflow-x-auto scrollbar-hide">
               {offers.map((offer) => (
-                <Card key={offer.id} className="hover:shadow-md transition-shadow">
+                <Card key={offer.id} className="hover:shadow-md transition-shadow flex-shrink-0 w-[380px]">
                   <CardContent className="p-0">
                     {offer.image_url ? (
                       <img 
