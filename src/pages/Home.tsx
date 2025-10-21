@@ -238,11 +238,13 @@ export default function Home() {
           <p className="text-muted-foreground">What would you like to order today?</p>
         </div>
 
-        {/* Offers Section - Auto-playing Carousel */}
+        {/* Offers Section - Auto-playing Carousel on Mobile, Stacked on Desktop */}
         {offers.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Special Offers</h2>
-            <div className="relative">
+            
+            {/* Mobile: Carousel */}
+            <div className="relative md:hidden">
               <div className="overflow-hidden">
                 <div 
                   className="flex transition-transform duration-500 ease-in-out"
@@ -305,6 +307,45 @@ export default function Home() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Desktop: Stacked Vertical */}
+            <div className="hidden md:flex md:flex-col md:gap-4">
+              {offers.map((offer) => (
+                <Card key={offer.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-0">
+                    {offer.image_url ? (
+                      <img 
+                        src={offer.image_url} 
+                        alt={offer.title}
+                        className="w-full h-48 object-cover rounded-t-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gradient-to-r from-primary/20 to-accent/20 rounded-t-lg flex items-center justify-center">
+                        <span className="text-6xl">🎁</span>
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg mb-1">{offer.title}</h3>
+                      {offer.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{offer.description}</p>
+                      )}
+                      {offer.discount_percentage && (
+                        <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
+                          {offer.discount_percentage}% OFF
+                        </div>
+                      )}
+                      {offer.link_url && (
+                        <a href={offer.link_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" className="w-full mt-2">
+                            View Offer
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </section>
         )}
