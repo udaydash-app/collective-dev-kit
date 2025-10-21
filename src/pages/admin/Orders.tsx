@@ -14,6 +14,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select,
   SelectContent,
@@ -60,7 +61,8 @@ export default function AdminOrders() {
   const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
   const [deliveryFee, setDeliveryFee] = useState("0");
   const [taxRate, setTaxRate] = useState("0");
-  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -326,34 +328,58 @@ export default function AdminOrders() {
     }
   });
 
-  const deleteAllOrders = useMutation({
+  const deleteSelectedOrders = useMutation({
     mutationFn: async () => {
-      // Delete all order items first
+      const orderIds = Array.from(selectedOrders);
+      
+      // Delete order items first
       const { error: itemsError } = await supabase
         .from('order_items')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .in('order_id', orderIds);
 
       if (itemsError) throw itemsError;
 
-      // Then delete all orders
+      // Then delete orders
       const { error: ordersError } = await supabase
         .from('orders')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .in('id', orderIds);
 
       if (ordersError) throw ordersError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-      toast.success('All orders deleted successfully');
-      setDeleteAllDialogOpen(false);
+      toast.success(`${selectedOrders.size} orders deleted successfully`);
+      setSelectedOrders(new Set());
+      setDeleteSelectedDialogOpen(false);
     },
     onError: (error) => {
       toast.error('Failed to delete orders');
       console.error(error);
     }
   });
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!orders) return;
+    if (selectedOrders.size === orders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(orders.map((o: any) => o.id)));
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -430,14 +456,15 @@ export default function AdminOrders() {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteAllDialogOpen(true)}
-                disabled={!orders || orders.length === 0}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete All
-              </Button>
+              {selectedOrders.size > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteSelectedDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedOrders.size})
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -450,6 +477,12 @@ export default function AdminOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={orders && selectedOrders.size === orders.length && orders.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-12"></TableHead>
                       <TableHead>Order #</TableHead>
                       <TableHead>Customer</TableHead>
@@ -465,6 +498,12 @@ export default function AdminOrders() {
                     {orders.map((order: any) => (
                       <>
                         <TableRow key={order.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedOrders.has(order.id)}
+                              onCheckedChange={() => toggleOrderSelection(order.id)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -534,7 +573,7 @@ export default function AdminOrders() {
                         </TableRow>
                         {expandedOrders.has(order.id) && (
                           <TableRow>
-                            <TableCell colSpan={9} className="bg-muted/50">
+                            <TableCell colSpan={10} className="bg-muted/50">
                               <div className="p-4 space-y-4">
                                 <div className="flex items-center justify-between mb-4">
                                   <h4 className="font-semibold">Order Products</h4>
@@ -804,23 +843,23 @@ export default function AdminOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete All Orders Confirmation Dialog */}
-      <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+      {/* Delete Selected Orders Confirmation Dialog */}
+      <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={setDeleteSelectedDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Orders?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Selected Orders?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all orders and their items from the database. 
+              This will permanently delete {selectedOrders.size} selected order{selectedOrders.size > 1 ? 's' : ''} and their items from the database. 
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteAllOrders.mutate()}
+              onClick={() => deleteSelectedOrders.mutate()}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteAllOrders.isPending ? "Deleting..." : "Delete All Orders"}
+              {deleteSelectedOrders.isPending ? "Deleting..." : `Delete ${selectedOrders.size} Order${selectedOrders.size > 1 ? 's' : ''}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

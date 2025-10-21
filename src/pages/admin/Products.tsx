@@ -69,6 +69,7 @@ export default function Products() {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [showVariants, setShowVariants] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [isAddingNew, setIsAddingNew] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -147,12 +148,40 @@ export default function Products() {
   };
 
   const handleEdit = (product: Product) => {
+    setIsAddingNew(false);
     setEditingProduct(product);
     setSelectedImage(null);
     setPreviewUrl(null);
     setImageUrl("");
     setVariants(product.product_variants || []);
     setShowVariants(true); // Show variants section by default
+    setIsDialogOpen(true);
+  };
+
+  const handleAdd = () => {
+    if (stores.length === 0) {
+      toast.error("Please add at least one store first");
+      return;
+    }
+    setIsAddingNew(true);
+    setEditingProduct({
+      id: 'new',
+      name: '',
+      description: '',
+      price: 0,
+      unit: 'pcs',
+      image_url: null,
+      category_id: null,
+      store_id: stores[0].id,
+      is_available: true,
+      is_featured: false,
+      stock_quantity: 0,
+    } as Product);
+    setSelectedImage(null);
+    setPreviewUrl(null);
+    setImageUrl("");
+    setVariants([]);
+    setShowVariants(false);
     setIsDialogOpen(true);
   };
 
@@ -269,48 +298,86 @@ export default function Products() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      const updates: any = {
+      const productData: any = {
         name: formData.get("name") as string,
         description: formData.get("description") as string,
         price: parseFloat(formData.get("price") as string) || 0,
         unit: formData.get("unit") as string,
         category_id: formData.get("category_id") as string || null,
+        store_id: formData.get("store_id") as string,
         stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
         is_available: formData.get("is_available") === "true",
         is_featured: formData.get("is_featured") === "true",
       };
 
-      // Upload new image if selected
-      if (selectedImage) {
-        const uploadedUrl = await uploadImage(selectedImage, editingProduct.id);
-        if (uploadedUrl) {
-          updates.image_url = uploadedUrl;
+      if (isAddingNew) {
+        // Insert new product
+        const { data: newProduct, error: insertError } = await supabase
+          .from("products")
+          .insert(productData)
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Upload image if selected
+        if (selectedImage && newProduct) {
+          const uploadedUrl = await uploadImage(selectedImage, newProduct.id);
+          if (uploadedUrl) {
+            await supabase
+              .from("products")
+              .update({ image_url: uploadedUrl })
+              .eq("id", newProduct.id);
+          }
+        } else if (imageUrl.trim() && newProduct) {
+          await supabase
+            .from("products")
+            .update({ image_url: imageUrl.trim() })
+            .eq("id", newProduct.id);
         }
-      } else if (imageUrl.trim()) {
-        // Use provided image URL
-        updates.image_url = imageUrl.trim();
+
+        // Save variants if any
+        if (variants.length > 0 && newProduct) {
+          await saveVariants(newProduct.id);
+        }
+
+        toast.success("Product created successfully");
+      } else {
+        // Update existing product
+        // Upload new image if selected
+        if (selectedImage) {
+          const uploadedUrl = await uploadImage(selectedImage, editingProduct.id);
+          if (uploadedUrl) {
+            productData.image_url = uploadedUrl;
+          }
+        } else if (imageUrl.trim()) {
+          // Use provided image URL
+          productData.image_url = imageUrl.trim();
+        }
+
+        const { error } = await supabase
+          .from("products")
+          .update(productData)
+          .eq("id", editingProduct.id);
+
+        if (error) throw error;
+
+        // Save variants
+        await saveVariants(editingProduct.id);
+
+        toast.success("Product updated successfully");
       }
 
-      const { error } = await supabase
-        .from("products")
-        .update(updates)
-        .eq("id", editingProduct.id);
-
-      if (error) throw error;
-
-      // Save variants
-      await saveVariants(editingProduct.id);
-
-      toast.success("Product updated successfully");
       setIsDialogOpen(false);
       setSelectedImage(null);
       setPreviewUrl(null);
       setImageUrl("");
       setVariants([]);
+      setIsAddingNew(false);
       fetchProducts();
     } catch (error) {
-      console.error("Error updating product:", error);
-      toast.error("Failed to update product");
+      console.error("Error saving product:", error);
+      toast.error(isAddingNew ? "Failed to create product" : "Failed to update product");
     } finally {
       setUploadingImage(false);
     }
@@ -467,6 +534,13 @@ export default function Products() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Product Management</h1>
           <div className="flex gap-2">
+            <Button 
+              onClick={handleAdd}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Product
+            </Button>
             {selectedProducts.size > 0 && (
               <Button 
                 onClick={handleBulkDelete}
@@ -625,7 +699,7 @@ export default function Products() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Product</DialogTitle>
+              <DialogTitle>{isAddingNew ? 'Add New Product' : 'Edit Product'}</DialogTitle>
             </DialogHeader>
             {editingProduct && (
               <form onSubmit={handleSave} className="space-y-4">
@@ -847,6 +921,24 @@ export default function Products() {
                     </Select>
                   </div>
 
+                  <div>
+                    <Label htmlFor="store_id">Store</Label>
+                    <Select name="store_id" defaultValue={editingProduct.store_id} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select store" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores.map((store) => (
+                          <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="stock_quantity">Stock Quantity</Label>
                     <Input
