@@ -874,10 +874,7 @@ export type Database = {
           total: number
         }[]
       }
-      generate_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_order_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -885,10 +882,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      verify_admin_access: {
-        Args: { p_user_id: string }
-        Returns: boolean
-      }
+      verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
