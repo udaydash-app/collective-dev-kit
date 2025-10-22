@@ -63,15 +63,23 @@ export default function GuestCheckout() {
 
     try {
       // Get the first active store (or default store)
-      const { data: stores } = await supabase
+      const { data: stores, error: storeError } = await supabase
         .from('stores')
         .select('id')
         .eq('is_active', true)
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (storeError) {
+        console.error("Store fetch error:", storeError);
+        toast.error("Failed to load store information");
+        setLoading(false);
+        return;
+      }
 
       if (!stores) {
-        toast.error("No active store found");
+        toast.error("No active store found. Please contact support.");
+        setLoading(false);
         return;
       }
 
@@ -97,7 +105,18 @@ export default function GuestCheckout() {
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Order creation error:", orderError);
+        toast.error(`Failed to create order: ${orderError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!order) {
+        toast.error("Order creation failed - no order returned");
+        setLoading(false);
+        return;
+      }
 
       // Create order items
       const orderItems = cartItems.map(item => ({
@@ -112,16 +131,22 @@ export default function GuestCheckout() {
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("Order items creation error:", itemsError);
+        toast.error(`Failed to add items to order: ${itemsError.message}`);
+        setLoading(false);
+        return;
+      }
 
       // Clear cart
       await clearCart();
 
       toast.success("Order placed successfully!");
       navigate(`/order/confirmation/${order.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error placing order:", error);
-      toast.error("Failed to place order. Please try again.");
+      const errorMessage = error?.message || "Unknown error occurred";
+      toast.error(`Failed to place order: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
