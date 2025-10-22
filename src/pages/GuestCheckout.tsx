@@ -85,64 +85,32 @@ export default function GuestCheckout() {
 
       const subtotal = calculateTotal();
       
-      // Check current auth status for debugging
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Guest checkout - session check:', session ? 'HAS SESSION' : 'NO SESSION');
-      console.log('Guest checkout - user ID:', session?.user?.id || 'null');
-      
-      // Generate order number
-      const orderNumber = 'ORD-' + Date.now().toString(36).toUpperCase();
-      
-      // Create order without user_id (guest order)
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          store_id: stores.id,
-          user_id: null, // Explicitly set to null for guest orders
-          subtotal: subtotal,
-          total: subtotal,
-          delivery_fee: 0,
-          tax: 0,
-          status: 'pending',
-          payment_status: 'pending',
-          delivery_instructions: `Guest Order - Name: ${formData.name}, Phone: ${formData.phone}, Area: ${formData.area}${formData.instructions ? ', Instructions: ' + formData.instructions : ''}`
-        })
-        .select()
-        .single();
+      // Use edge function to create guest order (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke('create-guest-order', {
+        body: {
+          guestInfo: {
+            name: formData.name,
+            phone: formData.phone,
+            area: formData.area,
+            instructions: formData.instructions
+          },
+          cartItems: cartItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.products.price
+          })),
+          subtotal: subtotal
+        }
+      });
 
-      if (orderError) {
-        console.error("Order creation error:", orderError);
-        toast.error(`Failed to create order: ${orderError.message}`);
+      if (error || !data?.success) {
+        console.error("Order creation error:", error || data);
+        toast.error(`Failed to create order: ${error?.message || 'Unknown error'}`);
         setLoading(false);
         return;
       }
 
-      if (!order) {
-        toast.error("Order creation failed - no order returned");
-        setLoading(false);
-        return;
-      }
-
-      // Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_price: item.products.price,
-        subtotal: item.products.price * item.quantity
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error("Order items creation error:", itemsError);
-        toast.error(`Failed to add items to order: ${itemsError.message}`);
-        setLoading(false);
-        return;
-      }
+      const order = data.order;
 
       // Clear cart
       await clearCart();
