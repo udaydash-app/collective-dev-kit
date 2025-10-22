@@ -85,6 +85,11 @@ export default function GuestCheckout() {
 
       const subtotal = calculateTotal();
       
+      // Check current auth status for debugging
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Guest checkout - session check:', session ? 'HAS SESSION' : 'NO SESSION');
+      console.log('Guest checkout - user ID:', session?.user?.id || 'null');
+      
       // Generate order number
       const orderNumber = 'ORD-' + Date.now().toString(36).toUpperCase();
       
