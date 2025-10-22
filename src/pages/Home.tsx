@@ -8,6 +8,7 @@ import { ShoppingCart, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { useCart } from "@/hooks/useCart";
 
 interface Category {
   id: string;
@@ -61,6 +62,7 @@ export default function Home() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentOfferIndex, setCurrentOfferIndex] = useState(0);
+  const { addItem } = useCart();
 
   useEffect(() => {
     fetchData();
@@ -142,45 +144,8 @@ export default function Home() {
     }
   };
 
-  const handleAddToCart = async (productId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast.error("Please login to add items to cart");
-        return;
-      }
-
-      // Check if item already in cart
-      const { data: existing } = await supabase
-        .from("cart_items")
-        .select("id, quantity")
-        .eq("user_id", user.id)
-        .eq("product_id", productId)
-        .maybeSingle();
-
-      if (existing) {
-        // Update quantity
-        const { error } = await supabase
-          .from("cart_items")
-          .update({ quantity: existing.quantity + 1 })
-          .eq("id", existing.id);
-
-        if (error) throw error;
-      } else {
-        // Insert new item
-        const { error } = await supabase
-          .from("cart_items")
-          .insert({ user_id: user.id, product_id: productId, quantity: 1 });
-
-        if (error) throw error;
-      }
-
-      toast.success("Added to cart");
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      toast.error("Failed to add to cart");
-    }
+  const handleAddToCart = (productId: string) => {
+    addItem(productId, 1);
   };
   return (
     <div className="min-h-screen bg-background pb-20">
