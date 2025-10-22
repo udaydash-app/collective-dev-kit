@@ -37,6 +37,7 @@ import Addresses from "./pages/profile/Addresses";
 import PaymentMethods from "./pages/profile/PaymentMethods";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
+import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OrderStatusNotifications />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
