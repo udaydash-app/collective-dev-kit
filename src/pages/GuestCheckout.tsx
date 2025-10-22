@@ -94,6 +94,7 @@ export default function GuestCheckout() {
         .insert({
           order_number: orderNumber,
           store_id: stores.id,
+          user_id: null, // Explicitly set to null for guest orders
           subtotal: subtotal,
           total: subtotal,
           delivery_fee: 0,
