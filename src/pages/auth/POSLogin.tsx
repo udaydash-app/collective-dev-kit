@@ -89,18 +89,29 @@ export default function POSLogin() {
 
         // Update pos_users with the new auth user_id
         if (signUpData.user && !userData.user_id) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('pos_users')
             .update({ user_id: signUpData.user.id })
             .eq('id', userData.pos_user_id);
           
+          if (updateError) {
+            console.error('Error updating pos_users:', updateError);
+          }
+          
           // Assign cashier role to the new user
-          await supabase
+          const { error: roleError } = await supabase
             .from('user_roles')
             .insert({
               user_id: signUpData.user.id,
               role: 'cashier'
             });
+          
+          if (roleError) {
+            console.error('Error inserting role:', roleError);
+            throw new Error('Failed to assign role: ' + roleError.message);
+          }
+          
+          console.log('Successfully assigned cashier role to user:', signUpData.user.id);
         }
 
         // Try signing in again
@@ -110,6 +121,30 @@ export default function POSLogin() {
         });
 
         if (retryError) throw retryError;
+      }
+      
+      // Ensure role exists for existing users (in case they were created before role assignment was added)
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession?.user) {
+        const { data: existingRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', currentSession.user.id)
+          .maybeSingle();
+        
+        if (!existingRole) {
+          console.log('No role found, creating cashier role for existing user');
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: currentSession.user.id,
+              role: 'cashier'
+            });
+          
+          if (roleError) {
+            console.error('Error inserting role for existing user:', roleError);
+          }
+        }
       }
 
       // Get the fresh session and manually update the query cache
