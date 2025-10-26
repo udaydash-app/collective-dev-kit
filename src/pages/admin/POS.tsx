@@ -836,26 +836,19 @@ export default function POS() {
 
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Admin Menu Dropdown */}
+        {/* Admin Menu - Horizontal Layout */}
         <div className="bg-primary/5 border-b border-primary/20 px-4 py-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Admin Menu
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="start" 
-              className="w-64 max-h-[80vh] overflow-y-auto bg-background z-50"
-            >
-              {/* Accounting Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 text-primary">
-                <DollarSign className="h-4 w-4" />
-                Accounting
-              </DropdownMenuLabel>
-              <DropdownMenuGroup>
+          <div className="flex gap-2 overflow-x-auto">
+            {/* Accounting Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <DollarSign className="h-4 w-4" />
+                  Accounting
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.accounting.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -866,14 +859,19 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              {/* Reports Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 text-orange-600">
-                <BarChart3 className="h-4 w-4" />
-                Financial Reports
-              </DropdownMenuLabel>
-              <DropdownMenuGroup>
+            {/* Reports Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <BarChart3 className="h-4 w-4" />
+                  Reports
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.reports.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -884,16 +882,19 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <DropdownMenuSeparator />
-
-              {/* Inventory Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 text-blue-600">
-                <Package className="h-4 w-4" />
-                Inventory
-              </DropdownMenuLabel>
-              <DropdownMenuGroup>
+            {/* Inventory Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <Package className="h-4 w-4" />
+                  Inventory
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.inventory.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -904,16 +905,19 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <DropdownMenuSeparator />
-
-              {/* Sales Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 text-green-600">
-                <ShoppingCart className="h-4 w-4" />
-                Sales & Marketing
-              </DropdownMenuLabel>
-              <DropdownMenuGroup>
+            {/* Sales Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <ShoppingCart className="h-4 w-4" />
+                  Sales
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.sales.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -924,16 +928,19 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <DropdownMenuSeparator />
-
-              {/* Management Section */}
-              <DropdownMenuLabel className="flex items-center gap-2 text-purple-600">
-                <Building2 className="h-4 w-4" />
-                Management
-              </DropdownMenuLabel>
-              <DropdownMenuGroup>
+            {/* Management Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <Settings className="h-4 w-4" />
+                  Management
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.management.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -944,9 +951,9 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Search Bar */}
