@@ -22,7 +22,12 @@ import {
   X,
   Tags,
   Megaphone,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown,
+  Building2,
+  BookOpen,
+  FileText,
+  Users
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +37,15 @@ import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
+} from '@/components/ui/dropdown-menu';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -212,21 +226,29 @@ export default function POS() {
     await processTransaction(paymentMethod, selectedStoreId);
   };
 
-  const adminLinks = [
-    { icon: Settings, label: 'Company Settings', path: '/admin/settings' },
-    { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
-    { icon: Package, label: 'Manage Products', path: '/admin/products' },
-    { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
-    { icon: User, label: 'Contacts', path: '/admin/contacts' },
-    { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
-    { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
-    { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
-    { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
-    { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-    { icon: DollarSign, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
-    { icon: DollarSign, label: 'Journal Entries', path: '/admin/journal-entries' },
-    { icon: DollarSign, label: 'General Ledger', path: '/admin/general-ledger' },
-  ];
+  const menuSections = {
+    accounting: [
+      { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
+      { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
+      { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
+    ],
+    inventory: [
+      { icon: Package, label: 'Manage Products', path: '/admin/products' },
+      { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
+      { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
+      { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
+    ],
+    sales: [
+      { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
+      { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
+      { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
+    ],
+    management: [
+      { icon: Users, label: 'Contacts', path: '/admin/contacts' },
+      { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+      { icon: Settings, label: 'Company Settings', path: '/admin/settings' },
+    ],
+  };
 
   const quickActions = [
     { 
@@ -541,28 +563,99 @@ export default function POS() {
 
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Admin Management Menu Bar */}
+        {/* Admin Menu Dropdown */}
         <div className="bg-primary/5 border-b border-primary/20 px-4 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <div className="flex items-center gap-1 mr-2 shrink-0">
-              <Settings className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold">Admin:</span>
-            </div>
-            <div className="flex gap-1">
-              {adminLinks.map((link, index) => (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs shrink-0"
-                  onClick={() => navigate(link.path)}
-                >
-                  <link.icon className="h-3 w-3 mr-1" />
-                  {link.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Admin Menu
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="start" 
+              className="w-64 max-h-[80vh] overflow-y-auto bg-background z-50"
+            >
+              {/* Accounting Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-primary">
+                <DollarSign className="h-4 w-4" />
+                Accounting
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {menuSections.accounting.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator />
+
+              {/* Inventory Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-blue-600">
+                <Package className="h-4 w-4" />
+                Inventory
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {menuSections.inventory.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator />
+
+              {/* Sales Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-green-600">
+                <ShoppingCart className="h-4 w-4" />
+                Sales & Marketing
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {menuSections.sales.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator />
+
+              {/* Management Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-purple-600">
+                <Building2 className="h-4 w-4" />
+                Management
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {menuSections.management.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Search Bar */}
