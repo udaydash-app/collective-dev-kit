@@ -99,7 +99,8 @@ export default function AdminOrders() {
   const { data: orders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter],
     queryFn: async () => {
-      let query = supabase
+      // Fetch online orders
+      let ordersQuery = supabase
         .from('orders')
         .select(`
           *,
@@ -109,25 +110,39 @@ export default function AdminOrders() {
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        ordersQuery = ordersQuery.eq('status', statusFilter);
       }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Error fetching orders:', error);
-        throw error;
+      const { data: onlineOrders, error: ordersError } = await ordersQuery;
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+        throw ordersError;
       }
       
-      // Fetch user names and order items separately
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map(order => order.user_id))];
+      // Fetch POS transactions
+      const { data: posTransactions, error: posError } = await supabase
+        .from('pos_transactions')
+        .select(`
+          *,
+          stores(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (posError) {
+        console.error('Error fetching POS transactions:', posError);
+      }
+
+      const allOrders = [];
+
+      // Process online orders
+      if (onlineOrders && onlineOrders.length > 0) {
+        const userIds = [...new Set(onlineOrders.map(order => order.user_id).filter(Boolean))];
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name')
           .in('id', userIds);
         
-        // Fetch order items with product details
-        const orderIds = data.map(order => order.id);
+        const orderIds = onlineOrders.map(order => order.id);
         const { data: orderItems } = await supabase
           .from('order_items')
           .select(`
@@ -136,7 +151,6 @@ export default function AdminOrders() {
           `)
           .in('order_id', orderIds);
         
-        // Map profiles and items to orders
         const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
         const itemsByOrder = new Map<string, any[]>();
         orderItems?.forEach(item => {
@@ -146,14 +160,59 @@ export default function AdminOrders() {
           itemsByOrder.get(item.order_id)?.push(item);
         });
         
-        return data.map(order => ({
+        const filteredOnlineOrders = onlineOrders.filter(order => {
+          if (statusFilter === 'all') return true;
+          return order.status === statusFilter;
+        });
+        
+        allOrders.push(...filteredOnlineOrders.map(order => ({
           ...order,
-          customer_name: profileMap.get(order.user_id) || 'Unknown',
-          items: itemsByOrder.get(order.id) || []
-        }));
+          order_number: order.order_number,
+          customer_name: profileMap.get(order.user_id) || 'Guest',
+          items: itemsByOrder.get(order.id) || [],
+          type: 'online',
+          status: order.status
+        })));
       }
+
+      // Process POS transactions
+      if (posTransactions && posTransactions.length > 0) {
+        const cashierIds = [...new Set(posTransactions.map(t => t.cashier_id))];
+        const { data: cashierProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', cashierIds);
+        
+        const cashierMap = new Map(cashierProfiles?.map(p => [p.id, p.full_name]) || []);
+        
+        const filteredPOSTransactions = posTransactions.filter(transaction => {
+          if (statusFilter === 'all') return true;
+          return statusFilter === 'completed';
+        });
+        
+        allOrders.push(...filteredPOSTransactions.map(transaction => ({
+          id: transaction.id,
+          order_number: transaction.transaction_number,
+          customer_name: 'Walk-in Customer',
+          stores: transaction.stores,
+          total: transaction.total,
+          subtotal: transaction.subtotal,
+          tax: transaction.tax,
+          delivery_fee: 0,
+          created_at: transaction.created_at,
+          items: transaction.items || [],
+          type: 'pos',
+          status: 'completed',
+          payment_method: transaction.payment_method,
+          cashier_name: cashierMap.get(transaction.cashier_id) || 'Unknown',
+          addresses: null
+        })));
+      }
+
+      // Sort by date
+      allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
-      return data || [];
+      return allOrders;
     }
   });
 
@@ -453,6 +512,7 @@ export default function AdminOrders() {
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="completed">Completed (POS)</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
@@ -531,7 +591,13 @@ export default function AdminOrders() {
                             {formatCurrency(Number(order.total))}
                           </TableCell>
                           <TableCell>
-                            {getStatusBadge(order.status)}
+                            {order.type === 'pos' ? (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                POS Sale
+                              </Badge>
+                            ) : (
+                              getStatusBadge(order.status)
+                            )}
                           </TableCell>
                           <TableCell>
                             {new Date(order.created_at).toLocaleDateString()}
@@ -539,18 +605,26 @@ export default function AdminOrders() {
                             <span className="text-xs text-muted-foreground">
                               {new Date(order.created_at).toLocaleTimeString()}
                             </span>
+                            {order.type === 'pos' && order.cashier_name && (
+                              <>
+                                <br />
+                                <span className="text-xs text-muted-foreground">
+                                  By: {order.cashier_name}
+                                </span>
+                              </>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/order/${order.id}`)}
+                                onClick={() => toggleOrderExpanded(order.id)}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
-                                View
+                                {expandedOrders.has(order.id) ? 'Hide' : 'View'}
                               </Button>
-                              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                              {order.type !== 'pos' && order.status !== 'delivered' && order.status !== 'cancelled' && (
                                 <Select
                                   value={order.status}
                                   onValueChange={(value) => handleStatusChange(order.id, value, order)}
@@ -576,89 +650,127 @@ export default function AdminOrders() {
                             <TableCell colSpan={10} className="bg-muted/50">
                               <div className="p-4 space-y-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-semibold">Order Products</h4>
+                                  <h4 className="font-semibold">
+                                    {order.type === 'pos' ? 'Sale Items' : 'Order Products'}
+                                  </h4>
                                   <div className="flex items-center gap-3">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedOrderId(order.id);
-                                        setAddProductDialogOpen(true);
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" />
-                                      Add Product
-                                    </Button>
-                                    <span className="text-sm text-muted-foreground">
-                                      Delivery: {order.addresses?.address_line1}, {order.addresses?.city}
-                                    </span>
+                                    {order.type !== 'pos' && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedOrderId(order.id);
+                                          setAddProductDialogOpen(true);
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add Product
+                                      </Button>
+                                    )}
+                                    {order.addresses && (
+                                      <span className="text-sm text-muted-foreground">
+                                        Delivery: {order.addresses?.address_line1}, {order.addresses?.city}
+                                      </span>
+                                    )}
+                                    {order.type === 'pos' && (
+                                      <span className="text-sm text-muted-foreground">
+                                        Payment: {order.payment_method}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 {order.items && order.items.length > 0 ? (
                                   <div className="space-y-3">
-                                    {order.items.map((item: any) => (
-                                      <div key={item.id} className="flex items-center gap-4 p-3 bg-background rounded-lg border">
-                                        {item.products?.image_url && (
-                                          <img 
-                                            src={item.products.image_url} 
-                                            alt={item.products?.name}
-                                            className="w-16 h-16 object-cover rounded"
-                                          />
-                                        )}
-                                        <div className="flex-1">
-                                          <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
-                                          <p className="text-sm text-muted-foreground">
-                                            {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
-                                          </p>
+                                    {order.type === 'pos' ? (
+                                      // POS items display (read-only)
+                                      order.items.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex items-center gap-4 p-3 bg-background rounded-lg border">
+                                          {item.image_url && (
+                                            <img 
+                                              src={item.image_url} 
+                                              alt={item.name}
+                                              className="w-16 h-16 object-cover rounded"
+                                            />
+                                          )}
+                                          <div className="flex-1">
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {formatCurrency(Number(item.price))} × {item.quantity}
+                                            </p>
+                                          </div>
+                                          <div className="w-32 text-right">
+                                            <p className="font-semibold">
+                                              {formatCurrency(Number(item.price) * item.quantity)}
+                                            </p>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                      ))
+                                    ) : (
+                                      // Online order items display (editable)
+                                      order.items.map((item: any) => (
+                                        <div key={item.id} className="flex items-center gap-4 p-3 bg-background rounded-lg border">
+                                          {item.products?.image_url && (
+                                            <img 
+                                              src={item.products.image_url} 
+                                              alt={item.products?.name}
+                                              className="w-16 h-16 object-cover rounded"
+                                            />
+                                          )}
+                                          <div className="flex-1">
+                                            <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
+                                            </p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              size="icon"
+                                              variant="outline"
+                                              disabled={item.quantity <= 1}
+                                              onClick={() => updateOrderItem.mutate({ 
+                                                itemId: item.id, 
+                                                quantity: item.quantity - 1 
+                                              })}
+                                            >
+                                              <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <span className="w-12 text-center font-medium">
+                                              {item.quantity}
+                                            </span>
+                                            <Button
+                                              size="icon"
+                                              variant="outline"
+                                              onClick={() => updateOrderItem.mutate({ 
+                                                itemId: item.id, 
+                                                quantity: item.quantity + 1 
+                                              })}
+                                            >
+                                              <Plus className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          <div className="w-32 text-right">
+                                            <p className="font-semibold">
+                                              {formatCurrency(Number(item.subtotal))}
+                                            </p>
+                                          </div>
                                           <Button
                                             size="icon"
-                                            variant="outline"
-                                            disabled={item.quantity <= 1}
-                                            onClick={() => updateOrderItem.mutate({ 
-                                              itemId: item.id, 
-                                              quantity: item.quantity - 1 
-                                            })}
+                                            variant="ghost"
+                                            className="text-destructive"
+                                            onClick={() => {
+                                              if (confirm('Remove this item from the order?')) {
+                                                deleteOrderItem.mutate(item.id);
+                                              }
+                                            }}
                                           >
-                                            <Minus className="h-4 w-4" />
-                                          </Button>
-                                          <span className="w-12 text-center font-medium">
-                                            {item.quantity}
-                                          </span>
-                                          <Button
-                                            size="icon"
-                                            variant="outline"
-                                            onClick={() => updateOrderItem.mutate({ 
-                                              itemId: item.id, 
-                                              quantity: item.quantity + 1 
-                                            })}
-                                          >
-                                            <Plus className="h-4 w-4" />
+                                            <Trash2 className="h-4 w-4" />
                                           </Button>
                                         </div>
-                                        <div className="w-32 text-right">
-                                          <p className="font-semibold">
-                                            {formatCurrency(Number(item.subtotal))}
-                                          </p>
-                                        </div>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="text-destructive"
-                                          onClick={() => {
-                                            if (confirm('Remove this item from the order?')) {
-                                              deleteOrderItem.mutate(item.id);
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
+                                      ))
+                                    )}
                                   </div>
                                 ) : (
                                   <p className="text-muted-foreground text-center py-4">
-                                    No items in this order
+                                    No items in this {order.type === 'pos' ? 'sale' : 'order'}
                                   </p>
                                 )}
                               </div>
