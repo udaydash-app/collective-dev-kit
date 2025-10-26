@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -37,6 +38,9 @@ export default function POS() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
+  const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [orderNotes, setOrderNotes] = useState('');
   
   const ITEMS_PER_PAGE = 12;
   
@@ -186,7 +190,7 @@ export default function POS() {
   );
 
   const subtotal = calculateSubtotal();
-  const tax = calculateTax(subtotal);
+  const tax = isTaxExempt ? 0 : calculateTax(subtotal);
   const total = calculateTotal();
 
   const handleCheckout = () => {
@@ -202,18 +206,87 @@ export default function POS() {
   };
 
   const quickActions = [
-    { icon: Clock, label: 'Recent sales', color: 'bg-[#5DADE2]', action: () => alert('Recent sales - Coming soon') },
-    { icon: Clock, label: 'Pending sales', color: 'bg-[#5DADE2]', action: () => alert('Pending sales - Coming soon') },
-    { icon: Package, label: 'Pickup orders', color: 'bg-[#5DADE2]', action: () => alert('Pickup orders - Coming soon') },
-    { icon: BarChart3, label: 'Layaways', color: 'bg-[#5DADE2]', action: () => alert('Layaways - Coming soon') },
-    { icon: ShoppingCart, label: 'Stock & Price', color: 'bg-[#5DADE2]', action: () => alert('Stock & Price check - Coming soon') },
-    { icon: Clock, label: 'Clock in/Out', color: 'bg-[#5DADE2]', action: () => alert('Clock in/Out - Coming soon') },
-    { icon: Gift, label: 'Check Gift Card', color: 'bg-[#5DADE2]', action: () => alert('Gift card check - Coming soon') },
-    { icon: Tag, label: 'Coupons', color: 'bg-[#5DADE2]', action: () => alert('Coupons - Coming soon') },
-    { icon: Tag, label: 'Discount', color: 'bg-[#5DADE2]', action: () => setDiscount(prev => prev > 0 ? 0 : 10) },
-    { icon: Tag, label: 'Tax exempt', color: 'bg-[#5DADE2]', action: () => alert('Tax exempt - Coming soon') },
-    { icon: Printer, label: 'Last receipt', color: 'bg-[#5DADE2]', action: () => alert('Print last receipt - Coming soon') },
-    { icon: Gift, label: 'Receipt', color: 'bg-[#5DADE2]', action: () => alert('Receipt options - Coming soon') },
+    { 
+      icon: Clock, 
+      label: 'Recent sales', 
+      color: 'bg-[#5DADE2]', 
+      action: () => window.location.href = '/admin/orders'
+    },
+    { 
+      icon: Clock, 
+      label: 'Pending sales', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('No pending sales')
+    },
+    { 
+      icon: Package, 
+      label: 'Pickup orders', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('No pickup orders')
+    },
+    { 
+      icon: BarChart3, 
+      label: 'Close day', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('End of day report - Coming soon')
+    },
+    { 
+      icon: ShoppingCart, 
+      label: 'Stock & Price', 
+      color: 'bg-[#5DADE2]', 
+      action: () => window.location.href = '/admin/products'
+    },
+    { 
+      icon: Clock, 
+      label: 'Clock in/Out', 
+      color: 'bg-[#5DADE2]', 
+      action: () => {
+        const now = new Date().toLocaleTimeString();
+        alert(`Clocked in at ${now}`);
+      }
+    },
+    { 
+      icon: Gift, 
+      label: 'Gift Card', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('Gift card - Coming soon')
+    },
+    { 
+      icon: Tag, 
+      label: 'Coupons', 
+      color: 'bg-[#5DADE2]', 
+      action: () => {
+        const code = prompt('Enter coupon code:');
+        if (code) alert(`Coupon ${code} - Coming soon`);
+      }
+    },
+    { 
+      icon: Tag, 
+      label: 'Discount', 
+      color: 'bg-[#F39C12]', 
+      action: () => {
+        const amount = prompt('Enter discount amount:');
+        if (amount) setDiscount(parseFloat(amount) || 0);
+      }
+    },
+    { 
+      icon: Tag, 
+      label: isTaxExempt ? 'Tax ON' : 'Tax exempt', 
+      color: isTaxExempt ? 'bg-[#E74C3C]' : 'bg-[#5DADE2]', 
+      action: () => setIsTaxExempt(!isTaxExempt)
+    },
+    { 
+      icon: Printer, 
+      label: 'Last receipt', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('No previous receipt')
+    },
+    { 
+      icon: Gift, 
+      label: 'Notes', 
+      color: 'bg-[#5DADE2]', 
+      action: () => setShowNotesDialog(true)
+    },
   ];
 
   return (
@@ -343,8 +416,16 @@ export default function POS() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Tax (15%)</span>
-              <span>{formatCurrency(tax)}</span>
+              <span className={isTaxExempt ? 'line-through text-muted-foreground' : ''}>
+                {formatCurrency(tax)}
+              </span>
             </div>
+            {isTaxExempt && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Tax Exempt Applied</span>
+                <span>-{formatCurrency(calculateTax(subtotal))}</span>
+              </div>
+            )}
             {discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Discount</span>
@@ -567,6 +648,43 @@ export default function POS() {
         product={selectedProduct}
         onSelectVariant={handleVariantSelect}
       />
+
+      {/* Notes Dialog */}
+      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Order Notes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <textarea
+              className="w-full min-h-[100px] p-3 border rounded-md"
+              placeholder="Add notes for this order..."
+              value={orderNotes}
+              onChange={(e) => setOrderNotes(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowNotesDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowNotesDialog(false);
+                  if (orderNotes) {
+                    alert(`Notes saved: ${orderNotes}`);
+                  }
+                }}
+                className="flex-1"
+              >
+                Save Notes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
