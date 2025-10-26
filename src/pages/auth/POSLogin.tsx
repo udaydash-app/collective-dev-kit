@@ -91,6 +91,14 @@ export default function POSLogin() {
             .from('pos_users')
             .update({ user_id: signUpData.user.id })
             .eq('id', userData.pos_user_id);
+          
+          // Assign cashier role to the new user
+          await supabase
+            .from('user_roles')
+            .insert({
+              user_id: signUpData.user.id,
+              role: 'cashier'
+            });
         }
 
         // Try signing in again
