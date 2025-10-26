@@ -10,30 +10,31 @@ export const useAdmin = () => {
     }
   });
 
-  const { data: isAdmin, isLoading } = useQuery({
-    queryKey: ['isAdmin', session?.user?.id],
+  const { data: roleData, isLoading } = useQuery({
+    queryKey: ['userRole', session?.user?.id],
     queryFn: async () => {
-      if (!session?.user?.id) return false;
+      if (!session?.user?.id) return null;
 
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
-        .eq('role', 'admin')
         .maybeSingle();
 
       if (error) {
-        console.error('Error checking admin status:', error);
-        return false;
+        console.error('Error checking role:', error);
+        return null;
       }
 
-      return !!data;
+      return data;
     },
     enabled: !!session?.user?.id,
   });
 
   return {
-    isAdmin: isAdmin ?? false,
+    isAdmin: roleData?.role === 'admin' || roleData?.role === 'cashier',
+    isCashier: roleData?.role === 'cashier',
+    role: roleData?.role,
     isLoading,
     user: session?.user ?? null,
   };
