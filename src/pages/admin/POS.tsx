@@ -55,6 +55,8 @@ export default function POS() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -103,6 +105,23 @@ export default function POS() {
         .order('display_order');
       return data || [];
     },
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ['pos-customers', customerSearch],
+    queryFn: async () => {
+      if (!customerSearch || customerSearch.length < 2) return [];
+      
+      const { data } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('is_customer', true)
+        .or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`)
+        .limit(10);
+      
+      return data || [];
+    },
+    enabled: customerSearch.length >= 2,
   });
 
   const { data: products } = useQuery({
@@ -357,11 +376,43 @@ export default function POS() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Customer"
+              placeholder="Search customer (name, phone, email)"
               value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
+              onChange={(e) => {
+                setCustomerSearch(e.target.value);
+                setShowCustomerResults(true);
+              }}
+              onFocus={() => setShowCustomerResults(true)}
               className="pl-10"
             />
+            
+            {/* Customer Search Results Dropdown */}
+            {showCustomerResults && customerSearch.length >= 2 && customers && customers.length > 0 && (
+              <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto">
+                <div className="p-2 space-y-1">
+                  {customers.map((customer) => (
+                    <Button
+                      key={customer.id}
+                      variant="ghost"
+                      className="w-full justify-start text-left h-auto py-2"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setCustomerSearch('');
+                        setShowCustomerResults(false);
+                      }}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{customer.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {customer.phone && `${customer.phone}`}
+                          {customer.email && ` • ${customer.email}`}
+                        </span>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
 
           <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
@@ -380,14 +431,27 @@ export default function POS() {
 
         {/* Customer Info */}
         <div className="p-4 border-b">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-              <User className="h-6 w-6 text-muted-foreground" />
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <User className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold">{selectedCustomer ? selectedCustomer.name : 'Guest Customer'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'No contact info') : 'Walk-in'}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold">Guest Customer</p>
-              <p className="text-sm text-muted-foreground">Walk-in</p>
-            </div>
+            {selectedCustomer && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCustomer(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
