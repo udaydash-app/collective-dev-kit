@@ -247,6 +247,62 @@ export type Database = {
           },
         ]
       }
+      cash_sessions: {
+        Row: {
+          cash_difference: number | null
+          cashier_id: string
+          closed_at: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          id: string
+          notes: string | null
+          opened_at: string
+          opening_cash: number
+          status: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          cash_difference?: number | null
+          cashier_id: string
+          closed_at?: string | null
+          closing_cash?: number | null
+          created_at?: string
+          expected_cash?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          cash_difference?: number | null
+          cashier_id?: string
+          closed_at?: string | null
+          closing_cash?: number | null
+          created_at?: string
+          expected_cash?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_sessions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string

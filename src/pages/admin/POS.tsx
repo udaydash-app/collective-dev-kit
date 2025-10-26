@@ -37,6 +37,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
+import { CashInDialog } from '@/components/pos/CashInDialog';
+import { CashOutDialog } from '@/components/pos/CashOutDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -66,6 +68,9 @@ export default function POS() {
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+  const [showCashIn, setShowCashIn] = useState(false);
+  const [showCashOut, setShowCashOut] = useState(false);
+  const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   
   const ITEMS_PER_PAGE = 12;
   
@@ -174,6 +179,64 @@ export default function POS() {
     }
   }, [stores, selectedStoreId]);
 
+  // Check for active cash session
+  const { data: activeCashSession, refetch: refetchCashSession } = useQuery({
+    queryKey: ['active-cash-session', selectedStoreId],
+    queryFn: async () => {
+      if (!selectedStoreId) return null;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data } = await supabase
+        .from('cash_sessions')
+        .select('*')
+        .eq('cashier_id', user.id)
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .order('opened_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return data;
+    },
+    enabled: !!selectedStoreId,
+  });
+
+  // Show cash in dialog if no active session
+  useEffect(() => {
+    if (selectedStoreId && activeCashSession === null && !showCashIn) {
+      setShowCashIn(true);
+    }
+    setCurrentCashSession(activeCashSession);
+  }, [activeCashSession, selectedStoreId]);
+
+  // Get session transactions for expected cash calculation
+  const { data: sessionTransactions } = useQuery({
+    queryKey: ['session-transactions', currentCashSession?.id],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+
+      const { data } = await supabase
+        .from('pos_transactions')
+        .select('total, payment_method')
+        .eq('cashier_id', currentCashSession.cashier_id)
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      return data || [];
+    },
+    enabled: !!currentCashSession,
+  });
+
+  // Calculate expected cash (opening cash + cash sales)
+  const sessionCashSales = sessionTransactions
+    ?.filter(t => t.payment_method === 'cash')
+    .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+  const expectedCashAtClose = currentCashSession 
+    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + sessionCashSales
+    : 0;
+
   const { data: categories } = useQuery({
     queryKey: ['pos-categories'],
     queryFn: async () => {
@@ -236,6 +299,73 @@ export default function POS() {
     },
     enabled: !!selectedCategory || !!searchTerm,
   });
+
+  // Cash management handlers
+  const handleCashIn = async (openingCash: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !selectedStoreId) return;
+
+      const { error } = await supabase
+        .from('cash_sessions')
+        .insert({
+          store_id: selectedStoreId,
+          cashier_id: user.id,
+          opening_cash: openingCash,
+          status: 'open',
+        });
+
+      if (error) throw error;
+
+      toast.success('Cash register opened successfully');
+      await refetchCashSession();
+    } catch (error: any) {
+      console.error('Error opening cash register:', error);
+      toast.error('Failed to open cash register');
+    }
+  };
+
+  const handleCashOut = async (closingCash: number, notes?: string) => {
+    try {
+      if (!currentCashSession) return;
+
+      // Calculate expected cash from cash transactions only
+      const { data: transactions } = await supabase
+        .from('pos_transactions')
+        .select('total, payment_method')
+        .eq('cashier_id', currentCashSession.cashier_id)
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      const cashSales = transactions
+        ?.filter(t => t.payment_method === 'cash')
+        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+      const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + cashSales;
+      const cashDifference = closingCash - expectedCash;
+
+      const { error } = await supabase
+        .from('cash_sessions')
+        .update({
+          closing_cash: closingCash,
+          expected_cash: expectedCash,
+          cash_difference: cashDifference,
+          closed_at: new Date().toISOString(),
+          status: 'closed',
+          notes,
+        })
+        .eq('id', currentCashSession.id);
+
+      if (error) throw error;
+
+      toast.success('Cash register closed successfully');
+      setCurrentCashSession(null);
+      clearCart();
+      await refetchCashSession();
+    } catch (error: any) {
+      console.error('Error closing cash register:', error);
+      toast.error('Failed to close cash register');
+    }
+  };
 
   const handleBarcodeScan = async (barcode: string) => {
     const { data } = await supabase
@@ -315,7 +445,11 @@ export default function POS() {
 
   const handleCheckout = () => {
     if (!selectedStoreId) {
-      alert('Please select a store');
+      toast.error('Please select a store');
+      return;
+    }
+    if (!currentCashSession) {
+      toast.error('Please open the cash register first');
       return;
     }
     setShowPayment(true);
@@ -379,7 +513,13 @@ export default function POS() {
       icon: BarChart3, 
       label: 'Close day', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('End of day report - Coming soon')
+      action: () => {
+        if (!currentCashSession) {
+          toast.error('No active cash session to close');
+          return;
+        }
+        setShowCashOut(true);
+      }
     },
     { 
       icon: ShoppingCart, 
@@ -1025,6 +1165,28 @@ export default function POS() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CashInDialog
+        isOpen={showCashIn}
+        onClose={() => {
+          if (!currentCashSession) {
+            toast.error('Cash in is required to use the POS');
+            return;
+          }
+          setShowCashIn(false);
+        }}
+        onConfirm={handleCashIn}
+      />
+
+      {currentCashSession && (
+        <CashOutDialog
+          isOpen={showCashOut}
+          onClose={() => setShowCashOut(false)}
+          onConfirm={handleCashOut}
+          openingCash={parseFloat(currentCashSession.opening_cash?.toString() || '0')}
+          expectedCash={expectedCashAtClose}
+        />
+      )}
     </div>
   );
 }
