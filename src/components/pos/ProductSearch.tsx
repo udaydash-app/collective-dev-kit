@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BarcodeScanner } from './BarcodeScanner';
+import { VariantSelector } from './VariantSelector';
 import { formatCurrency } from '@/lib/utils';
 
 interface ProductSearchProps {
@@ -15,6 +16,8 @@ interface ProductSearchProps {
 export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
@@ -50,15 +53,31 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const handleProductSelect = (product: any) => {
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
     
-    if (availableVariants.length > 0) {
-      const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+    if (availableVariants.length > 1) {
+      // Show variant selector if multiple variants
+      setSelectedProduct(product);
+      setVariantSelectorOpen(true);
+    } else if (availableVariants.length === 1) {
+      // Auto-select single variant
       onProductSelect({
         ...product,
-        price: defaultVariant.price,
-        selectedVariant: defaultVariant,
+        price: availableVariants[0].price,
+        selectedVariant: availableVariants[0],
       });
     } else {
+      // No variants, use product price
       onProductSelect(product);
+    }
+  };
+
+  const handleVariantSelect = (variant: any) => {
+    if (selectedProduct) {
+      onProductSelect({
+        ...selectedProduct,
+        price: variant.price,
+        selectedVariant: variant,
+      });
+      setVariantSelectorOpen(false);
     }
   };
 
@@ -197,6 +216,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       {searchTerm && products && products.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-4">No products found</p>
       )}
+
+      <VariantSelector
+        isOpen={variantSelectorOpen}
+        onClose={() => setVariantSelectorOpen(false)}
+        product={selectedProduct}
+        onSelectVariant={handleVariantSelect}
+      />
     </div>
   );
 };

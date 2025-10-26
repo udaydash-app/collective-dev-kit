@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
+import { VariantSelector } from '@/components/pos/VariantSelector';
 import { cn } from '@/lib/utils';
 
 export default function POS() {
@@ -32,6 +33,8 @@ export default function POS() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   const {
     cart,
@@ -115,17 +118,30 @@ export default function POS() {
   const handleProductClick = (product: any) => {
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
     
-    if (availableVariants.length > 0) {
-      // Use default variant or first available variant
-      const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+    if (availableVariants.length > 1) {
+      // Show variant selector if multiple variants
+      setSelectedProduct(product);
+      setVariantSelectorOpen(true);
+    } else if (availableVariants.length === 1) {
+      // Auto-select single variant
       addToCart({
         ...product,
-        price: defaultVariant.price,
-        selectedVariant: defaultVariant,
+        price: availableVariants[0].price,
+        selectedVariant: availableVariants[0],
       });
     } else {
       // No variants, use product price
       addToCart(product);
+    }
+  };
+
+  const handleVariantSelect = (variant: any) => {
+    if (selectedProduct) {
+      addToCart({
+        ...selectedProduct,
+        price: variant.price,
+        selectedVariant: variant,
+      });
     }
   };
 
@@ -415,6 +431,13 @@ export default function POS() {
         onClose={() => setShowPayment(false)}
         total={total}
         onConfirm={handlePaymentConfirm}
+      />
+
+      <VariantSelector
+        isOpen={variantSelectorOpen}
+        onClose={() => setVariantSelectorOpen(false)}
+        product={selectedProduct}
+        onSelectVariant={handleVariantSelect}
       />
     </div>
   );
