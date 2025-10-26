@@ -64,7 +64,18 @@ export default function POS() {
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default
+          )
+        `)
         .eq('is_available', true)
         .order('name');
 
@@ -80,12 +91,42 @@ export default function POS() {
   const handleBarcodeScan = async (barcode: string) => {
     const { data } = await supabase
       .from('products')
-      .select('*')
+      .select(`
+        *,
+        product_variants (
+          id,
+          label,
+          quantity,
+          unit,
+          price,
+          is_available,
+          is_default
+        )
+      `)
       .eq('barcode', barcode)
       .eq('is_available', true)
       .maybeSingle();
 
-    if (data) addToCart(data);
+    if (data) {
+      handleProductClick(data);
+    }
+  };
+
+  const handleProductClick = (product: any) => {
+    const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+    
+    if (availableVariants.length > 0) {
+      // Use default variant or first available variant
+      const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+      addToCart({
+        ...product,
+        price: defaultVariant.price,
+        selectedVariant: defaultVariant,
+      });
+    } else {
+      // No variants, use product price
+      addToCart(product);
+    }
   };
 
   const subtotal = calculateSubtotal();
@@ -190,6 +231,12 @@ export default function POS() {
                       <p className="font-medium text-sm">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatCurrency(item.price)} each
+                        {(item as any).selectedVariant && (
+                          <span className="ml-1">
+                            • {(item as any).selectedVariant.label || 
+                               `${(item as any).selectedVariant.quantity}${(item as any).selectedVariant.unit}`}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <Button
@@ -304,28 +351,43 @@ export default function POS() {
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
-            {products?.slice(0, 12).map((product) => (
-              <Button
-                key={product.id}
-                variant="outline"
-                className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                onClick={() => addToCart(product)}
-              >
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="h-16 w-16 object-cover rounded mb-2"
-                  />
-                ) : (
-                  <Package className="h-12 w-12 mb-2 opacity-50" />
-                )}
-                <p className="text-xs font-medium text-center line-clamp-1 mb-1">
-                  {product.name}
-                </p>
-                <p className="text-sm font-bold">{formatCurrency(Number(product.price))}</p>
-              </Button>
-            ))}
+            {products?.slice(0, 12).map((product) => {
+              const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+              const displayPrice = availableVariants.length > 0 
+                ? defaultVariant?.price 
+                : product.price;
+
+              return (
+                <Button
+                  key={product.id}
+                  variant="outline"
+                  className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                  onClick={() => handleProductClick(product)}
+                >
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="h-16 w-16 object-cover rounded mb-2"
+                    />
+                  ) : (
+                    <Package className="h-12 w-12 mb-2 opacity-50" />
+                  )}
+                  <p className="text-xs font-medium text-center line-clamp-1 mb-1">
+                    {product.name}
+                  </p>
+                  <p className="text-sm font-bold">
+                    {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
+                  </p>
+                  {availableVariants.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {availableVariants.length} variants
+                    </span>
+                  )}
+                </Button>
+              );
+            })}
           </div>
 
           {/* Quick Actions Grid */}

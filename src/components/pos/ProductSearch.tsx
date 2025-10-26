@@ -21,7 +21,18 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default
+          )
+        `)
         .eq('is_available', true)
         .order('name');
 
@@ -36,12 +47,38 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     enabled: searchTerm.length > 0,
   });
 
+  const handleProductSelect = (product: any) => {
+    const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+    
+    if (availableVariants.length > 0) {
+      const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+      onProductSelect({
+        ...product,
+        price: defaultVariant.price,
+        selectedVariant: defaultVariant,
+      });
+    } else {
+      onProductSelect(product);
+    }
+  };
+
   const handleBarcodeSearch = async () => {
     if (!barcodeInput.trim()) return;
 
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select(`
+        *,
+        product_variants (
+          id,
+          label,
+          quantity,
+          unit,
+          price,
+          is_available,
+          is_default
+        )
+      `)
       .eq('barcode', barcodeInput.trim())
       .eq('is_available', true)
       .maybeSingle();
@@ -52,7 +89,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     }
 
     if (data) {
-      onProductSelect(data);
+      handleProductSelect(data);
       setBarcodeInput('');
     }
   };
@@ -60,7 +97,18 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const handleBarcodeScan = async (barcode: string) => {
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select(`
+        *,
+        product_variants (
+          id,
+          label,
+          quantity,
+          unit,
+          price,
+          is_available,
+          is_default
+        )
+      `)
       .eq('barcode', barcode)
       .eq('is_available', true)
       .maybeSingle();
@@ -71,7 +119,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     }
 
     if (data) {
-      onProductSelect(data);
+      handleProductSelect(data);
     }
   };
 
@@ -110,28 +158,39 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
       {products && products.length > 0 && (
         <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-          {products.map((product) => (
-            <Card
-              key={product.id}
-              className="p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => onProductSelect(product)}
-            >
-              {product.image_url && (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-12 h-12 object-cover rounded"
-                />
-              )}
-              <div className="flex-1">
-                <p className="font-medium">{product.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {product.barcode || 'No barcode'}
+          {products.map((product) => {
+            const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+            const displayPrice = availableVariants.length > 0 
+              ? defaultVariant?.price 
+              : product.price;
+
+            return (
+              <Card
+                key={product.id}
+                className="p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => handleProductSelect(product)}
+              >
+                {product.image_url && (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="font-medium">{product.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {product.barcode || 'No barcode'}
+                    {availableVariants.length > 0 && ` • ${availableVariants.length} variants`}
+                  </p>
+                </div>
+                <p className="font-bold text-primary">
+                  {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
                 </p>
-              </div>
-              <p className="font-bold text-primary">{formatCurrency(Number(product.price))}</p>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
