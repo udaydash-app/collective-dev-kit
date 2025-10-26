@@ -110,8 +110,17 @@ export default function POSLogin() {
         if (retryError) throw retryError;
       }
 
+      // Verify session is established before navigating
+      const { data: sessionCheck } = await supabase.auth.getSession();
+      console.log('Session after login:', sessionCheck);
+      console.log('User ID:', sessionCheck?.session?.user?.id);
+      
       toast.success(`Welcome, ${userData.full_name}!`);
-      navigate('/admin/pos');
+      
+      // Small delay to ensure session is fully propagated
+      setTimeout(() => {
+        navigate('/admin/pos');
+      }, 100);
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');

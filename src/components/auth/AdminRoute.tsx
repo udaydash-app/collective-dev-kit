@@ -42,6 +42,8 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isAdmin]);
 
+  console.log('AdminRoute - isLoading:', isLoading, 'user:', user?.id, 'isAdmin:', isAdmin);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -54,6 +56,7 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
+    console.log('AdminRoute - No user, redirecting to /auth/login');
     return <Navigate to="/auth/login" replace />;
   }
 
