@@ -6,7 +6,6 @@ export const useAdmin = () => {
     queryKey: ['session'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('useAdmin - Session fetched:', session?.user?.id);
       return session;
     },
     refetchInterval: 1000, // Refetch every second to catch auth changes

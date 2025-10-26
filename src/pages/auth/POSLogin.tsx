@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Store, Hash } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   interface VerifyPinResult {
     pos_user_id: string;
@@ -110,17 +112,12 @@ export default function POSLogin() {
         if (retryError) throw retryError;
       }
 
-      // Verify session is established before navigating
-      const { data: sessionCheck } = await supabase.auth.getSession();
-      console.log('Session after login:', sessionCheck);
-      console.log('User ID:', sessionCheck?.session?.user?.id);
+      // Invalidate queries to immediately update with new session
+      await queryClient.invalidateQueries({ queryKey: ['session'] });
+      await queryClient.invalidateQueries({ queryKey: ['userRole'] });
       
       toast.success(`Welcome, ${userData.full_name}!`);
-      
-      // Small delay to ensure session is fully propagated
-      setTimeout(() => {
-        navigate('/admin/pos');
-      }, 100);
+      navigate('/admin/pos');
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
