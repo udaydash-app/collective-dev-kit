@@ -112,8 +112,13 @@ export default function POSLogin() {
         if (retryError) throw retryError;
       }
 
-      // Invalidate queries to immediately update with new session
-      await queryClient.invalidateQueries({ queryKey: ['session'] });
+      // Get the fresh session and manually update the query cache
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      
+      // Manually set the session in the query cache for immediate availability
+      queryClient.setQueryData(['session'], freshSession);
+      
+      // Also invalidate to ensure everything stays in sync
       await queryClient.invalidateQueries({ queryKey: ['userRole'] });
       
       toast.success(`Welcome, ${userData.full_name}!`);
