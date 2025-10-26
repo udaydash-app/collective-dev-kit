@@ -57,17 +57,21 @@ export default function POSLogin() {
       const emailIdentifier = userData.user_id || userData.pos_user_id;
       const authEmail = `pos-${emailIdentifier}@pos.globalmarket.app`;
       
+      // Create a password that meets Supabase requirements (min 6 chars)
+      // Pad PIN to ensure it's at least 6 characters
+      const authPassword = `PIN${pinValue.padStart(6, '0')}`;
+      
       // Try to sign in
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
-        password: pinValue,
+        password: authPassword,
       });
 
       if (authError) {
         // If user doesn't exist in auth, create them
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: authEmail,
-          password: pinValue,
+          password: authPassword,
           options: {
             data: {
               full_name: userData.full_name,
@@ -92,7 +96,7 @@ export default function POSLogin() {
         // Try signing in again
         const { error: retryError } = await supabase.auth.signInWithPassword({
           email: authEmail,
-          password: pinValue,
+          password: authPassword,
         });
 
         if (retryError) throw retryError;
