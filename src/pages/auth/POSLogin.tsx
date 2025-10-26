@@ -12,6 +12,12 @@ export default function POSLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  interface VerifyPinResult {
+    pos_user_id: string;
+    user_id: string | null;
+    full_name: string;
+  }
+
   const handlePinInput = (value: string) => {
     // Only allow digits and max 6 characters
     if (/^\d*$/.test(value) && value.length <= 6) {
@@ -35,7 +41,7 @@ export default function POSLogin() {
     try {
       // Verify PIN using the database function
       const { data, error } = await supabase
-        .rpc('verify_pin', { input_pin: pinValue });
+        .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
 
       if (error) throw error;
 
@@ -47,16 +53,20 @@ export default function POSLogin() {
 
       const userData = data[0];
       
-      // Sign in the user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: `pos-${userData.user_id}@globalmarket.local`,
+      // Use pos_user_id if user_id is null (first time login)
+      const emailIdentifier = userData.user_id || userData.pos_user_id;
+      const authEmail = `pos-${emailIdentifier}@globalmarket.local`;
+      
+      // Try to sign in
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
         password: pinValue,
       });
 
       if (authError) {
         // If user doesn't exist in auth, create them
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: `pos-${userData.user_id}@globalmarket.local`,
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: authEmail,
           password: pinValue,
           options: {
             data: {
@@ -67,9 +77,17 @@ export default function POSLogin() {
 
         if (signUpError) throw signUpError;
 
+        // Update pos_users with the new auth user_id
+        if (signUpData.user && !userData.user_id) {
+          await supabase
+            .from('pos_users')
+            .update({ user_id: signUpData.user.id })
+            .eq('id', userData.pos_user_id);
+        }
+
         // Try signing in again
         const { error: retryError } = await supabase.auth.signInWithPassword({
-          email: `pos-${userData.user_id}@globalmarket.local`,
+          email: authEmail,
           password: pinValue,
         });
 
