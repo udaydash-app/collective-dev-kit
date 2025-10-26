@@ -56,6 +56,8 @@ export default function POS() {
     addToCart,
     removeFromCart,
     updateQuantity,
+    updateItemPrice,
+    updateItemDiscount,
     clearCart,
     calculateSubtotal,
     calculateTax,
@@ -309,7 +311,7 @@ export default function POS() {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
-      <div className="w-[380px] border-r flex flex-col bg-card">
+      <div className="w-[500px] border-r flex flex-col bg-card">
         {/* Header */}
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
@@ -370,56 +372,93 @@ export default function POS() {
                   Clear
                 </Button>
               </div>
-              {cart.map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatCurrency(item.price)} each
-                        {(item as any).selectedVariant && (
-                          <span className="ml-1">
-                            • {(item as any).selectedVariant.label || 
-                               `${(item as any).selectedVariant.quantity}${(item as any).selectedVariant.unit}`}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => removeFromCart(item.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+              {cart.map((item) => {
+                const effectivePrice = item.customPrice ?? item.price;
+                const itemTotal = effectivePrice * item.quantity;
+                const itemDiscountAmount = item.itemDiscount ?? 0;
+                const finalItemTotal = itemTotal - itemDiscountAmount;
+
+                return (
+                  <Card key={item.id} className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Original: {formatCurrency(item.price)}
+                          {(item as any).selectedVariant && (
+                            <span className="ml-1">
+                              • {(item as any).selectedVariant.label || 
+                                 `${(item as any).selectedVariant.quantity}${(item as any).selectedVariant.unit}`}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => removeFromCart(item.id)}
                       >
-                        -
-                      </Button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      >
-                        +
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
-                    <span className="font-semibold">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
-                  </div>
-                </Card>
-              ))}
+                    
+                    {/* Quantity and Price Controls */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      
+                      <div className="flex-1 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground shrink-0">Price:</span>
+                        <Input
+                          type="number"
+                          value={effectivePrice}
+                          onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || item.price)}
+                          className="h-7 text-xs text-center"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Item Discount */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex-1 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground shrink-0">Disc:</span>
+                        <Input
+                          type="number"
+                          value={itemDiscountAmount}
+                          onChange={(e) => updateItemDiscount(item.id, parseFloat(e.target.value) || 0)}
+                          className="h-7 text-xs text-center"
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                      <span className="font-semibold text-sm">
+                        {formatCurrency(finalItemTotal)}
+                      </span>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -445,10 +484,22 @@ export default function POS() {
             )}
             {discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Discount</span>
+                <span className="text-muted-foreground">Bill Discount</span>
                 <span>-{formatCurrency(discount)}</span>
               </div>
             )}
+            <div className="flex items-center gap-2 py-2">
+              <span className="text-xs text-muted-foreground shrink-0">Bill Discount:</span>
+              <Input
+                type="number"
+                value={discount}
+                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                className="h-8 text-sm"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
             <div className="flex justify-between items-center pt-2 border-t">
               <span className="text-lg font-bold">TOTAL</span>
               <span className="text-2xl font-bold text-primary">

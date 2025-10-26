@@ -9,6 +9,8 @@ export interface CartItem {
   quantity: number;
   barcode?: string;
   image_url?: string;
+  itemDiscount?: number;
+  customPrice?: number;
 }
 
 export const usePOSTransaction = () => {
@@ -54,13 +56,34 @@ export const usePOSTransaction = () => {
     );
   };
 
+  const updateItemPrice = (productId: string, price: number) => {
+    setCart(prev =>
+      prev.map(item =>
+        item.id === productId ? { ...item, customPrice: price } : item
+      )
+    );
+  };
+
+  const updateItemDiscount = (productId: string, discount: number) => {
+    setCart(prev =>
+      prev.map(item =>
+        item.id === productId ? { ...item, itemDiscount: discount } : item
+      )
+    );
+  };
+
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
   };
 
   const calculateSubtotal = () => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cart.reduce((sum, item) => {
+      const effectivePrice = item.customPrice ?? item.price;
+      const itemTotal = effectivePrice * item.quantity;
+      const itemDiscountAmount = item.itemDiscount ?? 0;
+      return sum + itemTotal - itemDiscountAmount;
+    }, 0);
   };
 
   const calculateTax = (subtotal: number) => {
@@ -124,6 +147,8 @@ export const usePOSTransaction = () => {
     addToCart,
     removeFromCart,
     updateQuantity,
+    updateItemPrice,
+    updateItemDiscount,
     clearCart,
     calculateSubtotal,
     calculateTax,
