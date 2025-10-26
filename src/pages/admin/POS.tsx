@@ -70,8 +70,6 @@ export default function POS() {
     cart,
     discount,
     setDiscount,
-    isTaxExempt,
-    setIsTaxExempt,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -79,7 +77,6 @@ export default function POS() {
     updateItemDiscount,
     clearCart,
     calculateSubtotal,
-    calculateTax,
     calculateTotal,
     processTransaction,
   } = usePOSTransaction();
@@ -233,7 +230,6 @@ export default function POS() {
   );
 
   const subtotal = calculateSubtotal();
-  const tax = isTaxExempt ? 0 : calculateTax(subtotal);
   const total = calculateTotal();
 
   const handleCheckout = () => {
@@ -342,12 +338,6 @@ export default function POS() {
         const amount = prompt('Enter discount amount:');
         if (amount) setDiscount(parseFloat(amount) || 0);
       }
-    },
-    { 
-      icon: Tag, 
-      label: isTaxExempt ? 'Tax ON' : 'Tax exempt', 
-      color: isTaxExempt ? 'bg-[#E74C3C]' : 'bg-[#5DADE2]', 
-      action: () => setIsTaxExempt(!isTaxExempt)
     },
     { 
       icon: Printer, 
@@ -570,18 +560,6 @@ export default function POS() {
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (15%)</span>
-              <span className={isTaxExempt ? 'line-through text-muted-foreground' : ''}>
-                {formatCurrency(tax)}
-              </span>
-            </div>
-            {isTaxExempt && (
-              <div className="flex justify-between text-sm text-green-600">
-                <span>Tax Exempt Applied</span>
-                <span>-{formatCurrency(calculateTax(subtotal))}</span>
-              </div>
-            )}
             {discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bill Discount</span>

@@ -16,7 +16,6 @@ export interface CartItem {
 export const usePOSTransaction = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
-  const [isTaxExempt, setIsTaxExempt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const addToCart = (product: any) => {
@@ -87,14 +86,9 @@ export const usePOSTransaction = () => {
     }, 0);
   };
 
-  const calculateTax = (subtotal: number) => {
-    return subtotal * 0.15; // 15% tax
-  };
-
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const tax = isTaxExempt ? 0 : calculateTax(subtotal);
-    return subtotal + tax - discount;
+    return subtotal - discount;
   };
 
   const processTransaction = async (paymentMethod: string, storeId: string) => {
@@ -118,14 +112,12 @@ export const usePOSTransaction = () => {
       }
 
       const subtotal = calculateSubtotal();
-      const tax = isTaxExempt ? 0 : calculateTax(subtotal);
       const total = calculateTotal();
 
       console.log('Processing transaction:', {
         cashier_id: user.id,
         store_id: storeId,
         subtotal,
-        tax,
         discount,
         total,
         itemCount: cart.length,
@@ -138,7 +130,7 @@ export const usePOSTransaction = () => {
           store_id: storeId,
           items: cart as any,
           subtotal: parseFloat(subtotal.toFixed(2)),
-          tax: parseFloat(tax.toFixed(2)),
+          tax: 0,
           discount: parseFloat(discount.toFixed(2)),
           total: parseFloat(total.toFixed(2)),
           payment_method: paymentMethod,
@@ -154,7 +146,6 @@ export const usePOSTransaction = () => {
 
       toast.success('Transaction completed successfully!');
       clearCart();
-      setIsTaxExempt(false);
       return data;
     } catch (error: any) {
       console.error('Transaction error:', error);
@@ -169,8 +160,6 @@ export const usePOSTransaction = () => {
     cart,
     discount,
     setDiscount,
-    isTaxExempt,
-    setIsTaxExempt,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -178,7 +167,6 @@ export const usePOSTransaction = () => {
     updateItemDiscount,
     clearCart,
     calculateSubtotal,
-    calculateTax,
     calculateTotal,
     processTransaction,
     isProcessing,
