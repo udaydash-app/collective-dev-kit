@@ -29,6 +29,10 @@ import AdminContacts from "./pages/admin/Contacts";
 import AdminChartOfAccounts from "./pages/admin/ChartOfAccounts";
 import AdminJournalEntries from "./pages/admin/JournalEntries";
 import AdminGeneralLedger from "./pages/admin/GeneralLedger";
+import AdminTrialBalance from "./pages/admin/TrialBalance";
+import AdminProfitLoss from "./pages/admin/ProfitLoss";
+import AdminBalanceSheet from "./pages/admin/BalanceSheet";
+import AdminCashFlow from "./pages/admin/CashFlow";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -74,6 +78,10 @@ const App = () => (
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
+          <Route path="/admin/trial-balance" element={<AdminRoute><AdminTrialBalance /></AdminRoute>} />
+          <Route path="/admin/profit-loss" element={<AdminRoute><AdminProfitLoss /></AdminRoute>} />
+          <Route path="/admin/balance-sheet" element={<AdminRoute><AdminBalanceSheet /></AdminRoute>} />
+          <Route path="/admin/cash-flow" element={<AdminRoute><AdminCashFlow /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />

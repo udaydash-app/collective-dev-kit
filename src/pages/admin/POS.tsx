@@ -27,7 +27,9 @@ import {
   Building2,
   BookOpen,
   FileText,
-  Users
+  Users,
+  TrendingUp,
+  Droplets
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -231,6 +233,12 @@ export default function POS() {
       { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
       { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
+    ],
+    reports: [
+      { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
+      { icon: TrendingUp, label: 'Profit & Loss', path: '/admin/profit-loss' },
+      { icon: Building2, label: 'Balance Sheet', path: '/admin/balance-sheet' },
+      { icon: Droplets, label: 'Cash Flow', path: '/admin/cash-flow' },
     ],
     inventory: [
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
@@ -584,6 +592,24 @@ export default function POS() {
               </DropdownMenuLabel>
               <DropdownMenuGroup>
                 {menuSections.accounting.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+
+              {/* Reports Section */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-orange-600">
+                <BarChart3 className="h-4 w-4" />
+                Financial Reports
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {menuSections.reports.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
