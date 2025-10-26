@@ -46,8 +46,24 @@ export default function Login() {
 
       if (data.user) {
         trackEvent("user_login", { method: "email" });
-        toast.success("Welcome back!");
-        navigate("/");
+        
+        // Check user role and redirect accordingly
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (roleData?.role === 'cashier') {
+          toast.success("Welcome to POS!");
+          navigate("/admin/pos");
+        } else if (roleData?.role === 'admin') {
+          toast.success("Welcome back, Admin!");
+          navigate("/admin/dashboard");
+        } else {
+          toast.success("Welcome back!");
+          navigate("/");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
