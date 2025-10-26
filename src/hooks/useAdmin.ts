@@ -2,13 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useAdmin = () => {
-  const { data: session } = useQuery({
+  const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       return session;
     },
-    refetchInterval: 1000, // Refetch every second to catch auth changes
   });
 
   const { data: roleData, isLoading: isRoleLoading } = useQuery({
@@ -33,12 +32,13 @@ export const useAdmin = () => {
   });
 
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
-  const isLoading = isRoleLoading || (!!session?.user?.id && !roleData);
+  const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
 
   console.log('useAdmin Debug:', {
     userId: session?.user?.id,
     roleData,
     isRoleLoading,
+    isSessionLoading,
     isAdmin,
     isLoading,
     hasSession: !!session,
