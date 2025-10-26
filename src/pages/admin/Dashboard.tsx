@@ -16,7 +16,8 @@ import {
   Settings,
   Tags,
   Tag,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -289,6 +290,12 @@ export default function AdminDashboard() {
                   <Button className="w-full">
                     <Settings className="mr-2 h-4 w-4" />
                     Company Settings
+                  </Button>
+                </Link>
+                <Link to="/admin/pos">
+                  <Button variant="outline" className="w-full">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Point of Sale
                   </Button>
                 </Link>
                 <Link to="/admin/orders">

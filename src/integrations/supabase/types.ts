@@ -537,6 +537,62 @@ export type Database = {
         }
         Relationships: []
       }
+      pos_transactions: {
+        Row: {
+          cashier_id: string
+          created_at: string
+          discount: number
+          id: string
+          items: Json
+          payment_details: Json | null
+          payment_method: string
+          store_id: string
+          subtotal: number
+          tax: number
+          total: number
+          transaction_number: string
+          updated_at: string
+        }
+        Insert: {
+          cashier_id: string
+          created_at?: string
+          discount?: number
+          id?: string
+          items?: Json
+          payment_details?: Json | null
+          payment_method: string
+          store_id: string
+          subtotal: number
+          tax?: number
+          total: number
+          transaction_number?: string
+          updated_at?: string
+        }
+        Update: {
+          cashier_id?: string
+          created_at?: string
+          discount?: number
+          id?: string
+          items?: Json
+          payment_details?: Json | null
+          payment_method?: string
+          store_id?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          transaction_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_transactions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           created_at: string
@@ -589,6 +645,7 @@ export type Database = {
       }
       products: {
         Row: {
+          barcode: string | null
           category_id: string | null
           created_at: string
           description: string | null
@@ -608,6 +665,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -627,6 +685,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -885,7 +944,7 @@ export type Database = {
       verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "cashier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1013,7 +1072,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "cashier"],
     },
   },
 } as const
