@@ -38,6 +38,7 @@ interface Product {
   is_available: boolean;
   is_featured?: boolean;
   stock_quantity: number;
+  barcode?: string | null;
   categories?: { name: string };
   stores?: { name: string };
   product_variants?: ProductVariant[];
@@ -176,6 +177,7 @@ export default function Products() {
       is_available: true,
       is_featured: false,
       stock_quantity: 0,
+      barcode: null,
     } as Product);
     setSelectedImage(null);
     setPreviewUrl(null);
@@ -308,6 +310,7 @@ export default function Products() {
         stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
         is_available: formData.get("is_available") === "true",
         is_featured: formData.get("is_featured") === "true",
+        barcode: formData.get("barcode") as string || null,
       };
 
       if (isAddingNew) {
@@ -947,6 +950,17 @@ export default function Products() {
                       type="number"
                       defaultValue={editingProduct.stock_quantity}
                       required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="barcode">Barcode</Label>
+                    <Input
+                      id="barcode"
+                      name="barcode"
+                      type="text"
+                      defaultValue={(editingProduct as any).barcode || ''}
+                      placeholder="Enter product barcode"
                     />
                   </div>
                 </div>
