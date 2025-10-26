@@ -11,7 +11,7 @@ export const useAdmin = () => {
     refetchInterval: 1000, // Refetch every second to catch auth changes
   });
 
-  const { data: roleData, isLoading } = useQuery({
+  const { data: roleData, isLoading: isRoleLoading } = useQuery({
     queryKey: ['userRole', session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return null;
@@ -32,8 +32,11 @@ export const useAdmin = () => {
     enabled: !!session?.user?.id,
   });
 
+  const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
+  const isLoading = isRoleLoading || (!!session?.user?.id && !roleData);
+
   return {
-    isAdmin: roleData?.role === 'admin' || roleData?.role === 'cashier',
+    isAdmin,
     isCashier: roleData?.role === 'cashier',
     role: roleData?.role,
     isLoading,
