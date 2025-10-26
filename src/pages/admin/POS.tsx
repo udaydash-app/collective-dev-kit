@@ -506,7 +506,7 @@ export default function POS() {
         </div>
 
         {/* Categories/Products Grid */}
-        <div className="flex-1 flex flex-col p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {/* Breadcrumb */}
           {(selectedCategory || searchTerm) && (
             <div className="mb-4 flex items-center gap-2">
