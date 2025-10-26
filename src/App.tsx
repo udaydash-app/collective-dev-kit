@@ -73,12 +73,11 @@ const AppContent = () => {
       <OrderStatusNotifications />
       <BrowserRouter>
         <Routes>
-          {/* Default route - Redirect to POS Login */}
-          <Route path="/" element={<Navigate to="/pos-login" replace />} />
-          <Route path="/pos-login" element={<POSLogin />} />
+          {/* Customer-facing home */}
+          <Route path="/" element={<Index />} />
           
-          {/* Customer-facing routes */}
-          <Route path="/store" element={<Index />} />
+          {/* POS Login for staff */}
+          <Route path="/pos-login" element={<POSLogin />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:id" element={<CategoryProducts />} />
           <Route path="/product/:id" element={<ProductDetails />} />
