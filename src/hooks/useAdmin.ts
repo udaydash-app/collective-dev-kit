@@ -35,6 +35,16 @@ export const useAdmin = () => {
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isRoleLoading || (!!session?.user?.id && !roleData);
 
+  console.log('useAdmin Debug:', {
+    userId: session?.user?.id,
+    roleData,
+    isRoleLoading,
+    isAdmin,
+    isLoading,
+    hasSession: !!session,
+    hasUser: !!session?.user
+  });
+
   return {
     isAdmin,
     isCashier: roleData?.role === 'cashier',
