@@ -202,18 +202,18 @@ export default function POS() {
   };
 
   const quickActions = [
-    { icon: Clock, label: 'Recent sales', color: 'bg-[#5DADE2]' },
-    { icon: Clock, label: 'Pending sales', color: 'bg-[#5DADE2]' },
-    { icon: Package, label: 'Pickup orders', color: 'bg-[#5DADE2]' },
-    { icon: BarChart3, label: 'Layaways', color: 'bg-[#5DADE2]' },
-    { icon: ShoppingCart, label: 'Stock & Price', color: 'bg-[#5DADE2]' },
-    { icon: Clock, label: 'Clock in/Out', color: 'bg-[#5DADE2]' },
-    { icon: Gift, label: 'Check Gift Card', color: 'bg-[#5DADE2]' },
-    { icon: Tag, label: 'Coupons', color: 'bg-[#5DADE2]' },
-    { icon: Tag, label: 'Discount', color: 'bg-[#5DADE2]' },
-    { icon: Tag, label: 'Tax exempt', color: 'bg-[#5DADE2]' },
-    { icon: Printer, label: 'Last receipt', color: 'bg-[#5DADE2]' },
-    { icon: Gift, label: 'Receipt', color: 'bg-[#5DADE2]' },
+    { icon: Clock, label: 'Recent sales', color: 'bg-[#5DADE2]', action: () => alert('Recent sales - Coming soon') },
+    { icon: Clock, label: 'Pending sales', color: 'bg-[#5DADE2]', action: () => alert('Pending sales - Coming soon') },
+    { icon: Package, label: 'Pickup orders', color: 'bg-[#5DADE2]', action: () => alert('Pickup orders - Coming soon') },
+    { icon: BarChart3, label: 'Layaways', color: 'bg-[#5DADE2]', action: () => alert('Layaways - Coming soon') },
+    { icon: ShoppingCart, label: 'Stock & Price', color: 'bg-[#5DADE2]', action: () => alert('Stock & Price check - Coming soon') },
+    { icon: Clock, label: 'Clock in/Out', color: 'bg-[#5DADE2]', action: () => alert('Clock in/Out - Coming soon') },
+    { icon: Gift, label: 'Check Gift Card', color: 'bg-[#5DADE2]', action: () => alert('Gift card check - Coming soon') },
+    { icon: Tag, label: 'Coupons', color: 'bg-[#5DADE2]', action: () => alert('Coupons - Coming soon') },
+    { icon: Tag, label: 'Discount', color: 'bg-[#5DADE2]', action: () => setDiscount(prev => prev > 0 ? 0 : 10) },
+    { icon: Tag, label: 'Tax exempt', color: 'bg-[#5DADE2]', action: () => alert('Tax exempt - Coming soon') },
+    { icon: Printer, label: 'Last receipt', color: 'bg-[#5DADE2]', action: () => alert('Print last receipt - Coming soon') },
+    { icon: Gift, label: 'Receipt', color: 'bg-[#5DADE2]', action: () => alert('Receipt options - Coming soon') },
   ];
 
   return (
@@ -396,7 +396,10 @@ export default function POS() {
               <Input
                 placeholder="Search products..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="pl-10"
               />
             </div>
@@ -531,7 +534,7 @@ export default function POS() {
           )}
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-4 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mt-4">
             {quickActions.map((action, index) => (
               <Button
                 key={index}
@@ -541,6 +544,7 @@ export default function POS() {
                   action.color,
                   "hover:opacity-90"
                 )}
+                onClick={action.action}
               >
                 <action.icon className="h-6 w-6 mb-1" />
                 <span className="text-xs text-center">{action.label}</span>
