@@ -118,8 +118,17 @@ export default function POSLogin() {
       // Manually set the session in the query cache for immediate availability
       queryClient.setQueryData(['session'], freshSession);
       
-      // Also invalidate to ensure everything stays in sync
-      await queryClient.invalidateQueries({ queryKey: ['userRole'] });
+      // Fetch and set the role data
+      if (freshSession?.user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', freshSession.user.id)
+          .maybeSingle();
+        
+        // Set the role data in cache
+        queryClient.setQueryData(['userRole', freshSession.user.id], roleData);
+      }
       
       toast.success(`Welcome, ${userData.full_name}!`);
       navigate('/admin/pos');
