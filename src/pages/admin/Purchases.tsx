@@ -26,8 +26,7 @@ interface PurchaseItem {
 
 export default function Purchases() {
   const [showNewPurchase, setShowNewPurchase] = useState(false);
-  const [supplierName, setSupplierName] = useState('');
-  const [supplierContact, setSupplierContact] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -45,6 +44,18 @@ export default function Purchases() {
         .from('stores')
         .select('id, name')
         .eq('is_active', true)
+        .order('name');
+      return data || [];
+    },
+  });
+
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, phone, email')
+        .eq('is_supplier', true)
         .order('name');
       return data || [];
     },
@@ -105,6 +116,10 @@ export default function Purchases() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Get supplier details
+      const supplier = suppliers?.find(s => s.id === selectedSupplier);
+      if (!supplier) throw new Error('Supplier not found');
+
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
 
       // Create purchase
@@ -112,8 +127,8 @@ export default function Purchases() {
         .from('purchases')
         .insert({
           store_id: selectedStore,
-          supplier_name: supplierName,
-          supplier_contact: supplierContact,
+          supplier_name: supplier.name,
+          supplier_contact: supplier.phone || supplier.email || '',
           total_amount: totalAmount,
           payment_status: paymentStatus,
           payment_method: paymentMethod,
@@ -156,8 +171,7 @@ export default function Purchases() {
   });
 
   const resetForm = () => {
-    setSupplierName('');
-    setSupplierContact('');
+    setSelectedSupplier('');
     setSelectedStore('');
     setPaymentStatus('pending');
     setPaymentMethod('');
@@ -277,23 +291,31 @@ export default function Purchases() {
           <div className="space-y-4">
             {/* Supplier Info */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="supplier">Supplier Name *</Label>
-                <Input
-                  id="supplier"
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  placeholder="Enter supplier name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact">Supplier Contact</Label>
-                <Input
-                  id="contact"
-                  value={supplierContact}
-                  onChange={(e) => setSupplierContact(e.target.value)}
-                  placeholder="Phone or email"
-                />
+              <div className="col-span-2">
+                <Label htmlFor="supplier">Supplier *</Label>
+                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                  <SelectTrigger id="supplier">
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers?.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                        {(supplier.phone || supplier.email) && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {supplier.phone || supplier.email}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Don't see your supplier?{' '}
+                  <a href="/admin/contacts" className="text-primary hover:underline">
+                    Add one in Contacts
+                  </a>
+                </p>
               </div>
             </div>
 
@@ -421,7 +443,7 @@ export default function Purchases() {
               </Button>
               <Button
                 onClick={() => createPurchaseMutation.mutate()}
-                disabled={!supplierName || !selectedStore || items.length === 0 || createPurchaseMutation.isPending}
+                disabled={!selectedSupplier || !selectedStore || items.length === 0 || createPurchaseMutation.isPending}
                 className="flex-1"
               >
                 {createPurchaseMutation.isPending ? 'Creating...' : 'Create Purchase'}

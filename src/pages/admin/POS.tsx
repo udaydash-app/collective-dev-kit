@@ -217,6 +217,7 @@ export default function POS() {
     { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
     { icon: Package, label: 'Manage Products', path: '/admin/products' },
     { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
+    { icon: User, label: 'Contacts', path: '/admin/contacts' },
     { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
     { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
     { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },

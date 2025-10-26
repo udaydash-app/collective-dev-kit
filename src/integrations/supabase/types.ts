@@ -247,6 +247,72 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          credit_limit: number | null
+          email: string | null
+          id: string
+          is_customer: boolean
+          is_supplier: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          tax_id: string | null
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          email?: string | null
+          id?: string
+          is_customer?: boolean
+          is_supplier?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          email?: string | null
+          id?: string
+          is_customer?: boolean
+          is_supplier?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string

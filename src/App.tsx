@@ -25,6 +25,7 @@ import AdminOffers from "./pages/admin/Offers";
 import AdminAnnouncements from "./pages/admin/Announcements";
 import AdminPOS from "./pages/admin/POS";
 import AdminPurchases from "./pages/admin/Purchases";
+import AdminContacts from "./pages/admin/Contacts";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />
           <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
+          <Route path="/admin/contacts" element={<AdminRoute><AdminContacts /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
