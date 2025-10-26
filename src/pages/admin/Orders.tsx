@@ -221,22 +221,65 @@ export default function AdminOrders() {
   }
 
   const updateOrderItem = useMutation({
-    mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
-      const { data: item } = await supabase
-        .from('order_items')
-        .select('unit_price')
-        .eq('id', itemId)
-        .single();
+    mutationFn: async ({ itemId, quantity, orderId, orderType }: { 
+      itemId: string; 
+      quantity: number;
+      orderId: string;
+      orderType: 'online' | 'pos';
+    }) => {
+      if (orderType === 'pos') {
+        // For POS transactions, update the items JSON array
+        const { data: transaction } = await supabase
+          .from('pos_transactions')
+          .select('items, subtotal, tax, discount')
+          .eq('id', orderId)
+          .single();
 
-      const { error } = await supabase
-        .from('order_items')
-        .update({ 
-          quantity,
-          subtotal: Number(item?.unit_price || 0) * quantity
-        })
-        .eq('id', itemId);
+        if (!transaction) throw new Error('Transaction not found');
 
-      if (error) throw error;
+        const items = transaction.items as any[];
+        const updatedItems = items.map((item: any) => 
+          item.id === itemId ? { ...item, quantity } : item
+        );
+
+        // Recalculate totals
+        const subtotal = updatedItems.reduce((sum, item) => {
+          const effectivePrice = item.customPrice ?? item.price;
+          const itemTotal = effectivePrice * item.quantity;
+          const itemDiscountAmount = item.itemDiscount ?? 0;
+          return sum + itemTotal - itemDiscountAmount;
+        }, 0);
+
+        const total = subtotal - (transaction.discount || 0);
+
+        const { error } = await supabase
+          .from('pos_transactions')
+          .update({ 
+            items: updatedItems,
+            subtotal,
+            total
+          })
+          .eq('id', orderId);
+
+        if (error) throw error;
+      } else {
+        // Original online order logic
+        const { data: item } = await supabase
+          .from('order_items')
+          .select('unit_price')
+          .eq('id', itemId)
+          .single();
+
+        const { error } = await supabase
+          .from('order_items')
+          .update({ 
+            quantity,
+            subtotal: Number(item?.unit_price || 0) * quantity
+          })
+          .eq('id', itemId);
+
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
@@ -246,13 +289,53 @@ export default function AdminOrders() {
   });
 
   const deleteOrderItem = useMutation({
-    mutationFn: async (itemId: string) => {
-      const { error } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('id', itemId);
+    mutationFn: async ({ itemId, orderId, orderType }: { 
+      itemId: string;
+      orderId: string;
+      orderType: 'online' | 'pos';
+    }) => {
+      if (orderType === 'pos') {
+        // For POS transactions, remove from items JSON array
+        const { data: transaction } = await supabase
+          .from('pos_transactions')
+          .select('items, subtotal, tax, discount')
+          .eq('id', orderId)
+          .single();
 
-      if (error) throw error;
+        if (!transaction) throw new Error('Transaction not found');
+
+        const items = transaction.items as any[];
+        const updatedItems = items.filter((item: any) => item.id !== itemId);
+
+        // Recalculate totals
+        const subtotal = updatedItems.reduce((sum, item) => {
+          const effectivePrice = item.customPrice ?? item.price;
+          const itemTotal = effectivePrice * item.quantity;
+          const itemDiscountAmount = item.itemDiscount ?? 0;
+          return sum + itemTotal - itemDiscountAmount;
+        }, 0);
+
+        const total = subtotal - (transaction.discount || 0);
+
+        const { error } = await supabase
+          .from('pos_transactions')
+          .update({ 
+            items: updatedItems,
+            subtotal,
+            total
+          })
+          .eq('id', orderId);
+
+        if (error) throw error;
+      } else {
+        // Original online order logic
+        const { error } = await supabase
+          .from('order_items')
+          .delete()
+          .eq('id', itemId);
+
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
@@ -390,22 +473,39 @@ export default function AdminOrders() {
   const deleteSelectedOrders = useMutation({
     mutationFn: async () => {
       const orderIds = Array.from(selectedOrders);
+      const ordersToDelete = orders?.filter((o: any) => orderIds.includes(o.id)) || [];
       
-      // Delete order items first
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .in('order_id', orderIds);
+      // Separate online orders and POS transactions
+      const onlineOrderIds = ordersToDelete.filter((o: any) => o.type === 'online').map((o: any) => o.id);
+      const posTransactionIds = ordersToDelete.filter((o: any) => o.type === 'pos').map((o: any) => o.id);
+      
+      // Delete online order items first
+      if (onlineOrderIds.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .delete()
+          .in('order_id', onlineOrderIds);
 
-      if (itemsError) throw itemsError;
+        if (itemsError) throw itemsError;
 
-      // Then delete orders
-      const { error: ordersError } = await supabase
-        .from('orders')
-        .delete()
-        .in('id', orderIds);
+        // Then delete online orders
+        const { error: ordersError } = await supabase
+          .from('orders')
+          .delete()
+          .in('id', onlineOrderIds);
 
-      if (ordersError) throw ordersError;
+        if (ordersError) throw ordersError;
+      }
+
+      // Delete POS transactions
+      if (posTransactionIds.length > 0) {
+        const { error: posError } = await supabase
+          .from('pos_transactions')
+          .delete()
+          .in('id', posTransactionIds);
+
+        if (posError) throw posError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
@@ -681,7 +781,7 @@ export default function AdminOrders() {
                                 {order.items && order.items.length > 0 ? (
                                   <div className="space-y-3">
                                     {order.type === 'pos' ? (
-                                      // POS items display (read-only)
+                                      // POS items display (now editable)
                                       order.items.map((item: any, idx: number) => (
                                         <div key={idx} className="flex items-center gap-4 p-3 bg-background rounded-lg border">
                                           {item.image_url && (
@@ -694,14 +794,60 @@ export default function AdminOrders() {
                                           <div className="flex-1">
                                             <p className="font-medium">{item.name}</p>
                                             <p className="text-sm text-muted-foreground">
-                                              {formatCurrency(Number(item.price))} × {item.quantity}
+                                              {formatCurrency(Number(item.price))} each
                                             </p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              size="icon"
+                                              variant="outline"
+                                              disabled={item.quantity <= 1}
+                                              onClick={() => updateOrderItem.mutate({ 
+                                                itemId: item.id, 
+                                                quantity: item.quantity - 1,
+                                                orderId: order.id,
+                                                orderType: 'pos'
+                                              })}
+                                            >
+                                              <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <span className="w-12 text-center font-medium">
+                                              {item.quantity}
+                                            </span>
+                                            <Button
+                                              size="icon"
+                                              variant="outline"
+                                              onClick={() => updateOrderItem.mutate({ 
+                                                itemId: item.id, 
+                                                quantity: item.quantity + 1,
+                                                orderId: order.id,
+                                                orderType: 'pos'
+                                              })}
+                                            >
+                                              <Plus className="h-4 w-4" />
+                                            </Button>
                                           </div>
                                           <div className="w-32 text-right">
                                             <p className="font-semibold">
                                               {formatCurrency(Number(item.price) * item.quantity)}
                                             </p>
                                           </div>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="text-destructive"
+                                            onClick={() => {
+                                              if (confirm('Remove this item from the sale?')) {
+                                                deleteOrderItem.mutate({
+                                                  itemId: item.id,
+                                                  orderId: order.id,
+                                                  orderType: 'pos'
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
                                         </div>
                                       ))
                                     ) : (
@@ -728,7 +874,9 @@ export default function AdminOrders() {
                                               disabled={item.quantity <= 1}
                                               onClick={() => updateOrderItem.mutate({ 
                                                 itemId: item.id, 
-                                                quantity: item.quantity - 1 
+                                                quantity: item.quantity - 1,
+                                                orderId: order.id,
+                                                orderType: 'online'
                                               })}
                                             >
                                               <Minus className="h-4 w-4" />
@@ -741,7 +889,9 @@ export default function AdminOrders() {
                                               variant="outline"
                                               onClick={() => updateOrderItem.mutate({ 
                                                 itemId: item.id, 
-                                                quantity: item.quantity + 1 
+                                                quantity: item.quantity + 1,
+                                                orderId: order.id,
+                                                orderType: 'online'
                                               })}
                                             >
                                               <Plus className="h-4 w-4" />
@@ -758,7 +908,11 @@ export default function AdminOrders() {
                                             className="text-destructive"
                                             onClick={() => {
                                               if (confirm('Remove this item from the order?')) {
-                                                deleteOrderItem.mutate(item.id);
+                                                deleteOrderItem.mutate({
+                                                  itemId: item.id,
+                                                  orderId: order.id,
+                                                  orderType: 'online'
+                                                });
                                               }
                                             }}
                                           >
