@@ -161,6 +161,19 @@ export default function POS() {
     },
   });
 
+  // Set "Global Market" as default store
+  useEffect(() => {
+    if (stores && stores.length > 0 && !selectedStoreId) {
+      const globalMarket = stores.find(store => store.name.toLowerCase().includes('global market'));
+      if (globalMarket) {
+        setSelectedStoreId(globalMarket.id);
+      } else {
+        // Fallback to first store if Global Market not found
+        setSelectedStoreId(stores[0].id);
+      }
+    }
+  }, [stores, selectedStoreId]);
+
   const { data: categories } = useQuery({
     queryKey: ['pos-categories'],
     queryFn: async () => {
