@@ -26,6 +26,9 @@ import AdminAnnouncements from "./pages/admin/Announcements";
 import AdminPOS from "./pages/admin/POS";
 import AdminPurchases from "./pages/admin/Purchases";
 import AdminContacts from "./pages/admin/Contacts";
+import AdminChartOfAccounts from "./pages/admin/ChartOfAccounts";
+import AdminJournalEntries from "./pages/admin/JournalEntries";
+import AdminGeneralLedger from "./pages/admin/GeneralLedger";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -68,6 +71,9 @@ const App = () => (
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />
           <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
           <Route path="/admin/contacts" element={<AdminRoute><AdminContacts /></AdminRoute>} />
+          <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
+          <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
+          <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />

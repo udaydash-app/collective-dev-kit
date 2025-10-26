@@ -223,6 +223,9 @@ export default function POS() {
     { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
     { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
     { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+    { icon: DollarSign, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
+    { icon: DollarSign, label: 'Journal Entries', path: '/admin/journal-entries' },
+    { icon: DollarSign, label: 'General Ledger', path: '/admin/general-ledger' },
   ];
 
   const quickActions = [
