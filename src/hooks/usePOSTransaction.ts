@@ -16,6 +16,7 @@ export interface CartItem {
 export const usePOSTransaction = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const addToCart = (product: any) => {
@@ -92,7 +93,7 @@ export const usePOSTransaction = () => {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const tax = calculateTax(subtotal);
+    const tax = isTaxExempt ? 0 : calculateTax(subtotal);
     return subtotal + tax - discount;
   };
 
@@ -102,14 +103,33 @@ export const usePOSTransaction = () => {
       return null;
     }
 
+    if (!storeId) {
+      toast.error('Please select a store');
+      return null;
+    }
+
     setIsProcessing(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error('Authentication error. Please log in again.');
+        console.error('User error:', userError);
+        return null;
+      }
 
       const subtotal = calculateSubtotal();
-      const tax = calculateTax(subtotal);
+      const tax = isTaxExempt ? 0 : calculateTax(subtotal);
       const total = calculateTotal();
+
+      console.log('Processing transaction:', {
+        cashier_id: user.id,
+        store_id: storeId,
+        subtotal,
+        tax,
+        discount,
+        total,
+        itemCount: cart.length,
+      });
 
       const { data, error } = await supabase
         .from('pos_transactions')
@@ -126,14 +146,19 @@ export const usePOSTransaction = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        toast.error(`Transaction failed: ${error.message}`);
+        return null;
+      }
 
       toast.success('Transaction completed successfully!');
       clearCart();
+      setIsTaxExempt(false);
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transaction error:', error);
-      toast.error('Failed to process transaction');
+      toast.error(error?.message || 'Failed to process transaction');
       return null;
     } finally {
       setIsProcessing(false);
@@ -144,6 +169,8 @@ export const usePOSTransaction = () => {
     cart,
     discount,
     setDiscount,
+    isTaxExempt,
+    setIsTaxExempt,
     addToCart,
     removeFromCart,
     updateQuantity,

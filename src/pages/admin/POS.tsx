@@ -61,7 +61,6 @@ export default function POS() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isTaxExempt, setIsTaxExempt] = useState(false);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   
@@ -71,6 +70,8 @@ export default function POS() {
     cart,
     discount,
     setDiscount,
+    isTaxExempt,
+    setIsTaxExempt,
     addToCart,
     removeFromCart,
     updateQuantity,
