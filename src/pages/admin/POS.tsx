@@ -486,6 +486,30 @@ export default function POS() {
 
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Admin Management Menu Bar */}
+        <div className="bg-primary/5 border-b border-primary/20 px-4 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex items-center gap-1 mr-2 shrink-0">
+              <Settings className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold">Admin:</span>
+            </div>
+            <div className="flex gap-1">
+              {adminLinks.map((link, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs shrink-0"
+                  onClick={() => navigate(link.path)}
+                >
+                  <link.icon className="h-3 w-3 mr-1" />
+                  {link.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Search Bar */}
         <div className="p-4 border-b bg-card">
           <div className="flex gap-2">
@@ -649,30 +673,6 @@ export default function POS() {
               </Button>
             ))}
           </div>
-
-          {/* Admin Links */}
-          <Card className="mt-4 bg-primary/5 border-primary/20">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Admin Management
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {adminLinks.map((link, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="justify-start h-auto py-2"
-                    onClick={() => navigate(link.path)}
-                  >
-                    <link.icon className="h-4 w-4 mr-2" />
-                    <span className="text-xs">{link.label}</span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
 
