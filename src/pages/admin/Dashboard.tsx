@@ -298,6 +298,12 @@ export default function AdminDashboard() {
                     Point of Sale
                   </Button>
                 </Link>
+                <Link to="/admin/purchases">
+                  <Button variant="outline" className="w-full">
+                    <Package className="mr-2 h-4 w-4" />
+                    Purchases & Stock
+                  </Button>
+                </Link>
                 <Link to="/admin/orders">
                   <Button variant="outline" className="w-full">
                     <ShoppingCart className="mr-2 h-4 w-4" />
