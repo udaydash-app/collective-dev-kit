@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,8 @@ import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,7 @@ import {
 
 export default function POS() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,6 +65,7 @@ export default function POS() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   
   const ITEMS_PER_PAGE = 12;
   
@@ -80,6 +83,71 @@ export default function POS() {
     calculateTotal,
     processTransaction,
   } = usePOSTransaction();
+
+  // Load order into POS if orderId is in URL params
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId && !isLoadingOrder && cart.length === 0) {
+      setIsLoadingOrder(true);
+      loadOrderToPOS(orderId);
+    }
+  }, [searchParams]);
+
+  const loadOrderToPOS = async (orderId: string) => {
+    try {
+      // Fetch the order with its items
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          stores(id, name)
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Fetch order items with product details
+      const { data: items, error: itemsError } = await supabase
+        .from('order_items')
+        .select(`
+          *,
+          products(id, name, price, image_url, barcode)
+        `)
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Set store
+      if (order.stores?.id) {
+        setSelectedStoreId(order.stores.id);
+      }
+
+      // Add items to cart
+      if (items && items.length > 0) {
+        items.forEach(item => {
+          if (item.products) {
+            // Add product to cart with the quantity from the order
+            for (let i = 0; i < item.quantity; i++) {
+              addToCart({
+                id: item.products.id,
+                name: item.products.name,
+                price: item.products.price,
+                image_url: item.products.image_url,
+                barcode: item.products.barcode,
+              });
+            }
+          }
+        });
+        toast.success(`Loaded order ${order.order_number} into POS`);
+      }
+    } catch (error: any) {
+      console.error('Error loading order:', error);
+      toast.error('Failed to load order into POS');
+    } finally {
+      setIsLoadingOrder(false);
+    }
+  };
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],

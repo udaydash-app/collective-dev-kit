@@ -779,23 +779,35 @@ export default function AdminOrders() {
                                 <Eye className="h-4 w-4 mr-1" />
                                 {expandedOrders.has(order.id) ? 'Hide' : 'View'}
                               </Button>
-                              {order.type !== 'pos' && order.status !== 'delivered' && order.status !== 'cancelled' && (
-                                <Select
-                                  value={order.status}
-                                  onValueChange={(value) => handleStatusChange(order.id, value, order)}
-                                >
-                                  <SelectTrigger className="w-[140px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                                    <SelectItem value="processing">Processing</SelectItem>
-                                    <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                                    <SelectItem value="delivered">Delivered</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                              {order.type !== 'pos' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => navigate(`/admin/pos?orderId=${order.id}`)}
+                                  >
+                                    <ShoppingCart className="h-4 w-4 mr-1" />
+                                    Load to POS
+                                  </Button>
+                                  {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                    <Select
+                                      value={order.status}
+                                      onValueChange={(value) => handleStatusChange(order.id, value, order)}
+                                    >
+                                      <SelectTrigger className="w-[140px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                                        <SelectItem value="processing">Processing</SelectItem>
+                                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                                        <SelectItem value="delivered">Delivered</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </>
                               )}
                             </div>
                           </TableCell>
