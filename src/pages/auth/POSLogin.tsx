@@ -55,7 +55,7 @@ export default function POSLogin() {
       
       // Use pos_user_id if user_id is null (first time login)
       const emailIdentifier = userData.user_id || userData.pos_user_id;
-      const authEmail = `pos-${emailIdentifier}@globalmarket.local`;
+      const authEmail = `pos-${emailIdentifier}@pos.globalmarket.app`;
       
       // Try to sign in
       const { error: authError } = await supabase.auth.signInWithPassword({
@@ -71,11 +71,15 @@ export default function POSLogin() {
           options: {
             data: {
               full_name: userData.full_name,
-            }
+            },
+            emailRedirectTo: `${window.location.origin}/admin/pos`
           }
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('Signup error:', signUpError);
+          throw signUpError;
+        }
 
         // Update pos_users with the new auth user_id
         if (signUpData.user && !userData.user_id) {
