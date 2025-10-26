@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Categories from "./pages/Categories";
 import SearchPage from "./pages/SearchPage";
@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import POSLogin from "./pages/auth/POSLogin";
 import CategoryProducts from "./pages/CategoryProducts";
 import ProductDetails from "./pages/ProductDetails";
 import ProductImport from "./pages/admin/ProductImport";
@@ -33,6 +34,7 @@ import AdminTrialBalance from "./pages/admin/TrialBalance";
 import AdminProfitLoss from "./pages/admin/ProfitLoss";
 import AdminBalanceSheet from "./pages/admin/BalanceSheet";
 import AdminCashFlow from "./pages/admin/CashFlow";
+import AdminPOSUsers from "./pages/admin/POSUsers";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -48,18 +50,35 @@ import PaymentMethods from "./pages/profile/PaymentMethods";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
+import { useRealtimeSync } from "./hooks/useRealtimeSync";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
+  );
+};
+
+const AppContent = () => {
+  // Enable realtime sync across the app
+  useRealtimeSync();
+
+  return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* Default route - Redirect to POS Login */}
+          <Route path="/" element={<Navigate to="/pos-login" replace />} />
+          <Route path="/pos-login" element={<POSLogin />} />
+          
+          {/* Customer-facing routes */}
+          <Route path="/store" element={<Index />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:id" element={<CategoryProducts />} />
           <Route path="/product/:id" element={<ProductDetails />} />
@@ -75,6 +94,7 @@ const App = () => (
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />
           <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
           <Route path="/admin/contacts" element={<AdminRoute><AdminContacts /></AdminRoute>} />
+          <Route path="/admin/pos-users" element={<AdminRoute><AdminPOSUsers /></AdminRoute>} />
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
@@ -105,7 +125,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
+  );
+};
 
 export default App;

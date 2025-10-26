@@ -1,7 +1,7 @@
 {
-  "name": "Global Market",
-  "short_name": "Global Market",
-  "description": "Fresh groceries delivered to your doorstep",
+  "name": "Global Market POS",
+  "short_name": "GM POS",
+  "description": "Point of Sale system with real-time inventory and accounting sync",
   "theme_color": "#22C55E",
   "background_color": "#ffffff",
   "display": "standalone",

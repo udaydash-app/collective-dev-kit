@@ -26,23 +26,28 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "icon-192x192.png", "icon-512x512.png"],
       manifest: {
-        name: "Global Market",
-        short_name: "Global Market",
-        description: "Fresh groceries delivered to your doorstep",
+        name: "Global Market POS",
+        short_name: "GM POS",
+        description: "Point of Sale system with real-time inventory sync",
         theme_color: "#22C55E",
         background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
+        scope: "/",
+        orientation: "any",
+        categories: ["business", "finance", "productivity"],
         icons: [
           {
             src: "icon-192x192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any maskable"
           },
           {
             src: "icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable"
           },
         ],
       },

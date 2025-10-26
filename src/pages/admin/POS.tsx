@@ -252,6 +252,7 @@ export default function POS() {
       { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
     ],
     management: [
+      { icon: Users, label: 'POS Users', path: '/admin/pos-users' },
       { icon: Users, label: 'Contacts', path: '/admin/contacts' },
       { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
       { icon: Settings, label: 'Company Settings', path: '/admin/settings' },

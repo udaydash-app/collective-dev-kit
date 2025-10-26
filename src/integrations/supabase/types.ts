@@ -805,6 +805,36 @@ export type Database = {
           },
         ]
       }
+      pos_users: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          pin_hash: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          pin_hash: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          pin_hash?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       product_variants: {
         Row: {
           created_at: string
@@ -1256,6 +1286,7 @@ export type Database = {
           total: number
         }[]
       }
+      crypt_pin: { Args: { input_pin: string }; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1265,6 +1296,13 @@ export type Database = {
         Returns: boolean
       }
       verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
+      verify_pin: {
+        Args: { input_pin: string }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
