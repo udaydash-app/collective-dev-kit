@@ -36,6 +36,9 @@ export default function POS() {
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const ITEMS_PER_PAGE = 12;
   
   const {
     cart,
@@ -162,6 +165,25 @@ export default function POS() {
       });
     }
   };
+
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setCurrentPage(1);
+  };
+
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
+  // Pagination logic
+  const displayItems = selectedCategory || searchTerm ? products : categories;
+  const totalPages = Math.ceil((displayItems?.length || 0) / ITEMS_PER_PAGE);
+  const paginatedItems = displayItems?.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const subtotal = calculateSubtotal();
   const tax = calculateTax(subtotal);
@@ -383,17 +405,14 @@ export default function POS() {
         </div>
 
         {/* Categories/Products Grid */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 flex flex-col p-4">
           {/* Breadcrumb */}
           {(selectedCategory || searchTerm) && (
             <div className="mb-4 flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSelectedCategory(null);
-                  setSearchTerm('');
-                }}
+                onClick={handleBackToCategories}
               >
                 ← Back to Categories
               </Button>
@@ -405,78 +424,109 @@ export default function POS() {
             </div>
           )}
 
-          {/* Show Categories when no category selected and no search */}
-          {!selectedCategory && !searchTerm && (
-            <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
-              {categories?.map((category) => (
+          {/* Paginated Items Grid */}
+          <div className="grid grid-cols-4 xl:grid-cols-6 gap-3">
+            {/* Show Categories when no category selected and no search */}
+            {!selectedCategory && !searchTerm && paginatedItems?.map((category: any) => (
+              <Button
+                key={category.id}
+                variant="outline"
+                className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                onClick={() => handleCategorySelect(category.id)}
+              >
+                {category.image_url ? (
+                  <img
+                    src={category.image_url}
+                    alt={category.name}
+                    className="h-16 w-16 object-cover rounded mb-2"
+                  />
+                ) : (
+                  <Package className="h-12 w-12 mb-2 opacity-50" />
+                )}
+                <p className="text-sm font-medium text-center">
+                  {category.name}
+                </p>
+              </Button>
+            ))}
+
+            {/* Show Products when category selected or searching */}
+            {(selectedCategory || searchTerm) && paginatedItems?.map((product: any) => {
+              const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+              const displayPrice = availableVariants.length > 0 
+                ? defaultVariant?.price 
+                : product.price;
+
+              return (
                 <Button
-                  key={category.id}
+                  key={product.id}
                   variant="outline"
                   className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                  onClick={() => setSelectedCategory(category.id)}
+                  onClick={() => handleProductClick(product)}
                 >
-                  {category.image_url ? (
+                  {product.image_url ? (
                     <img
-                      src={category.image_url}
-                      alt={category.name}
+                      src={product.image_url}
+                      alt={product.name}
                       className="h-16 w-16 object-cover rounded mb-2"
                     />
                   ) : (
                     <Package className="h-12 w-12 mb-2 opacity-50" />
                   )}
-                  <p className="text-sm font-medium text-center">
-                    {category.name}
+                  <p className="text-xs font-medium text-center line-clamp-1 mb-1">
+                    {product.name}
                   </p>
+                  <p className="text-sm font-bold">
+                    {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
+                  </p>
+                  {availableVariants.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {availableVariants.length} variants
+                    </span>
+                  )}
                 </Button>
-              ))}
-            </div>
-          )}
+              );
+            })}
+            
+            {(selectedCategory || searchTerm) && paginatedItems?.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                No products found
+              </div>
+            )}
+          </div>
 
-          {/* Show Products when category selected or searching */}
-          {(selectedCategory || searchTerm) && (
-            <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
-              {products?.map((product) => {
-                const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
-                const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-                const displayPrice = availableVariants.length > 0 
-                  ? defaultVariant?.price 
-                  : product.price;
-
-                return (
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                   <Button
-                    key={product.id}
-                    variant="outline"
-                    className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                    onClick={() => handleProductClick(product)}
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    className="w-10"
+                    onClick={() => setCurrentPage(page)}
                   >
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="h-16 w-16 object-cover rounded mb-2"
-                      />
-                    ) : (
-                      <Package className="h-12 w-12 mb-2 opacity-50" />
-                    )}
-                    <p className="text-xs font-medium text-center line-clamp-1 mb-1">
-                      {product.name}
-                    </p>
-                    <p className="text-sm font-bold">
-                      {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
-                    </p>
-                    {availableVariants.length > 1 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {availableVariants.length} variants
-                      </span>
-                    )}
+                    {page}
                   </Button>
-                );
-              })}
-              {(selectedCategory || searchTerm) && products?.length === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  No products found
-                </div>
-              )}
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
             </div>
           )}
 
