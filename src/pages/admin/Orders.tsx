@@ -344,6 +344,61 @@ export default function AdminOrders() {
     onError: () => toast.error('Failed to remove item')
   });
 
+  const updatePOSItemPrice = useMutation({
+    mutationFn: async ({ itemId, orderId, price, discount }: { 
+      itemId: string;
+      orderId: string;
+      price?: number;
+      discount?: number;
+    }) => {
+      const { data: transaction } = await supabase
+        .from('pos_transactions')
+        .select('items, discount')
+        .eq('id', orderId)
+        .single();
+
+      if (!transaction) throw new Error('Transaction not found');
+
+      const items = transaction.items as any[];
+      const updatedItems = items.map((item: any) => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            ...(price !== undefined && { customPrice: price }),
+            ...(discount !== undefined && { itemDiscount: discount })
+          };
+        }
+        return item;
+      });
+
+      // Recalculate totals
+      const subtotal = updatedItems.reduce((sum, item) => {
+        const effectivePrice = item.customPrice ?? item.price;
+        const itemTotal = effectivePrice * item.quantity;
+        const itemDiscountAmount = item.itemDiscount ?? 0;
+        return sum + itemTotal - itemDiscountAmount;
+      }, 0);
+
+      const total = subtotal - (transaction.discount || 0);
+
+      const { error } = await supabase
+        .from('pos_transactions')
+        .update({ 
+          items: updatedItems,
+          subtotal,
+          total
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      toast.success('Item updated');
+    },
+    onError: () => toast.error('Failed to update item')
+  });
+
   const addProductToOrder = useMutation({
     mutationFn: async ({ orderId, productId }: { orderId: string; productId: string }) => {
       // Get product details
@@ -781,73 +836,115 @@ export default function AdminOrders() {
                                 {order.items && order.items.length > 0 ? (
                                   <div className="space-y-3">
                                     {order.type === 'pos' ? (
-                                      // POS items display (now editable)
+                                      // POS items display (now editable with price and discount)
                                       order.items.map((item: any, idx: number) => (
-                                        <div key={idx} className="flex items-center gap-4 p-3 bg-background rounded-lg border">
-                                          {item.image_url && (
-                                            <img 
-                                              src={item.image_url} 
-                                              alt={item.name}
-                                              className="w-16 h-16 object-cover rounded"
-                                            />
-                                          )}
-                                          <div className="flex-1">
-                                            <p className="font-medium">{item.name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                              {formatCurrency(Number(item.price))} each
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <Button
-                                              size="icon"
-                                              variant="outline"
-                                              disabled={item.quantity <= 1}
-                                              onClick={() => updateOrderItem.mutate({ 
-                                                itemId: item.id, 
-                                                quantity: item.quantity - 1,
-                                                orderId: order.id,
-                                                orderType: 'pos'
-                                              })}
-                                            >
-                                              <Minus className="h-4 w-4" />
-                                            </Button>
-                                            <span className="w-12 text-center font-medium">
-                                              {item.quantity}
-                                            </span>
-                                            <Button
-                                              size="icon"
-                                              variant="outline"
-                                              onClick={() => updateOrderItem.mutate({ 
-                                                itemId: item.id, 
-                                                quantity: item.quantity + 1,
-                                                orderId: order.id,
-                                                orderType: 'pos'
-                                              })}
-                                            >
-                                              <Plus className="h-4 w-4" />
-                                            </Button>
-                                          </div>
-                                          <div className="w-32 text-right">
-                                            <p className="font-semibold">
-                                              {formatCurrency(Number(item.price) * item.quantity)}
-                                            </p>
-                                          </div>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-destructive"
-                                            onClick={() => {
-                                              if (confirm('Remove this item from the sale?')) {
-                                                deleteOrderItem.mutate({
-                                                  itemId: item.id,
+                                        <div key={idx} className="flex flex-col gap-3 p-4 bg-background rounded-lg border">
+                                          <div className="flex items-center gap-4">
+                                            {item.image_url && (
+                                              <img 
+                                                src={item.image_url} 
+                                                alt={item.name}
+                                                className="w-16 h-16 object-cover rounded"
+                                              />
+                                            )}
+                                            <div className="flex-1">
+                                              <p className="font-medium">{item.name}</p>
+                                              <p className="text-sm text-muted-foreground">
+                                                Original: {formatCurrency(Number(item.price))} each
+                                              </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <Button
+                                                size="icon"
+                                                variant="outline"
+                                                disabled={item.quantity <= 1}
+                                                onClick={() => updateOrderItem.mutate({ 
+                                                  itemId: item.id, 
+                                                  quantity: item.quantity - 1,
                                                   orderId: order.id,
                                                   orderType: 'pos'
-                                                });
-                                              }
-                                            }}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                                })}
+                                              >
+                                                <Minus className="h-4 w-4" />
+                                              </Button>
+                                              <span className="w-12 text-center font-medium">
+                                                {item.quantity}
+                                              </span>
+                                              <Button
+                                                size="icon"
+                                                variant="outline"
+                                                onClick={() => updateOrderItem.mutate({ 
+                                                  itemId: item.id, 
+                                                  quantity: item.quantity + 1,
+                                                  orderId: order.id,
+                                                  orderType: 'pos'
+                                                })}
+                                              >
+                                                <Plus className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                            <div className="w-32 text-right">
+                                              <p className="font-semibold">
+                                                {formatCurrency((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
+                                              </p>
+                                            </div>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="text-destructive"
+                                              onClick={() => {
+                                                if (confirm('Remove this item from the sale?')) {
+                                                  deleteOrderItem.mutate({
+                                                    itemId: item.id,
+                                                    orderId: order.id,
+                                                    orderType: 'pos'
+                                                  });
+                                                }
+                                              }}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          <div className="flex items-center gap-4 pl-20">
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-sm text-muted-foreground w-20">Unit Price:</label>
+                                              <Input
+                                                type="number"
+                                                step="0.01"
+                                                className="w-32"
+                                                defaultValue={Number(item.customPrice ?? item.price).toFixed(2)}
+                                                onBlur={(e) => {
+                                                  const newPrice = parseFloat(e.target.value);
+                                                  if (!isNaN(newPrice) && newPrice !== (item.customPrice ?? item.price)) {
+                                                    updatePOSItemPrice.mutate({
+                                                      itemId: item.id,
+                                                      orderId: order.id,
+                                                      price: newPrice
+                                                    });
+                                                  }
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-sm text-muted-foreground w-20">Discount:</label>
+                                              <Input
+                                                type="number"
+                                                step="0.01"
+                                                className="w-32"
+                                                defaultValue={Number(item.itemDiscount ?? 0).toFixed(2)}
+                                                onBlur={(e) => {
+                                                  const newDiscount = parseFloat(e.target.value);
+                                                  if (!isNaN(newDiscount) && newDiscount !== (item.itemDiscount ?? 0)) {
+                                                    updatePOSItemPrice.mutate({
+                                                      itemId: item.id,
+                                                      orderId: order.id,
+                                                      discount: newDiscount
+                                                    });
+                                                  }
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
                                         </div>
                                       ))
                                     ) : (
