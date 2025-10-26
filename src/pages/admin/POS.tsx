@@ -35,6 +35,7 @@ export default function POS() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const {
     cart,
@@ -62,8 +63,20 @@ export default function POS() {
     },
   });
 
+  const { data: categories } = useQuery({
+    queryKey: ['pos-categories'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('categories')
+        .select('id, name, image_url, icon')
+        .eq('is_active', true)
+        .order('display_order');
+      return data || [];
+    },
+  });
+
   const { data: products } = useQuery({
-    queryKey: ['pos-products', searchTerm],
+    queryKey: ['pos-products', searchTerm, selectedCategory],
     queryFn: async () => {
       let query = supabase
         .from('products')
@@ -86,9 +99,14 @@ export default function POS() {
         query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`);
       }
 
+      if (selectedCategory) {
+        query = query.eq('category_id', selectedCategory);
+      }
+
       const { data } = await query.limit(50);
       return data || [];
     },
+    enabled: !!selectedCategory || !!searchTerm,
   });
 
   const handleBarcodeScan = async (barcode: string) => {
@@ -364,47 +382,103 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Products Grid */}
+        {/* Categories/Products Grid */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
-            {products?.slice(0, 12).map((product) => {
-              const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
-              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-              const displayPrice = availableVariants.length > 0 
-                ? defaultVariant?.price 
-                : product.price;
+          {/* Breadcrumb */}
+          {(selectedCategory || searchTerm) && (
+            <div className="mb-4 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setSearchTerm('');
+                }}
+              >
+                ← Back to Categories
+              </Button>
+              {selectedCategory && (
+                <span className="text-sm text-muted-foreground">
+                  / {categories?.find(c => c.id === selectedCategory)?.name}
+                </span>
+              )}
+            </div>
+          )}
 
-              return (
+          {/* Show Categories when no category selected and no search */}
+          {!selectedCategory && !searchTerm && (
+            <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
+              {categories?.map((category) => (
                 <Button
-                  key={product.id}
+                  key={category.id}
                   variant="outline"
                   className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                  onClick={() => handleProductClick(product)}
+                  onClick={() => setSelectedCategory(category.id)}
                 >
-                  {product.image_url ? (
+                  {category.image_url ? (
                     <img
-                      src={product.image_url}
-                      alt={product.name}
+                      src={category.image_url}
+                      alt={category.name}
                       className="h-16 w-16 object-cover rounded mb-2"
                     />
                   ) : (
                     <Package className="h-12 w-12 mb-2 opacity-50" />
                   )}
-                  <p className="text-xs font-medium text-center line-clamp-1 mb-1">
-                    {product.name}
+                  <p className="text-sm font-medium text-center">
+                    {category.name}
                   </p>
-                  <p className="text-sm font-bold">
-                    {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
-                  </p>
-                  {availableVariants.length > 1 && (
-                    <span className="text-[10px] text-muted-foreground">
-                      {availableVariants.length} variants
-                    </span>
-                  )}
                 </Button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {/* Show Products when category selected or searching */}
+          {(selectedCategory || searchTerm) && (
+            <div className="grid grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
+              {products?.map((product) => {
+                const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+                const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+                const displayPrice = availableVariants.length > 0 
+                  ? defaultVariant?.price 
+                  : product.price;
+
+                return (
+                  <Button
+                    key={product.id}
+                    variant="outline"
+                    className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="h-16 w-16 object-cover rounded mb-2"
+                      />
+                    ) : (
+                      <Package className="h-12 w-12 mb-2 opacity-50" />
+                    )}
+                    <p className="text-xs font-medium text-center line-clamp-1 mb-1">
+                      {product.name}
+                    </p>
+                    <p className="text-sm font-bold">
+                      {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
+                    </p>
+                    {availableVariants.length > 1 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {availableVariants.length} variants
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
+              {(selectedCategory || searchTerm) && products?.length === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  No products found
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quick Actions Grid */}
           <div className="grid grid-cols-4 xl:grid-cols-6 gap-3">
