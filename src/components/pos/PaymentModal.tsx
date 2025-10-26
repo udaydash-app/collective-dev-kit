@@ -73,6 +73,13 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm }: PaymentModal
                   Mobile Money
                 </Label>
               </div>
+              <div className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-accent">
+                <RadioGroupItem value="credit" id="credit" />
+                <Label htmlFor="credit" className="flex items-center gap-2 cursor-pointer flex-1">
+                  <CreditCard className="h-4 w-4" />
+                  Credit
+                </Label>
+              </div>
             </RadioGroup>
           </div>
 
