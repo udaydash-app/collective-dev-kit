@@ -31,12 +31,10 @@ import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
 import { cn } from '@/lib/utils';
-import { useAdmin } from '@/hooks/useAdmin';
 import { useNavigate } from 'react-router-dom';
 
 export default function POS() {
   const navigate = useNavigate();
-  const { isAdmin } = useAdmin();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -652,31 +650,29 @@ export default function POS() {
             ))}
           </div>
 
-          {/* Admin Links - Only visible to admins */}
-          {isAdmin && (
-            <Card className="mt-4 bg-primary/5 border-primary/20">
-              <div className="p-4">
-                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Admin Management
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {adminLinks.map((link, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      className="justify-start h-auto py-2"
-                      onClick={() => navigate(link.path)}
-                    >
-                      <link.icon className="h-4 w-4 mr-2" />
-                      <span className="text-xs">{link.label}</span>
-                    </Button>
-                  ))}
-                </div>
+          {/* Admin Links */}
+          <Card className="mt-4 bg-primary/5 border-primary/20">
+            <div className="p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Admin Management
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {adminLinks.map((link, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="justify-start h-auto py-2"
+                    onClick={() => navigate(link.path)}
+                  >
+                    <link.icon className="h-4 w-4 mr-2" />
+                    <span className="text-xs">{link.label}</span>
+                  </Button>
+                ))}
               </div>
-            </Card>
-          )}
+            </div>
+          </Card>
         </div>
       </div>
 
