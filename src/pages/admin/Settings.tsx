@@ -159,6 +159,7 @@ export default function AdminSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       toast.success('Settings updated successfully');
       setLogoFile(null);
     },

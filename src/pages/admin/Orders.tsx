@@ -217,7 +217,7 @@ export default function AdminOrders() {
   });
 
   // Fetch company settings for receipts
-  const { data: settings } = useQuery({
+  const { data: settings, refetch: refetchSettings } = useQuery({
     queryKey: ['company-settings'],
     queryFn: async () => {
       const { data } = await supabase
@@ -232,7 +232,11 @@ export default function AdminOrders() {
     console.error('Query error:', queryError);
   }
 
-  const printOrderReceipt = (orderId: string) => {
+  const printOrderReceipt = async (orderId: string) => {
+    // Refetch settings to get latest logo
+    await refetchSettings();
+    const latestSettings = queryClient.getQueryData(['company-settings']) as any;
+    
     const order = orders?.find(o => o.id === orderId);
     if (!order) {
       toast.error('Order not found');
@@ -294,12 +298,12 @@ export default function AdminOrders() {
         <body>
           <div class="receipt">
             <div class="text-center mb-4">
-              ${settings?.logo_url ? `
+              ${latestSettings?.logo_url ? `
                 <div class="flex justify-center mb-2">
-                  <img src="${settings.logo_url}" alt="Company Logo" style="height: 48px; width: auto; object-fit: contain;" id="companyLogo" />
+                  <img src="${latestSettings.logo_url}" alt="Company Logo" style="height: 48px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
                 </div>
               ` : ''}
-              <h1 class="text-xl font-bold">${order.stores?.name || settings?.company_name || 'Global Market'}</h1>
+              <h1 class="text-xl font-bold">${order.stores?.name || latestSettings?.company_name || 'Global Market'}</h1>
               <p class="text-xs">Fresh groceries delivered to your doorstep</p>
               <p class="text-xs mt-2">Transaction: ${order.order_number}</p>
               <p class="text-xs">${new Date(order.created_at).toLocaleString()}</p>
@@ -347,12 +351,12 @@ export default function AdminOrders() {
 
             <div class="text-center text-xs">
               <p>Thank you for shopping with us!</p>
-              ${settings?.company_phone ? `<p class="mt-2">For support: ${settings.company_phone}</p>` : ''}
+              ${latestSettings?.company_phone ? `<p class="mt-2">For support: ${latestSettings.company_phone}</p>` : ''}
             </div>
           </div>
           <script>
             window.onload = function() {
-              ${settings?.logo_url ? `
+              ${latestSettings?.logo_url ? `
                 // Wait for logo to load before printing
                 var logo = document.getElementById('companyLogo');
                 if (logo) {
