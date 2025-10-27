@@ -959,7 +959,7 @@ export default function AdminOrders() {
                                 <Printer className="h-4 w-4 mr-1" />
                                 Print
                               </Button>
-                              {order.type !== 'pos' && (
+                              {order.type !== 'pos' && order.status === 'pending' && (
                                 <>
                                   <Button
                                     size="sm"
