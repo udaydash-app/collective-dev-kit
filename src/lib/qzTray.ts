@@ -21,8 +21,30 @@ export interface QZReceiptData {
 class QZTrayService {
   private static instance: QZTrayService;
   private connected: boolean = false;
+  private certificate: string | null = null;
 
-  private constructor() {}
+  private constructor() {
+    // For production, add your signing certificate here
+    // Get a certificate from https://qz.io/download/
+    this.setupSigning();
+  }
+
+  private setupSigning() {
+    // Set up certificate signing for trusted connection
+    // For now, we'll use an unsigned connection (development only)
+    // In production, you should obtain a code signing certificate
+    
+    qz.security.setCertificatePromise(() => {
+      return Promise.resolve(this.certificate || '-----BEGIN CERTIFICATE-----\n' +
+        'MIIEOzCCAyOgAwIBAgIJANIXtxbGU9NQMA0GCSqGSIb3DQEBCwUAMIGwMQswCQYD\n' +
+        // Add your certificate here
+        '-----END CERTIFICATE-----');
+    });
+
+    qz.security.setSignaturePromise((toSign) => {
+      return Promise.resolve((text: string) => text); // For development only
+    });
+  }
 
   static getInstance(): QZTrayService {
     if (!QZTrayService.instance) {
