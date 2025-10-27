@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -6,19 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Upload, CheckCircle2, FileSpreadsheet, Globe } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, FileSpreadsheet, Globe, ArrowLeft, Package, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from 'xlsx';
 
 export default function ProductImport() {
+  const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [storeId, setStoreId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ success: boolean; count: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: boolean; count: number; method: string } | null>(null);
   const { toast } = useToast();
 
   const { data: stores } = useQuery({
@@ -54,10 +56,10 @@ export default function ProductImport() {
 
       if (error) throw error;
 
-      setImportResult({ success: true, count: data.count });
+      setImportResult({ success: true, count: data.count, method: 'URL' });
       toast({
         title: "Import Successful!",
-        description: `Successfully imported ${data.count} products`,
+        description: `Successfully imported ${data.count} products from URL`,
       });
       
       setUrl("");
@@ -76,6 +78,17 @@ export default function ProductImport() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+      
+      if (!['xlsx', 'xls'].includes(fileExtension || '')) {
+        toast({
+          title: "Invalid File",
+          description: 'Please select an Excel file (.xlsx or .xls)',
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setFile(selectedFile);
     }
   };
@@ -108,7 +121,7 @@ export default function ProductImport() {
 
       if (error) throw error;
 
-      setImportResult({ success: true, count: result.count });
+      setImportResult({ success: true, count: result.count, method: 'Excel' });
       toast({
         title: "Import Successful!",
         description: `Successfully imported ${result.count} products from Excel`,
@@ -130,37 +143,93 @@ export default function ProductImport() {
     }
   };
 
+  const downloadTemplate = () => {
+    const template = [
+      ['name', 'description', 'price', 'cost_price', 'unit', 'category', 'stock_quantity', 'barcode', 'is_available'],
+      ['Fresh Bananas', 'Organic bananas from local farms', '500', '350', 'kg', 'Fruits', '100', '1234567890123', 'TRUE'],
+      ['Whole Milk', 'Fresh whole milk 1L', '800', '600', 'liter', 'Dairy', '50', '9876543210987', 'TRUE'],
+      ['Brown Rice', 'Premium quality brown rice', '1500', '1200', 'kg', 'Grains', '200', '5555555555555', 'TRUE']
+    ];
+
+    const csvContent = template.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'products_import_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
       
-      <main className="max-w-screen-xl mx-auto px-4 py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-6 w-6" />
-              Product Import Tool
-            </CardTitle>
-            <CardDescription>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Package className="h-8 w-8" />
+              Import Products
+            </h1>
+            <p className="text-muted-foreground mt-2">
               Import products from a website URL or upload an Excel file
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="url" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="url" className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  From URL
-                </TabsTrigger>
-                <TabsTrigger value="excel" className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  From Excel
-                </TabsTrigger>
-              </TabsList>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => navigate("/admin/pos")}
+              variant="outline"
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Return to POS
+            </Button>
+            <Button 
+              onClick={() => navigate("/admin/products")}
+              variant="outline"
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Products
+            </Button>
+          </div>
+        </div>
 
-              <TabsContent value="url" className="space-y-6">
+        {importResult && (
+          <Card className="bg-green-50 border-green-200 mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="font-semibold text-green-900">Import Complete!</p>
+                  <p className="text-sm text-green-700">
+                    Successfully imported {importResult.count} products using {importResult.method} method
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid gap-6 max-w-6xl">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* URL Import Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Import from URL
+                </CardTitle>
+                <CardDescription>
+                  Extract product information automatically from a website
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="url">Website URL</Label>
+                  <Label htmlFor="url">Website URL *</Label>
                   <Input
                     id="url"
                     type="url"
@@ -169,15 +238,15 @@ export default function ProductImport() {
                     onChange={(e) => setUrl(e.target.value)}
                     disabled={isImporting}
                   />
-                  <p className="text-sm text-muted-foreground">
-                    Enter the URL of a grocery store's product page
+                  <p className="text-xs text-muted-foreground">
+                    Enter the URL of a grocery store's product listing page
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="store">Select Store</Label>
+                  <Label htmlFor="store-url">Select Store *</Label>
                   <Select value={storeId} onValueChange={setStoreId} disabled={isImporting}>
-                    <SelectTrigger id="store">
+                    <SelectTrigger id="store-url">
                       <SelectValue placeholder="Choose a store" />
                     </SelectTrigger>
                     <SelectContent>
@@ -194,35 +263,36 @@ export default function ProductImport() {
                   onClick={handleUrlImport} 
                   disabled={isImporting || !url || !storeId}
                   className="w-full"
-                  size="lg"
                 >
                   {isImporting ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Importing Products...
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Importing...
                     </>
                   ) : (
                     <>
-                      <Upload className="mr-2 h-5 w-5" />
+                      <Upload className="mr-2 h-4 w-4" />
                       Import from URL
                     </>
                   )}
                 </Button>
+              </CardContent>
+            </Card>
 
-                <div className="p-4 bg-muted rounded-lg">
-                  <h3 className="font-semibold mb-2">How URL import works:</h3>
-                  <ol className="text-sm space-y-1 list-decimal list-inside text-muted-foreground">
-                    <li>Paste the URL of a grocery store's product page</li>
-                    <li>Select which store these products belong to</li>
-                    <li>AI extracts product information automatically</li>
-                    <li>Products are categorized and added to database</li>
-                  </ol>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="excel" className="space-y-6">
+            {/* Excel Import Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  Import from Excel
+                </CardTitle>
+                <CardDescription>
+                  Upload an Excel file with product information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="file-upload">Excel File</Label>
+                  <Label htmlFor="file-upload">Excel File *</Label>
                   <Input
                     id="file-upload"
                     type="file"
@@ -230,13 +300,15 @@ export default function ProductImport() {
                     onChange={handleFileChange}
                     disabled={isImporting}
                   />
-                  <p className="text-sm text-muted-foreground">
-                    Upload an Excel file (.xlsx or .xls)
-                  </p>
+                  {file && (
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="store-excel">Select Store</Label>
+                  <Label htmlFor="store-excel">Select Store *</Label>
                   <Select value={storeId} onValueChange={setStoreId} disabled={isImporting}>
                     <SelectTrigger id="store-excel">
                       <SelectValue placeholder="Choose a store" />
@@ -251,59 +323,114 @@ export default function ProductImport() {
                   </Select>
                 </div>
 
-                <Button 
-                  onClick={handleExcelImport} 
-                  disabled={isImporting || !file || !storeId}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isImporting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Importing Products...
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="mr-2 h-5 w-5" />
-                      Import from Excel
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleExcelImport} 
+                    disabled={isImporting || !file || !storeId}
+                    className="flex-1"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import Excel
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={downloadTemplate}
+                    variant="outline"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                <div className="p-4 bg-muted rounded-lg">
-                  <h3 className="font-semibold mb-2">Excel file format:</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Your Excel file should have these columns:
-                  </p>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                    <li><strong>name</strong> - Product name (required)</li>
-                    <li><strong>description</strong> - Product description (optional)</li>
-                    <li><strong>price</strong> - Price in FCFA (optional, defaults to 0)</li>
-                    <li><strong>unit</strong> - Unit of measure (optional, defaults to "each")</li>
-                    <li><strong>category</strong> - Category name (optional)</li>
-                    <li><strong>stock_quantity</strong> - Stock amount (optional, defaults to 0)</li>
+          {/* Instructions Section */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* URL Import Instructions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">URL Import Instructions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertDescription>
+                    <strong>How URL Import Works:</strong>
+                    <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
+                      <li>Paste the URL of a grocery store's product page</li>
+                      <li>Select which store these products belong to</li>
+                      <li>AI extracts product information automatically</li>
+                      <li>Products are categorized and added to database</li>
+                    </ol>
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <h4 className="font-semibold mb-2">Supported Information:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>✓ Product names and descriptions</li>
+                    <li>✓ Prices and units</li>
+                    <li>✓ Product images</li>
+                    <li>✓ Categories (auto-detected)</li>
+                    <li>✓ Availability status</li>
                   </ul>
                 </div>
-              </TabsContent>
-            </Tabs>
 
-            {importResult && (
-              <Card className="bg-green-50 border-green-200 mt-6">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                    <div>
-                      <p className="font-semibold text-green-900">Import Complete!</p>
-                      <p className="text-sm text-green-700">
-                        Successfully imported {importResult.count} products
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
+                <div className="bg-muted p-3 rounded-md text-sm">
+                  <p className="font-medium mb-1">💡 Tip:</p>
+                  <p className="text-muted-foreground">
+                    For best results, use URLs that contain a list of products with clear pricing and descriptions.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Excel Import Instructions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Excel Import Instructions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertDescription>
+                    <strong>File Format Requirements:</strong>
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                      <li><strong>Required column:</strong> name</li>
+                      <li><strong>Optional columns:</strong> description, price, cost_price, unit, category, stock_quantity, barcode, is_available (TRUE/FALSE)</li>
+                      <li>Download the template for the correct format</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <h4 className="font-semibold mb-2">Column Descriptions:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li><strong>name</strong> - Product name (required)</li>
+                    <li><strong>price</strong> - Selling price in your currency</li>
+                    <li><strong>cost_price</strong> - Purchase/cost price</li>
+                    <li><strong>unit</strong> - Unit of measure (kg, liter, piece, etc.)</li>
+                    <li><strong>stock_quantity</strong> - Available stock</li>
+                    <li><strong>barcode</strong> - Product barcode for scanning</li>
+                  </ul>
+                </div>
+
+                <div className="bg-muted p-3 rounded-md text-sm">
+                  <p className="font-medium mb-1">💡 Tip:</p>
+                  <p className="text-muted-foreground">
+                    Use TRUE/FALSE or 1/0 for the is_available column. Leave blank for default (available).
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
 
       <BottomNav />
