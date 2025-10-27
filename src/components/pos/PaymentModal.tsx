@@ -121,7 +121,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       `Thank you for your purchase!`
     );
     
-    window.open(`https://wa.me/?text=${message}`, '_blank');
+    window.location.href = `whatsapp://send?text=${message}`;
   };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
