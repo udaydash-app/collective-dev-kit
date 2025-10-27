@@ -512,6 +512,46 @@ export default function POS() {
 
   const handleBarcodeScan = async (barcode: string) => {
     console.log('Scanning barcode:', barcode);
+    
+    // First, try to find a product variant with this barcode
+    const { data: variantData, error: variantError } = await supabase
+      .from('product_variants')
+      .select(`
+        id,
+        label,
+        quantity,
+        unit,
+        price,
+        is_available,
+        is_default,
+        barcode,
+        product_id,
+        products (
+          id,
+          name,
+          barcode,
+          image_url,
+          is_available
+        )
+      `)
+      .eq('barcode', barcode)
+      .eq('is_available', true)
+      .maybeSingle();
+
+    console.log('Variant barcode scan result:', { variantData, variantError });
+
+    if (variantData && variantData.products) {
+      // Found a variant with this barcode
+      console.log('Adding variant to cart:', variantData);
+      addToCart({
+        ...variantData.products,
+        price: variantData.price,
+        selectedVariant: variantData,
+      });
+      return;
+    }
+
+    // If no variant found, check main product barcode
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -523,14 +563,15 @@ export default function POS() {
           unit,
           price,
           is_available,
-          is_default
+          is_default,
+          barcode
         )
       `)
       .eq('barcode', barcode)
       .eq('is_available', true)
       .maybeSingle();
 
-    console.log('Barcode scan result:', { data, error });
+    console.log('Product barcode scan result:', { data, error });
 
     if (data) {
       // For barcode scans, add directly to cart with smart variant selection
