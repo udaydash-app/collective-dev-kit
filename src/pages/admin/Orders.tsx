@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,6 +50,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Receipt } from "@/components/pos/Receipt";
+import { useReactToPrint } from "react-to-print";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -63,8 +67,11 @@ export default function AdminOrders() {
   const [taxRate, setTaxRate] = useState("0");
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [showReceiptOptions, setShowReceiptOptions] = useState(false);
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const toggleOrderExpanded = (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
@@ -390,6 +397,78 @@ export default function AdminOrders() {
 
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
+  };
+
+  const handleReceiptClick = async (orderId: string) => {
+    const order = orders?.find(o => o.id === orderId);
+    if (!order) {
+      toast.error('Order not found');
+      return;
+    }
+    setSelectedReceiptOrder(order);
+    setShowReceiptOptions(true);
+  };
+
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+  });
+
+  const handleSaveReceiptPDF = async () => {
+    if (!receiptRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, canvas.height * 80 / canvas.width]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, 80, canvas.height * 80 / canvas.width);
+      pdf.save(`receipt-${selectedReceiptOrder?.order_number || 'order'}.pdf`);
+      toast.success('Receipt saved as PDF');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleSendReceiptWhatsApp = () => {
+    if (!selectedReceiptOrder) return;
+
+    const order = selectedReceiptOrder;
+    const itemsList = order.items.map((item: any) => 
+      `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(item.products?.price || item.unit_price || item.price)} = ${formatCurrency((item.products?.price || item.unit_price || item.price) * item.quantity)}`
+    ).join('\n');
+
+    const message = `
+*${order.stores?.name || settings?.company_name || 'Global Market'}*
+Fresh groceries delivered to your doorstep
+
+*Transaction:* ${order.order_number}
+*Date:* ${new Date(order.created_at).toLocaleString()}
+${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}
+----------------------------
+*ITEMS:*
+${itemsList}
+----------------------------
+*Subtotal:* ${formatCurrency(order.subtotal)}
+*Tax:* ${formatCurrency(order.tax || 0)}
+${order.type === 'pos' && order.discount > 0 ? `*Discount:* -${formatCurrency(order.discount)}\n` : ''}*TOTAL:* ${formatCurrency(order.total)}
+----------------------------
+*Payment Method:* ${(order.payment_method || 'Online').toUpperCase()}
+
+Thank you for shopping with us!
+${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
+    `.trim();
+
+    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
   };
 
   const updateOrderItem = useMutation({
@@ -954,7 +1033,7 @@ export default function AdminOrders() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => printOrderReceipt(order.id)}
+                                onClick={() => handleReceiptClick(order.id)}
                               >
                                 <Printer className="h-4 w-4 mr-1" />
                                 Print
@@ -1419,6 +1498,78 @@ export default function AdminOrders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Receipt Options Dialog */}
+      <Dialog open={showReceiptOptions} onOpenChange={setShowReceiptOptions}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt Options</DialogTitle>
+            <DialogDescription>
+              Choose how you want to handle this receipt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={() => {
+                handlePrintReceipt();
+                setShowReceiptOptions(false);
+              }}
+              className="w-full"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Receipt
+            </Button>
+            <Button
+              onClick={() => {
+                handleSaveReceiptPDF();
+                setShowReceiptOptions(false);
+              }}
+              variant="secondary"
+              className="w-full"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Save as PDF
+            </Button>
+            <Button
+              onClick={() => {
+                handleSendReceiptWhatsApp();
+                setShowReceiptOptions(false);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Send via WhatsApp
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hidden Receipt for Printing and PDF */}
+      {selectedReceiptOrder && (
+        <div className="fixed -left-[9999px] top-0 bg-white">
+          <Receipt
+            ref={receiptRef}
+            transactionNumber={selectedReceiptOrder.order_number}
+            date={new Date(selectedReceiptOrder.created_at)}
+            items={selectedReceiptOrder.items.map((item: any) => ({
+              name: item.products?.name || item.name,
+              quantity: item.quantity,
+              price: item.products?.price || item.unit_price || item.price,
+              itemDiscount: 0,
+            }))}
+            subtotal={Number(selectedReceiptOrder.subtotal)}
+            discount={Number(selectedReceiptOrder.discount || 0)}
+            tax={Number(selectedReceiptOrder.tax || 0)}
+            total={Number(selectedReceiptOrder.total)}
+            paymentMethod={(selectedReceiptOrder.payment_method || 'Online').toUpperCase()}
+            cashierName={selectedReceiptOrder.type === 'pos' ? selectedReceiptOrder.cashier_name : undefined}
+            storeName={selectedReceiptOrder.stores?.name || settings?.company_name || 'Global Market'}
+            logoUrl={settings?.logo_url}
+            supportPhone={settings?.company_phone}
+          />
+        </div>
+      )}
     </div>
   );
 }
