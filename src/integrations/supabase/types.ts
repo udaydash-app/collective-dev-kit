@@ -946,6 +946,8 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          barcode: string | null
+          cost_price: number | null
           created_at: string
           id: string
           is_available: boolean | null
@@ -959,6 +961,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
+          cost_price?: number | null
           created_at?: string
           id?: string
           is_available?: boolean | null
@@ -972,6 +976,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
+          cost_price?: number | null
           created_at?: string
           id?: string
           is_available?: boolean | null
@@ -998,6 +1004,7 @@ export type Database = {
         Row: {
           barcode: string | null
           category_id: string | null
+          cost_price: number | null
           created_at: string
           description: string | null
           id: string
@@ -1018,6 +1025,7 @@ export type Database = {
         Insert: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1038,6 +1046,7 @@ export type Database = {
         Update: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
