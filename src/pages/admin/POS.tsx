@@ -29,6 +29,7 @@ import {
   FileText,
   Users,
   TrendingUp,
+  TrendingDown,
   Droplets
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -535,6 +536,7 @@ export default function POS() {
       { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
       { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
+      { icon: TrendingDown, label: 'Daily Expenses', path: '/admin/expenses' },
     ],
     reports: [
       { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
