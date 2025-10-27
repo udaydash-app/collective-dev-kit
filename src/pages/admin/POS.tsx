@@ -533,6 +533,18 @@ export default function POS() {
   };
 
   const menuSections = {
+    sales: [
+      { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
+      { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
+      { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
+    ],
+    inventory: [
+      { icon: Package, label: 'Manage Products', path: '/admin/products' },
+      { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
+      { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
+      { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
+      { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
+    ],
     accounting: [
       { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
@@ -540,6 +552,7 @@ export default function POS() {
       { icon: TrendingDown, label: 'Daily Expenses', path: '/admin/expenses' },
     ],
     reports: [
+      { icon: BarChart3, label: 'Analytics Dashboard', path: '/admin/analytics' },
       { icon: FileText, label: 'Sales & Purchase Reports', path: '/admin/close-day-report' },
       { icon: Package, label: 'Inventory Reports', path: '/admin/inventory-reports' },
       { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
@@ -547,22 +560,9 @@ export default function POS() {
       { icon: Building2, label: 'Balance Sheet', path: '/admin/balance-sheet' },
       { icon: Droplets, label: 'Cash Flow', path: '/admin/cash-flow' },
     ],
-    inventory: [
-      { icon: Package, label: 'Manage Products', path: '/admin/products' },
-      { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
-      { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
-      { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
-      { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
-    ],
-    sales: [
-      { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
-      { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
-      { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
-    ],
-    management: [
+    settings: [
       { icon: Users, label: 'POS Users', path: '/admin/pos-users' },
       { icon: Users, label: 'Contacts', path: '/admin/contacts' },
-      { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
       { icon: Settings, label: 'Company Settings', path: '/admin/settings' },
     ],
   };
@@ -1008,17 +1008,17 @@ export default function POS() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Management Section */}
+            {/* Settings Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
                   <Settings className="h-4 w-4" />
-                  Management
+                  Settings
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56 bg-background z-50">
-                {menuSections.management.map((item, index) => (
+                {menuSections.settings.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
