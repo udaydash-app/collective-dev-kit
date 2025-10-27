@@ -28,15 +28,23 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
   // Maintain focus on search input for scanner input
   React.useEffect(() => {
-    const handleGlobalClick = () => {
-      // Always refocus unless clicking on specific inputs
-      const activeElement = document.activeElement as HTMLElement;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Allow clicks on these elements
       if (
-        !activeElement?.matches('input[type="number"]') &&
-        !activeElement?.closest('[role="dialog"]')
+        target.matches('input[type="number"]') ||
+        target.closest('[role="dialog"]') ||
+        target.closest('button') ||
+        target.closest('[role="button"]') ||
+        target === searchInputRef.current
       ) {
-        setTimeout(() => searchInputRef.current?.focus(), 10);
+        return;
       }
+      
+      // Prevent blur by stopping the event and refocusing
+      e.preventDefault();
+      searchInputRef.current?.focus();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -53,19 +61,21 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
     // Periodically check and refocus (for scanner reliability)
     const focusInterval = setInterval(() => {
+      const activeElement = document.activeElement as HTMLElement;
       if (
         !document.querySelector('[role="dialog"]') &&
-        document.activeElement?.tagName !== 'INPUT'
+        !activeElement?.matches('input[type="number"]') &&
+        activeElement !== searchInputRef.current
       ) {
         searchInputRef.current?.focus();
       }
     }, 100);
 
-    document.addEventListener('click', handleGlobalClick);
+    document.addEventListener('mousedown', handleMouseDown, true); // Use capture phase
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener('click', handleGlobalClick);
+      document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('keydown', handleKeyDown);
       clearInterval(focusInterval);
     };
