@@ -20,26 +20,9 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Auto-focus search input on mount and after operations
+  // Auto-focus search input on mount
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Return focus to search after any product selection
-  React.useEffect(() => {
-    const handleClick = () => {
-      setTimeout(() => {
-        if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      }, 100);
-    };
-
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    searchInputRef.current?.focus();
   }, []);
 
   const { data: products, isLoading } = useQuery({
@@ -87,9 +70,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         price: availableVariants[0].price,
         selectedVariant: availableVariants[0],
       });
+      // Refocus search after adding to cart
+      setTimeout(() => searchInputRef.current?.focus(), 200);
     } else {
       // No variants, use product price
       onProductSelect(product);
+      // Refocus search after adding to cart
+      setTimeout(() => searchInputRef.current?.focus(), 200);
     }
   };
 
@@ -101,6 +88,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: variant,
       });
       setVariantSelectorOpen(false);
+      // Refocus search after variant selection
+      setTimeout(() => searchInputRef.current?.focus(), 200);
     }
   };
 
@@ -133,6 +122,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     if (data) {
       handleProductSelect(data);
       setBarcodeInput('');
+      // Refocus search after barcode search
+      setTimeout(() => searchInputRef.current?.focus(), 200);
     }
   };
 
@@ -162,6 +153,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
     if (data) {
       handleProductSelect(data);
+      // Refocus search after barcode scan
+      setTimeout(() => searchInputRef.current?.focus(), 200);
     }
   };
 
