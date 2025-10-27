@@ -358,7 +358,7 @@ export default function POS() {
         .order('name');
 
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`);
+        query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
       if (selectedCategory) {
@@ -1046,6 +1046,7 @@ export default function POS() {
                   setCurrentPage(1);
                 }}
                 className="pl-10"
+                autoFocus
               />
             </div>
             <BarcodeScanner onScan={handleBarcodeScan} />
