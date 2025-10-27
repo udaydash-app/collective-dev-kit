@@ -137,30 +137,92 @@ export default function CloseDayReport() {
     window.print();
   };
 
-  // Calculate totals
-  const salesData = {
-    cash: reportData?.transactions?.filter(t => t.payment_method === 'cash').reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    credit: reportData?.transactions?.filter(t => t.payment_method === 'credit').reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    mobileMoney: reportData?.transactions?.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    total: reportData?.transactions?.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    count: reportData?.transactions?.length || 0,
+  // Calculate totals by date
+  const getDailyBreakdown = () => {
+    if (!reportData) return [];
+
+    const dateMap = new Map();
+
+    // Group transactions by date
+    reportData.transactions?.forEach((t: any) => {
+      const date = format(new Date(t.created_at), 'yyyy-MM-dd');
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
+          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          cashSessions: [],
+        });
+      }
+      const dayData = dateMap.get(date);
+      const amount = parseFloat(t.total.toString());
+      dayData.sales.total += amount;
+      dayData.sales.count += 1;
+      if (t.payment_method === 'cash') dayData.sales.cash += amount;
+      else if (t.payment_method === 'credit') dayData.sales.credit += amount;
+      else if (t.payment_method === 'mobile_money') dayData.sales.mobileMoney += amount;
+    });
+
+    // Group purchases by date
+    reportData.purchases?.forEach((p: any) => {
+      const date = format(new Date(p.purchased_at), 'yyyy-MM-dd');
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
+          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          cashSessions: [],
+        });
+      }
+      const dayData = dateMap.get(date);
+      const amount = parseFloat(p.total_amount.toString());
+      dayData.purchases.total += amount;
+      if (p.payment_method === 'cash') dayData.purchases.cash += amount;
+      else if (p.payment_method === 'credit') dayData.purchases.credit += amount;
+      else if (p.payment_method === 'mobile_money') dayData.purchases.mobileMoney += amount;
+    });
+
+    // Group expenses by date
+    reportData.expenses?.forEach((e: any) => {
+      const date = e.expense_date;
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
+          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          cashSessions: [],
+        });
+      }
+      const dayData = dateMap.get(date);
+      const amount = parseFloat(e.amount.toString());
+      dayData.expenses.total += amount;
+      if (e.payment_method === 'cash') dayData.expenses.cash += amount;
+      else if (e.payment_method === 'credit') dayData.expenses.credit += amount;
+      else if (e.payment_method === 'mobile_money') dayData.expenses.mobileMoney += amount;
+    });
+
+    // Group cash sessions by date
+    reportData.cashSessions?.forEach((session: any) => {
+      const date = format(new Date(session.opened_at), 'yyyy-MM-dd');
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
+          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+          cashSessions: [],
+        });
+      }
+      dateMap.get(date).cashSessions.push(session);
+    });
+
+    return Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
   };
 
-  const purchasesData = {
-    cash: reportData?.purchases?.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
-    credit: reportData?.purchases?.filter(p => p.payment_method === 'credit').reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
-    mobileMoney: reportData?.purchases?.filter(p => p.payment_method === 'mobile_money').reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
-    total: reportData?.purchases?.reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
-  };
-
-  const expensesData = {
-    cash: reportData?.expenses?.filter(e => e.payment_method === 'cash').reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
-    credit: reportData?.expenses?.filter(e => e.payment_method === 'credit').reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
-    mobileMoney: reportData?.expenses?.filter(e => e.payment_method === 'mobile_money').reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
-    total: reportData?.expenses?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
-  };
-
-  const netCashFlow = salesData.total - purchasesData.total - expensesData.total;
+  const dailyBreakdown = getDailyBreakdown();
   const storeName = stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
 
   return (
@@ -231,295 +293,171 @@ export default function CloseDayReport() {
         <div className="space-y-6 print-area">
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
-            <h2 className="text-2xl font-bold">{storeName}</h2>
-            <h3 className="text-xl">Close Day Report</h3>
-            <p className="text-muted-foreground">
-              {format(new Date(startDate), 'MMM dd, yyyy')} - {format(new Date(endDate), 'MMM dd, yyyy')}
+            <h2 className="text-3xl font-bold">{storeName}</h2>
+            <h3 className="text-2xl">Close Day Report</h3>
+            <p className="text-lg text-muted-foreground">
+              {format(new Date(startDate), 'MMMM dd, yyyy')} {startDate !== endDate && `- ${format(new Date(endDate), 'MMMM dd, yyyy')}`}
             </p>
+            <p className="text-sm text-muted-foreground">Generated on {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
           </div>
 
-          <Separator />
+          <Separator className="print-separator" />
 
-          {/* Sales Summary */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              Sales Summary
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Cash Sales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    <p className="text-2xl font-bold">{formatCurrency(salesData.cash)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Credit Sales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                    <p className="text-2xl font-bold">{formatCurrency(salesData.credit)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Mobile Money</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-purple-600" />
-                    <p className="text-2xl font-bold">{formatCurrency(salesData.mobileMoney)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-green-50 dark:bg-green-950/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Sales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(salesData.total)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{salesData.count} transactions</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Purchases Summary */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-orange-600" />
-              Purchases Summary
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Cash</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    <p className="text-xl font-bold">{formatCurrency(purchasesData.cash)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Credit</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                    <p className="text-xl font-bold">{formatCurrency(purchasesData.credit)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Mobile Money</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-purple-600" />
-                    <p className="text-xl font-bold">{formatCurrency(purchasesData.mobileMoney)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-orange-50 dark:bg-orange-950/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Purchases</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold text-orange-600">{formatCurrency(purchasesData.total)}</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Expenses Summary */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-600" />
-              Expenses Summary
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Cash</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    <p className="text-xl font-bold">{formatCurrency(expensesData.cash)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Credit</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                    <p className="text-xl font-bold">{formatCurrency(expensesData.credit)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Mobile Money</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-purple-600" />
-                    <p className="text-xl font-bold">{formatCurrency(expensesData.mobileMoney)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-red-50 dark:bg-red-950/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Expenses</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold text-red-600">{formatCurrency(expensesData.total)}</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Net Cash Flow */}
-          <Card className={netCashFlow >= 0 ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'}>
-            <CardHeader>
-              <CardTitle className="text-xl">Net Cash Flow</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Sales - Purchases - Expenses</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatCurrency(salesData.total)} - {formatCurrency(purchasesData.total)} - {formatCurrency(expensesData.total)}
-                  </p>
+          {/* Daily Breakdown */}
+          {dailyBreakdown.map((dayData, index) => {
+            const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total;
+            
+            return (
+              <div key={dayData.date} className="space-y-4 print-page-break">
+                {/* Date Header */}
+                <div className="bg-primary/10 p-4 rounded-lg print-date-header">
+                  <h3 className="text-2xl font-bold">{format(new Date(dayData.date), 'EEEE, MMMM dd, yyyy')}</h3>
                 </div>
-                <p className={`text-4xl font-bold ${netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(netCashFlow)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Cash Sessions Summary */}
-          {reportData.cashSessions && reportData.cashSessions.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold">Cash Sessions</h3>
+                {/* Daily Sales */}
                 <div className="space-y-3">
-                  {reportData.cashSessions.map((session: any) => {
-                    const isOpen = session.status === 'open';
-                    const expectedCash = session.calculated_expected_cash;
-                    const closingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
-                    const difference = session.calculated_difference;
-                    const cashierName = session.profiles?.full_name || 'Unknown';
+                  <h4 className="text-lg font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    Sales
+                  </h4>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg print-cell">
+                      <p className="text-xs text-muted-foreground mb-1">Cash</p>
+                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.cash)}</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg print-cell">
+                      <p className="text-xs text-muted-foreground mb-1">Credit</p>
+                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.credit)}</p>
+                    </div>
+                    <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg print-cell">
+                      <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
+                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.mobileMoney)}</p>
+                    </div>
+                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg print-cell">
+                      <p className="text-xs text-muted-foreground mb-1">Total</p>
+                      <p className="text-xl font-bold text-green-600">{formatCurrency(dayData.sales.total)}</p>
+                      <p className="text-xs text-muted-foreground">{dayData.sales.count} trans.</p>
+                    </div>
+                  </div>
+                </div>
 
-                    return (
-                      <Card key={session.id} className={isOpen ? 'border-orange-300 dark:border-orange-700' : ''}>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base">
-                              Cashier: {cashierName}
-                            </CardTitle>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              isOpen 
-                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' 
-                                : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                            }`}>
+                {/* Daily Purchases */}
+                {dayData.purchases.total > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                      <ShoppingBag className="h-5 w-5 text-orange-600" />
+                      Purchases
+                    </h4>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Cash</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.cash)}</p>
+                      </div>
+                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Credit</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.credit)}</p>
+                      </div>
+                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.mobileMoney)}</p>
+                      </div>
+                      <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Total</p>
+                        <p className="text-xl font-bold text-orange-600">{formatCurrency(dayData.purchases.total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily Expenses */}
+                {dayData.expenses.total > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5 text-red-600" />
+                      Expenses
+                    </h4>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Cash</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.cash)}</p>
+                      </div>
+                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Credit</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.credit)}</p>
+                      </div>
+                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
+                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.mobileMoney)}</p>
+                      </div>
+                      <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg print-cell">
+                        <p className="text-xs text-muted-foreground mb-1">Total</p>
+                        <p className="text-xl font-bold text-red-600">{formatCurrency(dayData.expenses.total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily Net */}
+                <div className={`p-4 rounded-lg ${netDaily >= 0 ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'} print-cell`}>
+                  <div className="flex justify-between items-center">
+                    <p className="font-semibold">Daily Net Cash Flow</p>
+                    <p className={`text-2xl font-bold ${netDaily >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(netDaily)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cash Sessions for this day */}
+                {dayData.cashSessions.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-semibold">Cash Sessions</h4>
+                    {dayData.cashSessions.map((session: any) => {
+                      const isOpen = session.status === 'open';
+                      const expectedCash = session.calculated_expected_cash;
+                      const closingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
+                      const difference = session.calculated_difference;
+                      const cashierName = session.profiles?.full_name || 'Unknown';
+
+                      return (
+                        <div key={session.id} className="p-3 border rounded-lg print-cell">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-medium">Cashier: {cashierName}</p>
+                            <span className={`px-2 py-1 text-xs rounded ${isOpen ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                               {isOpen ? 'Open' : 'Closed'}
                             </span>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+                          <div className="grid grid-cols-4 gap-4 text-sm">
                             <div>
-                              <p className="text-muted-foreground mb-1">Opened</p>
-                              <p className="font-medium">{format(new Date(session.opened_at), 'MMM dd, HH:mm')}</p>
-                            </div>
-                            {!isOpen && session.closed_at && (
-                              <div>
-                                <p className="text-muted-foreground mb-1">Closed</p>
-                                <p className="font-medium">{format(new Date(session.closed_at), 'MMM dd, HH:mm')}</p>
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-muted-foreground mb-1">Opening Cash</p>
+                              <p className="text-muted-foreground text-xs">Opening</p>
                               <p className="font-semibold">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground mb-1">Cash Sales</p>
+                              <p className="text-muted-foreground text-xs">Cash Sales</p>
                               <p className="font-semibold text-green-600">{formatCurrency(session.cash_sales)}</p>
-                              <p className="text-xs text-muted-foreground">{session.transaction_count} trans.</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground mb-1">Expected Cash</p>
+                              <p className="text-muted-foreground text-xs">Expected</p>
                               <p className="font-semibold text-blue-600">{formatCurrency(expectedCash)}</p>
                             </div>
                             {closingCash !== null && (
-                              <>
-                                <div>
-                                  <p className="text-muted-foreground mb-1">Actual Closing</p>
-                                  <p className="font-semibold">{formatCurrency(closingCash)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground mb-1">Difference</p>
-                                  <p className={`font-bold ${
-                                    difference === null ? '' :
-                                    difference >= 0 ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    {difference !== null ? (
-                                      <>
-                                        {difference >= 0 ? '+' : ''}{formatCurrency(Math.abs(difference))}
-                                      </>
-                                    ) : '—'}
-                                  </p>
-                                </div>
-                              </>
+                              <div>
+                                <p className="text-muted-foreground text-xs">Difference</p>
+                                <p className={`font-bold ${difference !== null && difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {difference !== null ? `${difference >= 0 ? '+' : ''}${formatCurrency(Math.abs(difference))}` : '—'}
+                                </p>
+                              </div>
                             )}
                           </div>
-                          {session.notes && (
-                            <div className="mt-3 pt-3 border-t">
-                              <p className="text-xs text-muted-foreground mb-1">Notes:</p>
-                              <p className="text-sm">{session.notes}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {index < dailyBreakdown.length - 1 && <Separator className="my-6 print-separator" />}
               </div>
-            </>
-          )}
+            );
+          })}
         </div>
       )}
 
@@ -530,10 +468,40 @@ export default function CloseDayReport() {
           }
           .print-area {
             padding: 20px;
+            max-width: 100%;
           }
           .print-header {
             margin-bottom: 30px;
+            page-break-after: avoid;
           }
+          .print-date-header {
+            background-color: #f3f4f6 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            page-break-after: avoid;
+          }
+          .print-page-break {
+            page-break-inside: avoid;
+            margin-bottom: 30px;
+          }
+          .print-separator {
+            border-top: 2px solid #000;
+            margin: 20px 0;
+          }
+          .print-cell {
+            background-color: #f9fafb !important;
+            border: 1px solid #e5e7eb !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+        @page {
+          size: A4;
+          margin: 15mm;
         }
       `}</style>
     </div>
