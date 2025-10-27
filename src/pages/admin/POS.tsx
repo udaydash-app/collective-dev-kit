@@ -1079,19 +1079,19 @@ export default function POS() {
               <Button
                 key={category.id}
                 variant="outline"
-                className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                className="h-36 flex flex-col items-center justify-center p-2 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
                 onClick={() => handleCategorySelect(category.id)}
               >
                 {category.image_url ? (
                   <img
                     src={category.image_url}
                     alt={category.name}
-                    className="h-16 w-16 object-cover rounded mb-2"
+                    className="h-14 w-14 object-cover rounded mb-2 flex-shrink-0"
                   />
                 ) : (
-                  <Package className="h-12 w-12 mb-2 opacity-50" />
+                  <Package className="h-10 w-10 mb-2 opacity-50 flex-shrink-0" />
                 )}
-                <p className="text-sm font-medium text-center line-clamp-2 break-words w-full">
+                <p className="text-xs font-medium text-center line-clamp-2 break-words w-full leading-tight px-1">
                   {category.name}
                 </p>
               </Button>
