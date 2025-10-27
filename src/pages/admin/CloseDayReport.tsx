@@ -304,8 +304,17 @@ export default function CloseDayReport() {
 
           <Separator className="print-separator" />
 
-          {/* Daily Breakdown */}
-          {dailyBreakdown.map((dayData, index) => {
+          {/* Show message if no data */}
+          {dailyBreakdown.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">No transactions, purchases, or expenses found for the selected date range.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Daily Breakdown */}
+              {dailyBreakdown.map((dayData, index) => {
             const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total;
             
             return (
@@ -459,6 +468,8 @@ export default function CloseDayReport() {
               </div>
             );
           })}
+            </>
+          )}
         </div>
       )}
 
