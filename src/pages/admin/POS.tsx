@@ -476,7 +476,25 @@ export default function POS() {
       .maybeSingle();
 
     if (data) {
-      handleProductClick(data);
+      // For barcode scans, add directly to cart with smart variant selection
+      const availableVariants = data.product_variants?.filter((v: any) => v.is_available) || [];
+      
+      if (availableVariants.length > 0) {
+        // Prioritize default variant, otherwise use first available
+        const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+        addToCart({
+          ...data,
+          price: variantToAdd.price,
+          selectedVariant: variantToAdd,
+        });
+        toast.success(`${data.name} added to cart`);
+      } else {
+        // No variants, use product price
+        addToCart(data);
+        toast.success(`${data.name} added to cart`);
+      }
+    } else {
+      toast.error('Product not found');
     }
   };
 
