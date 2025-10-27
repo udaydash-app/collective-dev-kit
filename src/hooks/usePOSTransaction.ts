@@ -25,17 +25,23 @@ export const usePOSTransaction = () => {
 
   const addToCart = (product: any) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      // Use variant ID if available, otherwise use product ID
+      const cartItemId = product.selectedVariant?.id || product.id;
+      const displayName = product.selectedVariant?.label 
+        ? `${product.name} (${product.selectedVariant.label})`
+        : product.name;
+      
+      const existing = prev.find(item => item.id === cartItemId);
       if (existing) {
         return prev.map(item =>
-          item.id === product.id
+          item.id === cartItemId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
       return [...prev, {
-        id: product.id,
-        name: product.name,
+        id: cartItemId,
+        name: displayName,
         price: Number(product.price),
         quantity: 1,
         barcode: product.barcode,
