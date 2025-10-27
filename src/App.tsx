@@ -55,6 +55,7 @@ import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
+import { ReturnToPOSButton } from "./components/layout/ReturnToPOSButton";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const AppContent = () => {
       <Sonner />
       <OrderStatusNotifications />
       <BrowserRouter>
+        <ReturnToPOSButton />
         <Routes>
           {/* Customer-facing home */}
           <Route path="/" element={<Index />} />
