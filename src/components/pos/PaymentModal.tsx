@@ -85,22 +85,25 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     if (!receiptRef.current) return;
     
     try {
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 200], // Thermal receipt size
+        format: [80, 297],
       });
       
-      await pdf.html(receiptRef.current, {
-        callback: function(doc) {
-          doc.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
-          toast.success('Receipt saved as PDF');
-        },
-        x: 5,
-        y: 5,
-        width: 70,
-        windowWidth: 300,
-      });
+      const imgWidth = 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
+      toast.success('Receipt saved as PDF');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
@@ -111,60 +114,64 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     if (!transactionData || !receiptRef.current) return;
     
     try {
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 200],
+        format: [80, 297],
       });
+      
+      const imgWidth = 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       
       const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
       
-      await pdf.html(receiptRef.current, {
-        callback: async function(doc) {
-          // Try Web Share API first (works on mobile)
-          if (navigator.share && navigator.canShare) {
-            try {
-              const pdfBlob = doc.output('blob');
-              const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-              
-              if (navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                  title: `Receipt #${transactionData.transactionNumber}`,
-                  text: `Receipt - Total: ${formatCurrency(transactionData.total)}`,
-                  files: [file],
-                });
-                toast.success('Receipt shared successfully!');
-                return;
-              }
-            } catch (shareError) {
-              console.log('Web Share not available, falling back to download');
-            }
+      // Try Web Share API first (works on mobile)
+      if (navigator.share && navigator.canShare) {
+        try {
+          const pdfBlob = pdf.output('blob');
+          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `Receipt #${transactionData.transactionNumber}`,
+              text: `Receipt - Total: ${formatCurrency(transactionData.total)}`,
+              files: [file],
+            });
+            toast.success('Receipt shared successfully!');
+            return;
           }
-          
-          // Fallback: Download and open WhatsApp
-          doc.save(fileName);
-          
-          toast.success('PDF downloaded! Opening WhatsApp...', {
-            description: 'Please attach the downloaded PDF file manually',
-            duration: 5000,
-          });
-          
-          setTimeout(() => {
-            const message = encodeURIComponent(
-              `Receipt #${transactionData.transactionNumber}\n` +
-              `Total: ${formatCurrency(transactionData.total)}\n` +
-              `Payment Method: ${transactionData.paymentMethod}\n\n` +
-              `(Please attach the downloaded PDF: ${fileName})`
-            );
-            
-            window.location.href = `whatsapp://send?text=${message}`;
-          }, 1000);
-        },
-        x: 5,
-        y: 5,
-        width: 70,
-        windowWidth: 300,
+        } catch (shareError) {
+          console.log('Web Share not available, falling back to download');
+        }
+      }
+      
+      // Fallback: Download and open WhatsApp
+      pdf.save(fileName);
+      
+      toast.success('PDF downloaded! Opening WhatsApp...', {
+        description: 'Please attach the downloaded PDF file manually',
+        duration: 5000,
       });
+      
+      setTimeout(() => {
+        const message = encodeURIComponent(
+          `Receipt #${transactionData.transactionNumber}\n` +
+          `Total: ${formatCurrency(transactionData.total)}\n` +
+          `Payment Method: ${transactionData.paymentMethod}\n\n` +
+          `(Please attach the downloaded PDF: ${fileName})`
+        );
+        
+        window.location.href = `whatsapp://send?text=${message}`;
+      }, 1000);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to generate PDF');
@@ -502,7 +509,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       </AlertDialog>
 
       {/* Hidden receipt for printing */}
-      <div className="hidden">
+      <div className="fixed -left-[9999px] top-0 bg-white">
         <div ref={receiptRef}>
           {transactionData && (
             <Receipt
