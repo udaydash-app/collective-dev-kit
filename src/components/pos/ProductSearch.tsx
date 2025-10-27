@@ -19,10 +19,63 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-focus search input on mount
   React.useEffect(() => {
     searchInputRef.current?.focus();
+  }, []);
+
+  // Maintain focus on search input - refocus when clicking anywhere in POS
+  React.useEffect(() => {
+    const handleFocusOut = (e: FocusEvent) => {
+      // Don't refocus if user is typing in the barcode input
+      if (e.relatedTarget === document.querySelector('input[placeholder*="barcode"]')) {
+        return;
+      }
+      
+      // Don't refocus if a dialog is open
+      if (document.querySelector('[role="dialog"]')) {
+        return;
+      }
+
+      // Refocus search input after a short delay
+      setTimeout(() => {
+        if (searchInputRef.current && !document.querySelector('[role="dialog"]')) {
+          searchInputRef.current.focus();
+        }
+      }, 50);
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Don't refocus if clicking inside an input or dialog
+      if (target.tagName === 'INPUT' || target.closest('[role="dialog"]')) {
+        return;
+      }
+
+      // Refocus after any click outside inputs
+      setTimeout(() => {
+        if (searchInputRef.current && !document.querySelector('[role="dialog"]')) {
+          searchInputRef.current.focus();
+        }
+      }, 50);
+    };
+
+    const searchInput = searchInputRef.current;
+    if (searchInput) {
+      searchInput.addEventListener('blur', handleFocusOut as any);
+    }
+    
+    document.addEventListener('click', handleClick);
+
+    return () => {
+      if (searchInput) {
+        searchInput.removeEventListener('blur', handleFocusOut as any);
+      }
+      document.removeEventListener('click', handleClick);
+    };
   }, []);
 
   const { data: products, isLoading } = useQuery({
@@ -159,7 +212,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4">
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
