@@ -31,18 +31,19 @@ class QZTrayService {
 
   private setupSigning() {
     // Set up certificate signing for trusted connection
-    // For now, we'll use an unsigned connection (development only)
-    // In production, you should obtain a code signing certificate
+    // For development, we'll use an unsigned connection
+    // In production, you should obtain a code signing certificate from https://qz.io/
     
     qz.security.setCertificatePromise(() => {
-      return Promise.resolve(this.certificate || '-----BEGIN CERTIFICATE-----\n' +
-        'MIIEOzCCAyOgAwIBAgIJANIXtxbGU9NQMA0GCSqGSIb3DQEBCwUAMIGwMQswCQYD\n' +
-        // Add your certificate here
-        '-----END CERTIFICATE-----');
+      // Return empty certificate for unsigned/development mode
+      return Promise.resolve(this.certificate || '');
     });
 
     qz.security.setSignaturePromise((toSign) => {
-      return Promise.resolve((text: string) => text); // For development only
+      // For unsigned/development mode, return a function that returns the hash as-is
+      return (hash) => {
+        return Promise.resolve(hash);
+      };
     });
   }
 
