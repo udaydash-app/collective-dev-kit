@@ -169,6 +169,18 @@ export default function POS() {
     },
   });
 
+  // Fetch company settings for receipt
+  const { data: settings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('logo_url, company_phone, company_name')
+        .single();
+      return data;
+    },
+  });
+
   // Set "Global Market" as default store
   useEffect(() => {
     if (stores && stores.length > 0 && !selectedStoreId) {
@@ -542,7 +554,9 @@ export default function POS() {
       total: calculateTotal(),
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
-      storeName: stores?.find(s => s.id === selectedStoreId)?.name || "Global Market",
+      storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
+      logoUrl: settings?.logo_url,
+      supportPhone: settings?.company_phone,
     };
     
     const result = await processTransaction(payments, selectedStoreId);

@@ -13,6 +13,8 @@ interface ReceiptProps {
   date: Date;
   cashierName?: string;
   storeName?: string;
+  logoUrl?: string;
+  supportPhone?: string;
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
@@ -28,12 +30,19 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       date,
       cashierName,
       storeName,
+      logoUrl,
+      supportPhone,
     },
     ref
   ) => {
     return (
       <div ref={ref} className="w-[80mm] p-4 bg-white text-black font-mono text-sm">
         <div className="text-center mb-4">
+          {logoUrl && (
+            <div className="flex justify-center mb-2">
+              <img src={logoUrl} alt="Company Logo" className="h-12 w-auto object-contain" />
+            </div>
+          )}
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
@@ -84,7 +93,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
         <div className="text-center text-xs">
           <p>Thank you for shopping with us!</p>
-          <p className="mt-2">For support: support@globalmarket.com</p>
+          {supportPhone && <p className="mt-2">For support: {supportPhone}</p>}
         </div>
       </div>
     );

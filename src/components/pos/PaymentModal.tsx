@@ -37,6 +37,8 @@ interface PaymentModalProps {
     paymentMethod: string;
     cashierName?: string;
     storeName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
   };
 }
 
@@ -306,6 +308,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
               date={new Date()}
               cashierName={transactionData.cashierName}
               storeName={transactionData.storeName}
+              logoUrl={transactionData.logoUrl}
+              supportPhone={transactionData.supportPhone}
             />
           )}
         </div>
