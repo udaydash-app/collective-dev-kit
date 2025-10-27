@@ -528,8 +528,8 @@ export default function POS() {
     setShowPayment(true);
   };
 
-  const handlePaymentConfirm = async (paymentMethod: string) => {
-    await processTransaction(paymentMethod, selectedStoreId);
+  const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
+    await processTransaction(payments, selectedStoreId);
   };
 
   const menuSections = {

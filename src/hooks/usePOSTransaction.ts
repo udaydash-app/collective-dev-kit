@@ -13,6 +13,11 @@ export interface CartItem {
   customPrice?: number;
 }
 
+export interface PaymentDetail {
+  method: string;
+  amount: number;
+}
+
 export const usePOSTransaction = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
@@ -91,7 +96,10 @@ export const usePOSTransaction = () => {
     return subtotal - discount;
   };
 
-  const processTransaction = async (paymentMethod: string, storeId: string) => {
+  const processTransaction = async (
+    payments: Array<{ id: string; method: string; amount: number }>,
+    storeId: string
+  ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
       return null;
@@ -114,6 +122,11 @@ export const usePOSTransaction = () => {
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
 
+      // Determine primary payment method (highest amount)
+      const primaryPayment = payments.reduce((prev, current) => 
+        (current.amount > prev.amount) ? current : prev
+      );
+
       console.log('Processing transaction:', {
         cashier_id: user.id,
         store_id: storeId,
@@ -121,6 +134,7 @@ export const usePOSTransaction = () => {
         discount,
         total,
         itemCount: cart.length,
+        payments,
       });
 
       const { data, error } = await supabase
@@ -133,7 +147,11 @@ export const usePOSTransaction = () => {
           tax: 0,
           discount: parseFloat(discount.toFixed(2)),
           total: parseFloat(total.toFixed(2)),
-          payment_method: paymentMethod,
+          payment_method: primaryPayment.method,
+          payment_details: payments.map(p => ({
+            method: p.method,
+            amount: parseFloat(p.amount.toFixed(2)),
+          })),
         })
         .select()
         .single();
