@@ -36,8 +36,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     ref
   ) => {
     return (
-      <div ref={ref} className="w-[80mm] p-2 bg-white text-black font-mono text-sm">
-        <div className="text-center mb-4">
+      <div ref={ref} className="w-[80mm] px-1 py-1 bg-white text-black font-mono text-sm">
+        <div className="text-center mb-2">
           {logoUrl && (
             <div className="flex justify-center mb-2">
               <img src={logoUrl} alt="Company Logo" className="h-12 w-auto object-contain" />
@@ -50,7 +50,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
         </div>
 
-        <div className="border-t border-b border-black py-2 mb-2">
+        <div className="border-t border-b border-black py-1 mb-1">
           {items.map((item, index) => (
             <div key={index} className="mb-2">
               <div className="flex justify-between">
@@ -66,7 +66,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           ))}
         </div>
 
-        <div className="space-y-1 mb-2">
+        <div className="space-y-1 mb-1">
           <div className="flex justify-between">
             <span>Subtotal:</span>
             <span>{formatCurrency(subtotal)}</span>
@@ -87,7 +87,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           </div>
         </div>
 
-        <div className="border-t border-black pt-2 mb-4">
+        <div className="border-t border-black pt-1 mb-2">
           <p className="text-xs">Payment Method: {paymentMethod.toUpperCase()}</p>
         </div>
 
