@@ -32,7 +32,8 @@ import {
   TrendingDown,
   Droplets,
   Edit,
-  MessageCircle
+  MessageCircle,
+  LogOut
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -995,6 +996,17 @@ export default function POS() {
     toast.success('Ticket deleted');
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success('Logged out successfully');
+      navigate('/pos-login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to logout');
+    }
+  };
+
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
@@ -1003,7 +1015,17 @@ export default function POS() {
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">POS System</h1>
-            <Settings className="h-5 w-5 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleLogout}
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5 text-muted-foreground" />
+              </Button>
+              <Settings className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
           
           <div className="relative">
