@@ -163,14 +163,38 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       });
       
       setTimeout(() => {
-        const message = encodeURIComponent(
-          `Receipt #${transactionData.transactionNumber}\n` +
-          `Total: ${formatCurrency(transactionData.total)}\n` +
-          `Payment Method: ${transactionData.paymentMethod}\n\n` +
-          `(Please attach the downloaded PDF: ${fileName})`
-        );
+        // Format items list
+        const itemsList = transactionData.items.map(item => 
+          `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
+        ).join('\n\n');
         
-        window.location.href = `whatsapp://send?text=${message}`;
+        // Build receipt-formatted message
+        let message = `*${transactionData.storeName || 'Global Market'}*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        message += `Receipt #${transactionData.transactionNumber}\n`;
+        message += `Date: ${new Date().toLocaleString()}\n`;
+        if (transactionData.cashierName) {
+          message += `Cashier: ${transactionData.cashierName}\n`;
+        }
+        message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        message += `*ITEMS*\n\n${itemsList}\n\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        message += `Subtotal: ${formatCurrency(transactionData.subtotal)}\n`;
+        if (transactionData.discount > 0) {
+          message += `Discount: -${formatCurrency(transactionData.discount)}\n`;
+        }
+        if (transactionData.tax > 0) {
+          message += `Tax: ${formatCurrency(transactionData.tax)}\n`;
+        }
+        message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
+        message += `Payment: ${transactionData.paymentMethod}\n`;
+        if (transactionData.supportPhone) {
+          message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+          message += `Support: ${transactionData.supportPhone}\n`;
+        }
+        message += `\nThank you for your business!`;
+        
+        window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
       }, 1000);
     } catch (error) {
       console.error('Error:', error);
