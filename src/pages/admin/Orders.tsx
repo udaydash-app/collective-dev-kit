@@ -927,7 +927,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
       
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Link to="/admin/dashboard">
+          <Link to="/admin/pos">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
