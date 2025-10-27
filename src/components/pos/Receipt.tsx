@@ -36,7 +36,24 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     ref
   ) => {
     return (
-      <div ref={ref} className="w-[80mm] px-1 py-1 bg-white text-black font-mono text-sm">
+      <div ref={ref} className="receipt-container w-[80mm] px-1 py-1 bg-white text-black font-mono text-sm">
+        <style>{`
+          @media print {
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            .receipt-container {
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 2mm !important;
+            }
+          }
+        `}</style>
         <div className="text-center mb-2">
           {logoUrl && (
             <div className="flex justify-center mb-2">

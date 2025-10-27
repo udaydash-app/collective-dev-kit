@@ -55,6 +55,7 @@ import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
+import { kioskPrintService } from "@/lib/kioskPrint";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -416,14 +417,15 @@ export default function AdminOrders() {
     const order = selectedReceiptOrder;
     
     try {
-      await qzTrayService.printReceipt({
+      await kioskPrintService.printReceipt({
         storeName: order.stores?.name || settings?.company_name || 'Global Market',
         transactionNumber: order.order_number,
         date: new Date(order.created_at),
         items: order.items.map((item: any) => ({
           name: item.products?.name || item.name,
           quantity: item.quantity,
-          price: item.products?.price || item.unit_price || item.price
+          price: item.products?.price || item.unit_price || item.price,
+          itemDiscount: item.item_discount || 0
         })),
         subtotal: Number(order.subtotal),
         tax: Number(order.tax || 0),
@@ -431,6 +433,7 @@ export default function AdminOrders() {
         total: Number(order.total),
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
+        logoUrl: settings?.logo_url || undefined,
         supportPhone: settings?.company_phone || undefined
       });
       
@@ -438,7 +441,7 @@ export default function AdminOrders() {
       setShowReceiptOptions(false);
     } catch (error: any) {
       console.error('Print error:', error);
-      toast.error(error.message || 'Failed to print receipt. Make sure QZ Tray is running.');
+      toast.error(error.message || 'Failed to print receipt');
     }
   };
 
@@ -1547,7 +1550,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
               className="w-full bg-primary"
             >
               <Printer className="h-4 w-4 mr-2" />
-              Direct Print (QZ Tray)
+              Direct Print (Kiosk Mode)
             </Button>
             <Button
               onClick={() => {

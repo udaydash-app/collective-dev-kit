@@ -49,6 +49,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
+import { kioskPrintService } from "@/lib/kioskPrint";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -782,14 +783,15 @@ export default function POS() {
     if (!lastTransactionData) return;
     
     try {
-      await qzTrayService.printReceipt({
+      await kioskPrintService.printReceipt({
         storeName: lastTransactionData.storeName || 'Global Market',
         transactionNumber: lastTransactionData.transactionNumber,
         date: new Date(),
         items: lastTransactionData.items.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          itemDiscount: item.itemDiscount || 0
         })),
         subtotal: lastTransactionData.subtotal,
         tax: lastTransactionData.tax || 0,
@@ -797,6 +799,7 @@ export default function POS() {
         total: lastTransactionData.total,
         paymentMethod: lastTransactionData.paymentMethod,
         cashierName: lastTransactionData.cashierName,
+        logoUrl: lastTransactionData.logoUrl,
         supportPhone: lastTransactionData.supportPhone
       });
       
@@ -804,7 +807,7 @@ export default function POS() {
       setShowLastReceiptOptions(false);
     } catch (error: any) {
       console.error('Print error:', error);
-      toast.error(error.message || 'Failed to print receipt. Make sure QZ Tray is running.');
+      toast.error(error.message || 'Failed to print receipt');
     }
   };
 
@@ -1652,7 +1655,7 @@ export default function POS() {
               }}
             >
               <Printer className="w-4 h-4 mr-2" />
-              Direct Print (QZ Tray)
+              Direct Print (Kiosk Mode)
             </Button>
             <Button
               variant="outline"

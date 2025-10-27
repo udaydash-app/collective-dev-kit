@@ -1,0 +1,224 @@
+/**
+ * Kiosk Mode Direct Printing Utility
+ * Works with Chrome --kiosk-printing flag for silent printing
+ */
+
+export interface KioskReceiptData {
+  storeName: string;
+  transactionNumber: string;
+  date: Date;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    itemDiscount?: number;
+  }>;
+  subtotal: number;
+  tax: number;
+  discount?: number;
+  total: number;
+  paymentMethod: string;
+  cashierName?: string;
+  logoUrl?: string;
+  supportPhone?: string;
+}
+
+class KioskPrintService {
+  private static instance: KioskPrintService;
+
+  private constructor() {}
+
+  static getInstance(): KioskPrintService {
+    if (!KioskPrintService.instance) {
+      KioskPrintService.instance = new KioskPrintService();
+    }
+    return KioskPrintService.instance;
+  }
+
+  /**
+   * Print receipt directly using window.print()
+   * Works best with Chrome kiosk mode: chrome --kiosk-printing
+   */
+  async printReceipt(data: KioskReceiptData): Promise<void> {
+    const receiptHTML = this.generateReceiptHTML(data);
+    
+    // Create hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    
+    document.body.appendChild(iframe);
+    
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      throw new Error('Failed to create print iframe');
+    }
+    
+    iframeDoc.open();
+    iframeDoc.write(receiptHTML);
+    iframeDoc.close();
+    
+    // Wait for content to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Print
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    
+    // Clean up after print
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  }
+
+  private generateReceiptHTML(data: KioskReceiptData): string {
+    const formatCurrency = (amount: number) => {
+      return amount.toLocaleString('fr-CI', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 0 
+      }) + ' FCFA';
+    };
+
+    const itemsHTML = data.items.map(item => `
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span style="flex: 1;">${item.name}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+          <span>${item.quantity} x ${formatCurrency(item.price)}</span>
+          <span>${formatCurrency(item.price * item.quantity)}</span>
+        </div>
+        ${item.itemDiscount && item.itemDiscount > 0 ? `
+          <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span style="margin-left: 8px;">Item Discount:</span>
+            <span>-${formatCurrency(item.itemDiscount)}</span>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Receipt - ${data.transactionNumber}</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              line-height: 1.4;
+              color: #000;
+              background: #fff;
+              width: 80mm;
+              padding: 4mm;
+            }
+            .center {
+              text-align: center;
+            }
+            .bold {
+              font-weight: bold;
+            }
+            .large {
+              font-size: 16px;
+            }
+            .small {
+              font-size: 10px;
+            }
+            .border-top {
+              border-top: 1px dashed #000;
+              padding-top: 4px;
+            }
+            .border-bottom {
+              border-bottom: 1px dashed #000;
+              padding-bottom: 4px;
+            }
+            .mb-2 {
+              margin-bottom: 8px;
+            }
+            .mt-2 {
+              margin-top: 8px;
+            }
+            img {
+              max-height: 40px;
+              max-width: 200px;
+            }
+            @media print {
+              body {
+                width: 80mm;
+                margin: 0;
+                padding: 2mm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="center mb-2">
+            ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="mb-2">` : ''}
+            <div class="large bold">${data.storeName}</div>
+            <div class="small">Fresh groceries delivered to your doorstep</div>
+            <div class="small mt-2">Transaction: ${data.transactionNumber}</div>
+            <div class="small">${data.date.toLocaleString()}</div>
+            ${data.cashierName ? `<div class="small">Cashier: ${data.cashierName}</div>` : ''}
+          </div>
+
+          <div class="border-top border-bottom mb-2">
+            ${itemsHTML}
+          </div>
+
+          <div class="mb-2">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(data.subtotal)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>Tax (15%):</span>
+              <span>${formatCurrency(data.tax)}</span>
+            </div>
+            ${data.discount && data.discount > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Discount:</span>
+                <span>-${formatCurrency(data.discount)}</span>
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 4px; font-size: 16px;" class="bold">
+              <span>TOTAL:</span>
+              <span>${formatCurrency(data.total)}</span>
+            </div>
+          </div>
+
+          <div class="border-top mb-2">
+            <div class="small">Payment Method: ${data.paymentMethod.toUpperCase()}</div>
+          </div>
+
+          <div class="center small">
+            <div>Thank you for shopping with us!</div>
+            ${data.supportPhone ? `<div class="mt-2">For support: ${data.supportPhone}</div>` : ''}
+          </div>
+
+          <script>
+            window.onload = function() {
+              // Auto-print when using kiosk mode
+              setTimeout(() => {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  }
+}
+
+export const kioskPrintService = KioskPrintService.getInstance();
