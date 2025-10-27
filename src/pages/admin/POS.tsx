@@ -242,12 +242,9 @@ export default function POS() {
   useEffect(() => {
     if (stores && stores.length > 0 && !selectedStoreId) {
       const globalMarket = stores.find(store => store.name.toLowerCase().includes('global market'));
-      if (globalMarket) {
-        setSelectedStoreId(globalMarket.id);
-      } else {
-        // Fallback to first store if Global Market not found
-        setSelectedStoreId(stores[0].id);
-      }
+      const defaultStore = globalMarket || stores[0];
+      setSelectedStoreId(defaultStore.id);
+      console.log('Default store selected:', defaultStore.name);
     }
   }, [stores, selectedStoreId]);
 
@@ -1213,6 +1210,7 @@ export default function POS() {
               className="bg-[#7DCEA0] hover:bg-[#52BE80] text-foreground"
               onClick={handleCheckout}
               disabled={cart.length === 0 || !selectedStoreId}
+              title={!selectedStoreId ? 'Please select a store' : cart.length === 0 ? 'Cart is empty' : 'Process payment'}
             >
               PAY
             </Button>
