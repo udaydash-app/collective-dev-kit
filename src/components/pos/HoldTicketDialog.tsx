@@ -62,7 +62,7 @@ export const HoldTicketDialog = ({
 
   const handleRecall = (ticket: HeldTicket) => {
     onRecallTicket(ticket);
-    onClose();
+    // Let parent handle dialog close
   };
 
   return (

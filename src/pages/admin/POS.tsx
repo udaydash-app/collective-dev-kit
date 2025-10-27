@@ -804,17 +804,32 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    // Auto-hold current cart if not empty
     if (cart.length > 0) {
-      toast.error('Please clear current cart first');
-      return;
+      const autoHoldTicket = {
+        id: Date.now().toString(),
+        name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+        items: [...cart],
+        total: calculateTotal(),
+        timestamp: new Date(),
+      };
+      setHeldTickets(prev => [...prev, autoHoldTicket]);
+      toast.info('Current cart auto-held');
     }
 
-    ticket.items.forEach((item: any) => {
-      addToCart(item);
-    });
+    // Clear cart first
+    clearCart();
 
-    setHeldTickets(heldTickets.filter(t => t.id !== ticket.id));
-    toast.success(`Ticket "${ticket.name}" recalled`);
+    // Add ticket items to cart
+    setTimeout(() => {
+      ticket.items.forEach((item: any) => {
+        addToCart(item);
+      });
+
+      setHeldTickets(heldTickets.filter(t => t.id !== ticket.id));
+      toast.success(`Ticket "${ticket.name}" recalled`);
+      setShowHoldTicket(false);
+    }, 50);
   };
 
   const handleDeleteTicket = (ticketId: string) => {
