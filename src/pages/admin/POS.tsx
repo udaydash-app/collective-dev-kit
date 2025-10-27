@@ -573,7 +573,8 @@ export default function POS() {
       items: cart.map(item => ({
         name: item.name,
         quantity: item.quantity,
-        price: item.price,
+        price: item.customPrice ?? item.price,
+        itemDiscount: item.itemDiscount || 0,
       })),
       subtotal: calculateSubtotal(),
       discount: discount,
