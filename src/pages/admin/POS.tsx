@@ -134,23 +134,37 @@ export default function POS() {
         setSelectedStoreId(order.stores.id);
       }
 
-      // Add items to cart
+      // Add items to cart with correct quantities
       if (items && items.length > 0) {
         items.forEach(item => {
           if (item.products) {
-            // Add product to cart with the quantity from the order
-            for (let i = 0; i < item.quantity; i++) {
-              addToCart({
-                id: item.products.id,
-                name: item.products.name,
-                price: item.products.price,
-                image_url: item.products.image_url,
-                barcode: item.products.barcode,
-              });
+            // Add product to cart once
+            addToCart({
+              id: item.products.id,
+              name: item.products.name,
+              price: item.products.price,
+              image_url: item.products.image_url,
+              barcode: item.products.barcode,
+            });
+            
+            // Update quantity if more than 1
+            if (item.quantity > 1) {
+              updateQuantity(item.products.id, item.quantity);
             }
           }
         });
-        toast.success(`Loaded order ${order.order_number} into POS`);
+        
+        // Update order status to confirmed
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ status: 'confirmed' })
+          .eq('id', orderId);
+          
+        if (updateError) {
+          console.error('Error updating order status:', updateError);
+        }
+        
+        toast.success(`Loaded order ${order.order_number} into POS and marked as confirmed`);
       }
     } catch (error: any) {
       console.error('Error loading order:', error);
