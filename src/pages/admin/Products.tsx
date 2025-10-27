@@ -21,6 +21,8 @@ interface ProductVariant {
   quantity?: number;
   label?: string;
   price: number;
+  cost_price?: number;
+  barcode?: string;
   stock_quantity: number;
   is_available: boolean;
   is_default: boolean;
@@ -31,6 +33,7 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
+  cost_price?: number;
   unit: string;
   image_url: string | null;
   category_id: string | null;
@@ -194,6 +197,8 @@ export default function Products() {
       unit: 'pcs',
       quantity: 1,
       price: 0,
+      cost_price: 0,
+      barcode: '',
       stock_quantity: 0,
       is_available: true,
       is_default: variants.length === 0,
@@ -226,6 +231,8 @@ export default function Products() {
           quantity: v.quantity,
           label: v.label || `${v.quantity || ''} ${v.unit}`.trim(),
           price: v.price,
+          cost_price: v.cost_price || null,
+          barcode: v.barcode?.trim() || null,
           stock_quantity: v.stock_quantity,
           is_available: v.is_available,
           is_default: v.is_default,
@@ -304,6 +311,7 @@ export default function Products() {
         name: formData.get("name") as string,
         description: formData.get("description") as string,
         price: parseFloat(formData.get("price") as string) || 0,
+        cost_price: parseFloat(formData.get("cost_price") as string) || null,
         unit: formData.get("unit") as string,
         category_id: formData.get("category_id") as string || null,
         store_id: formData.get("store_id") as string,
@@ -791,7 +799,7 @@ export default function Products() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="price">Price (FCFA)</Label>
+                    <Label htmlFor="price">Selling Price (FCFA)</Label>
                     <Input
                       id="price"
                       name="price"
@@ -802,23 +810,35 @@ export default function Products() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Select name="unit" defaultValue={editingProduct.unit} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pcs">Pieces (pcs)</SelectItem>
-                        <SelectItem value="gm">Grams (gm)</SelectItem>
-                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                        <SelectItem value="ltr">Liters (ltr)</SelectItem>
-                        <SelectItem value="ml">Milliliters (ml)</SelectItem>
-                        <SelectItem value="dozen">Dozen</SelectItem>
-                        <SelectItem value="pack">Pack</SelectItem>
-                        <SelectItem value="box">Box</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="cost_price">Cost Price (FCFA)</Label>
+                    <Input
+                      id="cost_price"
+                      name="cost_price"
+                      type="number"
+                      step="0.01"
+                      defaultValue={editingProduct.cost_price}
+                      placeholder="Optional"
+                    />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select name="unit" defaultValue={editingProduct.unit} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                      <SelectItem value="gm">Grams (gm)</SelectItem>
+                      <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                      <SelectItem value="ltr">Liters (ltr)</SelectItem>
+                      <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                      <SelectItem value="dozen">Dozen</SelectItem>
+                      <SelectItem value="pack">Pack</SelectItem>
+                      <SelectItem value="box">Box</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -832,68 +852,80 @@ export default function Products() {
                   {showVariants && (
                     <div className="space-y-3 p-4 border rounded-lg">
                       {variants.map((variant, index) => (
-                        <div key={variant.id} className="grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-2">
-                            <Label className="text-xs">Quantity</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={variant.quantity || ''}
-                              onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
-                              className="h-9"
-                              placeholder="500"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Label className="text-xs">Unit</Label>
-                            <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pcs">pcs</SelectItem>
-                                <SelectItem value="gm">gm</SelectItem>
-                                <SelectItem value="kg">kg</SelectItem>
-                                <SelectItem value="ltr">ltr</SelectItem>
-                                <SelectItem value="ml">ml</SelectItem>
-                                <SelectItem value="dozen">dozen</SelectItem>
-                                <SelectItem value="pack">pack</SelectItem>
-                                <SelectItem value="box">box</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="col-span-3">
-                            <Label className="text-xs">Price (FCFA)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={variant.price}
-                              onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Label className="text-xs">Stock</Label>
-                            <Input
-                              type="number"
-                              value={variant.stock_quantity}
-                              onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Label className="text-xs">Available</Label>
-                            <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="true">Yes</SelectItem>
-                                <SelectItem value="false">No</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="col-span-1">
+                        <div key={variant.id} className="space-y-2">
+                          <div className="grid grid-cols-12 gap-2 items-end">
+                            <div className="col-span-2">
+                              <Label className="text-xs">Quantity</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={variant.quantity || ''}
+                                onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                                placeholder="500"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-xs">Unit</Label>
+                              <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pcs">pcs</SelectItem>
+                                  <SelectItem value="gm">gm</SelectItem>
+                                  <SelectItem value="kg">kg</SelectItem>
+                                  <SelectItem value="ltr">ltr</SelectItem>
+                                  <SelectItem value="ml">ml</SelectItem>
+                                  <SelectItem value="dozen">dozen</SelectItem>
+                                  <SelectItem value="pack">pack</SelectItem>
+                                  <SelectItem value="box">box</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-xs">Selling Price</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={variant.price}
+                                onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-xs">Cost Price</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={variant.cost_price || ''}
+                                onChange={(e) => updateVariant(index, 'cost_price', parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                                placeholder="Optional"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-xs">Stock</Label>
+                              <Input
+                                type="number"
+                                value={variant.stock_quantity}
+                                onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="col-span-1">
+                              <Label className="text-xs">Available</Label>
+                              <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="true">Yes</SelectItem>
+                                  <SelectItem value="false">No</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-1">
                             <Button
                               type="button"
                               size="sm"
@@ -905,6 +937,19 @@ export default function Products() {
                             </Button>
                           </div>
                         </div>
+                        <div className="grid grid-cols-12 gap-2 mt-2">
+                          <div className="col-span-11">
+                            <Label className="text-xs">Barcode</Label>
+                            <Input
+                              type="text"
+                              value={variant.barcode || ''}
+                              onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
+                              className="h-9"
+                              placeholder="Variant-specific barcode"
+                            />
+                          </div>
+                        </div>
+                      </div>
                       ))}
                       <Button type="button" size="sm" onClick={addVariant} variant="outline" className="w-full">
                         <Plus className="h-4 w-4 mr-2" />
