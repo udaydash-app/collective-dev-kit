@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -715,38 +715,67 @@ export default function Products() {
         )}
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{isAddingNew ? 'Add New Product' : 'Edit Product'}</DialogTitle>
+              <DialogTitle className="text-2xl">{isAddingNew ? 'Add New Product' : 'Edit Product'}</DialogTitle>
             </DialogHeader>
             {editingProduct && (
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Product Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    defaultValue={editingProduct.name}
-                    required
-                  />
-                </div>
+              <form onSubmit={handleSave} className="space-y-6">
+                {/* Basic Information Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Package className="h-5 w-5 text-primary" />
+                      Basic Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="name">Product Name *</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        defaultValue={editingProduct.name}
+                        required
+                        placeholder="e.g., Fresh Tomatoes"
+                      />
+                    </div>
 
-                <div>
-                  <Label htmlFor="image">Product Image</Label>
-                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        defaultValue={editingProduct.description || ""}
+                        rows={3}
+                        placeholder="Product description and details..."
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Product Image Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Upload className="h-5 w-5 text-primary" />
+                      Product Image
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
                     {(previewUrl || imageUrl || editingProduct.image_url) && (
-                      <div className="relative w-32 h-32">
+                      <div className="relative w-40 h-40 mx-auto">
                         <img 
                           src={previewUrl || imageUrl || editingProduct.image_url || ''} 
                           alt="Product preview"
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-full object-cover rounded-lg border-2 border-border"
                         />
                         {(previewUrl || imageUrl) && (
                           <Button
                             type="button"
                             size="icon"
                             variant="destructive"
-                            className="absolute -top-2 -right-2 h-6 w-6"
+                            className="absolute -top-2 -right-2 h-7 w-7"
                             onClick={handleRemoveImage}
                           >
                             <X className="h-4 w-4" />
@@ -754,8 +783,8 @@ export default function Products() {
                         )}
                       </div>
                     )}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 justify-center">
                         <Input
                           id="image"
                           type="file"
@@ -773,8 +802,9 @@ export default function Products() {
                           {editingProduct.image_url ? 'Change Image' : 'Upload Image'}
                         </Button>
                       </div>
+                      <div className="text-center text-sm text-muted-foreground">or</div>
                       <div>
-                        <Label htmlFor="imageUrl" className="text-sm text-muted-foreground">Or paste image URL:</Label>
+                        <Label htmlFor="imageUrl" className="text-sm">Paste Image URL</Label>
                         <Input
                           id="imageUrl"
                           type="url"
@@ -784,269 +814,314 @@ export default function Products() {
                         />
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    defaultValue={editingProduct.description || ""}
-                    rows={3}
-                  />
-                </div>
+                {/* Pricing Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <span className="text-primary">₣</span>
+                      Pricing & Unit
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="price">Selling Price (FCFA) *</Label>
+                        <Input
+                          id="price"
+                          name="price"
+                          type="number"
+                          step="0.01"
+                          defaultValue={editingProduct.price}
+                          required={variants.length === 0}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="cost_price">Cost Price (FCFA)</Label>
+                        <Input
+                          id="cost_price"
+                          name="cost_price"
+                          type="number"
+                          step="0.01"
+                          defaultValue={editingProduct.cost_price}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="unit">Unit *</Label>
+                        <Select name="unit" defaultValue={editingProduct.unit} required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                            <SelectItem value="gm">Grams (gm)</SelectItem>
+                            <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                            <SelectItem value="ltr">Liters (ltr)</SelectItem>
+                            <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                            <SelectItem value="dozen">Dozen</SelectItem>
+                            <SelectItem value="pack">Pack</SelectItem>
+                            <SelectItem value="box">Box</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="price">Selling Price (FCFA)</Label>
-                    <Input
-                      id="price"
-                      name="price"
-                      type="number"
-                      step="0.01"
-                      defaultValue={editingProduct.price}
-                      required={variants.length === 0}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cost_price">Cost Price (FCFA)</Label>
-                    <Input
-                      id="cost_price"
-                      name="cost_price"
-                      type="number"
-                      step="0.01"
-                      defaultValue={editingProduct.cost_price}
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="unit">Unit</Label>
-                  <Select name="unit" defaultValue={editingProduct.unit} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pcs">Pieces (pcs)</SelectItem>
-                      <SelectItem value="gm">Grams (gm)</SelectItem>
-                      <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                      <SelectItem value="ltr">Liters (ltr)</SelectItem>
-                      <SelectItem value="ml">Milliliters (ml)</SelectItem>
-                      <SelectItem value="dozen">Dozen</SelectItem>
-                      <SelectItem value="pack">Pack</SelectItem>
-                      <SelectItem value="box">Box</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label>Product Variants (Optional - Different sizes/units)</Label>
-                    <Button type="button" size="sm" onClick={() => setShowVariants(!showVariants)} variant="outline">
-                      {showVariants ? 'Hide' : 'Show'} Variants ({variants.length})
-                    </Button>
-                  </div>
+                {/* Product Variants Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Grid3x3 className="h-5 w-5 text-primary" />
+                        Product Variants
+                      </CardTitle>
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={() => setShowVariants(!showVariants)} 
+                        variant="ghost"
+                      >
+                        {showVariants ? 'Hide' : 'Show'} ({variants.length})
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Add different sizes, weights, or packaging options
+                    </p>
+                  </CardHeader>
                   
                   {showVariants && (
-                    <div className="space-y-3 p-4 border rounded-lg">
+                    <CardContent className="space-y-3">
                       {variants.map((variant, index) => (
-                        <div key={variant.id} className="space-y-2">
-                          <div className="grid grid-cols-12 gap-2 items-end">
-                            <div className="col-span-2">
-                              <Label className="text-xs">Quantity</Label>
+                        <Card key={variant.id} className="border-2">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="grid grid-cols-12 gap-3">
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Quantity</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={variant.quantity || ''}
+                                  onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="500"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Unit</Label>
+                                <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pcs">pcs</SelectItem>
+                                    <SelectItem value="gm">gm</SelectItem>
+                                    <SelectItem value="kg">kg</SelectItem>
+                                    <SelectItem value="ltr">ltr</SelectItem>
+                                    <SelectItem value="ml">ml</SelectItem>
+                                    <SelectItem value="dozen">dozen</SelectItem>
+                                    <SelectItem value="pack">pack</SelectItem>
+                                    <SelectItem value="box">box</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Selling Price</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={variant.price}
+                                  onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Cost Price</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={variant.cost_price || ''}
+                                  onChange={(e) => updateVariant(index, 'cost_price', parseFloat(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Stock</Label>
+                                <Input
+                                  type="number"
+                                  value={variant.stock_quantity}
+                                  onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-1">
+                                <Label className="text-xs font-medium">Active</Label>
+                                <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="true">✓</SelectItem>
+                                    <SelectItem value="false">✗</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="col-span-6 md:col-span-1 flex items-end">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeVariant(index)}
+                                  className="h-9 w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium">Barcode</Label>
                               <Input
-                                type="number"
-                                step="0.01"
-                                value={variant.quantity || ''}
-                                onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                type="text"
+                                value={variant.barcode || ''}
+                                onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
                                 className="h-9"
-                                placeholder="500"
+                                placeholder="Variant-specific barcode"
                               />
                             </div>
-                            <div className="col-span-2">
-                              <Label className="text-xs">Unit</Label>
-                              <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pcs">pcs</SelectItem>
-                                  <SelectItem value="gm">gm</SelectItem>
-                                  <SelectItem value="kg">kg</SelectItem>
-                                  <SelectItem value="ltr">ltr</SelectItem>
-                                  <SelectItem value="ml">ml</SelectItem>
-                                  <SelectItem value="dozen">dozen</SelectItem>
-                                  <SelectItem value="pack">pack</SelectItem>
-                                  <SelectItem value="box">box</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="col-span-2">
-                              <Label className="text-xs">Selling Price</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={variant.price}
-                                onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                                className="h-9"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <Label className="text-xs">Cost Price</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={variant.cost_price || ''}
-                                onChange={(e) => updateVariant(index, 'cost_price', parseFloat(e.target.value) || 0)}
-                                className="h-9"
-                                placeholder="Optional"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <Label className="text-xs">Stock</Label>
-                              <Input
-                                type="number"
-                                value={variant.stock_quantity}
-                                onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
-                                className="h-9"
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <Label className="text-xs">Available</Label>
-                              <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="true">Yes</SelectItem>
-                                  <SelectItem value="false">No</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="col-span-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => removeVariant(index)}
-                              className="h-9 w-full"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-12 gap-2 mt-2">
-                          <div className="col-span-11">
-                            <Label className="text-xs">Barcode</Label>
-                            <Input
-                              type="text"
-                              value={variant.barcode || ''}
-                              onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
-                              className="h-9"
-                              placeholder="Variant-specific barcode"
-                            />
-                          </div>
-                        </div>
-                      </div>
+                          </CardContent>
+                        </Card>
                       ))}
-                      <Button type="button" size="sm" onClick={addVariant} variant="outline" className="w-full">
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={addVariant} 
+                        variant="outline" 
+                        className="w-full"
+                      >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Variant
                       </Button>
-                    </div>
+                    </CardContent>
                   )}
-                </div>
+                </Card>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="category_id">Category</Label>
-                    <Select name="category_id" defaultValue={editingProduct.category_id || ""}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Inventory & Classification Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Search className="h-5 w-5 text-primary" />
+                      Inventory & Classification
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="category_id">Category</Label>
+                        <Select name="category_id" defaultValue={editingProduct.category_id || ""}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <div>
-                    <Label htmlFor="store_id">Store</Label>
-                    <Select name="store_id" defaultValue={editingProduct.store_id} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select store" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map((store) => (
-                          <SelectItem key={store.id} value={store.id}>
-                            {store.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                      <div>
+                        <Label htmlFor="store_id">Store *</Label>
+                        <Select name="store_id" defaultValue={editingProduct.store_id} required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select store" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stores.map((store) => (
+                              <SelectItem key={store.id} value={store.id}>
+                                {store.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="stock_quantity">Stock Quantity</Label>
-                    <Input
-                      id="stock_quantity"
-                      name="stock_quantity"
-                      type="number"
-                      defaultValue={editingProduct.stock_quantity}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="barcode">Barcode</Label>
-                    <Input
-                      id="barcode"
-                      name="barcode"
-                      type="text"
-                      defaultValue={(editingProduct as any).barcode || ''}
-                      placeholder="Enter product barcode"
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+                        <Input
+                          id="stock_quantity"
+                          name="stock_quantity"
+                          type="number"
+                          defaultValue={editingProduct.stock_quantity}
+                          required
+                          placeholder="0"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="barcode">Barcode</Label>
+                        <Input
+                          id="barcode"
+                          name="barcode"
+                          type="text"
+                          defaultValue={(editingProduct as any).barcode || ''}
+                          placeholder="Product barcode"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="is_available">Availability</Label>
-                    <Select name="is_available" defaultValue={editingProduct.is_available.toString()}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Available</SelectItem>
-                        <SelectItem value="false">Unavailable</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Settings Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Product Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="is_available">Availability *</Label>
+                        <Select name="is_available" defaultValue={editingProduct.is_available.toString()}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">✓ Available for Sale</SelectItem>
+                            <SelectItem value="false">✗ Unavailable</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <div>
-                    <Label htmlFor="is_featured">Featured Product</Label>
-                    <Select name="is_featured" defaultValue={editingProduct.is_featured?.toString() || "false"}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Yes - Show on Home Page</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                      <div>
+                        <Label htmlFor="is_featured">Featured Product</Label>
+                        <Select name="is_featured" defaultValue={editingProduct.is_featured?.toString() || "false"}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">⭐ Show on Home Page</SelectItem>
+                            <SelectItem value="false">Regular Product</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-3 justify-end pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
