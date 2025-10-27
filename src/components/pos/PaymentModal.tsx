@@ -110,96 +110,42 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     }
   };
 
-  const handleSendWhatsApp = async () => {
-    if (!transactionData || !receiptRef.current) return;
+  const handleSendWhatsApp = () => {
+    if (!transactionData) return;
     
-    try {
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [80, 297],
-      });
-      
-      const imgWidth = 80;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      
-      const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
-      
-      // Try Web Share API first (works on mobile)
-      if (navigator.share && navigator.canShare) {
-        try {
-          const pdfBlob = pdf.output('blob');
-          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-          
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: `Receipt #${transactionData.transactionNumber}`,
-              text: `Receipt - Total: ${formatCurrency(transactionData.total)}`,
-              files: [file],
-            });
-            toast.success('Receipt shared successfully!');
-            return;
-          }
-        } catch (shareError) {
-          console.log('Web Share not available, falling back to download');
-        }
-      }
-      
-      // Fallback: Download and open WhatsApp
-      pdf.save(fileName);
-      
-      toast.success('PDF downloaded! Opening WhatsApp...', {
-        description: 'Please attach the downloaded PDF file manually',
-        duration: 5000,
-      });
-      
-      setTimeout(() => {
-        // Format items list
-        const itemsList = transactionData.items.map(item => 
-          `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
-        ).join('\n\n');
-        
-        // Build receipt-formatted message
-        let message = `*${transactionData.storeName || 'Global Market'}*\n`;
-        message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-        message += `Receipt #${transactionData.transactionNumber}\n`;
-        message += `Date: ${new Date().toLocaleString()}\n`;
-        if (transactionData.cashierName) {
-          message += `Cashier: ${transactionData.cashierName}\n`;
-        }
-        message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-        message += `*ITEMS*\n\n${itemsList}\n\n`;
-        message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-        message += `Subtotal: ${formatCurrency(transactionData.subtotal)}\n`;
-        if (transactionData.discount > 0) {
-          message += `Discount: -${formatCurrency(transactionData.discount)}\n`;
-        }
-        if (transactionData.tax > 0) {
-          message += `Tax: ${formatCurrency(transactionData.tax)}\n`;
-        }
-        message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
-        message += `Payment: ${transactionData.paymentMethod}\n`;
-        if (transactionData.supportPhone) {
-          message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-          message += `Support: ${transactionData.supportPhone}\n`;
-        }
-        message += `\nThank you for your business!`;
-        
-        window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-      }, 1000);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to generate PDF');
+    // Format items list
+    const itemsList = transactionData.items.map(item => 
+      `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
+    ).join('\n\n');
+    
+    // Build receipt-formatted message
+    let message = `*${transactionData.storeName || 'Global Market'}*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `Receipt #${transactionData.transactionNumber}\n`;
+    message += `Date: ${new Date().toLocaleString()}\n`;
+    if (transactionData.cashierName) {
+      message += `Cashier: ${transactionData.cashierName}\n`;
     }
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `*ITEMS*\n\n${itemsList}\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `Subtotal: ${formatCurrency(transactionData.subtotal)}\n`;
+    if (transactionData.discount > 0) {
+      message += `Discount: -${formatCurrency(transactionData.discount)}\n`;
+    }
+    if (transactionData.tax > 0) {
+      message += `Tax: ${formatCurrency(transactionData.tax)}\n`;
+    }
+    message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
+    message += `Payment: ${transactionData.paymentMethod}\n`;
+    if (transactionData.supportPhone) {
+      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `Support: ${transactionData.supportPhone}\n`;
+    }
+    message += `\nThank you for your business!`;
+    
+    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    toast.success('Opening WhatsApp...');
   };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
