@@ -13,14 +13,8 @@ const navItems = [
 export const BottomNav = () => {
   const location = useLocation();
 
-  // Only show on admin pages, exclude POS pages
-  if (
-    !location.pathname.startsWith("/admin") || 
-    location.pathname === "/pos-login" ||
-    location.pathname === "/admin/pos"
-  ) {
-    return null;
-  }
+  // Hide bottom navigation completely
+  return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
