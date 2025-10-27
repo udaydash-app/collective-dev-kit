@@ -89,9 +89,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
         scale: 2,
         logging: false,
         useCORS: true,
+        backgroundColor: '#ffffff',
       });
       
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -101,7 +102,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       const imgWidth = 210; // A4 width in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
       toast.success('Receipt saved as PDF');
     } catch (error) {
@@ -119,9 +120,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
         scale: 2,
         logging: false,
         useCORS: true,
+        backgroundColor: '#ffffff',
       });
       
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -131,7 +133,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       
       // Save PDF
       const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
