@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Currency formatting for Côte d'Ivoire (West African CFA Franc)
-export function formatCurrency(amount: number): string {
-  return `${amount.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
+export function formatCurrency(amount: number | null | undefined): string {
+  const value = amount ?? 0;
+  return `${value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
 }

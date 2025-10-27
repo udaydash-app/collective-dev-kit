@@ -92,7 +92,8 @@ export default function CloseDayReport() {
             ?.filter(t => t.payment_method === 'cash')
             .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
 
-          const calculatedExpectedCash = parseFloat(session.opening_cash?.toString() || '0') + cashSales;
+          const openingCash = parseFloat(session.opening_cash?.toString() || '0');
+          const calculatedExpectedCash = openingCash + cashSales;
           const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
           const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
 
@@ -433,11 +434,11 @@ export default function CloseDayReport() {
                             </div>
                             <div>
                               <p className="text-muted-foreground text-xs">Cash Sales</p>
-                              <p className="font-semibold text-green-600">{formatCurrency(session.cash_sales)}</p>
+                              <p className="font-semibold text-green-600">{formatCurrency(session.cash_sales || 0)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground text-xs">Expected</p>
-                              <p className="font-semibold text-blue-600">{formatCurrency(expectedCash)}</p>
+                              <p className="font-semibold text-blue-600">{formatCurrency(expectedCash || 0)}</p>
                             </div>
                             {closingCash !== null && (
                               <div>
