@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { CreditCard, DollarSign, Smartphone, Printer, Plus, X, Layers } from 'lucide-react';
+import { CreditCard, DollarSign, Smartphone, Printer, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,17 +90,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     { value: 'card', label: 'Card', icon: CreditCard },
     { value: 'mobile_money', label: 'Mobile Money', icon: Smartphone },
     { value: 'credit', label: 'Credit', icon: CreditCard },
-    { value: 'multi_payment', label: 'Multi Payment', icon: Layers },
   ];
-
-  // Payment methods for individual entries (excludes multi_payment)
-  const individualPaymentMethods = paymentMethods.filter(m => m.value !== 'multi_payment');
-
-  const isMultiPayment = payments.length > 1 || (payments.length === 1 && payments[0].method === 'multi_payment');
 
   // Auto-fill amount for single payment methods
   useEffect(() => {
-    if (payments.length === 1 && payments[0].method !== 'multi_payment') {
+    if (payments.length === 1) {
       setPayments([{ ...payments[0], amount: total }]);
     }
   }, [total, payments.length]);
@@ -121,27 +115,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   };
 
   const updatePayment = (id: string, field: 'method' | 'amount', value: string | number) => {
-    setPayments(payments.map(p => {
-      if (p.id === id) {
-        const updatedPayment = { 
-          ...p, 
-          [field]: field === 'amount' ? parseFloat(value as string) || 0 : value 
-        };
-        
-        // If switching to multi_payment, split into multiple entries
-        if (field === 'method' && value === 'multi_payment' && payments.length === 1) {
-          // Replace single payment with two empty entries
-          setPayments([
-            { id: Date.now().toString(), method: 'cash', amount: 0 },
-            { id: (Date.now() + 1).toString(), method: 'mobile_money', amount: 0 },
-          ]);
-          return p;
-        }
-        
-        return updatedPayment;
-      }
-      return p;
-    }));
+    setPayments(payments.map(p => 
+      p.id === id 
+        ? { ...p, [field]: field === 'amount' ? parseFloat(value as string) || 0 : value }
+        : p
+    ));
   };
 
   const handleConfirm = async () => {
@@ -215,18 +193,16 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <Label className="text-base">Payment Methods</Label>
-              {isMultiPayment && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addPayment}
-                  className="h-8"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Payment
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addPayment}
+                className="h-8"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Payment
+              </Button>
             </div>
 
             {payments.map((payment, index) => (
@@ -243,7 +219,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(payments.length === 1 ? paymentMethods : individualPaymentMethods).map((method) => (
+                          {paymentMethods.map((method) => (
                             <SelectItem key={method.value} value={method.value}>
                               <div className="flex items-center gap-2">
                                 <method.icon className="h-4 w-4" />
@@ -261,11 +237,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                         type="number"
                         value={payment.amount || ''}
                         onChange={(e) => updatePayment(payment.id, 'amount', e.target.value)}
-                        placeholder="Enter amount"
+                        placeholder="0.00"
                         step="0.01"
                         min="0"
                         max={total}
-                        disabled={payments.length === 1 && payment.method !== 'multi_payment'}
+                        disabled={payments.length === 1}
                       />
                     </div>
                   </div>
