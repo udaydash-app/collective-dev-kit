@@ -16,6 +16,9 @@ interface DayActivity {
   totalSales: number;
   totalTransactions: number;
   purchases: number;
+  cashPurchases: number;
+  creditPurchases: number;
+  mobileMoneyPurchases: number;
   expenses: number;
 }
 
@@ -43,8 +46,13 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
     { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneyS, color: 'text-purple-600' },
   ];
 
+  const purchaseActivities = [
+    { icon: DollarSign, label: 'Cash', value: dayActivity.cashPurchases, color: 'text-green-600' },
+    { icon: CreditCard, label: 'Credit', value: dayActivity.creditPurchases, color: 'text-blue-600' },
+    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneyPurchases, color: 'text-purple-600' },
+  ];
+
   const otherActivities = [
-    { icon: ShoppingBag, label: 'Purchases', value: dayActivity.purchases, color: 'text-orange-600' },
     { icon: TrendingDown, label: 'Expenses', value: dayActivity.expenses, color: 'text-red-600' },
   ];
 
@@ -105,12 +113,12 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
 
             <Separator />
 
-            {/* Other Activities */}
+            {/* Purchases Breakdown */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Other Activities</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {otherActivities.map((activity, index) => (
-                  <div key={index} className="p-3 bg-accent rounded-lg">
+              <h3 className="font-semibold text-sm">Day's Purchases by Payment Method</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {purchaseActivities.map((activity, index) => (
+                  <div key={index} className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <activity.icon className={`h-4 w-4 ${activity.color}`} />
                       <p className="text-xs text-muted-foreground">{activity.label}</p>
@@ -119,9 +127,39 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
                   </div>
                 ))}
               </div>
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-orange-600" />
+                    <p className="text-sm font-medium">Total Purchases</p>
+                  </div>
+                  <p className="text-lg font-bold text-orange-600">{formatCurrency(dayActivity.purchases)}</p>
+                </div>
+              </div>
             </div>
 
             <Separator />
+
+            {/* Other Activities */}
+            {dayActivity.expenses > 0 && (
+              <>
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm">Other Activities</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {otherActivities.map((activity, index) => (
+                      <div key={index} className="p-3 bg-accent rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <activity.icon className={`h-4 w-4 ${activity.color}`} />
+                          <p className="text-xs text-muted-foreground">{activity.label}</p>
+                        </div>
+                        <p className="text-base font-bold">{formatCurrency(activity.value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
 
             {/* Cash Management */}
             <div className="space-y-4">

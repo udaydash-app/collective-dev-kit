@@ -237,7 +237,7 @@ export default function POS() {
 
       const { data } = await supabase
         .from('purchases')
-        .select('total_amount')
+        .select('total_amount, payment_method, payment_status')
         .eq('store_id', currentCashSession.store_id)
         .gte('purchased_at', currentCashSession.opened_at);
 
@@ -262,6 +262,15 @@ export default function POS() {
     totalTransactions: sessionTransactions?.length || 0,
     purchases: dayPurchases
       ?.reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
+    cashPurchases: dayPurchases
+      ?.filter(p => p.payment_method === 'cash')
+      .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
+    creditPurchases: dayPurchases
+      ?.filter(p => p.payment_method === 'credit')
+      .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
+    mobileMoneyPurchases: dayPurchases
+      ?.filter(p => p.payment_method === 'mobile_money')
+      .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
     expenses: 0, // Will be implemented when expense tracking is added
   };
 
