@@ -13,10 +13,19 @@ import { formatCurrency } from '@/lib/utils';
 import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 
+type ReportType = 
+  | 'daily-summary'
+  | 'sales-by-category' 
+  | 'sales-by-product'
+  | 'purchases-by-category'
+  | 'purchases-by-supplier'
+  | 'purchases-by-product';
+
 export default function CloseDayReport() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reportType, setReportType] = useState<ReportType>('daily-summary');
   const [showReport, setShowReport] = useState(false);
 
   const { data: stores } = useQuery({
@@ -32,9 +41,172 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
+
+      // Sales by Category Report
+      if (reportType === 'sales-by-category') {
+        const { data: transactions } = await supabase
+          .from('pos_transactions')
+          .select('items, total, created_at')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`);
+
+        const categoryMap = new Map<string, { quantity: number; revenue: number; transactions: number }>();
+        
+        transactions?.forEach((t: any) => {
+          const items = t.items || [];
+          items.forEach((item: any) => {
+            const category = item.category || 'Uncategorized';
+            const current = categoryMap.get(category) || { quantity: 0, revenue: 0, transactions: 0 };
+            categoryMap.set(category, {
+              quantity: current.quantity + (item.quantity || 0),
+              revenue: current.revenue + (item.total || 0),
+              transactions: current.transactions + 1,
+            });
+          });
+        });
+
+        return {
+          type: 'sales-by-category',
+          data: Array.from(categoryMap.entries()).map(([category, stats]) => ({
+            category,
+            ...stats,
+          })).sort((a, b) => b.revenue - a.revenue),
+        };
+      }
+
+      // Sales by Product Report
+      if (reportType === 'sales-by-product') {
+        const { data: transactions } = await supabase
+          .from('pos_transactions')
+          .select('items, total, created_at')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`);
+
+        const productMap = new Map<string, { name: string; quantity: number; revenue: number; transactions: number }>();
+        
+        transactions?.forEach((t: any) => {
+          const items = t.items || [];
+          items.forEach((item: any) => {
+            const productId = item.product_id || item.name;
+            const current = productMap.get(productId) || { name: item.name, quantity: 0, revenue: 0, transactions: 0 };
+            productMap.set(productId, {
+              name: item.name,
+              quantity: current.quantity + (item.quantity || 0),
+              revenue: current.revenue + (item.total || 0),
+              transactions: current.transactions + 1,
+            });
+          });
+        });
+
+        return {
+          type: 'sales-by-product',
+          data: Array.from(productMap.values()).sort((a, b) => b.revenue - a.revenue),
+        };
+      }
+
+      // Purchases by Category Report
+      if (reportType === 'purchases-by-category') {
+        const { data: purchaseItems } = await supabase
+          .from('purchase_items')
+          .select(`
+            *,
+            purchases!inner(store_id, purchased_at),
+            products(name, category_id),
+            categories:products(category_id(name))
+          `)
+          .eq('purchases.store_id', selectedStoreId)
+          .gte('purchases.purchased_at', `${startDate}T00:00:00`)
+          .lte('purchases.purchased_at', `${endDate}T23:59:59`);
+
+        const categoryMap = new Map<string, { quantity: number; cost: number; items: number }>();
+        
+        purchaseItems?.forEach((item: any) => {
+          const categoryName = item.products?.categories?.name || 'Uncategorized';
+          const current = categoryMap.get(categoryName) || { quantity: 0, cost: 0, items: 0 };
+          categoryMap.set(categoryName, {
+            quantity: current.quantity + (item.quantity || 0),
+            cost: current.cost + parseFloat(item.total_cost?.toString() || '0'),
+            items: current.items + 1,
+          });
+        });
+
+        return {
+          type: 'purchases-by-category',
+          data: Array.from(categoryMap.entries()).map(([category, stats]) => ({
+            category,
+            ...stats,
+          })).sort((a, b) => b.cost - a.cost),
+        };
+      }
+
+      // Purchases by Supplier Report
+      if (reportType === 'purchases-by-supplier') {
+        const { data: purchases } = await supabase
+          .from('purchases')
+          .select('supplier_name, total_amount, purchased_at')
+          .eq('store_id', selectedStoreId)
+          .gte('purchased_at', `${startDate}T00:00:00`)
+          .lte('purchased_at', `${endDate}T23:59:59`);
+
+        const supplierMap = new Map<string, { totalCost: number; purchaseCount: number }>();
+        
+        purchases?.forEach((p: any) => {
+          const supplier = p.supplier_name || 'Unknown';
+          const current = supplierMap.get(supplier) || { totalCost: 0, purchaseCount: 0 };
+          supplierMap.set(supplier, {
+            totalCost: current.totalCost + parseFloat(p.total_amount?.toString() || '0'),
+            purchaseCount: current.purchaseCount + 1,
+          });
+        });
+
+        return {
+          type: 'purchases-by-supplier',
+          data: Array.from(supplierMap.entries()).map(([supplier, stats]) => ({
+            supplier,
+            ...stats,
+          })).sort((a, b) => b.totalCost - a.totalCost),
+        };
+      }
+
+      // Purchases by Product Report
+      if (reportType === 'purchases-by-product') {
+        const { data: purchaseItems } = await supabase
+          .from('purchase_items')
+          .select(`
+            *,
+            purchases!inner(store_id, purchased_at),
+            products(name)
+          `)
+          .eq('purchases.store_id', selectedStoreId)
+          .gte('purchases.purchased_at', `${startDate}T00:00:00`)
+          .lte('purchases.purchased_at', `${endDate}T23:59:59`);
+
+        const productMap = new Map<string, { name: string; quantity: number; cost: number; purchaseCount: number }>();
+        
+        purchaseItems?.forEach((item: any) => {
+          const productId = item.product_id;
+          const productName = item.products?.name || 'Unknown Product';
+          const current = productMap.get(productId) || { name: productName, quantity: 0, cost: 0, purchaseCount: 0 };
+          productMap.set(productId, {
+            name: productName,
+            quantity: current.quantity + (item.quantity || 0),
+            cost: current.cost + parseFloat(item.total_cost?.toString() || '0'),
+            purchaseCount: current.purchaseCount + 1,
+          });
+        });
+
+        return {
+          type: 'purchases-by-product',
+          data: Array.from(productMap.values()).sort((a, b) => b.cost - a.cost),
+        };
+      }
+
+      // Default: Daily Summary Report
 
       // Fetch POS transactions
       const { data: transactions } = await supabase
@@ -108,6 +280,7 @@ export default function CloseDayReport() {
       );
 
       return {
+        type: 'daily-summary',
         transactions: transactions || [],
         purchases: purchases || [],
         expenses: expenses || [],
@@ -140,7 +313,7 @@ export default function CloseDayReport() {
 
   // Calculate totals by date
   const getDailyBreakdown = () => {
-    if (!reportData) return [];
+    if (!reportData || reportData.type !== 'daily-summary') return [];
 
     const dateMap = new Map();
 
@@ -226,6 +399,255 @@ export default function CloseDayReport() {
   const dailyBreakdown = getDailyBreakdown();
   const storeName = stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
 
+  const renderReportContent = () => {
+    if (!reportData) return null;
+
+    // Sales by Category Report
+    if (reportData.type === 'sales-by-category') {
+      const data = reportData.data as Array<{ category: string; quantity: number; revenue: number; transactions: number }>;
+      const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
+      const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sales by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-primary/10 rounded-lg">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Items Sold</p>
+                  <p className="text-2xl font-bold">{totalQuantity}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-4 font-semibold text-sm border-b pb-2">
+                <div>Category</div>
+                <div className="text-right">Quantity</div>
+                <div className="text-right">Revenue</div>
+                <div className="text-right">% of Total</div>
+              </div>
+              {data.map((item) => (
+                <div key={item.category} className="grid grid-cols-4 gap-4 py-2 border-b">
+                  <div className="font-medium">{item.category}</div>
+                  <div className="text-right">{item.quantity}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.revenue)}</div>
+                  <div className="text-right text-muted-foreground">
+                    {((item.revenue / totalRevenue) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Sales by Product Report
+    if (reportData.type === 'sales-by-product') {
+      const data = reportData.data as Array<{ name: string; quantity: number; revenue: number; transactions: number }>;
+      const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
+      const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sales by Product</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-primary/10 rounded-lg">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Items Sold</p>
+                  <p className="text-2xl font-bold">{totalQuantity}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Products</p>
+                  <p className="text-2xl font-bold">{data.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-5 gap-4 font-semibold text-sm border-b pb-2">
+                <div className="col-span-2">Product</div>
+                <div className="text-right">Quantity</div>
+                <div className="text-right">Revenue</div>
+                <div className="text-right">% of Total</div>
+              </div>
+              {data.map((item, index) => (
+                <div key={index} className="grid grid-cols-5 gap-4 py-2 border-b">
+                  <div className="col-span-2 font-medium">{item.name}</div>
+                  <div className="text-right">{item.quantity}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.revenue)}</div>
+                  <div className="text-right text-muted-foreground">
+                    {((item.revenue / totalRevenue) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Purchases by Category Report
+    if (reportData.type === 'purchases-by-category') {
+      const data = reportData.data as Array<{ category: string; quantity: number; cost: number; items: number }>;
+      const totalCost = data.reduce((sum, item) => sum + item.cost, 0);
+      const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Purchases by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Cost</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Items</p>
+                  <p className="text-2xl font-bold">{totalQuantity}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-4 font-semibold text-sm border-b pb-2">
+                <div>Category</div>
+                <div className="text-right">Quantity</div>
+                <div className="text-right">Total Cost</div>
+                <div className="text-right">% of Total</div>
+              </div>
+              {data.map((item) => (
+                <div key={item.category} className="grid grid-cols-4 gap-4 py-2 border-b">
+                  <div className="font-medium">{item.category}</div>
+                  <div className="text-right">{item.quantity}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.cost)}</div>
+                  <div className="text-right text-muted-foreground">
+                    {((item.cost / totalCost) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Purchases by Supplier Report
+    if (reportData.type === 'purchases-by-supplier') {
+      const data = reportData.data as Array<{ supplier: string; totalCost: number; purchaseCount: number }>;
+      const totalCost = data.reduce((sum, item) => sum + item.totalCost, 0);
+      const totalPurchases = data.reduce((sum, item) => sum + item.purchaseCount, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Purchases by Supplier</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Cost</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Purchases</p>
+                  <p className="text-2xl font-bold">{totalPurchases}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Suppliers</p>
+                  <p className="text-2xl font-bold">{data.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-4 font-semibold text-sm border-b pb-2">
+                <div className="col-span-2">Supplier</div>
+                <div className="text-right">Purchases</div>
+                <div className="text-right">Total Cost</div>
+              </div>
+              {data.map((item, index) => (
+                <div key={index} className="grid grid-cols-4 gap-4 py-2 border-b">
+                  <div className="col-span-2 font-medium">{item.supplier}</div>
+                  <div className="text-right">{item.purchaseCount}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.totalCost)}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Purchases by Product Report
+    if (reportData.type === 'purchases-by-product') {
+      const data = reportData.data as Array<{ name: string; quantity: number; cost: number; purchaseCount: number }>;
+      const totalCost = data.reduce((sum, item) => sum + item.cost, 0);
+      const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Purchases by Product</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Cost</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Items Purchased</p>
+                  <p className="text-2xl font-bold">{totalQuantity}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Products</p>
+                  <p className="text-2xl font-bold">{data.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-5 gap-4 font-semibold text-sm border-b pb-2">
+                <div className="col-span-2">Product</div>
+                <div className="text-right">Quantity</div>
+                <div className="text-right">Total Cost</div>
+                <div className="text-right">Avg Cost</div>
+              </div>
+              {data.map((item, index) => (
+                <div key={index} className="grid grid-cols-5 gap-4 py-2 border-b">
+                  <div className="col-span-2 font-medium">{item.name}</div>
+                  <div className="text-right">{item.quantity}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.cost)}</div>
+                  <div className="text-right text-muted-foreground">
+                    {formatCurrency(item.cost / item.quantity)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
@@ -244,7 +666,7 @@ export default function CloseDayReport() {
           <CardTitle>Report Parameters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="store">Store *</Label>
               <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
@@ -260,6 +682,26 @@ export default function CloseDayReport() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reportType">Report Type *</Label>
+              <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select report type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily-summary">Daily Summary</SelectItem>
+                  <SelectItem value="sales-by-category">Sales by Category</SelectItem>
+                  <SelectItem value="sales-by-product">Sales by Product</SelectItem>
+                  <SelectItem value="purchases-by-category">Purchases by Category</SelectItem>
+                  <SelectItem value="purchases-by-supplier">Purchases by Supplier</SelectItem>
+                  <SelectItem value="purchases-by-product">Purchases by Product</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date *</Label>
@@ -295,7 +737,7 @@ export default function CloseDayReport() {
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
             <h2 className="text-3xl font-bold">{storeName}</h2>
-            <h3 className="text-2xl">Close Day Report</h3>
+            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'Close Day Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
               {format(new Date(startDate), 'MMMM dd, yyyy')} {startDate !== endDate && `- ${format(new Date(endDate), 'MMMM dd, yyyy')}`}
             </p>
@@ -304,8 +746,10 @@ export default function CloseDayReport() {
 
           <Separator className="print-separator" />
 
-          {/* Show message if no data */}
-          {dailyBreakdown.length === 0 ? (
+          {/* Render report based on type */}
+          {reportType !== 'daily-summary' ? (
+            renderReportContent()
+          ) : dailyBreakdown.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <p className="text-muted-foreground">No transactions, purchases, or expenses found for the selected date range.</p>
