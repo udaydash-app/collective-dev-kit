@@ -73,6 +73,7 @@ export default function POS() {
   const [showCashIn, setShowCashIn] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
+  const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   
   const ITEMS_PER_PAGE = 12;
   
@@ -529,7 +530,32 @@ export default function POS() {
   };
 
   const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
-    await processTransaction(payments, selectedStoreId);
+    // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
+    const transactionDataPrep = {
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      subtotal: calculateSubtotal(),
+      discount: discount,
+      total: calculateTotal(),
+      paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
+      cashierName: currentCashSession?.cashier_name || "Cashier",
+      storeName: stores?.find(s => s.id === selectedStoreId)?.name || "Global Market",
+    };
+    
+    const result = await processTransaction(payments, selectedStoreId);
+    
+    if (result) {
+      // Add transaction number to the prepared data
+      setLastTransactionData({
+        ...transactionDataPrep,
+        transactionNumber: result.transaction_number,
+      });
+      
+      toast.success(`Transaction ${result.transaction_number} processed successfully`);
+    }
   };
 
   const menuSections = {
@@ -1202,9 +1228,13 @@ export default function POS() {
 
       <PaymentModal
         isOpen={showPayment}
-        onClose={() => setShowPayment(false)}
+        onClose={() => {
+          setShowPayment(false);
+          setLastTransactionData(null);
+        }}
         total={total}
         onConfirm={handlePaymentConfirm}
+        transactionData={lastTransactionData}
       />
 
       <VariantSelector

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { CreditCard, DollarSign, Smartphone, Printer, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,6 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Receipt } from './Receipt';
+import { useReactToPrint } from 'react-to-print';
+import { toast } from 'sonner';
 
 interface Payment {
   id: string;
@@ -19,14 +23,35 @@ interface PaymentModalProps {
   onClose: () => void;
   total: number;
   onConfirm: (payments: Payment[], totalPaid: number) => Promise<void>;
+  transactionData?: {
+    transactionNumber: string;
+    items: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+    }>;
+    subtotal: number;
+    discount: number;
+    tax: number;
+    total: number;
+    paymentMethod: string;
+    cashierName?: string;
+    storeName?: string;
+  };
 }
 
-export const PaymentModal = ({ isOpen, onClose, total, onConfirm }: PaymentModalProps) => {
+export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionData }: PaymentModalProps) => {
   const [payments, setPayments] = useState<Payment[]>([
     { id: '1', method: 'cash', amount: total }
   ]);
   const [cashReceived, setCashReceived] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+  });
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = total - totalPaid;
@@ -64,23 +89,35 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm }: PaymentModal
   };
 
   const handleConfirm = async () => {
-    if (remaining > 0.01) {
-      return;
-    }
-
-    if (hasCashPayment && parseFloat(cashReceived || '0') < totalPaid) {
+    if (totalPaid < total) {
+      toast.error(`Please collect ${formatCurrency(remaining)} more`, {
+        description: "Insufficient Payment",
+      });
       return;
     }
 
     setIsProcessing(true);
     try {
       await onConfirm(payments, totalPaid);
-      onClose();
-      setPayments([{ id: '1', method: 'cash', amount: total }]);
-      setCashReceived('');
+      setShowPrintDialog(true);
+    } catch (error) {
+      console.error("Payment processing error:", error);
+      toast.error("There was an error processing the payment", {
+        description: "Payment Failed",
+      });
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleClosePrintDialog = async (shouldPrint: boolean) => {
+    if (shouldPrint) {
+      handlePrint();
+    }
+    setShowPrintDialog(false);
+    setPayments([{ id: '1', method: 'cash', amount: total }]);
+    setCashReceived("");
+    onClose();
   };
 
   return (
@@ -227,13 +264,52 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm }: PaymentModal
               {isProcessing ? 'Processing...' : 'Complete Sale'}
             </Button>
           </div>
-
-          <Button variant="outline" className="w-full" disabled>
-            <Printer className="h-4 w-4 mr-2" />
-            Print Receipt
-          </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={showPrintDialog} onOpenChange={() => {}}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Print Receipt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sale completed successfully! Would you like to print a receipt?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleClosePrintDialog(false)}>
+              No, Skip
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleClosePrintDialog(true)}>
+              <Printer className="w-4 h-4 mr-2" />
+              Yes, Print
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Hidden receipt for printing */}
+      <div className="hidden">
+        <div ref={receiptRef}>
+          {transactionData && (
+            <Receipt
+              transactionNumber={transactionData.transactionNumber}
+              items={transactionData.items.map(item => ({
+                ...item,
+                id: item.name,
+                subtotal: item.quantity * item.price,
+              }))}
+              subtotal={transactionData.subtotal}
+              tax={transactionData.tax}
+              discount={transactionData.discount}
+              total={transactionData.total}
+              paymentMethod={transactionData.paymentMethod}
+              date={new Date()}
+              cashierName={transactionData.cashierName}
+              storeName={transactionData.storeName}
+            />
+          )}
+        </div>
+      </div>
     </Dialog>
   );
 };
