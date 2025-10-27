@@ -296,7 +296,7 @@ export default function AdminOrders() {
             <div class="text-center mb-4">
               ${settings?.logo_url ? `
                 <div class="flex justify-center mb-2">
-                  <img src="${settings.logo_url}" alt="Company Logo" style="height: 48px; width: auto; object-fit: contain;" />
+                  <img src="${settings.logo_url}" alt="Company Logo" style="height: 48px; width: auto; object-fit: contain;" id="companyLogo" />
                 </div>
               ` : ''}
               <h1 class="text-xl font-bold">${order.stores?.name || settings?.company_name || 'Global Market'}</h1>
@@ -352,8 +352,32 @@ export default function AdminOrders() {
           </div>
           <script>
             window.onload = function() {
-              window.print();
-              setTimeout(() => window.close(), 100);
+              ${settings?.logo_url ? `
+                // Wait for logo to load before printing
+                var logo = document.getElementById('companyLogo');
+                if (logo) {
+                  if (logo.complete) {
+                    window.print();
+                    setTimeout(() => window.close(), 100);
+                  } else {
+                    logo.onload = function() {
+                      window.print();
+                      setTimeout(() => window.close(), 100);
+                    };
+                    logo.onerror = function() {
+                      // Print anyway if logo fails to load
+                      window.print();
+                      setTimeout(() => window.close(), 100);
+                    };
+                  }
+                } else {
+                  window.print();
+                  setTimeout(() => window.close(), 100);
+                }
+              ` : `
+                window.print();
+                setTimeout(() => window.close(), 100);
+              `}
             };
           </script>
         </body>
