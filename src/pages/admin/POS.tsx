@@ -657,12 +657,57 @@ export default function POS() {
     contentRef: lastReceiptRef,
   });
 
-  const handleLastReceiptClick = () => {
-    if (!lastTransactionData) {
-      toast.error('No previous receipt available');
-      return;
+  const handleLastReceiptClick = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please log in to view receipts');
+        return;
+      }
+
+      // Fetch the most recent transaction for this cashier
+      const { data: transaction, error } = await supabase
+        .from('pos_transactions')
+        .select('*')
+        .eq('cashier_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !transaction) {
+        toast.error('No previous receipt available');
+        return;
+      }
+
+      // Parse transaction items
+      const items = Array.isArray(transaction.items) ? transaction.items : [];
+      
+      // Prepare transaction data
+      const transactionData = {
+        transactionNumber: transaction.transaction_number,
+        items: items.map((item: any) => ({
+          name: item.name || 'Unknown Item',
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          itemDiscount: item.itemDiscount || 0,
+        })),
+        subtotal: parseFloat(transaction.subtotal?.toString() || '0'),
+        discount: parseFloat(transaction.discount?.toString() || '0'),
+        tax: parseFloat(transaction.tax?.toString() || '0'),
+        total: parseFloat(transaction.total?.toString() || '0'),
+        paymentMethod: transaction.payment_method || 'Cash',
+        cashierName: currentCashSession?.cashier_name || 'Cashier',
+        storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
+        logoUrl: settings?.logo_url,
+        supportPhone: settings?.company_phone,
+      };
+
+      setLastTransactionData(transactionData);
+      setShowLastReceiptOptions(true);
+    } catch (error) {
+      console.error('Error fetching last receipt:', error);
+      toast.error('Failed to load receipt');
     }
-    setShowLastReceiptOptions(true);
   };
 
   const handleSaveLastReceiptPDF = async () => {
