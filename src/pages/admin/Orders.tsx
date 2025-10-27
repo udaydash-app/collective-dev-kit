@@ -300,7 +300,7 @@ export default function AdminOrders() {
             <div class="text-center mb-4">
               ${latestSettings?.logo_url ? `
                 <div class="flex justify-center mb-2">
-                  <img src="${latestSettings.logo_url}" alt="Company Logo" style="height: 80px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
+                  <img src="${latestSettings.logo_url}" alt="Company Logo" style="height: 120px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
                 </div>
               ` : ''}
               <h1 class="text-xl font-bold">${order.stores?.name || latestSettings?.company_name || 'Global Market'}</h1>
