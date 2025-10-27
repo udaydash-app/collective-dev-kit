@@ -13,8 +13,8 @@ const navItems = [
 export const BottomNav = () => {
   const location = useLocation();
 
-  // Only show on admin pages
-  if (!location.pathname.startsWith("/admin")) {
+  // Only show on admin pages, exclude POS login
+  if (!location.pathname.startsWith("/admin") || location.pathname === "/pos-login") {
     return null;
   }
 

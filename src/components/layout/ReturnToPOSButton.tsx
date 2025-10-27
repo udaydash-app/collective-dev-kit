@@ -6,8 +6,12 @@ export const ReturnToPOSButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Don't show on POS page
-  if (location.pathname === "/admin/pos") {
+  // Only show on admin pages (except POS itself and POS login)
+  if (
+    location.pathname === "/admin/pos" || 
+    location.pathname === "/pos-login" ||
+    !location.pathname.startsWith("/admin")
+  ) {
     return null;
   }
 
@@ -16,7 +20,7 @@ export const ReturnToPOSButton = () => {
       onClick={() => navigate("/admin/pos")}
       variant="outline"
       size="sm"
-      className="fixed top-4 left-4 z-50 shadow-lg"
+      className="fixed top-4 right-4 z-50 shadow-lg"
     >
       <ArrowLeft className="h-4 w-4 mr-2" />
       Return to POS
