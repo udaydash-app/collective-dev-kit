@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { CreditCard, DollarSign, Smartphone, Printer, Plus, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { CreditCard, DollarSign, Smartphone, Printer, Plus, X, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,7 +90,17 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     { value: 'card', label: 'Card', icon: CreditCard },
     { value: 'mobile_money', label: 'Mobile Money', icon: Smartphone },
     { value: 'credit', label: 'Credit', icon: CreditCard },
+    { value: 'multi_payment', label: 'Multi Payment', icon: Layers },
   ];
+
+  const isMultiPayment = payments.length === 1 && payments[0].method === 'multi_payment';
+
+  // Auto-fill amount for single payment methods
+  useEffect(() => {
+    if (payments.length === 1 && payments[0].method !== 'multi_payment') {
+      setPayments([{ ...payments[0], amount: total }]);
+    }
+  }, [total, payments.length]);
 
   const addPayment = () => {
     const newPayment: Payment = {
@@ -108,11 +118,26 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   };
 
   const updatePayment = (id: string, field: 'method' | 'amount', value: string | number) => {
-    setPayments(payments.map(p => 
-      p.id === id 
-        ? { ...p, [field]: field === 'amount' ? parseFloat(value as string) || 0 : value }
-        : p
-    ));
+    setPayments(payments.map(p => {
+      if (p.id === id) {
+        const updatedPayment = { 
+          ...p, 
+          [field]: field === 'amount' ? parseFloat(value as string) || 0 : value 
+        };
+        
+        // If switching to multi_payment, reset amount to 0
+        if (field === 'method' && value === 'multi_payment') {
+          updatedPayment.amount = 0;
+        }
+        // If switching from multi_payment to single payment, auto-fill total
+        else if (field === 'method' && p.method === 'multi_payment' && value !== 'multi_payment' && payments.length === 1) {
+          updatedPayment.amount = total;
+        }
+        
+        return updatedPayment;
+      }
+      return p;
+    }));
   };
 
   const handleConfirm = async () => {
@@ -186,16 +211,18 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <Label className="text-base">Payment Methods</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addPayment}
-                className="h-8"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Payment
-              </Button>
+              {isMultiPayment && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPayment}
+                  className="h-8"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Payment
+                </Button>
+              )}
             </div>
 
             {payments.map((payment, index) => (
@@ -234,11 +261,12 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                         step="0.01"
                         min="0"
                         max={total}
+                        disabled={payments.length === 1 && payment.method !== 'multi_payment'}
                       />
                     </div>
                   </div>
 
-                  {payments.length > 1 && (
+                  {(payments.length > 1 || isMultiPayment) && payments.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
