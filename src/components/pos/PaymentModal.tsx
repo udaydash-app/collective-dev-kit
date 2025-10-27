@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { CreditCard, DollarSign, Smartphone, Printer, Plus, X } from 'lucide-react';
+import { CreditCard, DollarSign, Smartphone, Printer, Plus, X, FileDown, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Payment {
   id: string;
@@ -78,6 +80,49 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
   });
+
+  const handleSavePDF = async () => {
+    if (!receiptRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
+      toast.success('Receipt saved as PDF');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!transactionData) return;
+    
+    const message = encodeURIComponent(
+      `Receipt #${transactionData.transactionNumber}\n\n` +
+      `Total: ${formatCurrency(transactionData.total)}\n` +
+      `Payment Method: ${transactionData.paymentMethod}\n` +
+      `Items: ${transactionData.items.length}\n\n` +
+      `Thank you for your purchase!`
+    );
+    
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = total - totalPaid;
@@ -361,19 +406,50 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       <AlertDialog open={showPrintDialog} onOpenChange={() => {}}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Print Receipt?</AlertDialogTitle>
+            <AlertDialogTitle>Receipt Options</AlertDialogTitle>
             <AlertDialogDescription>
-              Sale completed successfully! Would you like to print a receipt?
+              Sale completed successfully! Choose how to handle the receipt.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="flex flex-col gap-2 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handlePrint();
+                handleClosePrintDialog(false);
+              }}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Receipt
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handleSavePDF();
+                handleClosePrintDialog(false);
+              }}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Save as PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handleSendWhatsApp();
+                handleClosePrintDialog(false);
+              }}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Send via WhatsApp
+            </Button>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleClosePrintDialog(false)}>
-              No, Skip
+              Close
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleClosePrintDialog(true)}>
-              <Printer className="w-4 h-4 mr-2" />
-              Yes, Print
-            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
