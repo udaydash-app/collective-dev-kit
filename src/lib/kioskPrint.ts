@@ -45,7 +45,7 @@ class KioskPrintService {
     try {
       const receiptHTML = this.generateReceiptHTML(data);
       
-      // Try window.open approach first (better for kiosk mode)
+      // Create print window
       const printWindow = window.open('', '_blank', 'width=300,height=600');
       
       if (!printWindow) {
@@ -59,32 +59,30 @@ class KioskPrintService {
       printWindow.document.write(receiptHTML);
       printWindow.document.close();
       
-      console.log('✅ Receipt HTML written to print window');
+      console.log('✅ Receipt HTML written');
       
-      // Wait for content and images to load
+      // Wait for complete load
       await new Promise(resolve => {
         if (printWindow.document.readyState === 'complete') {
-          resolve(true);
+          setTimeout(resolve, 100);
         } else {
-          printWindow.onload = () => resolve(true);
+          printWindow.onload = () => setTimeout(resolve, 100);
         }
       });
       
-      console.log('✅ Content loaded, waiting 500ms before print...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('🖨️ Calling print...');
       
-      // Print
-      console.log('🖨️ Triggering print...');
-      printWindow.focus();
+      // In kiosk mode with --kiosk-printing, this prints silently to default printer
       printWindow.print();
       
-      console.log('✅ Print triggered successfully');
+      console.log('✅ Print called - waiting for print job...');
       
-      // Close window after printing
-      setTimeout(() => {
-        printWindow.close();
-        console.log('✅ Print window closed');
-      }, 1000);
+      // Don't close immediately - wait for print to complete
+      // In kiosk mode, the print happens in background
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      printWindow.close();
+      console.log('✅ Print window closed');
       
     } catch (error) {
       console.error('❌ Kiosk print error:', error);
@@ -225,15 +223,6 @@ class KioskPrintService {
             <div>Thank you for shopping with us!</div>
             ${data.supportPhone ? `<div class="mt-2">For support: ${data.supportPhone}</div>` : ''}
           </div>
-
-          <script>
-            window.onload = function() {
-              // Auto-print when using kiosk mode
-              setTimeout(() => {
-                window.print();
-              }, 500);
-            };
-          </script>
         </body>
       </html>
     `;

@@ -416,6 +416,8 @@ export default function AdminOrders() {
     
     const order = selectedReceiptOrder;
     
+    toast.loading('Printing...', { id: 'direct-print' });
+    
     try {
       await kioskPrintService.printReceipt({
         storeName: order.stores?.name || settings?.company_name || 'Global Market',
@@ -437,11 +439,11 @@ export default function AdminOrders() {
         supportPhone: settings?.company_phone || undefined
       });
       
-      toast.success('Receipt sent to printer');
+      toast.success('Print sent to printer', { id: 'direct-print' });
       setShowReceiptOptions(false);
     } catch (error: any) {
       console.error('Print error:', error);
-      toast.error(error.message || 'Failed to print receipt');
+      toast.error(error.message || 'Failed to print receipt', { id: 'direct-print' });
     }
   };
 
