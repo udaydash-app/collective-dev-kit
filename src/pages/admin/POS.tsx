@@ -916,40 +916,17 @@ export default function POS() {
         {/* Admin Menu - Horizontal Layout */}
         <div className="bg-primary/5 border-b border-primary/20 px-4 py-2">
           <div className="flex gap-2 overflow-x-auto">
-            {/* Accounting Section */}
+            {/* Sales Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
-                  <DollarSign className="h-4 w-4" />
-                  Accounting
+                  <ShoppingCart className="h-4 w-4" />
+                  Sales
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56 bg-background z-50">
-                {menuSections.accounting.map((item, index) => (
-                  <DropdownMenuItem
-                    key={index}
-                    onClick={() => navigate(item.path)}
-                    className="cursor-pointer"
-                  >
-                    <item.icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Reports Section */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
-                  <BarChart3 className="h-4 w-4" />
-                  Reports
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
-                {menuSections.reports.map((item, index) => (
+                {menuSections.sales.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
@@ -985,17 +962,40 @@ export default function POS() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Sales Section */}
+            {/* Accounting Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
-                  <ShoppingCart className="h-4 w-4" />
-                  Sales
+                  <DollarSign className="h-4 w-4" />
+                  Accounting
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56 bg-background z-50">
-                {menuSections.sales.map((item, index) => (
+                {menuSections.accounting.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => navigate(item.path)}
+                    className="cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Reports Section */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <BarChart3 className="h-4 w-4" />
+                  Reports
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
+                {menuSections.reports.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
