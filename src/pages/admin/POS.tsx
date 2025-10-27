@@ -246,6 +246,23 @@ export default function POS() {
     enabled: !!currentCashSession,
   });
 
+  // Get day's expenses
+  const { data: dayExpenses } = useQuery({
+    queryKey: ['day-expenses', currentCashSession?.id],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+
+      const { data } = await supabase
+        .from('expenses')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      return data || [];
+    },
+    enabled: !!currentCashSession,
+  });
+
   // Calculate day activity
   const dayActivity = {
     cashSales: sessionTransactions
@@ -271,7 +288,17 @@ export default function POS() {
     mobileMoneyPurchases: dayPurchases
       ?.filter(p => p.payment_method === 'mobile_money')
       .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
-    expenses: 0, // Will be implemented when expense tracking is added
+    expenses: dayExpenses
+      ?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
+    cashExpenses: dayExpenses
+      ?.filter(e => e.payment_method === 'cash')
+      .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
+    creditExpenses: dayExpenses
+      ?.filter(e => e.payment_method === 'credit')
+      .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
+    mobileMoneyExpenses: dayExpenses
+      ?.filter(e => e.payment_method === 'mobile_money')
+      .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
   };
 
   // Calculate expected cash (opening cash + cash sales)
