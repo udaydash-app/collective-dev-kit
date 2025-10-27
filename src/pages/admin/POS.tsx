@@ -539,7 +539,7 @@ export default function POS() {
       { icon: TrendingDown, label: 'Daily Expenses', path: '/admin/expenses' },
     ],
     reports: [
-      { icon: FileText, label: 'Close Day Report', path: '/admin/close-day-report' },
+      { icon: FileText, label: 'Sales Reports', path: '/admin/close-day-report' },
       { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
       { icon: TrendingUp, label: 'Profit & Loss', path: '/admin/profit-loss' },
       { icon: Building2, label: 'Balance Sheet', path: '/admin/balance-sheet' },
