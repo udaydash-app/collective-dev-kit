@@ -152,6 +152,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
+            autoFocus
           />
         </div>
         <BarcodeScanner onScan={handleBarcodeScan} />
