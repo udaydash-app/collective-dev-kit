@@ -457,7 +457,8 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
-    const { data } = await supabase
+    console.log('Scanning barcode:', barcode);
+    const { data, error } = await supabase
       .from('products')
       .select(`
         *,
@@ -475,25 +476,29 @@ export default function POS() {
       .eq('is_available', true)
       .maybeSingle();
 
+    console.log('Barcode scan result:', { data, error });
+
     if (data) {
       // For barcode scans, add directly to cart with smart variant selection
       const availableVariants = data.product_variants?.filter((v: any) => v.is_available) || [];
+      console.log('Available variants:', availableVariants);
       
       if (availableVariants.length > 0) {
         // Prioritize default variant, otherwise use first available
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+        console.log('Adding variant to cart:', variantToAdd);
         addToCart({
           ...data,
           price: variantToAdd.price,
           selectedVariant: variantToAdd,
         });
-        toast.success(`${data.name} added to cart`);
       } else {
         // No variants, use product price
+        console.log('Adding product without variants to cart');
         addToCart(data);
-        toast.success(`${data.name} added to cart`);
       }
     } else {
+      console.error('Product not found for barcode:', barcode);
       toast.error('Product not found');
     }
   };

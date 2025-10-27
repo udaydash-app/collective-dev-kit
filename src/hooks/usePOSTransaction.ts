@@ -24,6 +24,7 @@ export const usePOSTransaction = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const addToCart = (product: any) => {
+    console.log('addToCart called with:', product);
     setCart(prev => {
       // Use variant ID if available, otherwise use product ID
       const cartItemId = product.selectedVariant?.id || product.id;
@@ -31,22 +32,29 @@ export const usePOSTransaction = () => {
         ? `${product.name} (${product.selectedVariant.label})`
         : product.name;
       
+      console.log('Cart item ID:', cartItemId, 'Display name:', displayName);
+      console.log('Current cart:', prev);
+      
       const existing = prev.find(item => item.id === cartItemId);
       if (existing) {
+        console.log('Existing item found, incrementing quantity');
         return prev.map(item =>
           item.id === cartItemId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, {
+      
+      const newItem = {
         id: cartItemId,
         name: displayName,
         price: Number(product.price),
         quantity: 1,
         barcode: product.barcode,
         image_url: product.image_url,
-      }];
+      };
+      console.log('Adding new item to cart:', newItem);
+      return [...prev, newItem];
     });
     toast.success(`${product.name} added to cart`);
   };
