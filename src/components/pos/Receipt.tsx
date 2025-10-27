@@ -36,7 +36,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     ref
   ) => {
     return (
-      <div ref={ref} className="w-[80mm] p-4 bg-white text-black font-mono text-sm">
+      <div ref={ref} className="w-[80mm] p-2 bg-white text-black font-mono text-sm">
         <div className="text-center mb-4">
           {logoUrl && (
             <div className="flex justify-center mb-2">
