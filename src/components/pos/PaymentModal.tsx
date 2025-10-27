@@ -111,17 +111,49 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   };
 
   const handleSendWhatsApp = async () => {
-    if (!transactionData) return;
+    if (!transactionData || !receiptRef.current) return;
     
-    const message = encodeURIComponent(
-      `Receipt #${transactionData.transactionNumber}\n\n` +
-      `Total: ${formatCurrency(transactionData.total)}\n` +
-      `Payment Method: ${transactionData.paymentMethod}\n` +
-      `Items: ${transactionData.items.length}\n\n` +
-      `Thank you for your purchase!`
-    );
-    
-    window.location.href = `whatsapp://send?text=${message}`;
+    try {
+      // Generate PDF
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Save PDF
+      const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
+      pdf.save(fileName);
+      
+      // Wait a moment for download to start
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const message = encodeURIComponent(
+        `Receipt #${transactionData.transactionNumber}\n\n` +
+        `Total: ${formatCurrency(transactionData.total)}\n` +
+        `Payment Method: ${transactionData.paymentMethod}\n` +
+        `Items: ${transactionData.items.length}\n\n` +
+        `PDF receipt has been downloaded. Please attach the file: ${fileName}`
+      );
+      
+      window.location.href = `whatsapp://send?text=${message}`;
+      toast.success('PDF downloaded. Please attach it in WhatsApp.');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to generate PDF');
+    }
   };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
