@@ -782,7 +782,11 @@ export default function POS() {
   const handleDirectPrintLastReceipt = async () => {
     if (!lastTransactionData) return;
     
+    toast.loading('Preparing receipt for printing...', { id: 'kiosk-print' });
+    
     try {
+      console.log('🖨️ Calling kiosk print service...');
+      
       await kioskPrintService.printReceipt({
         storeName: lastTransactionData.storeName || 'Global Market',
         transactionNumber: lastTransactionData.transactionNumber,
@@ -803,11 +807,11 @@ export default function POS() {
         supportPhone: lastTransactionData.supportPhone
       });
       
-      toast.success('Receipt sent to printer');
+      toast.success('✅ Print dialog opened! Check your printer.', { id: 'kiosk-print' });
       setShowLastReceiptOptions(false);
     } catch (error: any) {
-      console.error('Print error:', error);
-      toast.error(error.message || 'Failed to print receipt');
+      console.error('❌ Print error:', error);
+      toast.error(error.message || 'Failed to print receipt', { id: 'kiosk-print' });
     }
   };
 

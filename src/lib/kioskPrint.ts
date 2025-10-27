@@ -40,37 +40,56 @@ class KioskPrintService {
    * Works best with Chrome kiosk mode: chrome --kiosk-printing
    */
   async printReceipt(data: KioskReceiptData): Promise<void> {
-    const receiptHTML = this.generateReceiptHTML(data);
+    console.log('🖨️ Starting kiosk print...', data);
     
-    // Create hidden iframe for printing
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    
-    document.body.appendChild(iframe);
-    
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) {
-      throw new Error('Failed to create print iframe');
+    try {
+      const receiptHTML = this.generateReceiptHTML(data);
+      
+      // Try window.open approach first (better for kiosk mode)
+      const printWindow = window.open('', '_blank', 'width=300,height=600');
+      
+      if (!printWindow) {
+        console.error('❌ Failed to open print window (popup blocked?)');
+        throw new Error('Failed to open print window. Please check if popups are blocked.');
+      }
+      
+      console.log('✅ Print window opened');
+      
+      printWindow.document.open();
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+      
+      console.log('✅ Receipt HTML written to print window');
+      
+      // Wait for content and images to load
+      await new Promise(resolve => {
+        if (printWindow.document.readyState === 'complete') {
+          resolve(true);
+        } else {
+          printWindow.onload = () => resolve(true);
+        }
+      });
+      
+      console.log('✅ Content loaded, waiting 500ms before print...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Print
+      console.log('🖨️ Triggering print...');
+      printWindow.focus();
+      printWindow.print();
+      
+      console.log('✅ Print triggered successfully');
+      
+      // Close window after printing
+      setTimeout(() => {
+        printWindow.close();
+        console.log('✅ Print window closed');
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ Kiosk print error:', error);
+      throw error;
     }
-    
-    iframeDoc.open();
-    iframeDoc.write(receiptHTML);
-    iframeDoc.close();
-    
-    // Wait for content to load
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Print
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    
-    // Clean up after print
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
   }
 
   private generateReceiptHTML(data: KioskReceiptData): string {
