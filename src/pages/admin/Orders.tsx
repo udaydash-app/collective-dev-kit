@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -50,8 +50,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Receipt } from "@/components/pos/Receipt";
-import { useReactToPrint } from "react-to-print";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -65,7 +63,6 @@ export default function AdminOrders() {
   const [taxRate, setTaxRate] = useState("0");
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-  const receiptRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -236,16 +233,135 @@ export default function AdminOrders() {
   }
 
   const printOrderReceipt = (orderId: string) => {
-    const ref = receiptRefs.current.get(orderId);
-    if (!ref) {
-      toast.error('Unable to print receipt');
+    const order = orders?.find(o => o.id === orderId);
+    if (!order) {
+      toast.error('Order not found');
       return;
     }
-    
-    const printFn = useReactToPrint({
-      contentRef: { current: ref } as any,
-    });
-    printFn();
+
+    // Create a temporary container for the receipt
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to print receipt');
+      return;
+    }
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${order.order_number}</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: monospace;
+              font-size: 12px;
+            }
+            .receipt {
+              width: 80mm;
+              margin: 0 auto;
+              background: white;
+              color: black;
+            }
+            .text-center { text-align: center; }
+            .text-xs { font-size: 10px; }
+            .text-sm { font-size: 11px; }
+            .text-lg { font-size: 14px; }
+            .text-xl { font-size: 16px; }
+            .font-bold { font-weight: bold; }
+            .mb-1 { margin-bottom: 4px; }
+            .mb-2 { margin-bottom: 8px; }
+            .mb-4 { margin-bottom: 16px; }
+            .mt-2 { margin-top: 8px; }
+            .py-2 { padding-top: 8px; padding-bottom: 8px; }
+            .pt-1 { padding-top: 4px; }
+            .pt-2 { padding-top: 8px; }
+            .border-t { border-top: 1px solid black; }
+            .border-b { border-bottom: 1px solid black; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .justify-center { justify-content: center; }
+            .items-center { align-items: center; }
+            .flex-1 { flex: 1; }
+            .space-y-1 > * + * { margin-top: 4px; }
+            img { max-width: 100%; height: auto; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="text-center mb-4">
+              ${settings?.logo_url ? `
+                <div class="flex justify-center mb-2">
+                  <img src="${settings.logo_url}" alt="Company Logo" style="height: 48px; width: auto; object-fit: contain;" />
+                </div>
+              ` : ''}
+              <h1 class="text-xl font-bold">${order.stores?.name || settings?.company_name || 'Global Market'}</h1>
+              <p class="text-xs">Fresh groceries delivered to your doorstep</p>
+              <p class="text-xs mt-2">Transaction: ${order.order_number}</p>
+              <p class="text-xs">${new Date(order.created_at).toLocaleString()}</p>
+              ${order.type === 'pos' ? `<p class="text-xs">Cashier: ${order.cashier_name}</p>` : ''}
+            </div>
+
+            <div class="border-t border-b py-2 mb-2">
+              ${order.items.map((item: any) => `
+                <div class="mb-2">
+                  <div class="flex justify-between">
+                    <span class="flex-1">${item.products?.name || item.name}</span>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span>${item.quantity} x $${(item.products?.price || item.unit_price || item.price).toFixed(2)}</span>
+                    <span>$${((item.products?.price || item.unit_price || item.price) * item.quantity).toFixed(2)}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="space-y-1 mb-2">
+              <div class="flex justify-between">
+                <span>Subtotal:</span>
+                <span>$${Number(order.subtotal).toFixed(2)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Tax (15%):</span>
+                <span>$${Number(order.tax || 0).toFixed(2)}</span>
+              </div>
+              ${order.type === 'pos' && order.discount > 0 ? `
+                <div class="flex justify-between">
+                  <span>Discount:</span>
+                  <span>-$${Number(order.discount).toFixed(2)}</span>
+                </div>
+              ` : ''}
+              <div class="flex justify-between font-bold text-lg border-t pt-1">
+                <span>TOTAL:</span>
+                <span>$${Number(order.total).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="border-t pt-2 mb-4">
+              <p class="text-xs">Payment Method: ${(order.payment_method || 'Online').toUpperCase()}</p>
+            </div>
+
+            <div class="text-center text-xs">
+              <p>Thank you for shopping with us!</p>
+              ${settings?.company_phone ? `<p class="mt-2">For support: ${settings.company_phone}</p>` : ''}
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 100);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
   };
 
   const updateOrderItem = useMutation({
@@ -1253,41 +1369,6 @@ export default function AdminOrders() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Hidden receipts for printing */}
-      <div className="hidden">
-        {orders?.map((order: any) => (
-          <div 
-            key={`receipt-${order.id}`} 
-            ref={(el) => {
-              if (el) {
-                receiptRefs.current.set(order.id, el);
-              }
-            }}
-          >
-            <Receipt
-              transactionNumber={order.order_number}
-              items={order.items.map((item: any) => ({
-                id: item.id || item.product_id,
-                name: item.products?.name || item.name,
-                quantity: item.quantity,
-                price: item.products?.price || item.unit_price || item.price,
-                subtotal: item.subtotal || (item.quantity * (item.price || 0)),
-              }))}
-              subtotal={order.subtotal}
-              tax={order.tax || 0}
-              discount={order.type === 'pos' ? (order as any).discount || 0 : 0}
-              total={order.total}
-              paymentMethod={order.payment_method || 'Online'}
-              date={new Date(order.created_at)}
-              cashierName={order.type === 'pos' ? order.cashier_name : undefined}
-              storeName={order.stores?.name || settings?.company_name || 'Global Market'}
-              logoUrl={settings?.logo_url}
-              supportPhone={settings?.company_phone}
-            />
-          </div>
-        ))}
-      </div>
 
       {/* Delete Selected Orders Confirmation Dialog */}
       <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={setDeleteSelectedDialogOpen}>
