@@ -115,11 +115,25 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   };
 
   const updatePayment = (id: string, field: 'method' | 'amount', value: string | number) => {
-    setPayments(payments.map(p => 
-      p.id === id 
-        ? { ...p, [field]: field === 'amount' ? parseFloat(value as string) || 0 : value }
-        : p
-    ));
+    setPayments(prevPayments => {
+      const updatedPayments = prevPayments.map(p => 
+        p.id === id 
+          ? { ...p, [field]: field === 'amount' ? parseFloat(value as string) || 0 : value }
+          : p
+      );
+
+      // If amount changed and there are exactly 2 payments, auto-adjust the second payment
+      if (field === 'amount' && updatedPayments.length === 2) {
+        const firstPaymentIndex = updatedPayments.findIndex(p => p.id === id);
+        if (firstPaymentIndex === 0) {
+          const firstAmount = updatedPayments[0].amount;
+          const remaining = Math.max(0, total - firstAmount);
+          updatedPayments[1] = { ...updatedPayments[1], amount: remaining };
+        }
+      }
+
+      return updatedPayments;
+    });
   };
 
   const handleConfirm = async () => {
