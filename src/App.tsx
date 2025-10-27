@@ -36,6 +36,7 @@ import AdminBalanceSheet from "./pages/admin/BalanceSheet";
 import AdminCashFlow from "./pages/admin/CashFlow";
 import AdminPOSUsers from "./pages/admin/POSUsers";
 import AdminExpenses from "./pages/admin/Expenses";
+import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -96,6 +97,7 @@ const AppContent = () => {
           <Route path="/admin/contacts" element={<AdminRoute><AdminContacts /></AdminRoute>} />
           <Route path="/admin/pos-users" element={<AdminRoute><AdminPOSUsers /></AdminRoute>} />
           <Route path="/admin/expenses" element={<AdminRoute><AdminExpenses /></AdminRoute>} />
+          <Route path="/admin/close-day-report" element={<AdminRoute><AdminCloseDayReport /></AdminRoute>} />
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
