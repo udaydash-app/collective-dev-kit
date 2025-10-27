@@ -27,6 +27,7 @@ import AdminAnnouncements from "./pages/admin/Announcements";
 import AdminPOS from "./pages/admin/POS";
 import AdminPurchases from "./pages/admin/Purchases";
 import AdminContacts from "./pages/admin/Contacts";
+import AdminContactImport from "./pages/admin/ContactImport";
 import AdminChartOfAccounts from "./pages/admin/ChartOfAccounts";
 import AdminJournalEntries from "./pages/admin/JournalEntries";
 import AdminGeneralLedger from "./pages/admin/GeneralLedger";
@@ -99,6 +100,7 @@ const AppContent = () => {
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />
           <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
           <Route path="/admin/contacts" element={<AdminRoute><AdminContacts /></AdminRoute>} />
+          <Route path="/admin/import-contacts" element={<AdminRoute><AdminContactImport /></AdminRoute>} />
           <Route path="/admin/pos-users" element={<AdminRoute><AdminPOSUsers /></AdminRoute>} />
           <Route path="/admin/expenses" element={<AdminRoute><AdminExpenses /></AdminRoute>} />
           <Route path="/admin/close-day-report" element={<AdminRoute><AdminCloseDayReport /></AdminRoute>} />

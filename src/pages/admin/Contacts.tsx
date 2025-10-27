@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Pencil, Trash2, Users, Building2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Building2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 
@@ -44,12 +45,14 @@ interface Contact {
   is_customer: boolean;
   is_supplier: boolean;
   credit_limit?: number;
+  opening_balance?: number;
   notes?: string;
   created_at: string;
 }
 
 export default function Contacts() {
   usePageView('Admin - Contacts');
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -236,13 +239,18 @@ export default function Contacts() {
           <h1 className="text-3xl font-bold">Contacts Management</h1>
           <p className="text-muted-foreground">Manage customers and suppliers</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleClose}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Contact
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/admin/import-contacts')} variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Import Contacts
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleClose}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Contact
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -441,6 +449,7 @@ export default function Contacts() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Stats */}

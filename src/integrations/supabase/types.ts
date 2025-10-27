@@ -369,6 +369,7 @@ export type Database = {
           is_supplier: boolean
           name: string
           notes: string | null
+          opening_balance: number | null
           phone: string | null
           state: string | null
           tax_id: string | null
@@ -390,6 +391,7 @@ export type Database = {
           is_supplier?: boolean
           name: string
           notes?: string | null
+          opening_balance?: number | null
           phone?: string | null
           state?: string | null
           tax_id?: string | null
@@ -411,6 +413,7 @@ export type Database = {
           is_supplier?: boolean
           name?: string
           notes?: string | null
+          opening_balance?: number | null
           phone?: string | null
           state?: string | null
           tax_id?: string | null
