@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Download, ArrowLeft, FileSpreadsheet, Users } from "lucide-react";
+import { Upload, Download, ArrowLeft, FileSpreadsheet, Users, LogOut } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ContactImport() {
@@ -126,14 +126,24 @@ export default function ContactImport() {
               Upload an Excel or CSV file to import contacts (customers/suppliers)
             </p>
           </div>
-          <Button 
-            onClick={() => navigate("/admin/contacts")}
-            variant="outline"
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Contacts
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => navigate("/admin/pos")}
+              variant="outline"
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Return to POS
+            </Button>
+            <Button 
+              onClick={() => navigate("/admin/contacts")}
+              variant="outline"
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Contacts
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 max-w-4xl">
