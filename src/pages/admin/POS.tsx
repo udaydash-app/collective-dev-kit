@@ -48,6 +48,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
+import { qzTrayService } from "@/lib/qzTray";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -775,6 +776,36 @@ export default function POS() {
     
     window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
     toast.success('Opening WhatsApp...');
+  };
+
+  const handleDirectPrintLastReceipt = async () => {
+    if (!lastTransactionData) return;
+    
+    try {
+      await qzTrayService.printReceipt({
+        storeName: lastTransactionData.storeName || 'Global Market',
+        transactionNumber: lastTransactionData.transactionNumber,
+        date: new Date(),
+        items: lastTransactionData.items.map((item: any) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        subtotal: lastTransactionData.subtotal,
+        tax: lastTransactionData.tax || 0,
+        discount: lastTransactionData.discount || 0,
+        total: lastTransactionData.total,
+        paymentMethod: lastTransactionData.paymentMethod,
+        cashierName: lastTransactionData.cashierName,
+        supportPhone: lastTransactionData.supportPhone
+      });
+      
+      toast.success('Receipt sent to printer');
+      setShowLastReceiptOptions(false);
+    } catch (error: any) {
+      console.error('Print error:', error);
+      toast.error(error.message || 'Failed to print receipt. Make sure QZ Tray is running.');
+    }
   };
 
   const menuSections = {
@@ -1614,6 +1645,16 @@ export default function POS() {
           </DialogHeader>
           <div className="flex flex-col gap-2 py-4">
             <Button
+              variant="default"
+              className="w-full justify-start"
+              onClick={() => {
+                handleDirectPrintLastReceipt();
+              }}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Direct Print (QZ Tray)
+            </Button>
+            <Button
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
@@ -1622,7 +1663,7 @@ export default function POS() {
               }}
             >
               <Printer className="w-4 h-4 mr-2" />
-              Print Receipt
+              Browser Print
             </Button>
             <Button
               variant="outline"

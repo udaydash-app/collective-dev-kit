@@ -54,6 +54,7 @@ import { Receipt } from "@/components/pos/Receipt";
 import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { qzTrayService } from "@/lib/qzTray";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -407,6 +408,38 @@ export default function AdminOrders() {
     }
     setSelectedReceiptOrder(order);
     setShowReceiptOptions(true);
+  };
+
+  const handleDirectPrint = async () => {
+    if (!selectedReceiptOrder) return;
+    
+    const order = selectedReceiptOrder;
+    
+    try {
+      await qzTrayService.printReceipt({
+        storeName: order.stores?.name || settings?.company_name || 'Global Market',
+        transactionNumber: order.order_number,
+        date: new Date(order.created_at),
+        items: order.items.map((item: any) => ({
+          name: item.products?.name || item.name,
+          quantity: item.quantity,
+          price: item.products?.price || item.unit_price || item.price
+        })),
+        subtotal: Number(order.subtotal),
+        tax: Number(order.tax || 0),
+        discount: order.type === 'pos' ? Number(order.discount || 0) : undefined,
+        total: Number(order.total),
+        paymentMethod: order.payment_method || 'Online',
+        cashierName: order.type === 'pos' ? order.cashier_name : undefined,
+        supportPhone: settings?.company_phone || undefined
+      });
+      
+      toast.success('Receipt sent to printer');
+      setShowReceiptOptions(false);
+    } catch (error: any) {
+      console.error('Print error:', error);
+      toast.error(error.message || 'Failed to print receipt. Make sure QZ Tray is running.');
+    }
   };
 
   const handlePrintReceipt = useReactToPrint({
@@ -1510,14 +1543,22 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <Button
+              onClick={handleDirectPrint}
+              className="w-full bg-primary"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Direct Print (QZ Tray)
+            </Button>
+            <Button
               onClick={() => {
                 handlePrintReceipt();
                 setShowReceiptOptions(false);
               }}
+              variant="secondary"
               className="w-full"
             >
               <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
+              Browser Print
             </Button>
             <Button
               onClick={() => {
