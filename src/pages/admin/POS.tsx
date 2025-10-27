@@ -31,7 +31,8 @@ import {
   TrendingUp,
   TrendingDown,
   Droplets,
-  Edit
+  Edit,
+  MessageCircle
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,6 +87,7 @@ export default function POS() {
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
+  const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -660,7 +662,77 @@ export default function POS() {
       toast.error('No previous receipt available');
       return;
     }
-    handlePrintLastReceipt();
+    setShowLastReceiptOptions(true);
+  };
+
+  const handleSaveLastReceiptPDF = async () => {
+    if (!lastReceiptRef.current || !lastTransactionData) return;
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      const canvas = await html2canvas(lastReceiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 297],
+      });
+      
+      const imgWidth = 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`receipt-${lastTransactionData.transactionNumber}.pdf`);
+      toast.success('Receipt saved as PDF');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleSendLastReceiptWhatsApp = () => {
+    if (!lastTransactionData) return;
+    
+    // Format items list
+    const itemsList = lastTransactionData.items.map((item: any) => 
+      `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
+    ).join('\n\n');
+    
+    // Build receipt-formatted message
+    let message = `*${lastTransactionData.storeName || 'Global Market'}*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `Receipt #${lastTransactionData.transactionNumber}\n`;
+    message += `Date: ${new Date().toLocaleString()}\n`;
+    if (lastTransactionData.cashierName) {
+      message += `Cashier: ${lastTransactionData.cashierName}\n`;
+    }
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `*ITEMS*\n\n${itemsList}\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `Subtotal: ${formatCurrency(lastTransactionData.subtotal)}\n`;
+    if (lastTransactionData.discount > 0) {
+      message += `Discount: -${formatCurrency(lastTransactionData.discount)}\n`;
+    }
+    if (lastTransactionData.tax > 0) {
+      message += `Tax: ${formatCurrency(lastTransactionData.tax)}\n`;
+    }
+    message += `\n*TOTAL: ${formatCurrency(lastTransactionData.total)}*\n\n`;
+    message += `Payment: ${lastTransactionData.paymentMethod}\n`;
+    if (lastTransactionData.supportPhone) {
+      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `Support: ${lastTransactionData.supportPhone}\n`;
+    }
+    message += `\nThank you for your business!`;
+    
+    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    toast.success('Opening WhatsApp...');
   };
 
   const menuSections = {
@@ -1491,8 +1563,60 @@ export default function POS() {
       />
 
 
+      {/* Last Receipt Options Dialog */}
+      <Dialog open={showLastReceiptOptions} onOpenChange={setShowLastReceiptOptions}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt Options</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handlePrintLastReceipt();
+                setShowLastReceiptOptions(false);
+              }}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Receipt
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handleSaveLastReceiptPDF();
+                setShowLastReceiptOptions(false);
+              }}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Save as PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                handleSendLastReceiptWhatsApp();
+                setShowLastReceiptOptions(false);
+              }}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Send via WhatsApp
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => setShowLastReceiptOptions(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Hidden receipt for reprinting */}
-      <div className="hidden">
+      <div className="fixed -left-[9999px] top-0 bg-white">
         <div ref={lastReceiptRef}>
           {lastTransactionData && (
             <Receipt
