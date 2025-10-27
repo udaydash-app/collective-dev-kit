@@ -831,7 +831,8 @@ export default function POS() {
         addToCart(item);
       });
 
-      setHeldTickets(heldTickets.filter(t => t.id !== ticket.id));
+      // Remove recalled ticket from held tickets list
+      setHeldTickets(prev => prev.filter(t => t.id !== ticket.id));
       toast.success(`Ticket "${ticket.name}" recalled`);
       setShowHoldTicket(false);
     }, 50);
