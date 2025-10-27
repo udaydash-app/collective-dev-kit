@@ -317,8 +317,8 @@ export default function AdminOrders() {
                     <span class="flex-1">${item.products?.name || item.name}</span>
                   </div>
                   <div class="flex justify-between text-xs">
-                    <span>${item.quantity} x $${(item.products?.price || item.unit_price || item.price).toFixed(2)}</span>
-                    <span>$${((item.products?.price || item.unit_price || item.price) * item.quantity).toFixed(2)}</span>
+                    <span>${item.quantity} x ${(item.products?.price || item.unit_price || item.price).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                    <span>${((item.products?.price || item.unit_price || item.price) * item.quantity).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                   </div>
                 </div>
               `).join('')}
@@ -327,21 +327,21 @@ export default function AdminOrders() {
             <div class="space-y-1 mb-2">
               <div class="flex justify-between">
                 <span>Subtotal:</span>
-                <span>$${Number(order.subtotal).toFixed(2)}</span>
+                <span>${Number(order.subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               <div class="flex justify-between">
                 <span>Tax (15%):</span>
-                <span>$${Number(order.tax || 0).toFixed(2)}</span>
+                <span>${Number(order.tax || 0).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               ${order.type === 'pos' && order.discount > 0 ? `
                 <div class="flex justify-between">
                   <span>Discount:</span>
-                  <span>-$${Number(order.discount).toFixed(2)}</span>
+                  <span>-${Number(order.discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                 </div>
               ` : ''}
               <div class="flex justify-between font-bold text-lg border-t pt-1">
                 <span>TOTAL:</span>
-                <span>$${Number(order.total).toFixed(2)}</span>
+                <span>${Number(order.total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
             </div>
 
