@@ -6,10 +6,11 @@ export const ReturnToPOSButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Only show on admin pages (except POS itself and POS login)
+  // Only show on admin pages (except POS itself, POS login, and Products page)
   if (
     location.pathname === "/admin/pos" || 
     location.pathname === "/pos-login" ||
+    location.pathname === "/admin/products" ||
     !location.pathname.startsWith("/admin")
   ) {
     return null;
