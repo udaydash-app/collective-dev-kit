@@ -30,7 +30,8 @@ import {
   Users,
   TrendingUp,
   TrendingDown,
-  Droplets
+  Droplets,
+  Edit
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -549,6 +550,7 @@ export default function POS() {
     inventory: [
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
+      { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
     ],

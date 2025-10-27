@@ -1273,6 +1273,64 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_adjustments: {
+        Row: {
+          adjusted_by: string | null
+          adjustment_type: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity_change: number
+          reason: string | null
+          store_id: string
+          variant_id: string | null
+        }
+        Insert: {
+          adjusted_by?: string | null
+          adjustment_type: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity_change: number
+          reason?: string | null
+          store_id: string
+          variant_id?: string | null
+        }
+        Update: {
+          adjusted_by?: string | null
+          adjustment_type?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity_change?: number
+          reason?: string | null
+          store_id?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           address: string
