@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,9 +41,11 @@ import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
 import { CashInDialog } from '@/components/pos/CashInDialog';
 import { CashOutDialog } from '@/components/pos/CashOutDialog';
+import { Receipt } from '@/components/pos/Receipt';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useReactToPrint } from 'react-to-print';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +76,7 @@ export default function POS() {
   const [showCashOut, setShowCashOut] = useState(false);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
+  const lastReceiptRef = useRef<HTMLDivElement>(null);
   
   const ITEMS_PER_PAGE = 12;
   
@@ -572,6 +575,18 @@ export default function POS() {
     }
   };
 
+  const handlePrintLastReceipt = useReactToPrint({
+    contentRef: lastReceiptRef,
+  });
+
+  const handleLastReceiptClick = () => {
+    if (!lastTransactionData) {
+      toast.error('No previous receipt available');
+      return;
+    }
+    handlePrintLastReceipt();
+  };
+
   const menuSections = {
     sales: [
       { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
@@ -681,7 +696,7 @@ export default function POS() {
       icon: Printer, 
       label: 'Last receipt', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No previous receipt')
+      action: handleLastReceiptClick
     },
     { 
       icon: Gift, 
@@ -1317,6 +1332,32 @@ export default function POS() {
           dayActivity={dayActivity}
         />
       )}
+
+      {/* Hidden receipt for reprinting */}
+      <div className="hidden">
+        <div ref={lastReceiptRef}>
+          {lastTransactionData && (
+            <Receipt
+              transactionNumber={lastTransactionData.transactionNumber}
+              items={lastTransactionData.items.map((item: any) => ({
+                ...item,
+                id: item.name,
+                subtotal: item.quantity * item.price,
+              }))}
+              subtotal={lastTransactionData.subtotal}
+              tax={lastTransactionData.tax || 0}
+              discount={lastTransactionData.discount}
+              total={lastTransactionData.total}
+              paymentMethod={lastTransactionData.paymentMethod}
+              date={new Date()}
+              cashierName={lastTransactionData.cashierName}
+              storeName={lastTransactionData.storeName}
+              logoUrl={lastTransactionData.logoUrl}
+              supportPhone={lastTransactionData.supportPhone}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
