@@ -40,9 +40,14 @@ class QZTrayService {
     });
 
     qz.security.setSignaturePromise((toSign) => {
-      // For unsigned/development mode, return a function that returns the hash as-is
-      return (hash) => {
-        return Promise.resolve(hash);
+      // For unsigned/development mode, return a callback function with resolve/reject
+      return function(resolve, reject) {
+        try {
+          // For unsigned connections, just pass the data through
+          resolve(toSign);
+        } catch (e) {
+          reject(e);
+        }
       };
     });
   }
