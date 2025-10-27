@@ -26,7 +26,8 @@ export const CashInDialog = ({ isOpen, onClose, onConfirm }: CashInDialogProps) 
     try {
       await onConfirm(amount);
       setOpeningCash('');
-      onClose();
+    } catch (error) {
+      // Error already handled in parent component
     } finally {
       setIsProcessing(false);
     }

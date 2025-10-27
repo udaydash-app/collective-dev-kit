@@ -318,10 +318,12 @@ export default function POS() {
       if (error) throw error;
 
       toast.success('Cash register opened successfully');
+      setShowCashIn(false);
       await refetchCashSession();
     } catch (error: any) {
       console.error('Error opening cash register:', error);
       toast.error('Failed to open cash register');
+      throw error;
     }
   };
 
