@@ -1123,6 +1123,15 @@ export default function POS() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchTerm.trim()) {
+                    // Check if it looks like a barcode (all digits)
+                    if (/^\d+$/.test(searchTerm.trim())) {
+                      handleBarcodeScan(searchTerm.trim());
+                      setSearchTerm(''); // Clear after scanning
+                    }
+                  }
+                }}
                 className="pl-10"
                 autoFocus
               />
