@@ -1051,27 +1051,27 @@ export default function POS() {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
-      <div className="w-[500px] border-r flex flex-col bg-card">
+      <div className="w-[650px] border-r flex flex-col bg-card">
         {/* Header */}
-        <div className="p-6 border-b space-y-4">
+        <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">POS System</h1>
-            <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold">POS System</h1>
+            <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
-                size="lg"
+                size="sm"
                 onClick={handleLogout}
                 title="Logout"
-                className="h-12 w-12"
+                className="h-9 w-9"
               >
-                <LogOut className="h-6 w-6 text-muted-foreground" />
+                <LogOut className="h-4 w-4 text-muted-foreground" />
               </Button>
-              <Settings className="h-6 w-6 text-muted-foreground" />
+              <Settings className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
           
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search customer (name, phone, email)"
               value={customerSearch}
@@ -1080,19 +1080,19 @@ export default function POS() {
                 setShowCustomerResults(true);
               }}
               onFocus={() => setShowCustomerResults(true)}
-              className="pl-12 h-12 text-base"
+              className="pl-10 h-10 text-sm"
             />
             
             {/* Customer Search Results Dropdown */}
             {showCustomerResults && customerSearch.length >= 2 && customers && customers.length > 0 && (
-              <Card className="absolute top-full left-0 right-0 mt-2 z-50 max-h-80 overflow-y-auto">
-                <div className="p-3 space-y-2">
+              <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto">
+                <div className="p-2 space-y-1">
                   {customers.map((customer) => (
                     <Button
                       key={customer.id}
                       variant="ghost"
-                      size="lg"
-                      className="w-full justify-start text-left h-auto py-4"
+                      size="sm"
+                      className="w-full justify-start text-left h-auto py-2"
                       onClick={() => {
                         setSelectedCustomer(customer);
                         setCustomerSearch('');
@@ -1100,8 +1100,8 @@ export default function POS() {
                       }}
                     >
                       <div className="flex flex-col items-start">
-                        <span className="font-medium text-base">{customer.name}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="font-medium text-sm">{customer.name}</span>
+                        <span className="text-xs text-muted-foreground">
                           {customer.phone && `${customer.phone}`}
                           {customer.email && ` • ${customer.email}`}
                         </span>
@@ -1114,12 +1114,12 @@ export default function POS() {
           </div>
 
           <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-            <SelectTrigger className="h-12 text-base">
+            <SelectTrigger className="h-10 text-sm">
               <SelectValue placeholder="Select store" />
             </SelectTrigger>
             <SelectContent>
               {stores?.map((store) => (
-                <SelectItem key={store.id} value={store.id} className="py-3 text-base">
+                <SelectItem key={store.id} value={store.id} className="py-2 text-sm">
                   {store.name}
                 </SelectItem>
               ))}
@@ -1128,15 +1128,15 @@ export default function POS() {
         </div>
 
         {/* Customer Info */}
-        <div className="p-6 border-b">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-                <User className="h-7 w-7 text-muted-foreground" />
+        <div className="p-3 border-b">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <User className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-lg">{selectedCustomer ? selectedCustomer.name : 'Guest Customer'}</p>
-                <p className="text-base text-muted-foreground">
+                <p className="font-semibold text-sm">{selectedCustomer ? selectedCustomer.name : 'Guest Customer'}</p>
+                <p className="text-xs text-muted-foreground">
                   {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'No contact info') : 'Walk-in'}
                 </p>
               </div>
@@ -1144,29 +1144,29 @@ export default function POS() {
             {selectedCustomer && (
               <Button
                 variant="ghost"
-                size="lg"
+                size="sm"
                 onClick={() => setSelectedCustomer(null)}
-                className="h-12 w-12"
+                className="h-8 w-8"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             )}
           </div>
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <ShoppingCart className="h-16 w-16 mb-3 opacity-50" />
-              <p className="text-lg">Cart is empty</p>
-              <p className="text-base">Scan or add products</p>
+              <ShoppingCart className="h-12 w-12 mb-2 opacity-50" />
+              <p className="text-base">Cart is empty</p>
+              <p className="text-sm">Scan or add products</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold text-lg">Items</span>
-                <Button variant="ghost" size="lg" onClick={clearCart} className="h-11">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-base">Items</span>
+                <Button variant="ghost" size="sm" onClick={clearCart} className="h-8">
                   Clear
                 </Button>
               </div>
@@ -1177,11 +1177,11 @@ export default function POS() {
                 const finalItemTotal = itemTotal - itemDiscountAmount;
 
                 return (
-                  <Card key={item.id} className="p-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <Card key={item.id} className="p-2">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="flex-1">
-                        <p className="font-medium text-base">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-medium text-sm">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
                           Original: {formatCurrency(item.price)}
                           {(item as any).selectedVariant && (
                             <span className="ml-1">
@@ -1194,42 +1194,42 @@ export default function POS() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-10 w-10 min-w-[2.5rem]"
+                        className="h-7 w-7 min-w-[1.75rem]"
                         onClick={() => removeFromCart(item.id)}
                       >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                     
                     {/* Quantity and Price Controls */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="outline"
-                          size="lg"
-                          className="h-11 w-11 p-0 text-lg"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-base"
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         >
                           -
                         </Button>
-                        <span className="w-12 text-center font-medium text-lg">{item.quantity}</span>
+                        <span className="w-10 text-center font-medium text-sm">{item.quantity}</span>
                         <Button
                           variant="outline"
-                          size="lg"
-                          className="h-11 w-11 p-0 text-lg"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-base"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >
                           +
                         </Button>
                       </div>
                       
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground shrink-0">Price:</span>
+                      <div className="flex-1 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground shrink-0">Price:</span>
                         <Input
                           type="number"
                           value={effectivePrice}
                           onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || item.price)}
-                          className="h-11 text-base text-center"
+                          className="h-8 text-sm text-center"
                           step="0.01"
                           min="0"
                         />
@@ -1237,20 +1237,20 @@ export default function POS() {
                     </div>
 
                     {/* Item Discount */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground shrink-0">Disc:</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground shrink-0">Disc:</span>
                         <Input
                           type="number"
                           value={itemDiscountAmount}
                           onChange={(e) => updateItemDiscount(item.id, parseFloat(e.target.value) || 0)}
-                          className="h-11 text-base text-center"
+                          className="h-8 text-sm text-center"
                           placeholder="0"
                           step="0.01"
                           min="0"
                         />
                       </div>
-                      <span className="font-semibold text-lg min-w-[5rem] text-right">
+                      <span className="font-semibold text-sm min-w-[4rem] text-right">
                         {formatCurrency(finalItemTotal)}
                       </span>
                     </div>
@@ -1262,59 +1262,59 @@ export default function POS() {
         </div>
 
         {/* Total Section */}
-        <div className="border-t p-6 space-y-4">
-          <div className="space-y-3">
-            <div className="flex justify-between text-base">
+        <div className="border-t p-3 space-y-3">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
             {discount > 0 && (
-              <div className="flex justify-between text-base">
+              <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bill Discount</span>
                 <span className="font-medium">-{formatCurrency(discount)}</span>
               </div>
             )}
-            <div className="flex items-center gap-3 py-2">
-              <span className="text-sm text-muted-foreground shrink-0">Bill Discount:</span>
+            <div className="flex items-center gap-2 py-1">
+              <span className="text-xs text-muted-foreground shrink-0">Bill Discount:</span>
               <Input
                 type="number"
                 value={discount}
                 onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                className="h-12 text-base"
+                className="h-9 text-sm"
                 placeholder="0.00"
                 step="0.01"
                 min="0"
               />
             </div>
-            <div className="flex justify-between items-center pt-3 border-t">
-              <span className="text-xl font-bold">TOTAL</span>
-              <span className="text-3xl font-bold text-primary">
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="text-lg font-bold">TOTAL</span>
+              <span className="text-2xl font-bold text-primary">
                 {formatCurrency(total)}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <Button
               variant="outline"
-              size="lg"
-              className="bg-[#F7DC6F] hover:bg-[#F4D03F] text-foreground h-14"
+              size="default"
+              className="bg-[#F7DC6F] hover:bg-[#F4D03F] text-foreground h-11"
             >
-              <User className="h-5 w-5" />
+              <User className="h-4 w-4" />
             </Button>
             <Button
               variant="destructive"
-              size="lg"
-              className="bg-[#EC7063] hover:bg-[#E74C3C] h-14 text-base"
+              size="default"
+              className="bg-[#EC7063] hover:bg-[#E74C3C] h-11 text-sm"
               onClick={clearCart}
               disabled={cart.length === 0}
             >
-              <Trash2 className="h-5 w-5 mr-2" />
+              <Trash2 className="h-4 w-4 mr-1" />
               CLEAR
             </Button>
             <Button
-              size="lg"
-              className="bg-[#7DCEA0] hover:bg-[#52BE80] text-foreground h-14 text-base font-bold"
+              size="default"
+              className="bg-[#7DCEA0] hover:bg-[#52BE80] text-foreground h-11 text-sm font-bold"
               onClick={handleCheckout}
               disabled={cart.length === 0 || !selectedStoreId}
               title={!selectedStoreId ? 'Please select a store' : cart.length === 0 ? 'Cart is empty' : 'Process payment'}
@@ -1328,25 +1328,25 @@ export default function POS() {
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Admin Menu - Horizontal Layout */}
-        <div className="bg-primary/5 border-b border-primary/20 px-6 py-3">
-          <div className="flex gap-3 overflow-x-auto">
+        <div className="bg-primary/5 border-b border-primary/20 px-4 py-2">
+          <div className="flex gap-2 overflow-x-auto">
             {/* Sales Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="lg" className="gap-2 whitespace-nowrap h-12 text-base">
-                  <ShoppingCart className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-1 whitespace-nowrap h-9 text-sm">
+                  <ShoppingCart className="h-4 w-4" />
                   Sales
-                  <ChevronDown className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.sales.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
-                    className="cursor-pointer py-3 text-base"
+                    className="cursor-pointer py-2 text-sm"
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
+                    <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </DropdownMenuItem>
                 ))}
@@ -1356,20 +1356,20 @@ export default function POS() {
             {/* Inventory Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="lg" className="gap-2 whitespace-nowrap h-12 text-base">
-                  <Package className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-1 whitespace-nowrap h-9 text-sm">
+                  <Package className="h-4 w-4" />
                   Inventory
-                  <ChevronDown className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.inventory.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
-                    className="cursor-pointer py-3 text-base"
+                    className="cursor-pointer py-2 text-sm"
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
+                    <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </DropdownMenuItem>
                 ))}
@@ -1379,20 +1379,20 @@ export default function POS() {
             {/* Accounting Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="lg" className="gap-2 whitespace-nowrap h-12 text-base">
-                  <DollarSign className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-1 whitespace-nowrap h-9 text-sm">
+                  <DollarSign className="h-4 w-4" />
                   Accounting
-                  <ChevronDown className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.accounting.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
-                    className="cursor-pointer py-3 text-base"
+                    className="cursor-pointer py-2 text-sm"
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
+                    <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </DropdownMenuItem>
                 ))}
@@ -1402,20 +1402,20 @@ export default function POS() {
             {/* Reports Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="lg" className="gap-2 whitespace-nowrap h-12 text-base">
-                  <BarChart3 className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-1 whitespace-nowrap h-9 text-sm">
+                  <BarChart3 className="h-4 w-4" />
                   Reports
-                  <ChevronDown className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.reports.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
-                    className="cursor-pointer py-3 text-base"
+                    className="cursor-pointer py-2 text-sm"
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
+                    <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </DropdownMenuItem>
                 ))}
@@ -1425,20 +1425,20 @@ export default function POS() {
             {/* Settings Section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="lg" className="gap-2 whitespace-nowrap h-12 text-base">
-                  <Settings className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-1 whitespace-nowrap h-9 text-sm">
+                  <Settings className="h-4 w-4" />
                   Settings
-                  <ChevronDown className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 {menuSections.settings.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => navigate(item.path)}
-                    className="cursor-pointer py-3 text-base"
+                    className="cursor-pointer py-2 text-sm"
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
+                    <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </DropdownMenuItem>
                 ))}
@@ -1448,10 +1448,10 @@ export default function POS() {
         </div>
 
         {/* Search Bar */}
-        <div className="p-6 border-b bg-card">
-          <div className="flex gap-3">
+        <div className="p-3 border-b bg-card">
+          <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search products..."
                 value={searchTerm}
@@ -1468,7 +1468,7 @@ export default function POS() {
                     }
                   }
                 }}
-                className="pl-12 h-14 text-base"
+                className="pl-10 h-10 text-sm"
                 autoFocus
               />
             </div>
@@ -1498,25 +1498,25 @@ export default function POS() {
           )}
 
           {/* Paginated Items Grid */}
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 xl:grid-cols-4 gap-3">
             {/* Show Categories when no category selected and no search */}
             {!selectedCategory && !searchTerm && paginatedItems?.map((category: any) => (
               <Button
                 key={category.id}
                 variant="outline"
-                className="h-40 flex flex-col items-center justify-center p-4 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                className="h-28 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
                 onClick={() => handleCategorySelect(category.id)}
               >
                 {category.image_url ? (
                   <img
                     src={category.image_url}
                     alt={category.name}
-                    className="h-20 w-20 object-cover rounded mb-3 flex-shrink-0"
+                    className="h-14 w-14 object-cover rounded mb-2 flex-shrink-0"
                   />
                 ) : (
-                  <Package className="h-14 w-14 mb-3 opacity-50 flex-shrink-0" />
+                  <Package className="h-10 w-10 mb-2 opacity-50 flex-shrink-0" />
                 )}
-                <p className="text-base font-medium text-center line-clamp-2 break-words w-full leading-snug">
+                <p className="text-sm font-medium text-center line-clamp-2 break-words w-full leading-snug">
                   {category.name}
                 </p>
               </Button>
@@ -1534,26 +1534,26 @@ export default function POS() {
                 <Button
                   key={product.id}
                   variant="outline"
-                  className="h-40 flex flex-col items-center justify-center p-4 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                  className="h-28 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
                   onClick={() => handleProductClick(product)}
                 >
                   {product.image_url ? (
                     <img
                       src={product.image_url}
                       alt={product.name}
-                      className="h-20 w-20 object-cover rounded mb-2"
+                      className="h-14 w-14 object-cover rounded mb-1"
                     />
                   ) : (
-                    <Package className="h-14 w-14 mb-2 opacity-50" />
+                    <Package className="h-10 w-10 mb-1 opacity-50" />
                   )}
-                  <p className="text-sm font-medium text-center line-clamp-1 mb-1">
+                  <p className="text-xs font-medium text-center line-clamp-1 mb-1">
                     {product.name}
                   </p>
-                  <p className="text-base font-bold">
+                  <p className="text-sm font-bold">
                     {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
                   </p>
                   {availableVariants.length > 1 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                       {availableVariants.length} variants
                     </span>
                   )}
@@ -1606,20 +1606,20 @@ export default function POS() {
           )}
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-4 xl:grid-cols-6 gap-2 mt-4">
             {quickActions.map((action, index) => (
               <Button
                 key={index}
                 variant="outline"
                 className={cn(
-                  "h-28 flex flex-col items-center justify-center p-4 text-white border-none transition-colors",
+                  "h-20 flex flex-col items-center justify-center p-2 text-white border-none transition-colors",
                   action.color,
                   "hover:opacity-90"
                 )}
                 onClick={action.action}
               >
-                <action.icon className="h-7 w-7 mb-2" />
-                <span className="text-sm text-center font-medium">{action.label}</span>
+                <action.icon className="h-5 w-5 mb-1" />
+                <span className="text-xs text-center">{action.label}</span>
               </Button>
             ))}
           </div>
