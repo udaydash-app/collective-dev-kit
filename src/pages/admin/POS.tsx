@@ -96,13 +96,16 @@ export default function POS() {
   } = usePOSTransaction();
 
   // Load order into POS if orderId is in URL params
+  const loadedOrderRef = useRef<string | null>(null);
+  
   useEffect(() => {
     const orderId = searchParams.get('orderId');
-    if (orderId && !isLoadingOrder && cart.length === 0) {
+    if (orderId && orderId !== loadedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+      loadedOrderRef.current = orderId;
       setIsLoadingOrder(true);
       loadOrderToPOS(orderId);
     }
-  }, [searchParams]);
+  }, [searchParams, isLoadingOrder, cart.length]);
 
   const loadOrderToPOS = async (orderId: string) => {
     try {
@@ -136,23 +139,21 @@ export default function POS() {
 
       // Add items to cart with correct quantities
       if (items && items.length > 0) {
-        items.forEach(item => {
+        // Process items sequentially to avoid race conditions
+        for (const item of items) {
           if (item.products) {
-            // Add product to cart once
-            addToCart({
-              id: item.products.id,
-              name: item.products.name,
-              price: item.products.price,
-              image_url: item.products.image_url,
-              barcode: item.products.barcode,
-            });
-            
-            // Update quantity if more than 1
-            if (item.quantity > 1) {
-              updateQuantity(item.products.id, item.quantity);
+            // Add product to cart with the correct quantity directly
+            for (let i = 0; i < item.quantity; i++) {
+              addToCart({
+                id: item.products.id,
+                name: item.products.name,
+                price: item.products.price,
+                image_url: item.products.image_url,
+                barcode: item.products.barcode,
+              });
             }
           }
-        });
+        }
         
         // Update order status to confirmed
         const { error: updateError } = await supabase
