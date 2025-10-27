@@ -26,55 +26,48 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     searchInputRef.current?.focus();
   }, []);
 
-  // Maintain focus on search input - refocus when clicking anywhere in POS
+  // Maintain focus on search input for scanner input
   React.useEffect(() => {
-    const handleFocusOut = (e: FocusEvent) => {
-      // Don't refocus if user is typing in the barcode input
-      if (e.relatedTarget === document.querySelector('input[placeholder*="barcode"]')) {
-        return;
+    const handleGlobalClick = () => {
+      // Always refocus unless clicking on specific inputs
+      const activeElement = document.activeElement as HTMLElement;
+      if (
+        !activeElement?.matches('input[type="number"]') &&
+        !activeElement?.closest('[role="dialog"]')
+      ) {
+        setTimeout(() => searchInputRef.current?.focus(), 10);
       }
-      
-      // Don't refocus if a dialog is open
-      if (document.querySelector('[role="dialog"]')) {
-        return;
-      }
-
-      // Refocus search input after a short delay
-      setTimeout(() => {
-        if (searchInputRef.current && !document.querySelector('[role="dialog"]')) {
-          searchInputRef.current.focus();
-        }
-      }, 50);
     };
 
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Don't refocus if clicking inside an input or dialog
-      if (target.tagName === 'INPUT' || target.closest('[role="dialog"]')) {
-        return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If not focused on an input, focus the search field for scanner input
+      const activeElement = document.activeElement as HTMLElement;
+      if (
+        activeElement?.tagName !== 'INPUT' &&
+        activeElement?.tagName !== 'TEXTAREA' &&
+        !activeElement?.closest('[role="dialog"]')
+      ) {
+        searchInputRef.current?.focus();
       }
-
-      // Refocus after any click outside inputs
-      setTimeout(() => {
-        if (searchInputRef.current && !document.querySelector('[role="dialog"]')) {
-          searchInputRef.current.focus();
-        }
-      }, 50);
     };
 
-    const searchInput = searchInputRef.current;
-    if (searchInput) {
-      searchInput.addEventListener('blur', handleFocusOut as any);
-    }
-    
-    document.addEventListener('click', handleClick);
+    // Periodically check and refocus (for scanner reliability)
+    const focusInterval = setInterval(() => {
+      if (
+        !document.querySelector('[role="dialog"]') &&
+        document.activeElement?.tagName !== 'INPUT'
+      ) {
+        searchInputRef.current?.focus();
+      }
+    }, 100);
+
+    document.addEventListener('click', handleGlobalClick);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      if (searchInput) {
-        searchInput.removeEventListener('blur', handleFocusOut as any);
-      }
-      document.removeEventListener('click', handleClick);
+      document.removeEventListener('click', handleGlobalClick);
+      document.removeEventListener('keydown', handleKeyDown);
+      clearInterval(focusInterval);
     };
   }, []);
 
