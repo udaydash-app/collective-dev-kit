@@ -35,21 +35,21 @@ export const CashInDialog = ({ isOpen, onClose, onConfirm }: CashInDialogProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Cash In - Open Register</DialogTitle>
+          <DialogTitle className="text-xl">Cash In - Open Register</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="p-4 bg-primary/10 rounded-lg text-center">
-            <DollarSign className="h-12 w-12 mx-auto mb-2 text-primary" />
-            <p className="text-sm text-muted-foreground">
+          <div className="p-6 bg-primary/10 rounded-lg text-center">
+            <DollarSign className="h-16 w-16 mx-auto mb-3 text-primary" />
+            <p className="text-base text-muted-foreground">
               Enter the opening cash amount to start your shift
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="openingCash">Opening Cash Amount</Label>
+          <div className="space-y-3">
+            <Label htmlFor="openingCash" className="text-base">Opening Cash Amount</Label>
             <Input
               id="openingCash"
               type="number"
@@ -59,27 +59,30 @@ export const CashInDialog = ({ isOpen, onClose, onConfirm }: CashInDialogProps) 
               step="0.01"
               min="0"
               autoFocus
+              className="h-14 text-lg"
             />
             {openingCash && !isNaN(parseFloat(openingCash)) && (
-              <p className="text-sm text-muted-foreground">
-                Opening with: <span className="font-bold text-primary">{formatCurrency(parseFloat(openingCash))}</span>
+              <p className="text-base text-muted-foreground">
+                Opening with: <span className="font-bold text-primary text-lg">{formatCurrency(parseFloat(openingCash))}</span>
               </p>
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button
               variant="outline"
+              size="lg"
               onClick={onClose}
               disabled={isProcessing}
-              className="flex-1"
+              className="flex-1 h-14 text-base"
             >
               Cancel
             </Button>
             <Button
+              size="lg"
               onClick={handleConfirm}
               disabled={isProcessing || !openingCash || isNaN(parseFloat(openingCash)) || parseFloat(openingCash) < 0}
-              className="flex-1"
+              className="flex-1 h-14 text-base"
             >
               {isProcessing ? 'Opening...' : 'Open Register'}
             </Button>

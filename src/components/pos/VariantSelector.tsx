@@ -35,58 +35,59 @@ export const VariantSelector = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Select Variant</DialogTitle>
+          <DialogTitle className="text-xl">Select Variant</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Product Info */}
-          <div className="flex items-center gap-3 pb-4 border-b">
+          <div className="flex items-center gap-4 pb-5 border-b">
             {product?.image_url ? (
               <img
                 src={product.image_url}
                 alt={product.name}
-                className="w-16 h-16 object-cover rounded"
+                className="w-20 h-20 object-cover rounded"
               />
             ) : (
-              <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
-                <Package className="h-8 w-8 text-muted-foreground" />
+              <div className="w-20 h-20 bg-muted rounded flex items-center justify-center">
+                <Package className="h-10 w-10 text-muted-foreground" />
               </div>
             )}
             <div>
-              <p className="font-semibold">{product?.name}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-semibold text-lg">{product?.name}</p>
+              <p className="text-base text-muted-foreground">
                 Choose from {variants.length} available variants
               </p>
             </div>
           </div>
 
           {/* Variants Grid */}
-          <div className="grid gap-2 max-h-[400px] overflow-y-auto">
+          <div className="grid gap-3 max-h-[400px] overflow-y-auto">
             {variants.map((variant: Variant) => (
               <Button
                 key={variant.id}
                 variant="outline"
-                className="h-auto p-4 justify-between hover:bg-primary hover:text-primary-foreground"
+                size="lg"
+                className="h-auto min-h-[4rem] p-5 justify-between hover:bg-primary hover:text-primary-foreground"
                 onClick={() => handleSelect(variant)}
               >
                 <div className="text-left">
-                  <p className="font-medium">
+                  <p className="font-medium text-base">
                     {variant.label || `${variant.quantity}${variant.unit}`}
                   </p>
                   {variant.is_default && (
-                    <span className="text-xs text-muted-foreground">Default</span>
+                    <span className="text-sm text-muted-foreground">Default</span>
                   )}
                 </div>
-                <p className="text-lg font-bold">
+                <p className="text-xl font-bold">
                   {formatCurrency(Number(variant.price))}
                 </p>
               </Button>
             ))}
           </div>
 
-          <Button variant="outline" onClick={onClose} className="w-full">
+          <Button variant="outline" size="lg" onClick={onClose} className="w-full h-14 text-base">
             Cancel
           </Button>
         </div>
