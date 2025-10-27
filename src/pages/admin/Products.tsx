@@ -310,8 +310,10 @@ export default function Products() {
         stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
         is_available: formData.get("is_available") === "true",
         is_featured: formData.get("is_featured") === "true",
-        barcode: formData.get("barcode") as string || null,
+        barcode: (formData.get("barcode") as string)?.trim() || null,
       };
+
+      console.log('Product data to save:', productData);
 
       if (isAddingNew) {
         // Insert new product
@@ -363,7 +365,12 @@ export default function Products() {
           .update(productData)
           .eq("id", editingProduct.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Product update error:', error);
+          throw error;
+        }
+
+        console.log('Product updated successfully with barcode:', productData.barcode);
 
         // Save variants
         await saveVariants(editingProduct.id);
