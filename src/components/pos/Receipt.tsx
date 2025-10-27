@@ -62,6 +62,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 </span>
                 <span>{formatCurrency(item.price * item.quantity)}</span>
               </div>
+              {item.itemDiscount && item.itemDiscount > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="ml-2">Item Discount:</span>
+                  <span>-{formatCurrency(item.itemDiscount)}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
