@@ -117,23 +117,27 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
         format: [80, 200],
       });
       
+      const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
+      
       await pdf.html(receiptRef.current, {
         callback: function(doc) {
-          const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
           doc.save(fileName);
+          
+          toast.success('PDF downloaded! Opening WhatsApp...', {
+            description: 'Please attach the downloaded PDF file manually in WhatsApp',
+            duration: 5000,
+          });
           
           setTimeout(() => {
             const message = encodeURIComponent(
-              `Receipt #${transactionData.transactionNumber}\n\n` +
+              `Receipt #${transactionData.transactionNumber}\n` +
               `Total: ${formatCurrency(transactionData.total)}\n` +
-              `Payment Method: ${transactionData.paymentMethod}\n` +
-              `Items: ${transactionData.items.length}\n\n` +
-              `PDF receipt has been downloaded. Please attach the file: ${fileName}`
+              `Payment Method: ${transactionData.paymentMethod}\n\n` +
+              `(Please attach the downloaded PDF: ${fileName})`
             );
             
             window.location.href = `whatsapp://send?text=${message}`;
-            toast.success('PDF downloaded. Please attach it in WhatsApp.');
-          }, 500);
+          }, 1000);
         },
         x: 5,
         y: 5,
