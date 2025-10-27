@@ -651,7 +651,7 @@ export default function CloseDayReport() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">Close Day Report</h1>
+        <h1 className="text-3xl font-bold">Sales & Purchase Reports</h1>
         {showReport && (
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
