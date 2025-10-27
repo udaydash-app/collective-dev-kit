@@ -229,12 +229,45 @@ export default function POS() {
     enabled: !!currentCashSession,
   });
 
+  // Get day's purchases
+  const { data: dayPurchases } = useQuery({
+    queryKey: ['day-purchases', currentCashSession?.id],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+
+      const { data } = await supabase
+        .from('purchases')
+        .select('total_amount')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('purchased_at', currentCashSession.opened_at);
+
+      return data || [];
+    },
+    enabled: !!currentCashSession,
+  });
+
+  // Calculate day activity
+  const dayActivity = {
+    cashSales: sessionTransactions
+      ?.filter(t => t.payment_method === 'cash')
+      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
+    creditSales: sessionTransactions
+      ?.filter(t => t.payment_method === 'credit')
+      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
+    mobileMoneyS: sessionTransactions
+      ?.filter(t => t.payment_method === 'mobile_money')
+      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
+    totalSales: sessionTransactions
+      ?.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
+    totalTransactions: sessionTransactions?.length || 0,
+    purchases: dayPurchases
+      ?.reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
+    expenses: 0, // Will be implemented when expense tracking is added
+  };
+
   // Calculate expected cash (opening cash + cash sales)
-  const sessionCashSales = sessionTransactions
-    ?.filter(t => t.payment_method === 'cash')
-    .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
   const expectedCashAtClose = currentCashSession 
-    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + sessionCashSales
+    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + dayActivity.cashSales
     : 0;
 
   const { data: categories } = useQuery({
@@ -1194,6 +1227,7 @@ export default function POS() {
           onConfirm={handleCashOut}
           openingCash={parseFloat(currentCashSession.opening_cash?.toString() || '0')}
           expectedCash={expectedCashAtClose}
+          dayActivity={dayActivity}
         />
       )}
     </div>
