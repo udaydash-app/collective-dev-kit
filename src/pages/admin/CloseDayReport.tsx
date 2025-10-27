@@ -63,20 +63,54 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch cash sessions
+      // Fetch cash sessions with cashier details
       const { data: cashSessions } = await supabase
         .from('cash_sessions')
-        .select('*')
+        .select(`
+          *,
+          profiles:cashier_id (
+            full_name
+          )
+        `)
         .eq('store_id', selectedStoreId)
         .gte('opened_at', `${startDate}T00:00:00`)
         .lte('opened_at', `${endDate}T23:59:59`)
         .order('opened_at', { ascending: false });
 
+      // Calculate expected cash for each session
+      const sessionsWithCalculations = await Promise.all(
+        (cashSessions || []).map(async (session) => {
+          const { data: sessionTransactions } = await supabase
+            .from('pos_transactions')
+            .select('total, payment_method')
+            .eq('cashier_id', session.cashier_id)
+            .eq('store_id', session.store_id)
+            .gte('created_at', session.opened_at)
+            .lte('created_at', session.closed_at || `${endDate}T23:59:59`);
+
+          const cashSales = sessionTransactions
+            ?.filter(t => t.payment_method === 'cash')
+            .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+
+          const calculatedExpectedCash = parseFloat(session.opening_cash?.toString() || '0') + cashSales;
+          const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
+          const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
+
+          return {
+            ...session,
+            calculated_expected_cash: calculatedExpectedCash,
+            calculated_difference: calculatedDifference,
+            cash_sales: cashSales,
+            transaction_count: sessionTransactions?.length || 0,
+          };
+        })
+      );
+
       return {
         transactions: transactions || [],
         purchases: purchases || [],
         expenses: expenses || [],
-        cashSessions: cashSessions || [],
+        cashSessions: sessionsWithCalculations || [],
       };
     },
     enabled: false,
@@ -401,37 +435,87 @@ export default function CloseDayReport() {
               <Separator />
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold">Cash Sessions</h3>
-                <div className="space-y-2">
-                  {reportData.cashSessions.map((session) => (
-                    <Card key={session.id}>
-                      <CardContent className="p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Opened</p>
-                            <p className="font-medium">{format(new Date(session.opened_at), 'MMM dd, HH:mm')}</p>
+                <div className="space-y-3">
+                  {reportData.cashSessions.map((session: any) => {
+                    const isOpen = session.status === 'open';
+                    const expectedCash = session.calculated_expected_cash;
+                    const closingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
+                    const difference = session.calculated_difference;
+                    const cashierName = session.profiles?.full_name || 'Unknown';
+
+                    return (
+                      <Card key={session.id} className={isOpen ? 'border-orange-300 dark:border-orange-700' : ''}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-base">
+                              Cashier: {cashierName}
+                            </CardTitle>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              isOpen 
+                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' 
+                                : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            }`}>
+                              {isOpen ? 'Open' : 'Closed'}
+                            </span>
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Opening Cash</p>
-                            <p className="font-medium">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground mb-1">Opened</p>
+                              <p className="font-medium">{format(new Date(session.opened_at), 'MMM dd, HH:mm')}</p>
+                            </div>
+                            {!isOpen && session.closed_at && (
+                              <div>
+                                <p className="text-muted-foreground mb-1">Closed</p>
+                                <p className="font-medium">{format(new Date(session.closed_at), 'MMM dd, HH:mm')}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-muted-foreground mb-1">Opening Cash</p>
+                              <p className="font-semibold">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground mb-1">Cash Sales</p>
+                              <p className="font-semibold text-green-600">{formatCurrency(session.cash_sales)}</p>
+                              <p className="text-xs text-muted-foreground">{session.transaction_count} trans.</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground mb-1">Expected Cash</p>
+                              <p className="font-semibold text-blue-600">{formatCurrency(expectedCash)}</p>
+                            </div>
+                            {closingCash !== null && (
+                              <>
+                                <div>
+                                  <p className="text-muted-foreground mb-1">Actual Closing</p>
+                                  <p className="font-semibold">{formatCurrency(closingCash)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground mb-1">Difference</p>
+                                  <p className={`font-bold ${
+                                    difference === null ? '' :
+                                    difference >= 0 ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {difference !== null ? (
+                                      <>
+                                        {difference >= 0 ? '+' : ''}{formatCurrency(Math.abs(difference))}
+                                      </>
+                                    ) : '—'}
+                                  </p>
+                                </div>
+                              </>
+                            )}
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Expected Cash</p>
-                            <p className="font-medium">{formatCurrency(parseFloat(session.expected_cash?.toString() || '0'))}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Closing Cash</p>
-                            <p className="font-medium">{formatCurrency(parseFloat(session.closing_cash?.toString() || '0'))}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Difference</p>
-                            <p className={`font-medium ${parseFloat(session.cash_difference?.toString() || '0') >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {formatCurrency(parseFloat(session.cash_difference?.toString() || '0'))}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          {session.notes && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-xs text-muted-foreground mb-1">Notes:</p>
+                              <p className="text-sm">{session.notes}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             </>
