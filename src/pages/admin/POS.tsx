@@ -1091,7 +1091,7 @@ export default function POS() {
                 ) : (
                   <Package className="h-12 w-12 mb-2 opacity-50" />
                 )}
-                <p className="text-sm font-medium text-center">
+                <p className="text-sm font-medium text-center line-clamp-2 break-words w-full">
                   {category.name}
                 </p>
               </Button>
