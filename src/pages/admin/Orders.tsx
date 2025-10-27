@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, ChevronDown } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,12 +50,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Receipt } from "@/components/pos/Receipt";
 import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
@@ -73,6 +67,7 @@ export default function AdminOrders() {
   const [taxRate, setTaxRate] = useState("0");
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [showReceiptOptions, setShowReceiptOptions] = useState(false);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -404,32 +399,21 @@ export default function AdminOrders() {
     printWindow.document.close();
   };
 
-  const handlePrintReceipt = useReactToPrint({
-    contentRef: receiptRef,
-  });
-
-  const handleReceiptAction = async (orderId: string, action: 'print' | 'pdf' | 'whatsapp') => {
+  const handleReceiptClick = async (orderId: string) => {
     const order = orders?.find(o => o.id === orderId);
     if (!order) {
       toast.error('Order not found');
       return;
     }
-    
     setSelectedReceiptOrder(order);
-    
-    // Wait for state to update and receipt to render
-    setTimeout(async () => {
-      if (action === 'print') {
-        handlePrintReceipt();
-      } else if (action === 'pdf') {
-        await handleSaveReceiptPDF(order);
-      } else if (action === 'whatsapp') {
-        handleSendReceiptWhatsApp(order);
-      }
-    }, 100);
+    setShowReceiptOptions(true);
   };
 
-  const handleSaveReceiptPDF = async (order: any) => {
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+  });
+
+  const handleSaveReceiptPDF = async () => {
     if (!receiptRef.current) return;
     
     try {
@@ -447,7 +431,7 @@ export default function AdminOrders() {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, 80, canvas.height * 80 / canvas.width);
-      pdf.save(`receipt-${order.order_number || 'order'}.pdf`);
+      pdf.save(`receipt-${selectedReceiptOrder?.order_number || 'order'}.pdf`);
       toast.success('Receipt saved as PDF');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -455,7 +439,10 @@ export default function AdminOrders() {
     }
   };
 
-  const handleSendReceiptWhatsApp = (order: any) => {
+  const handleSendReceiptWhatsApp = () => {
+    if (!selectedReceiptOrder) return;
+
+    const order = selectedReceiptOrder;
     const itemsList = order.items.map((item: any) => 
       `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(item.products?.price || item.unit_price || item.price)} = ${formatCurrency((item.products?.price || item.unit_price || item.price) * item.quantity)}`
     ).join('\n');
@@ -1043,29 +1030,14 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                                 <Eye className="h-4 w-4 mr-1" />
                                 {expandedOrders.has(order.id) ? 'Hide' : 'View'}
                               </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Printer className="h-4 w-4 mr-1" />
-                                    Print
-                                    <ChevronDown className="h-3 w-3 ml-1" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleReceiptAction(order.id, 'print')}>
-                                    <Printer className="h-4 w-4 mr-2" />
-                                    Print Receipt
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleReceiptAction(order.id, 'pdf')}>
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Save as PDF
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleReceiptAction(order.id, 'whatsapp')}>
-                                    <MessageCircle className="h-4 w-4 mr-2" />
-                                    Send via WhatsApp
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReceiptClick(order.id)}
+                              >
+                                <Printer className="h-4 w-4 mr-1" />
+                                Print
+                              </Button>
                               {order.type !== 'pos' && order.status === 'pending' && (
                                 <>
                                   <Button
@@ -1526,6 +1498,52 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Receipt Options Dialog */}
+      <Dialog open={showReceiptOptions} onOpenChange={setShowReceiptOptions}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt Options</DialogTitle>
+            <DialogDescription>
+              Choose how you want to handle this receipt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={() => {
+                handlePrintReceipt();
+                setShowReceiptOptions(false);
+              }}
+              className="w-full"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Receipt
+            </Button>
+            <Button
+              onClick={() => {
+                handleSaveReceiptPDF();
+                setShowReceiptOptions(false);
+              }}
+              variant="secondary"
+              className="w-full"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Save as PDF
+            </Button>
+            <Button
+              onClick={() => {
+                handleSendReceiptWhatsApp();
+                setShowReceiptOptions(false);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Send via WhatsApp
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Hidden Receipt for Printing and PDF */}
       {selectedReceiptOrder && (
