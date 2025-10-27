@@ -93,7 +93,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     { value: 'multi_payment', label: 'Multi Payment', icon: Layers },
   ];
 
-  const isMultiPayment = payments.length === 1 && payments[0].method === 'multi_payment';
+  // Payment methods for individual entries (excludes multi_payment)
+  const individualPaymentMethods = paymentMethods.filter(m => m.value !== 'multi_payment');
+
+  const isMultiPayment = payments.length > 1 || (payments.length === 1 && payments[0].method === 'multi_payment');
 
   // Auto-fill amount for single payment methods
   useEffect(() => {
@@ -125,13 +128,14 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
           [field]: field === 'amount' ? parseFloat(value as string) || 0 : value 
         };
         
-        // If switching to multi_payment, reset amount to 0
-        if (field === 'method' && value === 'multi_payment') {
-          updatedPayment.amount = 0;
-        }
-        // If switching from multi_payment to single payment, auto-fill total
-        else if (field === 'method' && p.method === 'multi_payment' && value !== 'multi_payment' && payments.length === 1) {
-          updatedPayment.amount = total;
+        // If switching to multi_payment, split into multiple entries
+        if (field === 'method' && value === 'multi_payment' && payments.length === 1) {
+          // Replace single payment with two empty entries
+          setPayments([
+            { id: Date.now().toString(), method: 'cash', amount: 0 },
+            { id: (Date.now() + 1).toString(), method: 'mobile_money', amount: 0 },
+          ]);
+          return p;
         }
         
         return updatedPayment;
@@ -239,7 +243,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {paymentMethods.map((method) => (
+                          {(payments.length === 1 ? paymentMethods : individualPaymentMethods).map((method) => (
                             <SelectItem key={method.value} value={method.value}>
                               <div className="flex items-center gap-2">
                                 <method.icon className="h-4 w-4" />
@@ -257,7 +261,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                         type="number"
                         value={payment.amount || ''}
                         onChange={(e) => updatePayment(payment.id, 'amount', e.target.value)}
-                        placeholder="0.00"
+                        placeholder="Enter amount"
                         step="0.01"
                         min="0"
                         max={total}
@@ -266,7 +270,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                     </div>
                   </div>
 
-                  {(payments.length > 1 || isMultiPayment) && payments.length > 1 && (
+                  {payments.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
