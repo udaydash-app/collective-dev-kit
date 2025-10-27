@@ -116,13 +116,47 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         price: availableVariants[0].price,
         selectedVariant: availableVariants[0],
       });
-      // Refocus search after adding to cart
-      setTimeout(() => searchInputRef.current?.focus(), 200);
+      // Clear search and refocus
+      setSearchTerm('');
+      setTimeout(() => searchInputRef.current?.focus(), 50);
     } else {
       // No variants, use product price
       onProductSelect(product);
-      // Refocus search after adding to cart
-      setTimeout(() => searchInputRef.current?.focus(), 200);
+      // Clear search and refocus
+      setSearchTerm('');
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  };
+
+  // Handle barcode scan from search field
+  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      e.preventDefault();
+      
+      // Try to find exact barcode match first
+      const { data: exactMatch } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default
+          )
+        `)
+        .eq('barcode', searchTerm.trim())
+        .eq('is_available', true)
+        .maybeSingle();
+
+      if (exactMatch) {
+        // Found exact barcode match - add directly to cart
+        handleProductSelect(exactMatch);
+      }
+      // If no exact match, the regular search results will show
     }
   };
 
@@ -134,8 +168,9 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: variant,
       });
       setVariantSelectorOpen(false);
-      // Refocus search after variant selection
-      setTimeout(() => searchInputRef.current?.focus(), 200);
+      // Clear search and refocus
+      setSearchTerm('');
+      setTimeout(() => searchInputRef.current?.focus(), 50);
     }
   };
 
@@ -211,9 +246,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
-            placeholder="Search products by name..."
+            placeholder="Scan barcode or search by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="pl-10"
           />
         </div>
