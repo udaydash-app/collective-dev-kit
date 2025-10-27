@@ -28,6 +28,20 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Return focus to search after any product selection
+  React.useEffect(() => {
+    const handleClick = () => {
+      setTimeout(() => {
+        if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 100);
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
     queryFn: async () => {
