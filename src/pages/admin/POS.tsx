@@ -1073,25 +1073,25 @@ export default function POS() {
           )}
 
           {/* Paginated Items Grid */}
-          <div className="grid grid-cols-4 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 xl:grid-cols-4 gap-3">
             {/* Show Categories when no category selected and no search */}
             {!selectedCategory && !searchTerm && paginatedItems?.map((category: any) => (
               <Button
                 key={category.id}
                 variant="outline"
-                className="h-40 flex flex-col items-center justify-center p-2 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
+                className="h-32 flex flex-col items-center justify-center p-3 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
                 onClick={() => handleCategorySelect(category.id)}
               >
                 {category.image_url ? (
                   <img
                     src={category.image_url}
                     alt={category.name}
-                    className="h-16 w-16 object-cover rounded mb-2 flex-shrink-0"
+                    className="h-14 w-14 object-cover rounded mb-2 flex-shrink-0"
                   />
                 ) : (
-                  <Package className="h-12 w-12 mb-2 opacity-50 flex-shrink-0" />
+                  <Package className="h-10 w-10 mb-2 opacity-50 flex-shrink-0" />
                 )}
-                <p className="text-sm font-medium text-center line-clamp-2 break-words w-full leading-relaxed">
+                <p className="text-sm font-medium text-center line-clamp-2 break-words w-full leading-snug">
                   {category.name}
                 </p>
               </Button>
