@@ -197,11 +197,16 @@ export default function POS() {
           console.error('Error updating order status:', updateError);
         }
         
+        // Clear orderId from URL to prevent reloading on refresh
+        navigate('/admin/pos', { replace: true });
+        
         toast.success(`Loaded order ${order.order_number} into POS and marked as confirmed`);
       }
     } catch (error: any) {
       console.error('Error loading order:', error);
       toast.error('Failed to load order into POS');
+      // Clear orderId from URL even on error
+      navigate('/admin/pos', { replace: true });
     } finally {
       setIsLoadingOrder(false);
     }
