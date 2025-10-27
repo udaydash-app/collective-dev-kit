@@ -85,26 +85,22 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     if (!receiptRef.current) return;
     
     try {
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-      
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
+        format: [80, 200], // Thermal receipt size
       });
       
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
-      toast.success('Receipt saved as PDF');
+      await pdf.html(receiptRef.current, {
+        callback: function(doc) {
+          doc.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
+          toast.success('Receipt saved as PDF');
+        },
+        x: 5,
+        y: 5,
+        width: 70,
+        windowWidth: 300,
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
@@ -115,43 +111,35 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     if (!transactionData || !receiptRef.current) return;
     
     try {
-      // Generate PDF
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-      
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
+        format: [80, 200],
       });
       
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-      
-      // Save PDF
-      const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
-      pdf.save(fileName);
-      
-      // Wait a moment for download to start
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const message = encodeURIComponent(
-        `Receipt #${transactionData.transactionNumber}\n\n` +
-        `Total: ${formatCurrency(transactionData.total)}\n` +
-        `Payment Method: ${transactionData.paymentMethod}\n` +
-        `Items: ${transactionData.items.length}\n\n` +
-        `PDF receipt has been downloaded. Please attach the file: ${fileName}`
-      );
-      
-      window.location.href = `whatsapp://send?text=${message}`;
-      toast.success('PDF downloaded. Please attach it in WhatsApp.');
+      await pdf.html(receiptRef.current, {
+        callback: function(doc) {
+          const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
+          doc.save(fileName);
+          
+          setTimeout(() => {
+            const message = encodeURIComponent(
+              `Receipt #${transactionData.transactionNumber}\n\n` +
+              `Total: ${formatCurrency(transactionData.total)}\n` +
+              `Payment Method: ${transactionData.paymentMethod}\n` +
+              `Items: ${transactionData.items.length}\n\n` +
+              `PDF receipt has been downloaded. Please attach the file: ${fileName}`
+            );
+            
+            window.location.href = `whatsapp://send?text=${message}`;
+            toast.success('PDF downloaded. Please attach it in WhatsApp.');
+          }, 500);
+        },
+        x: 5,
+        y: 5,
+        width: 70,
+        windowWidth: 300,
+      });
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to generate PDF');
