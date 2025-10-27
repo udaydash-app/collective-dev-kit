@@ -66,10 +66,11 @@ export const TransactionCart = ({
                 </Button>
                 <Input
                   type="number"
-                  value={item.quantity}
+                  value={item.quantity || ''}
                   onChange={(e) =>
                     onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
                   }
+                  placeholder="Qty"
                   className="w-16 h-8 text-center"
                   min="1"
                 />

@@ -11,6 +11,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Receipt } from './Receipt';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface Payment {
   id: string;
@@ -47,9 +50,30 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     { id: '1', method: 'cash', amount: total }
   ]);
   const [cashReceived, setCashReceived] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<string>('');
+  const [customerSearch, setCustomerSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  const { data: customers } = useQuery({
+    queryKey: ['customers', customerSearch],
+    queryFn: async () => {
+      let query = supabase
+        .from('contacts')
+        .select('*')
+        .eq('is_customer', true);
+      
+      if (customerSearch) {
+        query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+      }
+      
+      const { data, error } = await query.order('name').limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: customerSearch.length > 0,
+  });
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -59,6 +83,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   const remaining = total - totalPaid;
   const change = parseFloat(cashReceived || '0') - totalPaid;
   const hasCashPayment = payments.some(p => p.method === 'cash');
+  const hasCreditPayment = payments.some(p => p.method === 'credit');
 
   const paymentMethods = [
     { value: 'cash', label: 'Cash', icon: DollarSign },
@@ -98,6 +123,13 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       return;
     }
 
+    if (hasCreditPayment && !selectedCustomer) {
+      toast.error('Please select a customer for credit payment', {
+        description: "Customer Required",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     try {
       await onConfirm(payments, totalPaid);
@@ -119,6 +151,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
     setShowPrintDialog(false);
     setPayments([{ id: '1', method: 'cash', amount: total }]);
     setCashReceived("");
+    setSelectedCustomer("");
+    setCustomerSearch("");
     onClose();
   };
 
@@ -194,8 +228,9 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
                       <Label className="text-xs text-muted-foreground mb-1">Amount</Label>
                       <Input
                         type="number"
-                        value={payment.amount}
+                        value={payment.amount || ''}
                         onChange={(e) => updatePayment(payment.id, 'amount', e.target.value)}
+                        placeholder="0.00"
                         step="0.01"
                         min="0"
                         max={total}
@@ -219,9 +254,41 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
             ))}
           </div>
 
+          {hasCreditPayment && (
+            <div className="space-y-2">
+              <Label htmlFor="customerSearch">Select Customer *</Label>
+              <Input
+                id="customerSearch"
+                placeholder="Search customer by name, phone or email..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+              />
+              {customers && customers.length > 0 && (
+                <div className="border rounded-lg max-h-[150px] overflow-y-auto">
+                  {customers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className={cn(
+                        "p-2 cursor-pointer hover:bg-accent transition-colors",
+                        selectedCustomer === customer.id && "bg-accent"
+                      )}
+                      onClick={() => {
+                        setSelectedCustomer(customer.id);
+                        setCustomerSearch(customer.name);
+                      }}
+                    >
+                      <p className="font-medium">{customer.name}</p>
+                      {customer.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {hasCashPayment && (
             <div className="space-y-2">
-              <Label htmlFor="cashReceived">Cash Received</Label>
+              <Label htmlFor="cashReceived">Cash Received (Optional)</Label>
               <Input
                 id="cashReceived"
                 type="number"
@@ -259,7 +326,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
               disabled={
                 isProcessing ||
                 remaining > 0.01 ||
-                (hasCashPayment && parseFloat(cashReceived || '0') < totalPaid)
+                (hasCreditPayment && !selectedCustomer)
               }
               className="flex-1"
             >

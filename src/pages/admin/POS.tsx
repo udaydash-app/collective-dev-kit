@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ import { PaymentModal } from '@/components/pos/PaymentModal';
 import { VariantSelector } from '@/components/pos/VariantSelector';
 import { CashInDialog } from '@/components/pos/CashInDialog';
 import { CashOutDialog } from '@/components/pos/CashOutDialog';
+import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -74,11 +75,42 @@ export default function POS() {
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [showCashIn, setShowCashIn] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
+  const [showHoldTicket, setShowHoldTicket] = useState(false);
+  const [heldTickets, setHeldTickets] = useState<Array<{
+    id: string;
+    name: string;
+    items: typeof cart;
+    total: number;
+    timestamp: Date;
+  }>>([]);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   
   const ITEMS_PER_PAGE = 12;
+
+  // Load held tickets from localStorage
+  React.useEffect(() => {
+    const stored = localStorage.getItem('pos-held-tickets');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setHeldTickets(parsed.map((t: any) => ({
+          ...t,
+          timestamp: new Date(t.timestamp),
+        })));
+      } catch (e) {
+        console.error('Failed to load held tickets:', e);
+      }
+    }
+  }, []);
+
+  // Save held tickets to localStorage
+  React.useEffect(() => {
+    if (heldTickets.length > 0) {
+      localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
+    }
+  }, [heldTickets]);
   
   const {
     cart,
@@ -675,6 +707,12 @@ export default function POS() {
       action: () => alert('No pending sales')
     },
     { 
+      icon: Clock, 
+      label: 'Hold / Fire', 
+      color: 'bg-[#F97316]', 
+      action: () => setShowHoldTicket(true)
+    },
+    { 
       icon: Package, 
       label: 'Pickup orders', 
       color: 'bg-[#5DADE2]', 
@@ -682,8 +720,8 @@ export default function POS() {
     },
     { 
       icon: BarChart3, 
-      label: 'Close day', 
-      color: 'bg-[#5DADE2]', 
+      label: 'End Of Day', 
+      color: 'bg-[#5DADE2]',
       action: () => {
         if (!currentCashSession) {
           toast.error('No active cash session to close');
@@ -744,6 +782,45 @@ export default function POS() {
       action: () => setShowNotesDialog(true)
     },
   ];
+
+  const handleHoldTicket = (ticketName: string) => {
+    if (cart.length === 0) {
+      toast.error('Cannot hold empty cart');
+      return;
+    }
+
+    const newTicket = {
+      id: Date.now().toString(),
+      name: ticketName,
+      items: [...cart],
+      total: calculateTotal(),
+      timestamp: new Date(),
+    };
+
+    setHeldTickets([...heldTickets, newTicket]);
+    clearCart();
+    toast.success(`Ticket "${ticketName}" held successfully`);
+    setShowHoldTicket(false);
+  };
+
+  const handleRecallTicket = (ticket: any) => {
+    if (cart.length > 0) {
+      toast.error('Please clear current cart first');
+      return;
+    }
+
+    ticket.items.forEach((item: any) => {
+      addToCart(item);
+    });
+
+    setHeldTickets(heldTickets.filter(t => t.id !== ticket.id));
+    toast.success(`Ticket "${ticket.name}" recalled`);
+  };
+
+  const handleDeleteTicket = (ticketId: string) => {
+    setHeldTickets(heldTickets.filter(t => t.id !== ticketId));
+    toast.success('Ticket deleted');
+  };
 
   return (
     <div className="h-screen bg-background flex overflow-hidden">
@@ -1380,6 +1457,18 @@ export default function POS() {
           dayActivity={dayActivity}
         />
       )}
+
+      <HoldTicketDialog
+        isOpen={showHoldTicket}
+        onClose={() => setShowHoldTicket(false)}
+        currentCart={cart}
+        currentTotal={calculateTotal()}
+        onHoldTicket={handleHoldTicket}
+        onRecallTicket={handleRecallTicket}
+        onDeleteTicket={handleDeleteTicket}
+        heldTickets={heldTickets}
+      />
+
 
       {/* Hidden receipt for reprinting */}
       <div className="hidden">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Barcode } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,15 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Auto-focus search input on mount and after operations
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
@@ -148,11 +157,11 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={searchInputRef}
             placeholder="Search products by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
-            autoFocus
           />
         </div>
         <BarcodeScanner onScan={handleBarcodeScan} />

@@ -82,7 +82,7 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Cash Out - Close Day Summary</DialogTitle>
+          <DialogTitle>Cash Out - End Of Day Summary</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
@@ -246,7 +246,7 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
             disabled={isProcessing || !closingCash || isNaN(parseFloat(closingCash)) || parseFloat(closingCash) < 0}
             className="flex-1"
           >
-            {isProcessing ? 'Closing...' : 'Close Day'}
+            {isProcessing ? 'Closing...' : 'End Of Day'}
           </Button>
         </div>
       </DialogContent>
