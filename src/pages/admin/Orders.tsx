@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,6 +50,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Receipt } from "@/components/pos/Receipt";
+import { useReactToPrint } from "react-to-print";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -63,6 +65,7 @@ export default function AdminOrders() {
   const [taxRate, setTaxRate] = useState("0");
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const receiptRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -216,9 +219,34 @@ export default function AdminOrders() {
     }
   });
 
+  // Fetch company settings for receipts
+  const { data: settings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('logo_url, company_phone, company_name')
+        .single();
+      return data;
+    },
+  });
+
   if (queryError) {
     console.error('Query error:', queryError);
   }
+
+  const printOrderReceipt = (orderId: string) => {
+    const ref = receiptRefs.current.get(orderId);
+    if (!ref) {
+      toast.error('Unable to print receipt');
+      return;
+    }
+    
+    const printFn = useReactToPrint({
+      contentRef: { current: ref } as any,
+    });
+    printFn();
+  };
 
   const updateOrderItem = useMutation({
     mutationFn: async ({ itemId, quantity, orderId, orderType }: { 
@@ -779,6 +807,14 @@ export default function AdminOrders() {
                                 <Eye className="h-4 w-4 mr-1" />
                                 {expandedOrders.has(order.id) ? 'Hide' : 'View'}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => printOrderReceipt(order.id)}
+                              >
+                                <Printer className="h-4 w-4 mr-1" />
+                                Print
+                              </Button>
                               {order.type !== 'pos' && (
                                 <>
                                   <Button
@@ -1217,6 +1253,41 @@ export default function AdminOrders() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden receipts for printing */}
+      <div className="hidden">
+        {orders?.map((order: any) => (
+          <div 
+            key={`receipt-${order.id}`} 
+            ref={(el) => {
+              if (el) {
+                receiptRefs.current.set(order.id, el);
+              }
+            }}
+          >
+            <Receipt
+              transactionNumber={order.order_number}
+              items={order.items.map((item: any) => ({
+                id: item.id || item.product_id,
+                name: item.products?.name || item.name,
+                quantity: item.quantity,
+                price: item.products?.price || item.unit_price || item.price,
+                subtotal: item.subtotal || (item.quantity * (item.price || 0)),
+              }))}
+              subtotal={order.subtotal}
+              tax={order.tax || 0}
+              discount={order.type === 'pos' ? (order as any).discount || 0 : 0}
+              total={order.total}
+              paymentMethod={order.payment_method || 'Online'}
+              date={new Date(order.created_at)}
+              cashierName={order.type === 'pos' ? order.cashier_name : undefined}
+              storeName={order.stores?.name || settings?.company_name || 'Global Market'}
+              logoUrl={settings?.logo_url}
+              supportPhone={settings?.company_phone}
+            />
+          </div>
+        ))}
+      </div>
 
       {/* Delete Selected Orders Confirmation Dialog */}
       <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={setDeleteSelectedDialogOpen}>
