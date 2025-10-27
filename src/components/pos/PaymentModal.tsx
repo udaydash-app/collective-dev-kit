@@ -120,11 +120,32 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
       const fileName = `receipt-${transactionData.transactionNumber}.pdf`;
       
       await pdf.html(receiptRef.current, {
-        callback: function(doc) {
+        callback: async function(doc) {
+          // Try Web Share API first (works on mobile)
+          if (navigator.share && navigator.canShare) {
+            try {
+              const pdfBlob = doc.output('blob');
+              const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+              
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                  title: `Receipt #${transactionData.transactionNumber}`,
+                  text: `Receipt - Total: ${formatCurrency(transactionData.total)}`,
+                  files: [file],
+                });
+                toast.success('Receipt shared successfully!');
+                return;
+              }
+            } catch (shareError) {
+              console.log('Web Share not available, falling back to download');
+            }
+          }
+          
+          // Fallback: Download and open WhatsApp
           doc.save(fileName);
           
           toast.success('PDF downloaded! Opening WhatsApp...', {
-            description: 'Please attach the downloaded PDF file manually in WhatsApp',
+            description: 'Please attach the downloaded PDF file manually',
             duration: 5000,
           });
           
