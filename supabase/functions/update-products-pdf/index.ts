@@ -44,7 +44,8 @@ serve(async (req) => {
 
     console.log('Processing PDF text for store:', storeId);
     console.log('PDF text length:', pdfText.length);
-    console.log('PDF text preview (first 1000 chars):', pdfText.substring(0, 1000));
+    console.log('PDF text preview (first 2000 chars):', pdfText.substring(0, 2000));
+    console.log('PDF text middle section:', pdfText.substring(Math.floor(pdfText.length / 2), Math.floor(pdfText.length / 2) + 1000));
 
     // Use AI to extract product information from PDF text
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -63,31 +64,41 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a product data extraction expert. Extract product information from inventory tables and return valid JSON arrays only. Focus on extracting: product name, barcode/reference code, cost/buy price, and stock quantity.'
+            content: `You are an expert at extracting structured data from inventory reports and product lists. Your task is to find ALL products mentioned in the text and return them as a JSON array.
+
+CRITICAL RULES:
+1. Return ONLY a JSON array - no markdown, no code blocks, no explanations
+2. The array must start with [ and end with ]
+3. Extract EVERY product you find - don't skip any
+4. If you find similar information in different formats, extract it all`
           },
           {
             role: 'user',
-            content: `Extract ALL products from this inventory report. The data appears to be in a TABLE format with columns:
-- "Ref." or "Reference" (barcode/reference code)
-- "Name" or "Product Name" 
-- "Buy Value" or "Cost" (cost price)
-- "Sell Value" or "Price"
-- "Min./Max." or stock information
+            content: `I have an inventory report that may contain product information in various formats. Please extract ALL products you can find.
 
-CRITICAL: Return ONLY a valid JSON array with NO markdown, NO code blocks, NO explanations. Just the raw JSON array starting with [ and ending with ].
+Look for any of these patterns:
+- Tables with columns like: Ref/Reference, Name, Buy/Cost, Sell/Price, Stock/Quantity
+- Lists of products with prices
+- Product codes or barcodes followed by names
+- Any text that looks like product descriptions
 
-Format each product exactly as:
+For each product found, create an object with:
 {
-  "name": "exact product name from table",
-  "barcode": "reference code if available",
-  "cost_price": numeric_value_only,
-  "stock_quantity": numeric_value_only
+  "name": "product name (required)",
+  "barcode": "code/reference if found",
+  "cost_price": numeric_value_if_found,
+  "stock_quantity": numeric_value_if_found
 }
 
-Extract EVERY single product from the table. If a field is not available, omit it from that product's object.
+Rules:
+- Extract numbers only (no currency symbols)
+- Include every single product
+- If a field is missing, omit it
+- Return the raw JSON array only
 
-Inventory data:
-${pdfText}`
+Here's the inventory text:
+
+${pdfText.substring(0, 15000)}`
           }
         ],
       }),
@@ -102,7 +113,9 @@ ${pdfText}`
     const aiResult = await aiResponse.json();
     const extractedText = aiResult.choices[0]?.message?.content || '[]';
     
-    console.log('AI extracted data:', extractedText);
+    console.log('AI raw response length:', extractedText.length);
+    console.log('AI extracted data preview:', extractedText.substring(0, 500));
+    console.log('AI extracted full data:', extractedText);
 
     // Clean and parse the AI response
     let extractedProducts = [];
