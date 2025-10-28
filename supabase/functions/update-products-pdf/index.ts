@@ -204,8 +204,8 @@ ${textToProcess}`
         }
       }
 
-      // Only update if similarity is >= 90%
-      if (!bestMatch || bestSimilarity < 0.9) {
+      // Only update if similarity is >= 80%
+      if (!bestMatch || bestSimilarity < 0.8) {
         console.log(`Product not found or low similarity (${(bestSimilarity * 100).toFixed(1)}%): ${productName}`);
         notFoundProducts.push(productName);
         continue;
