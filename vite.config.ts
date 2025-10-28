@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#22C55E",
         background_color: "#ffffff",
         display: "standalone",
-        start_url: "/",
+        start_url: "/pos-login",
         scope: "/",
         orientation: "any",
         categories: ["business", "finance", "productivity"],
