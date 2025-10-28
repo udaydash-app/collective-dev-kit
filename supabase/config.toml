@@ -9,6 +9,9 @@ verify_jwt = true
 [functions.import-products-excel]
 verify_jwt = true
 
+[functions.update-products-excel]
+verify_jwt = true
+
 [functions.send-order-confirmation]
 verify_jwt = false
 

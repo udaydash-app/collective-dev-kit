@@ -20,7 +20,14 @@ export default function ProductImport() {
   const [storeId, setStoreId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ success: boolean; count: number; method: string } | null>(null);
+  const [importMode, setImportMode] = useState<'create' | 'update'>('create');
+  const [importResult, setImportResult] = useState<{ 
+    success: boolean; 
+    count: number; 
+    method: string;
+    notFoundCount?: number;
+    notFoundProducts?: string[];
+  } | null>(null);
   const { toast } = useToast();
 
   const { data: stores } = useQuery({
@@ -114,18 +121,35 @@ export default function ProductImport() {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+      // Determine which function to call based on mode
+      const functionName = importMode === 'update' ? 'update-products-excel' : 'import-products-excel';
+      
       // Send to edge function for processing
-      const { data: result, error } = await supabase.functions.invoke('import-products-excel', {
+      const { data: result, error } = await supabase.functions.invoke(functionName, {
         body: { products: jsonData, storeId }
       });
 
       if (error) throw error;
 
-      setImportResult({ success: true, count: result.count, method: 'Excel' });
-      toast({
-        title: "Import Successful!",
-        description: `Successfully imported ${result.count} products from Excel`,
-      });
+      if (importMode === 'update') {
+        setImportResult({ 
+          success: true, 
+          count: result.updatedCount, 
+          method: 'Excel Update',
+          notFoundCount: result.notFoundCount,
+          notFoundProducts: result.notFoundProducts
+        });
+        toast({
+          title: "Update Successful!",
+          description: `Updated ${result.updatedCount} products${result.notFoundCount > 0 ? `, ${result.notFoundCount} not found` : ''}`,
+        });
+      } else {
+        setImportResult({ success: true, count: result.count, method: 'Excel' });
+        toast({
+          title: "Import Successful!",
+          description: `Successfully imported ${result.count} products from Excel`,
+        });
+      }
       
       setFile(null);
       // Reset file input
@@ -134,7 +158,7 @@ export default function ProductImport() {
     } catch (error) {
       console.error('Excel import error:', error);
       toast({
-        title: "Import Failed",
+        title: importMode === 'update' ? "Update Failed" : "Import Failed",
         description: error instanceof Error ? error.message : "Please check your Excel file format",
         variant: "destructive",
       });
@@ -144,19 +168,33 @@ export default function ProductImport() {
   };
 
   const downloadTemplate = () => {
-    const template = [
-      ['name', 'description', 'price', 'cost_price', 'unit', 'category', 'stock_quantity', 'barcode', 'is_available'],
-      ['Fresh Bananas', 'Organic bananas from local farms', '500', '350', 'kg', 'Fruits', '100', '1234567890123', 'TRUE'],
-      ['Whole Milk', 'Fresh whole milk 1L', '800', '600', 'liter', 'Dairy', '50', '9876543210987', 'TRUE'],
-      ['Brown Rice', 'Premium quality brown rice', '1500', '1200', 'kg', 'Grains', '200', '5555555555555', 'TRUE']
-    ];
+    let template;
+    let filename;
+    
+    if (importMode === 'update') {
+      template = [
+        ['name', 'barcode', 'stock_quantity', 'cost_price'],
+        ['Fresh Bananas', '1234567890123', '150', '350'],
+        ['Whole Milk', '9876543210987', '75', '600'],
+        ['Brown Rice', '5555555555555', '200', '1200']
+      ];
+      filename = 'products_update_template.csv';
+    } else {
+      template = [
+        ['name', 'description', 'price', 'cost_price', 'unit', 'category', 'stock_quantity', 'barcode', 'is_available'],
+        ['Fresh Bananas', 'Organic bananas from local farms', '500', '350', 'kg', 'Fruits', '100', '1234567890123', 'TRUE'],
+        ['Whole Milk', 'Fresh whole milk 1L', '800', '600', 'liter', 'Dairy', '50', '9876543210987', 'TRUE'],
+        ['Brown Rice', 'Premium quality brown rice', '1500', '1200', 'kg', 'Grains', '200', '5555555555555', 'TRUE']
+      ];
+      filename = 'products_import_template.csv';
+    }
 
     const csvContent = template.map(row => row.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'products_import_template.csv';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -203,11 +241,31 @@ export default function ProductImport() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
-                <div>
-                  <p className="font-semibold text-green-900">Import Complete!</p>
-                  <p className="text-sm text-green-700">
-                    Successfully imported {importResult.count} products using {importResult.method} method
+                <div className="flex-1">
+                  <p className="font-semibold text-green-900">
+                    {importMode === 'update' ? 'Update Complete!' : 'Import Complete!'}
                   </p>
+                  <p className="text-sm text-green-700">
+                    {importMode === 'update' 
+                      ? `Successfully updated ${importResult.count} products`
+                      : `Successfully imported ${importResult.count} products`
+                    } using {importResult.method} method
+                  </p>
+                  {importResult.notFoundCount !== undefined && importResult.notFoundCount > 0 && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm font-medium text-yellow-900 mb-1">
+                        ⚠️ {importResult.notFoundCount} product{importResult.notFoundCount > 1 ? 's' : ''} not found:
+                      </p>
+                      <ul className="text-xs text-yellow-800 list-disc list-inside max-h-32 overflow-y-auto">
+                        {importResult.notFoundProducts?.slice(0, 10).map((name, idx) => (
+                          <li key={idx}>{name}</li>
+                        ))}
+                        {(importResult.notFoundProducts?.length || 0) > 10 && (
+                          <li className="font-medium">...and {importResult.notFoundProducts!.length - 10} more</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -292,6 +350,25 @@ export default function ProductImport() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="import-mode">Import Mode *</Label>
+                  <Select value={importMode} onValueChange={(value: 'create' | 'update') => setImportMode(value)} disabled={isImporting}>
+                    <SelectTrigger id="import-mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="create">Create New Products</SelectItem>
+                      <SelectItem value="update">Update Existing Products</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {importMode === 'create' 
+                      ? 'Add new products to your inventory' 
+                      : 'Update barcode, stock & cost price by matching product names'
+                    }
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="file-upload">Excel File *</Label>
                   <Input
                     id="file-upload"
@@ -332,18 +409,19 @@ export default function ProductImport() {
                     {isImporting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Importing...
+                        {importMode === 'update' ? 'Updating...' : 'Importing...'}
                       </>
                     ) : (
                       <>
                         <Upload className="mr-2 h-4 w-4" />
-                        Import Excel
+                        {importMode === 'update' ? 'Update Products' : 'Import Excel'}
                       </>
                     )}
                   </Button>
                   <Button
                     onClick={downloadTemplate}
                     variant="outline"
+                    title={importMode === 'update' ? 'Download update template' : 'Download import template'}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -395,36 +473,66 @@ export default function ProductImport() {
             {/* Excel Import Instructions */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Excel Import Instructions</CardTitle>
+                <CardTitle className="text-lg">
+                  {importMode === 'update' ? 'Update Mode Instructions' : 'Excel Import Instructions'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Alert>
                   <AlertDescription>
-                    <strong>File Format Requirements:</strong>
-                    <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                      <li><strong>Required column:</strong> name</li>
-                      <li><strong>Optional columns:</strong> description, price, cost_price, unit, category, stock_quantity, barcode, is_available (TRUE/FALSE)</li>
-                      <li>Download the template for the correct format</li>
-                    </ul>
+                    {importMode === 'update' ? (
+                      <>
+                        <strong>Update Mode - Match by Product Name:</strong>
+                        <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                          <li><strong>Required column:</strong> name (must match existing products)</li>
+                          <li><strong>Update columns:</strong> barcode, stock_quantity, cost_price</li>
+                          <li>Products are matched by name (case-insensitive)</li>
+                          <li>Only specified fields will be updated</li>
+                        </ul>
+                      </>
+                    ) : (
+                      <>
+                        <strong>File Format Requirements:</strong>
+                        <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                          <li><strong>Required column:</strong> name</li>
+                          <li><strong>Optional columns:</strong> description, price, cost_price, unit, category, stock_quantity, barcode, is_available (TRUE/FALSE)</li>
+                          <li>Download the template for the correct format</li>
+                        </ul>
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
 
                 <div>
-                  <h4 className="font-semibold mb-2">Column Descriptions:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li><strong>name</strong> - Product name (required)</li>
-                    <li><strong>price</strong> - Selling price in your currency</li>
-                    <li><strong>cost_price</strong> - Purchase/cost price</li>
-                    <li><strong>unit</strong> - Unit of measure (kg, liter, piece, etc.)</li>
-                    <li><strong>stock_quantity</strong> - Available stock</li>
-                    <li><strong>barcode</strong> - Product barcode for scanning</li>
-                  </ul>
+                  <h4 className="font-semibold mb-2">
+                    {importMode === 'update' ? 'Updateable Fields:' : 'Column Descriptions:'}
+                  </h4>
+                  {importMode === 'update' ? (
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li><strong>name</strong> - Product name for matching (required)</li>
+                      <li><strong>barcode</strong> - Update product barcode</li>
+                      <li><strong>stock_quantity</strong> - Update available stock</li>
+                      <li><strong>cost_price</strong> - Update purchase/cost price</li>
+                    </ul>
+                  ) : (
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li><strong>name</strong> - Product name (required)</li>
+                      <li><strong>price</strong> - Selling price in your currency</li>
+                      <li><strong>cost_price</strong> - Purchase/cost price</li>
+                      <li><strong>unit</strong> - Unit of measure (kg, liter, piece, etc.)</li>
+                      <li><strong>stock_quantity</strong> - Available stock</li>
+                      <li><strong>barcode</strong> - Product barcode for scanning</li>
+                    </ul>
+                  )}
                 </div>
 
                 <div className="bg-muted p-3 rounded-md text-sm">
                   <p className="font-medium mb-1">💡 Tip:</p>
                   <p className="text-muted-foreground">
-                    Use TRUE/FALSE or 1/0 for the is_available column. Leave blank for default (available).
+                    {importMode === 'update' 
+                      ? 'Product names must exactly match (case-insensitive). Products not found will be listed in the results.'
+                      : 'Use TRUE/FALSE or 1/0 for the is_available column. Leave blank for default (available).'
+                    }
                   </p>
                 </div>
               </CardContent>
