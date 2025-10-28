@@ -43,6 +43,8 @@ serve(async (req) => {
     }
 
     console.log('Processing PDF text for store:', storeId);
+    console.log('PDF text length:', pdfText.length);
+    console.log('PDF text preview (first 1000 chars):', pdfText.substring(0, 1000));
 
     // Use AI to extract product information from PDF text
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -57,37 +59,37 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           {
             role: 'system',
-            content: `You are a data extraction assistant specialized in extracting product information from invoices, price lists, inventory sheets, and product catalogs.
-
-Extract ALL product information you can find from the provided text and return ONLY a valid JSON array.
-
-Each product object should have these fields:
-- name (string, required): The product name or description
-- barcode (string, optional): Product barcode, SKU, product code, or item number
-- stock_quantity (number, optional): Stock quantity, available quantity, or inventory count
-- cost_price (number, optional): Unit price, cost, price per item (extract just the number, no currency symbols)
-
-Look for:
-- Product lists, item descriptions, article names
-- Codes like "Code:", "SKU:", "Ref:", "Item #:", or numbers near product names
-- Quantities like "Qty:", "Stock:", "Available:", or numbers followed by units
-- Prices like "Price:", "Cost:", "Unit price:", or currency amounts
-
-Be flexible with formats - products might be in tables, lists, or paragraphs.
-If you see multiple products, extract them all.
-Return ONLY the JSON array, no markdown code blocks, no explanations.
-If you truly cannot find ANY products, return an empty array [].`
+            content: 'You are a product data extraction expert. Extract product information from inventory tables and return valid JSON arrays only. Focus on extracting: product name, barcode/reference code, cost/buy price, and stock quantity.'
           },
           {
             role: 'user',
-            content: `Extract all product information from this text:\n\n${pdfText}`
+            content: `Extract ALL products from this inventory report. The data appears to be in a TABLE format with columns:
+- "Ref." or "Reference" (barcode/reference code)
+- "Name" or "Product Name" 
+- "Buy Value" or "Cost" (cost price)
+- "Sell Value" or "Price"
+- "Min./Max." or stock information
+
+CRITICAL: Return ONLY a valid JSON array with NO markdown, NO code blocks, NO explanations. Just the raw JSON array starting with [ and ending with ].
+
+Format each product exactly as:
+{
+  "name": "exact product name from table",
+  "barcode": "reference code if available",
+  "cost_price": numeric_value_only,
+  "stock_quantity": numeric_value_only
+}
+
+Extract EVERY single product from the table. If a field is not available, omit it from that product's object.
+
+Inventory data:
+${pdfText}`
           }
         ],
-        temperature: 0.3,
       }),
     });
 
