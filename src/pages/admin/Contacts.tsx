@@ -74,6 +74,7 @@ export default function Contacts() {
     is_customer: false,
     is_supplier: false,
     credit_limit: '',
+    opening_balance: '',
     notes: '',
   });
 
@@ -152,6 +153,7 @@ export default function Contacts() {
     const submitData = {
       ...formData,
       credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
+      opening_balance: formData.opening_balance ? parseFloat(formData.opening_balance) : 0,
     };
 
     if (editingContact) {
@@ -178,6 +180,7 @@ export default function Contacts() {
       is_customer: contact.is_customer,
       is_supplier: contact.is_supplier,
       credit_limit: contact.credit_limit?.toString() || '',
+      opening_balance: contact.opening_balance?.toString() || '',
       notes: contact.notes || '',
     });
     setOpen(true);
@@ -201,6 +204,7 @@ export default function Contacts() {
       is_customer: false,
       is_supplier: false,
       credit_limit: '',
+      opening_balance: '',
       notes: '',
     });
   };
@@ -425,6 +429,19 @@ export default function Contacts() {
                     value={formData.credit_limit}
                     onChange={(e) =>
                       setFormData({ ...formData, credit_limit: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="opening_balance">Opening Balance</Label>
+                  <Input
+                    id="opening_balance"
+                    type="number"
+                    step="0.01"
+                    value={formData.opening_balance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, opening_balance: e.target.value })
                     }
                   />
                 </div>
