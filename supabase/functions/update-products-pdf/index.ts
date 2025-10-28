@@ -29,7 +29,7 @@ serve(async (req) => {
     }
 
     const { data: adminCheck, error: adminError } = await supabase.rpc('verify_admin_access', {
-      user_id: user.id
+      p_user_id: user.id
     });
 
     if (adminError || !adminCheck) {
