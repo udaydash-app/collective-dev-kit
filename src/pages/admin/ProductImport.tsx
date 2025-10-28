@@ -13,8 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Upload, CheckCircle2, FileSpreadsheet, Globe, ArrowLeft, Package, Download, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from 'xlsx';
+import * as pdfjsLib from 'pdfjs-dist';
 
 export default function ProductImport() {
+  // Set up PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [storeId, setStoreId] = useState("");
@@ -200,8 +204,24 @@ export default function ProductImport() {
     setImportResult(null);
 
     try {
-      // Read PDF text (simplified - in production you'd use a proper PDF parser)
-      const pdfText = await pdfFile.text();
+      // Extract text from PDF using pdf.js
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      let pdfText = '';
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        pdfText += pageText + '\n';
+      }
+      
+      console.log('Extracted PDF text length:', pdfText.length);
+      console.log('Extracted PDF text preview:', pdfText.substring(0, 500));
       
       // Send to edge function for AI processing
       const { data: result, error } = await supabase.functions.invoke('update-products-pdf', {
