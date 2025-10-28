@@ -127,6 +127,51 @@ If you truly cannot find ANY products, return an empty array [].`
 
     console.log(`Extracted ${extractedProducts.length} products from PDF`);
 
+    // Fetch all products for the store once
+    const { data: allProducts, error: fetchError } = await supabase
+      .from('products')
+      .select('id, name')
+      .eq('store_id', storeId);
+
+    if (fetchError || !allProducts) {
+      throw new Error('Failed to fetch products from database');
+    }
+
+    // Function to calculate string similarity (0-1)
+    const calculateSimilarity = (str1: string, str2: string): number => {
+      const s1 = str1.toLowerCase().trim();
+      const s2 = str2.toLowerCase().trim();
+      
+      if (s1 === s2) return 1;
+      
+      const longer = s1.length > s2.length ? s1 : s2;
+      const shorter = s1.length > s2.length ? s2 : s1;
+      
+      if (longer.length === 0) return 1.0;
+      
+      // Levenshtein distance
+      const costs: number[] = [];
+      for (let i = 0; i <= longer.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= shorter.length; j++) {
+          if (i === 0) {
+            costs[j] = j;
+          } else if (j > 0) {
+            let newValue = costs[j - 1];
+            if (longer.charAt(i - 1) !== shorter.charAt(j - 1)) {
+              newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+            }
+            costs[j - 1] = lastValue;
+            lastValue = newValue;
+          }
+        }
+        if (i > 0) costs[shorter.length] = lastValue;
+      }
+      
+      const distance = costs[shorter.length];
+      return (longer.length - distance) / longer.length;
+    };
+
     let updatedCount = 0;
     const notFoundProducts: string[] = [];
 
@@ -136,19 +181,26 @@ If you truly cannot find ANY products, return an empty array [].`
 
       const productName = product.name.trim();
 
-      // Find the product in database by name (case-insensitive)
-      const { data: existingProduct, error: findError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('store_id', storeId)
-        .ilike('name', productName)
-        .single();
+      // Find best matching product with 90% similarity
+      let bestMatch: { id: string; name: string } | null = null;
+      let bestSimilarity = 0;
 
-      if (findError || !existingProduct) {
-        console.log(`Product not found: ${productName}`);
+      for (const dbProduct of allProducts) {
+        const similarity = calculateSimilarity(productName, dbProduct.name);
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+          bestMatch = dbProduct;
+        }
+      }
+
+      // Only update if similarity is >= 90%
+      if (!bestMatch || bestSimilarity < 0.9) {
+        console.log(`Product not found or low similarity (${(bestSimilarity * 100).toFixed(1)}%): ${productName}`);
         notFoundProducts.push(productName);
         continue;
       }
+
+      console.log(`Matched "${productName}" to "${bestMatch.name}" (${(bestSimilarity * 100).toFixed(1)}% similarity)`);
 
       // Build update object with only provided fields
       const updateData: any = {};
@@ -176,7 +228,7 @@ If you truly cannot find ANY products, return an empty array [].`
         const { error: updateError } = await supabase
           .from('products')
           .update(updateData)
-          .eq('id', existingProduct.id);
+          .eq('id', bestMatch.id);
 
         if (updateError) {
           console.error(`Failed to update product ${productName}:`, updateError);
