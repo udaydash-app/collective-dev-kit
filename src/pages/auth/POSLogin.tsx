@@ -268,10 +268,6 @@ export default function POSLogin() {
               Enter
             </Button>
           </div>
-
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Default PIN for testing: <span className="font-mono font-bold">1234</span>
-          </p>
         </CardContent>
       </Card>
     </div>
