@@ -61,18 +61,30 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a data extraction assistant. Extract product information from the provided text and return ONLY a valid JSON array.
-Each product object should have these fields:
-- name (string, required): The product name
-- barcode (string, optional): Product barcode/SKU
-- stock_quantity (number, optional): Stock quantity
-- cost_price (number, optional): Cost price
+            content: `You are a data extraction assistant specialized in extracting product information from invoices, price lists, inventory sheets, and product catalogs.
 
-Return ONLY the JSON array, no additional text or explanation. If you cannot find any products, return an empty array [].`
+Extract ALL product information you can find from the provided text and return ONLY a valid JSON array.
+
+Each product object should have these fields:
+- name (string, required): The product name or description
+- barcode (string, optional): Product barcode, SKU, product code, or item number
+- stock_quantity (number, optional): Stock quantity, available quantity, or inventory count
+- cost_price (number, optional): Unit price, cost, price per item (extract just the number, no currency symbols)
+
+Look for:
+- Product lists, item descriptions, article names
+- Codes like "Code:", "SKU:", "Ref:", "Item #:", or numbers near product names
+- Quantities like "Qty:", "Stock:", "Available:", or numbers followed by units
+- Prices like "Price:", "Cost:", "Unit price:", or currency amounts
+
+Be flexible with formats - products might be in tables, lists, or paragraphs.
+If you see multiple products, extract them all.
+Return ONLY the JSON array, no markdown code blocks, no explanations.
+If you truly cannot find ANY products, return an empty array [].`
           },
           {
             role: 'user',
-            content: `Extract product information from this text:\n\n${pdfText}`
+            content: `Extract all product information from this text:\n\n${pdfText}`
           }
         ],
         temperature: 0.3,
