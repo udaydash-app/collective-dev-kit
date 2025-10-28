@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.enrich-product]
 verify_jwt = true
+
+[functions.update-products-pdf]
+verify_jwt = true
