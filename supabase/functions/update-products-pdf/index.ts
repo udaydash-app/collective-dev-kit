@@ -53,101 +53,91 @@ serve(async (req) => {
       throw new Error('Lovable AI key not configured');
     }
 
-    // Limit text size to prevent timeout - take first 50k chars which should cover most products
-    const textToProcess = pdfText.length > 50000 ? pdfText.substring(0, 50000) : pdfText;
+    // Limit text size to prevent timeout - take first 25k chars
+    const textToProcess = pdfText.length > 25000 ? pdfText.substring(0, 25000) : pdfText;
     console.log('Processing text length:', textToProcess.length);
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert at extracting structured data from inventory reports and product lists. Your task is to find ALL products mentioned in the text and return them as a JSON array.
+    // Add timeout to AI request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-CRITICAL RULES:
-1. Return ONLY a JSON array - no markdown, no code blocks, no explanations
-2. The array must start with [ and end with ]
-3. Extract EVERY product you find - don't skip any
-4. If you find similar information in different formats, extract it all`
-          },
-          {
-            role: 'user',
-            content: `I have an inventory report that contains product information in table format. Please extract ALL products you can find.
+    let extractedProducts: any[] = [];
+    
+    try {
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash', // Use faster model
+          messages: [
+            {
+              role: 'system',
+              content: `Extract products from inventory tables. Return ONLY a JSON array with no markdown.`
+            },
+            {
+              role: 'user',
+              content: `Extract products from this inventory table. For each product return:
+{"name": "product name", "barcode": "ref code", "cost_price": number, "stock_quantity": number}
 
-The table has these columns:
-- Ref. (barcode/reference code)
-- Name (product name)
-- Buy Value (cost price)
-- Sell Value (selling price)
-- Storage/Stock information
-- Min./Max. values
-
-For each product found, create an object with:
-{
-  "name": "product name (required)",
-  "barcode": "reference code if found",
-  "cost_price": numeric_value_if_found,
-  "stock_quantity": numeric_value_if_found
-}
-
-Rules:
-- Extract numbers only (no currency symbols like F)
-- Include every single product you see
-- If a field is missing, omit it
-- Return the raw JSON array only (no markdown, no \`\`\`json)
-
-Here's the inventory text:
+Skip products with 0 stock. Remove currency symbols (F). Return JSON array only.
 
 ${textToProcess}`
-          }
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error('Failed to extract product information from PDF');
-    }
-
-    const aiResult = await aiResponse.json();
-    const extractedText = aiResult.choices[0]?.message?.content || '[]';
-    
-    console.log('AI raw response length:', extractedText.length);
-    console.log('AI extracted data preview:', extractedText.substring(0, 500));
-    console.log('AI extracted full data:', extractedText);
-
-    // Clean and parse the AI response
-    let extractedProducts = [];
-    try {
-      const cleanedText = extractedText.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      extractedProducts = JSON.parse(cleanedText);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      throw new Error('Could not extract structured product data from PDF');
-    }
-
-    if (!Array.isArray(extractedProducts) || extractedProducts.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'No products found in PDF',
-          updated: 0,
-          notFound: 0,
-          notFoundProducts: []
+            }
+          ],
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      });
+      clearTimeout(timeoutId);
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('AI API error:', errorText);
+        throw new Error('Failed to extract product information from PDF');
+      }
+
+      const aiResult = await aiResponse.json();
+      const extractedText = aiResult.choices[0]?.message?.content || '[]';
+      
+      console.log('AI raw response length:', extractedText.length);
+      console.log('AI extracted data preview:', extractedText.substring(0, 500));
+      console.log('AI extracted full data:', extractedText);
+      
+      // Clean and parse the AI response
+      try {
+        const cleanedText = extractedText.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        extractedProducts = JSON.parse(cleanedText);
+      } catch (parseError) {
+        console.error('Failed to parse AI response:', parseError);
+        throw new Error('Could not extract structured product data from PDF');
+      }
+
+      if (!Array.isArray(extractedProducts) || extractedProducts.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: 'No products found in PDF',
+            updated: 0,
+            notFound: 0,
+            notFoundProducts: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`Extracted ${extractedProducts.length} products from PDF`);
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('AI request timed out');
+        throw new Error('AI processing timed out - PDF may be too large');
+      }
+      throw error;
     }
-
-    console.log(`Extracted ${extractedProducts.length} products from PDF`);
-
+    
     // Fetch all products for the store once
     const { data: allProducts, error: fetchError } = await supabase
       .from('products')
