@@ -53,6 +53,10 @@ serve(async (req) => {
       throw new Error('Lovable AI key not configured');
     }
 
+    // Limit text size to prevent timeout - take first 50k chars which should cover most products
+    const textToProcess = pdfText.length > 50000 ? pdfText.substring(0, 50000) : pdfText;
+    console.log('Processing text length:', textToProcess.length);
+
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -74,31 +78,33 @@ CRITICAL RULES:
           },
           {
             role: 'user',
-            content: `I have an inventory report that may contain product information in various formats. Please extract ALL products you can find.
+            content: `I have an inventory report that contains product information in table format. Please extract ALL products you can find.
 
-Look for any of these patterns:
-- Tables with columns like: Ref/Reference, Name, Buy/Cost, Sell/Price, Stock/Quantity
-- Lists of products with prices
-- Product codes or barcodes followed by names
-- Any text that looks like product descriptions
+The table has these columns:
+- Ref. (barcode/reference code)
+- Name (product name)
+- Buy Value (cost price)
+- Sell Value (selling price)
+- Storage/Stock information
+- Min./Max. values
 
 For each product found, create an object with:
 {
   "name": "product name (required)",
-  "barcode": "code/reference if found",
+  "barcode": "reference code if found",
   "cost_price": numeric_value_if_found,
   "stock_quantity": numeric_value_if_found
 }
 
 Rules:
-- Extract numbers only (no currency symbols)
-- Include every single product
+- Extract numbers only (no currency symbols like F)
+- Include every single product you see
 - If a field is missing, omit it
-- Return the raw JSON array only
+- Return the raw JSON array only (no markdown, no \`\`\`json)
 
 Here's the inventory text:
 
-${pdfText.substring(0, 15000)}`
+${textToProcess}`
           }
         ],
       }),
