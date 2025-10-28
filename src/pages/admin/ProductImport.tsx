@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Upload, CheckCircle2, FileSpreadsheet, Globe, ArrowLeft, Package, Download } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, FileSpreadsheet, Globe, ArrowLeft, Package, Download, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from 'xlsx';
 
@@ -19,6 +19,7 @@ export default function ProductImport() {
   const [url, setUrl] = useState("");
   const [storeId, setStoreId] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMode, setImportMode] = useState<'create' | 'update'>('create');
   const [importResult, setImportResult] = useState<{ 
@@ -167,6 +168,76 @@ export default function ProductImport() {
     }
   };
 
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExtension !== 'pdf') {
+        toast({
+          title: "Invalid File",
+          description: 'Please select a PDF file (.pdf)',
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setPdfFile(selectedFile);
+    }
+  };
+
+  const handlePdfImport = async () => {
+    if (!pdfFile || !storeId) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a PDF file and store",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    setImportResult(null);
+
+    try {
+      // Read PDF text (simplified - in production you'd use a proper PDF parser)
+      const pdfText = await pdfFile.text();
+      
+      // Send to edge function for AI processing
+      const { data: result, error } = await supabase.functions.invoke('update-products-pdf', {
+        body: { pdfText, storeId }
+      });
+
+      if (error) throw error;
+
+      setImportResult({ 
+        success: true, 
+        count: result.updated, 
+        method: 'PDF Update',
+        notFoundCount: result.notFound,
+        notFoundProducts: result.notFoundProducts
+      });
+      
+      toast({
+        title: "Update Successful!",
+        description: `Updated ${result.updated} products${result.notFound > 0 ? `, ${result.notFound} not found` : ''}`,
+      });
+      
+      setPdfFile(null);
+      const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (error) {
+      console.error('PDF import error:', error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Please check your PDF file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const downloadTemplate = () => {
     let template;
     let filename;
@@ -273,7 +344,7 @@ export default function ProductImport() {
         )}
 
         <div className="grid gap-6 max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {/* URL Import Card */}
             <Card>
               <CardHeader>
@@ -426,6 +497,73 @@ export default function ProductImport() {
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* PDF Import Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Update from PDF
+                </CardTitle>
+                <CardDescription>
+                  Upload any PDF with product information (AI will extract it)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pdf-upload">PDF File *</Label>
+                  <Input
+                    id="pdf-upload"
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfFileChange}
+                    disabled={isImporting}
+                  />
+                  {pdfFile && (
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {pdfFile.name} ({(pdfFile.size / 1024).toFixed(2)} KB)
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    AI will extract product names, barcodes, stock, and cost prices
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="store-pdf">Select Store *</Label>
+                  <Select value={storeId} onValueChange={setStoreId} disabled={isImporting}>
+                    <SelectTrigger id="store-pdf">
+                      <SelectValue placeholder="Choose a store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stores?.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button 
+                  onClick={handlePdfImport} 
+                  disabled={isImporting || !pdfFile || !storeId}
+                  className="w-full"
+                >
+                  {isImporting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Update from PDF
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </div>
