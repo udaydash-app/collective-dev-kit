@@ -5,6 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple string similarity function (Dice coefficient)
+function calculateSimilarity(str1: string, str2: string): number {
+  const bigrams1 = new Set<string>();
+  const bigrams2 = new Set<string>();
+  
+  for (let i = 0; i < str1.length - 1; i++) {
+    bigrams1.add(str1.substring(i, i + 2));
+  }
+  
+  for (let i = 0; i < str2.length - 1; i++) {
+    bigrams2.add(str2.substring(i, i + 2));
+  }
+  
+  const intersection = new Set([...bigrams1].filter(x => bigrams2.has(x)));
+  return (2 * intersection.size) / (bigrams1.size + bigrams2.size);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -87,43 +104,48 @@ Deno.serve(async (req) => {
         }
       }
       
-      // If not found by barcode, try fuzzy name matching with 30% similarity
+      // If not found by barcode, try name matching with fuzzy search
       if (!productId) {
-        // First try exact match
-        const { data: exactMatch } = await supabase
+        // Use PostgreSQL's similarity function directly in the query
+        const { data: fuzzyMatches, error: fuzzyError } = await supabase
           .from('products')
-          .select('id')
+          .select('id, name')
           .eq('store_id', storeId)
-          .ilike('name', name)
-          .limit(1);
+          .filter('name', 'ilike', `%${name.substring(0, Math.ceil(name.length * 0.3))}%`)
+          .limit(10);
         
-        if (exactMatch && exactMatch.length > 0) {
-          productId = exactMatch[0].id;
-          console.log(`Found exact match for: "${name}"`);
-        } else {
-          // Try fuzzy matching using similarity
-          const { data: fuzzyMatches, error: fuzzyError } = await supabase
-            .rpc('find_similar_products', {
-              p_store_id: storeId,
-              p_search_name: name,
-              p_similarity_threshold: 0.3
-            });
+        if (fuzzyError) {
+          console.error(`Error finding products for "${name}":`, fuzzyError);
+          notFoundProducts.push(name);
+          continue;
+        }
+        
+        if (fuzzyMatches && fuzzyMatches.length > 0) {
+          // Find best match by calculating similarity score
+          let bestMatch = null;
+          let bestScore = 0;
           
-          if (fuzzyError) {
-            console.error(`Error finding similar products for "${name}":`, fuzzyError);
-            notFoundProducts.push(name);
-            continue;
+          for (const product of fuzzyMatches) {
+            const score = calculateSimilarity(name.toLowerCase(), product.name.toLowerCase());
+            if (score > bestScore && score >= 0.3) {
+              bestScore = score;
+              bestMatch = product;
+            }
           }
           
-          if (fuzzyMatches && fuzzyMatches.length > 0) {
-            productId = fuzzyMatches[0].id;
-            const similarity = Math.round(fuzzyMatches[0].similarity * 100);
-            console.log(`Found fuzzy match (${similarity}% similar) for "${name}": "${fuzzyMatches[0].name}"`);
+          if (bestMatch) {
+            productId = bestMatch.id;
+            const similarity = Math.round(bestScore * 100);
+            console.log(`Found fuzzy match (${similarity}% similar) for "${name}": "${bestMatch.name}"`);
           } else {
             console.log(`Product not found: "${name}"`);
             notFoundProducts.push(name);
             continue;
           }
+        } else {
+          console.log(`Product not found: "${name}"`);
+          notFoundProducts.push(name);
+          continue;
         }
       }
 
