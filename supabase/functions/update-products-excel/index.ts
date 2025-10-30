@@ -64,35 +64,55 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Find existing product by name (case-insensitive) and store
-      const { data: existingProducts, error: findError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('store_id', storeId)
-        .ilike('name', name)
-        .limit(1);
-
-      if (findError) {
-        console.error(`Error finding product "${name}":`, findError);
-        notFoundProducts.push(name);
-        continue;
-      }
-
-      if (!existingProducts || existingProducts.length === 0) {
-        console.log(`Product not found: "${name}"`);
-        notFoundProducts.push(name);
-        continue;
-      }
-
-      const productId = existingProducts[0].id;
-
-      // Build update object with only provided fields
-      const updateData: any = {};
-      
-      // Handle different column name formats (case-insensitive, with/without underscores)
+      // Extract fields early
       const barcode = product.barcode || product.Barcode;
       const stockQty = product.stock_quantity || product.Stock_quantity || product.Stock_Quantity || product['Stock_quantity'];
       const costPrice = product.cost_price || product.Cost_price || product.Cost_Price || product['Cost_Price'];
+
+      // Try to find by barcode first if available
+      let productId = null;
+      
+      if (barcode !== undefined && barcode !== null && barcode !== '') {
+        const barcodeStr = String(barcode).trim();
+        const { data: barcodeProducts } = await supabase
+          .from('products')
+          .select('id')
+          .eq('store_id', storeId)
+          .eq('barcode', barcodeStr)
+          .limit(1);
+        
+        if (barcodeProducts && barcodeProducts.length > 0) {
+          productId = barcodeProducts[0].id;
+          console.log(`Found product by barcode: "${name}"`);
+        }
+      }
+      
+      // If not found by barcode, try by name
+      if (!productId) {
+        const { data: existingProducts, error: findError } = await supabase
+          .from('products')
+          .select('id')
+          .eq('store_id', storeId)
+          .ilike('name', name)
+          .limit(1);
+        
+        if (findError) {
+          console.error(`Error finding product "${name}":`, findError);
+          notFoundProducts.push(name);
+          continue;
+        }
+        
+        if (!existingProducts || existingProducts.length === 0) {
+          console.log(`Product not found: "${name}"`);
+          notFoundProducts.push(name);
+          continue;
+        }
+        
+        productId = existingProducts[0].id;
+      }
+
+      // Build update object with only provided fields
+      const updateData: any = {};
       
       if (barcode !== undefined && barcode !== null && barcode !== '') {
         updateData.barcode = String(barcode).trim();
