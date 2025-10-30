@@ -68,8 +68,36 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ${products.length} products for update`);
 
+    // Fetch all products from the store at once for efficient matching
+    const { data: allStoreProducts, error: fetchError } = await supabase
+      .from('products')
+      .select('id, name, barcode')
+      .eq('store_id', storeId);
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch store products: ${fetchError.message}`);
+    }
+
+    if (!allStoreProducts || allStoreProducts.length === 0) {
+      throw new Error('No products found in store');
+    }
+
+    console.log(`Loaded ${allStoreProducts.length} products from store`);
+
+    // Create lookup maps for fast matching
+    const barcodeMap = new Map<string, string>(); // barcode -> product_id
+    const nameMap = new Map<string, { id: string; name: string }>(); // lowercase name -> product
+    
+    for (const product of allStoreProducts) {
+      if (product.barcode) {
+        barcodeMap.set(String(product.barcode).trim(), product.id);
+      }
+      nameMap.set(product.name.toLowerCase().trim(), { id: product.id, name: product.name });
+    }
+
     let updatedCount = 0;
     const notFoundProducts: string[] = [];
+    const updates: Array<{ id: string; data: any }> = [];
 
     // Process each product
     for (const product of products) {
@@ -91,59 +119,41 @@ Deno.serve(async (req) => {
       
       if (barcode !== undefined && barcode !== null && barcode !== '') {
         const barcodeStr = String(barcode).trim();
-        const { data: barcodeProducts } = await supabase
-          .from('products')
-          .select('id')
-          .eq('store_id', storeId)
-          .eq('barcode', barcodeStr)
-          .limit(1);
-        
-        if (barcodeProducts && barcodeProducts.length > 0) {
-          productId = barcodeProducts[0].id;
-          console.log(`Found product by barcode: "${name}"`);
+        productId = barcodeMap.get(barcodeStr);
+        if (productId) {
+          console.log(`Found by barcode: "${name}"`);
         }
       }
       
-      // If not found by barcode, try name matching with fuzzy search
+      // If not found by barcode, try exact name match
       if (!productId) {
-        // Use PostgreSQL's similarity function directly in the query
-        const { data: fuzzyMatches, error: fuzzyError } = await supabase
-          .from('products')
-          .select('id, name')
-          .eq('store_id', storeId)
-          .filter('name', 'ilike', `%${name.substring(0, Math.ceil(name.length * 0.3))}%`)
-          .limit(10);
+        const exactMatch = nameMap.get(name.toLowerCase());
+        if (exactMatch) {
+          productId = exactMatch.id;
+          console.log(`Found by exact name: "${name}"`);
+        }
+      }
+
+      // If still not found, try fuzzy matching
+      if (!productId) {
+        let bestMatch = null;
+        let bestScore = 0;
+        const nameLower = name.toLowerCase();
         
-        if (fuzzyError) {
-          console.error(`Error finding products for "${name}":`, fuzzyError);
-          notFoundProducts.push(name);
-          continue;
+        for (const [_, productInfo] of nameMap) {
+          const score = calculateSimilarity(nameLower, productInfo.name.toLowerCase());
+          if (score > bestScore && score >= 0.3) {
+            bestScore = score;
+            bestMatch = productInfo;
+          }
         }
         
-        if (fuzzyMatches && fuzzyMatches.length > 0) {
-          // Find best match by calculating similarity score
-          let bestMatch = null;
-          let bestScore = 0;
-          
-          for (const product of fuzzyMatches) {
-            const score = calculateSimilarity(name.toLowerCase(), product.name.toLowerCase());
-            if (score > bestScore && score >= 0.3) {
-              bestScore = score;
-              bestMatch = product;
-            }
-          }
-          
-          if (bestMatch) {
-            productId = bestMatch.id;
-            const similarity = Math.round(bestScore * 100);
-            console.log(`Found fuzzy match (${similarity}% similar) for "${name}": "${bestMatch.name}"`);
-          } else {
-            console.log(`Product not found: "${name}"`);
-            notFoundProducts.push(name);
-            continue;
-          }
+        if (bestMatch) {
+          productId = bestMatch.id;
+          const similarity = Math.round(bestScore * 100);
+          console.log(`Found fuzzy match (${similarity}%): "${name}" -> "${bestMatch.name}"`);
         } else {
-          console.log(`Product not found: "${name}"`);
+          console.log(`Not found: "${name}"`);
           notFoundProducts.push(name);
           continue;
         }
@@ -170,22 +180,24 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Only update if there's something to update
+      // Only queue update if there's something to update
       if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabase
-          .from('products')
-          .update(updateData)
-          .eq('id', productId);
+        updates.push({ id: productId, data: updateData });
+      }
+    }
 
-        if (updateError) {
-          console.error(`Error updating product "${name}":`, updateError);
-          notFoundProducts.push(name);
-        } else {
-          console.log(`Updated product: "${name}"`);
-          updatedCount++;
-        }
+    // Batch update all products
+    console.log(`Updating ${updates.length} products...`);
+    for (const update of updates) {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update(update.data)
+        .eq('id', update.id);
+
+      if (updateError) {
+        console.error(`Error updating product:`, updateError);
       } else {
-        console.log(`No valid data to update for: "${name}"`);
+        updatedCount++;
       }
     }
 
