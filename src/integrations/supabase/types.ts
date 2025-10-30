@@ -1466,6 +1466,18 @@ export type Database = {
         }[]
       }
       crypt_pin: { Args: { input_pin: string }; Returns: string }
+      find_similar_products: {
+        Args: {
+          p_search_name: string
+          p_similarity_threshold?: number
+          p_store_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          similarity: number
+        }[]
+      }
       generate_order_number: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1474,6 +1486,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
       verify_pin: {
         Args: { input_pin: string }

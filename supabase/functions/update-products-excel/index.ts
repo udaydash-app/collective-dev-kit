@@ -87,28 +87,44 @@ Deno.serve(async (req) => {
         }
       }
       
-      // If not found by barcode, try by name
+      // If not found by barcode, try fuzzy name matching with 30% similarity
       if (!productId) {
-        const { data: existingProducts, error: findError } = await supabase
+        // First try exact match
+        const { data: exactMatch } = await supabase
           .from('products')
           .select('id')
           .eq('store_id', storeId)
           .ilike('name', name)
           .limit(1);
         
-        if (findError) {
-          console.error(`Error finding product "${name}":`, findError);
-          notFoundProducts.push(name);
-          continue;
+        if (exactMatch && exactMatch.length > 0) {
+          productId = exactMatch[0].id;
+          console.log(`Found exact match for: "${name}"`);
+        } else {
+          // Try fuzzy matching using similarity
+          const { data: fuzzyMatches, error: fuzzyError } = await supabase
+            .rpc('find_similar_products', {
+              p_store_id: storeId,
+              p_search_name: name,
+              p_similarity_threshold: 0.3
+            });
+          
+          if (fuzzyError) {
+            console.error(`Error finding similar products for "${name}":`, fuzzyError);
+            notFoundProducts.push(name);
+            continue;
+          }
+          
+          if (fuzzyMatches && fuzzyMatches.length > 0) {
+            productId = fuzzyMatches[0].id;
+            const similarity = Math.round(fuzzyMatches[0].similarity * 100);
+            console.log(`Found fuzzy match (${similarity}% similar) for "${name}": "${fuzzyMatches[0].name}"`);
+          } else {
+            console.log(`Product not found: "${name}"`);
+            notFoundProducts.push(name);
+            continue;
+          }
         }
-        
-        if (!existingProducts || existingProducts.length === 0) {
-          console.log(`Product not found: "${name}"`);
-          notFoundProducts.push(name);
-          continue;
-        }
-        
-        productId = existingProducts[0].id;
       }
 
       // Build update object with only provided fields
