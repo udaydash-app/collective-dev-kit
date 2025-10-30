@@ -56,7 +56,8 @@ Deno.serve(async (req) => {
 
     // Process each product
     for (const product of products) {
-      const name = (product.name || product.Name)?.trim();
+      const nameValue = product.name || product.Name;
+      const name = nameValue ? String(nameValue).trim() : null;
       
       if (!name) {
         console.log('Skipping product without name');
