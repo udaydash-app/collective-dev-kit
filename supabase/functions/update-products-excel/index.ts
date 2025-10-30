@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Process each product
     for (const product of products) {
-      const name = product.name?.trim();
+      const name = (product.name || product.Name)?.trim();
       
       if (!name) {
         console.log('Skipping product without name');
@@ -88,21 +88,26 @@ Deno.serve(async (req) => {
       // Build update object with only provided fields
       const updateData: any = {};
       
-      if (product.barcode !== undefined && product.barcode !== null && product.barcode !== '') {
-        updateData.barcode = String(product.barcode).trim();
+      // Handle different column name formats (case-insensitive, with/without underscores)
+      const barcode = product.barcode || product.Barcode;
+      const stockQty = product.stock_quantity || product.Stock_quantity || product.Stock_Quantity || product['Stock_quantity'];
+      const costPrice = product.cost_price || product.Cost_price || product.Cost_Price || product['Cost_Price'];
+      
+      if (barcode !== undefined && barcode !== null && barcode !== '') {
+        updateData.barcode = String(barcode).trim();
       }
       
-      if (product.stock_quantity !== undefined && product.stock_quantity !== null) {
-        const stockQty = Number(product.stock_quantity);
-        if (!isNaN(stockQty)) {
-          updateData.stock_quantity = Math.max(0, Math.floor(stockQty));
+      if (stockQty !== undefined && stockQty !== null && stockQty !== '') {
+        const stockQtyNum = Number(stockQty);
+        if (!isNaN(stockQtyNum)) {
+          updateData.stock_quantity = Math.max(0, Math.floor(stockQtyNum));
         }
       }
       
-      if (product.cost_price !== undefined && product.cost_price !== null) {
-        const costPrice = Number(product.cost_price);
-        if (!isNaN(costPrice) && costPrice >= 0) {
-          updateData.cost_price = costPrice;
+      if (costPrice !== undefined && costPrice !== null && costPrice !== '') {
+        const costPriceNum = Number(costPrice);
+        if (!isNaN(costPriceNum) && costPriceNum >= 0) {
+          updateData.cost_price = costPriceNum;
         }
       }
 
