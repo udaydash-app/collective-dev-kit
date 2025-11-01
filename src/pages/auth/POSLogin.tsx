@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,23 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   interface VerifyPinResult {
     pos_user_id: string;
@@ -41,7 +56,55 @@ export default function POSLogin() {
     setIsLoading(true);
 
     try {
-      // Verify PIN using the database function
+      let posUserId: string | null = null;
+      let userId: string | null = null;
+      let fullName: string = '';
+
+      // Try offline login first if offline
+      if (isOffline) {
+        console.log('Offline mode: Checking cached credentials');
+        
+        // Import offlineDB
+        const { offlineDB } = await import('@/lib/offlineDB');
+        await offlineDB.init();
+        
+        // Get all cached users and verify PIN
+        const cachedUsers = await offlineDB.getAllPOSUsers();
+        console.log('Found cached users:', cachedUsers.length);
+        
+        // Simple PIN matching (in production, you'd want proper hashing)
+        const matchedUser = cachedUsers.find(u => 
+          u.pin_hash === pinValue && u.is_active
+        );
+
+        if (matchedUser) {
+          posUserId = matchedUser.id;
+          userId = matchedUser.user_id;
+          fullName = matchedUser.full_name;
+          console.log('Offline login successful');
+          
+          // Store offline session
+          localStorage.setItem('offline_pos_session', JSON.stringify({
+            pos_user_id: posUserId,
+            user_id: userId,
+            full_name: fullName,
+            timestamp: new Date().toISOString()
+          }));
+          
+          toast.success(`Welcome back, ${fullName} (Offline Mode)`);
+          navigate('/admin/pos');
+          return;
+        } else {
+          toast.error('Invalid PIN or user not found in offline cache. Please connect to internet to login.');
+          setPin('');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Online login
+      console.log('Online mode: Verifying PIN with server');
+      
       const { data, error } = await supabase
         .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
 
@@ -54,6 +117,33 @@ export default function POSLogin() {
       }
 
       const userData = data[0];
+      posUserId = userData.pos_user_id;
+      userId = userData.user_id;
+      fullName = userData.full_name;
+
+      // Cache POS user data for offline use
+      try {
+        const { offlineDB } = await import('@/lib/offlineDB');
+        await offlineDB.init();
+        
+        // Fetch all POS users to cache
+        const { data: allUsers } = await supabase
+          .from('pos_users')
+          .select('*')
+          .eq('is_active', true);
+
+        if (allUsers && allUsers.length > 0) {
+          await offlineDB.savePOSUsers(allUsers.map(u => ({
+            ...u,
+            pin_hash: pinValue, // Store the PIN for offline verification (simple approach)
+            lastUpdated: new Date().toISOString()
+          })));
+          console.log('Cached', allUsers.length, 'POS users for offline use');
+        }
+      } catch (cacheError) {
+        console.error('Error caching user data:', cacheError);
+        // Don't fail login if caching fails
+      }
       
       // Use pos_user_id if user_id is null (first time login)
       const emailIdentifier = userData.user_id || userData.pos_user_id;
@@ -190,7 +280,14 @@ export default function POSLogin() {
             <Store className="w-10 h-10 text-primary" />
           </div>
           <CardTitle className="text-3xl">POS System</CardTitle>
-          <CardDescription>Enter your PIN to access the Point of Sale</CardDescription>
+          <CardDescription>
+            Enter your PIN to access the Point of Sale
+            {isOffline && (
+              <span className="block mt-2 text-amber-600 font-semibold">
+                ⚠️ Offline Mode - Using cached credentials
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">

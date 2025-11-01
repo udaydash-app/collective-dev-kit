@@ -39,6 +39,15 @@ export interface OfflineStore {
   lastUpdated: string;
 }
 
+export interface OfflinePOSUser {
+  id: string;
+  user_id: string;
+  full_name: string;
+  pin_hash: string;
+  is_active: boolean;
+  lastUpdated: string;
+}
+
 class OfflineDB {
   private db: IDBDatabase | null = null;
 
@@ -79,15 +88,21 @@ class OfflineDB {
           db.createObjectStore('categories', { keyPath: 'id' });
         }
 
-        // Customers cache
-        if (!db.objectStoreNames.contains('customers')) {
-          const custStore = db.createObjectStore('customers', { keyPath: 'id' });
-          custStore.createIndex('name', 'name', { unique: false });
-          custStore.createIndex('phone', 'phone', { unique: false });
-        }
-      };
-    });
-  }
+      // Customers cache
+      if (!db.objectStoreNames.contains('customers')) {
+        const custStore = db.createObjectStore('customers', { keyPath: 'id' });
+        custStore.createIndex('name', 'name', { unique: false });
+        custStore.createIndex('phone', 'phone', { unique: false });
+      }
+
+      // POS users cache
+      if (!db.objectStoreNames.contains('pos_users')) {
+        const posUserStore = db.createObjectStore('pos_users', { keyPath: 'id' });
+        posUserStore.createIndex('pin_hash', 'pin_hash', { unique: false });
+      }
+    };
+  });
+}
 
   // Transaction methods
   async addTransaction(transaction: OfflineTransaction): Promise<void> {
@@ -262,7 +277,7 @@ class OfflineDB {
   // Clear all data
   async clearAll(): Promise<void> {
     if (!this.db) await this.init();
-    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers'];
+    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users'];
     
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(storeNames, 'readwrite');
@@ -273,6 +288,49 @@ class OfflineDB {
       
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // POS User methods
+  async savePOSUsers(users: OfflinePOSUser[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('pos_users', 'readwrite');
+      const store = tx.objectStore('pos_users');
+      
+      users.forEach(user => {
+        store.put({ ...user, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getPOSUserByPin(pinHash: string): Promise<OfflinePOSUser | null> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('pos_users', 'readonly');
+      const store = tx.objectStore('pos_users');
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        const users = request.result as OfflinePOSUser[];
+        const user = users.find(u => u.pin_hash === pinHash && u.is_active);
+        resolve(user || null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getAllPOSUsers(): Promise<OfflinePOSUser[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('pos_users', 'readonly');
+      const store = tx.objectStore('pos_users');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
   }
 }
