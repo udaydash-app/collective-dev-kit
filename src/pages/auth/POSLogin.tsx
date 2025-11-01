@@ -123,6 +123,7 @@ export default function POSLogin() {
           }));
           
           toast.success(`Welcome back, ${fullName} (Offline Mode)`);
+          await new Promise(resolve => setTimeout(resolve, 300));
           navigate('/admin/pos');
           return;
         } else {
@@ -303,6 +304,8 @@ export default function POSLogin() {
         }
       }
       
+      // Wait a moment for auth state to fully propagate before navigating
+      await new Promise(resolve => setTimeout(resolve, 300));
       navigate('/admin/pos');
     } catch (error) {
       console.error('Login error:', error);
