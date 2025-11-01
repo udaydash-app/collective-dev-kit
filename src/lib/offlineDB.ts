@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped to add pos_users store
 
 export interface OfflineTransaction {
   id: string;
