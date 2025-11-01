@@ -54,8 +54,8 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,jpg,jpeg}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-        navigateFallback: "/pos-login",
-        navigateFallbackDenylist: [/^\/api/],
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/auth\/v1/],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
