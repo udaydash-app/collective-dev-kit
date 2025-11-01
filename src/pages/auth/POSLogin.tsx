@@ -71,11 +71,15 @@ export default function POSLogin() {
         // Get all cached users and verify PIN
         const cachedUsers = await offlineDB.getAllPOSUsers();
         console.log('Found cached users:', cachedUsers.length);
+        console.log('Cached users:', cachedUsers);
+        console.log('Entered PIN:', pinValue);
         
         // Simple PIN matching (in production, you'd want proper hashing)
-        const matchedUser = cachedUsers.find(u => 
-          u.pin_hash === pinValue && u.is_active
-        );
+        const matchedUser = cachedUsers.find(u => {
+          console.log('Checking user:', u.full_name, 'PIN:', u.pin_hash, 'Active:', u.is_active);
+          return u.pin_hash === pinValue && u.is_active;
+        });
+        console.log('Matched user:', matchedUser);
 
         if (matchedUser) {
           posUserId = matchedUser.id;
