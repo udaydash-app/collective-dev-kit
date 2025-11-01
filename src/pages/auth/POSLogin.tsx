@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Store, Hash } from 'lucide-react';
+import { Store, Hash, Loader2, WifiOff, Database } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { offlineDB } from '@/lib/offlineDB';
+import { cacheEssentialData } from '@/lib/cacheData';
 
 export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -27,6 +30,30 @@ export default function POSLogin() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // Check cached data status
+  useEffect(() => {
+    const checkCache = async () => {
+      try {
+        const products = await offlineDB.getProducts();
+        const stores = await offlineDB.getStores();
+        const categories = await offlineDB.getCategories();
+        
+        setCacheStatus({
+          products: products.length,
+          stores: stores.length,
+          categories: categories.length
+        });
+      } catch (error) {
+        console.error('Error checking cache:', error);
+      }
+    };
+
+    checkCache();
+    const interval = setInterval(checkCache, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   interface VerifyPinResult {
@@ -261,6 +288,21 @@ export default function POSLogin() {
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
+      
+      // If online, cache essential data for offline use
+      if (navigator.onLine) {
+        toast.loading('Preparing data for offline use...', { id: 'cache-data' });
+        
+        try {
+          await cacheEssentialData();
+          toast.success('Data cached successfully!', { id: 'cache-data' });
+        } catch (cacheError) {
+          console.error('Error caching data:', cacheError);
+          toast.dismiss('cache-data');
+          // Don't fail login if caching fails
+        }
+      }
+      
       navigate('/admin/pos');
     } catch (error) {
       console.error('Login error:', error);
@@ -293,6 +335,23 @@ export default function POSLogin() {
               </span>
             )}
           </CardDescription>
+          
+          {/* Cache Status Indicators */}
+          {cacheStatus && (
+            <div className="mt-4 pt-4 border-t space-y-2">
+              {cacheStatus.products > 0 && cacheStatus.stores > 0 && cacheStatus.categories > 0 ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                  <Database className="h-4 w-4" />
+                  <span>Ready for offline use ({cacheStatus.products} products cached)</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-sm text-amber-600">
+                  <WifiOff className="h-4 w-4" />
+                  <span>Limited offline functionality - Connect online to cache data</span>
+                </div>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
