@@ -130,59 +130,110 @@ export default function POSLogin() {
       let userId: string | null = null;
       let fullName: string = '';
 
+      // Function to attempt offline login
+      const attemptOfflineLogin = async () => {
+        console.log('🔴 ATTEMPTING OFFLINE LOGIN');
+        
+        if (!dbInitialized) {
+          console.error('🔴 Database not initialized yet');
+          throw new Error('Offline storage is initializing. Please wait a moment.');
+        }
+        
+        console.log('🔴 Fetching cached POS users from IndexedDB...');
+        const cachedUsers = await offlineDB.getAllPOSUsers();
+        console.log(`🔴 Found ${cachedUsers.length} cached users in IndexedDB`);
+        
+        if (cachedUsers.length === 0) {
+          console.warn('🔴 No cached users found in IndexedDB');
+          throw new Error('No cached login data found. Please connect to internet and login once to enable offline mode.');
+        }
+        
+        console.log('🔴 Cached users details:', cachedUsers.map(u => ({ 
+          id: u.id,
+          name: u.full_name, 
+          active: u.is_active,
+          hasPin: !!u.pin_hash,
+          pinLength: u.pin_hash?.length
+        })));
+        console.log('🔴 Entered PIN:', pinValue, 'Length:', pinValue.length);
+        
+        const matchedUser = cachedUsers.find(u => {
+          const pinMatches = u.pin_hash === pinValue;
+          console.log(`🔴 Checking user: ${u.full_name}`);
+          console.log(`   - PIN in DB: ${u.pin_hash} (length: ${u.pin_hash?.length})`);
+          console.log(`   - PIN entered: ${pinValue} (length: ${pinValue.length})`);
+          console.log(`   - Match: ${pinMatches}, Active: ${u.is_active}`);
+          return pinMatches && u.is_active;
+        });
+        
+        if (!matchedUser) {
+          console.error('🔴 No matching user found for entered PIN');
+          throw new Error('Invalid PIN. Please check your PIN and try again.');
+        }
+        
+        console.log('✅ Offline login successful for:', matchedUser.full_name);
+        return {
+          posUserId: matchedUser.id,
+          userId: matchedUser.user_id,
+          fullName: matchedUser.full_name
+        };
+      };
+
       // Try offline login first if offline
       if (isOffline) {
-        console.log('🔴 OFFLINE MODE: Attempting offline login');
+        console.log('🔴 OFFLINE MODE DETECTED: Attempting offline login');
         console.log('🔴 Standalone mode:', isStandalone);
         console.log('🔴 DB Initialized:', dbInitialized);
         
-        // Ensure DB is initialized
-        if (!dbInitialized) {
-          console.error('🔴 Database not initialized yet');
-          toast.error('Offline storage is initializing. Please wait a moment and try again.');
+        try {
+          const offlineResult = await attemptOfflineLogin();
+          posUserId = offlineResult.posUserId;
+          userId = offlineResult.userId;
+          fullName = offlineResult.fullName;
+          
+          // Store offline session
+          const sessionData = {
+            pos_user_id: posUserId,
+            user_id: userId,
+            full_name: fullName,
+            timestamp: new Date().toISOString(),
+            offline: true
+          };
+          localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
+          console.log('✅ Stored offline session:', sessionData);
+          
+          toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          navigate('/admin/pos');
+          return;
+        } catch (offlineError) {
+          console.error('🔴 Offline login error:', offlineError);
+          toast.error((offlineError as Error).message);
           setPin('');
           setIsLoading(false);
           return;
         }
-        
-        try {
-          console.log('🔴 Fetching cached POS users from IndexedDB...');
-          const cachedUsers = await offlineDB.getAllPOSUsers();
-          console.log(`🔴 Found ${cachedUsers.length} cached users in IndexedDB`);
+      }
+
+      // Online login
+      console.log('🟢 ONLINE MODE: Verifying PIN with server');
+      
+      const { data, error } = await supabase
+        .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
+
+      if (error) {
+        // Check if it's a network error - if so, try offline login as fallback
+        if (error.message?.includes('Failed to fetch') || 
+            error.message?.includes('INTERNET_DISCONNECTED') ||
+            error.message?.includes('NetworkError')) {
+          console.log('🔴 Network error detected, falling back to offline login');
+          toast.info('Network unavailable, attempting offline login...');
           
-          if (cachedUsers.length === 0) {
-            console.warn('🔴 No cached users found in IndexedDB');
-            console.warn('🔴 User must login ONLINE first (in this installed PWA) to cache credentials');
-            toast.error('No cached login data found. Please connect to internet and login once to enable offline mode.');
-            setPin('');
-            setIsLoading(false);
-            return;
-          }
-          
-          console.log('🔴 Cached users details:', cachedUsers.map(u => ({ 
-            id: u.id,
-            name: u.full_name, 
-            active: u.is_active,
-            hasPin: !!u.pin_hash,
-            pinLength: u.pin_hash?.length
-          })));
-          console.log('🔴 Entered PIN:', pinValue, 'Length:', pinValue.length);
-          
-          // Simple PIN matching
-          const matchedUser = cachedUsers.find(u => {
-            const pinMatches = u.pin_hash === pinValue;
-            console.log(`🔴 Checking user: ${u.full_name}`);
-            console.log(`   - PIN in DB: ${u.pin_hash} (length: ${u.pin_hash?.length})`);
-            console.log(`   - PIN entered: ${pinValue} (length: ${pinValue.length})`);
-            console.log(`   - Match: ${pinMatches}, Active: ${u.is_active}`);
-            return pinMatches && u.is_active;
-          });
-          
-          if (matchedUser) {
-            console.log('✅ Offline login successful for:', matchedUser.full_name);
-            posUserId = matchedUser.id;
-            userId = matchedUser.user_id;
-            fullName = matchedUser.full_name;
+          try {
+            const offlineResult = await attemptOfflineLogin();
+            posUserId = offlineResult.posUserId;
+            userId = offlineResult.userId;
+            fullName = offlineResult.fullName;
             
             // Store offline session
             const sessionData = {
@@ -193,44 +244,22 @@ export default function POSLogin() {
               offline: true
             };
             localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-            console.log('✅ Stored offline session:', sessionData);
+            console.log('✅ Offline fallback successful, stored session:', sessionData);
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
             await new Promise(resolve => setTimeout(resolve, 500));
             navigate('/admin/pos');
             return;
-          } else {
-            console.error('🔴 No matching user found for entered PIN');
-            console.error('🔴 This could mean:');
-            console.error('   1. PIN is incorrect');
-            console.error('   2. User is not active');
-            console.error('   3. PIN was not cached correctly during online login');
-            toast.error('Invalid PIN. Please check your PIN and try again.');
+          } catch (offlineError) {
+            console.error('🔴 Offline fallback failed:', offlineError);
+            toast.error('Cannot connect to server and no offline data available. Please check your internet connection.');
             setPin('');
             setIsLoading(false);
             return;
           }
-        } catch (offlineError) {
-          console.error('🔴 Offline login error:', offlineError);
-          console.error('🔴 Error details:', {
-            name: (offlineError as Error).name,
-            message: (offlineError as Error).message,
-            stack: (offlineError as Error).stack
-          });
-          toast.error('Offline login failed: ' + (offlineError as Error).message);
-          setPin('');
-          setIsLoading(false);
-          return;
         }
+        throw error;
       }
-
-      // Online login
-      console.log('Online mode: Verifying PIN with server');
-      
-      const { data, error } = await supabase
-        .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
-
-      if (error) throw error;
 
       if (!data || data.length === 0) {
         toast.error('Invalid PIN. Please try again.');
