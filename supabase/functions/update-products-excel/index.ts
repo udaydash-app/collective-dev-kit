@@ -134,15 +134,32 @@ Deno.serve(async (req) => {
         }
       }
 
-      // If still not found, try fuzzy matching
+      // If still not found, try fuzzy matching with higher threshold
       if (!productId) {
+        // Only do fuzzy matching for stores with reasonable product counts
+        if (allStoreProducts.length > 5000) {
+          console.log(`Skipping fuzzy match for "${name}" - store too large`);
+          notFoundProducts.push(name);
+          continue;
+        }
+
         let bestMatch = null;
         let bestScore = 0;
         const nameLower = name.toLowerCase();
         
+        // Only check products that start with similar characters for efficiency
+        const firstChars = nameLower.substring(0, 3);
+        
         for (const [_, productInfo] of nameMap) {
-          const score = calculateSimilarity(nameLower, productInfo.name.toLowerCase());
-          if (score > bestScore && score >= 0.3) {
+          const productNameLower = productInfo.name.toLowerCase();
+          
+          // Quick pre-filter: check if they share first few characters
+          if (!productNameLower.startsWith(firstChars[0])) {
+            continue;
+          }
+          
+          const score = calculateSimilarity(nameLower, productNameLower);
+          if (score > bestScore && score >= 0.7) { // Increased threshold to 70%
             bestScore = score;
             bestMatch = productInfo;
           }
