@@ -1,21 +1,26 @@
 {
   "name": "Global Market POS",
   "short_name": "GM POS",
-  "description": "Point of Sale system with real-time inventory and accounting sync",
+  "description": "Offline-capable Point of Sale system with automatic sync",
   "theme_color": "#22C55E",
   "background_color": "#ffffff",
   "display": "standalone",
   "start_url": "/pos-login",
+  "scope": "/",
+  "orientation": "any",
+  "categories": ["business", "finance", "productivity"],
   "icons": [
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

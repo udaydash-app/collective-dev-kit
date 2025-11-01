@@ -57,6 +57,8 @@ import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { ReturnToPOSButton } from "./components/layout/ReturnToPOSButton";
+import { OfflineIndicator } from "./components/OfflineIndicator";
+import PWAInstall from "./pages/PWAInstall";
 
 const queryClient = new QueryClient();
 
@@ -77,11 +79,15 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
+      <OfflineIndicator />
       <BrowserRouter>
         <ReturnToPOSButton />
         <Routes>
           {/* Customer-facing home */}
           <Route path="/" element={<Index />} />
+          
+          {/* PWA Installation page */}
+          <Route path="/install" element={<PWAInstall />} />
           
           {/* POS Login for staff */}
           <Route path="/pos-login" element={<POSLogin />} />

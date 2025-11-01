@@ -51,6 +51,7 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
+import { offlineDB } from "@/lib/offlineDB";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,6 +94,14 @@ export default function POS() {
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   
   const ITEMS_PER_PAGE = 12;
+
+  // Initialize offline database
+  useEffect(() => {
+    offlineDB.init().catch(error => {
+      console.error('Failed to initialize offline database:', error);
+      toast.error('Failed to initialize offline storage');
+    });
+  }, []);
 
   // Load held tickets from localStorage
   React.useEffect(() => {
@@ -685,12 +694,16 @@ export default function POS() {
     
     if (result) {
       // Add transaction number to the prepared data
+      const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
+      const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
+      
       setLastTransactionData({
         ...transactionDataPrep,
-        transactionNumber: result.transaction_number,
+        transactionNumber,
       });
       
-      toast.success(`Transaction ${result.transaction_number} processed successfully`);
+      const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
+      toast.success(`Transaction ${displayNumber} processed successfully`);
     }
   };
 

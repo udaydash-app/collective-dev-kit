@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { offlineDB } from '@/lib/offlineDB';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface CartItem {
   id: string;
@@ -112,7 +114,9 @@ export const usePOSTransaction = () => {
 
   const processTransaction = async (
     payments: Array<{ id: string; method: string; amount: number }>,
-    storeId: string
+    storeId: string,
+    customerId?: string,
+    notes?: string
   ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -141,46 +145,117 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
-      console.log('Processing transaction:', {
+      const transactionData = {
+        id: uuidv4(),
         cashier_id: user.id,
         store_id: storeId,
-        subtotal,
-        discount,
-        total,
-        itemCount: cart.length,
-        payments,
-      });
+        customer_id: customerId,
+        items: cart as any,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        tax: 0,
+        discount: parseFloat(discount.toFixed(2)),
+        total: parseFloat(total.toFixed(2)),
+        payment_method: primaryPayment.method,
+        payment_details: payments.map(p => ({
+          method: p.method,
+          amount: parseFloat(p.amount.toFixed(2)),
+        })),
+        notes,
+      };
 
-      const { data, error } = await supabase
-        .from('pos_transactions')
-        .insert({
-          cashier_id: user.id,
-          store_id: storeId,
-          items: cart as any,
-          subtotal: parseFloat(subtotal.toFixed(2)),
-          tax: 0,
-          discount: parseFloat(discount.toFixed(2)),
-          total: parseFloat(total.toFixed(2)),
-          payment_method: primaryPayment.method,
-          payment_details: payments.map(p => ({
-            method: p.method,
-            amount: parseFloat(p.amount.toFixed(2)),
-          })),
-        })
-        .select()
-        .single();
+      console.log('Processing transaction:', transactionData);
 
-      if (error) {
-        console.error('Database error:', error);
-        toast.error(`Transaction failed: ${error.message}`);
-        return null;
+      // Check if online
+      if (navigator.onLine) {
+        // Try to save online
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .insert(transactionData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          // If online but failed, save offline as backup
+          await offlineDB.addTransaction({
+            id: transactionData.id,
+            storeId: transactionData.store_id,
+            cashierId: transactionData.cashier_id,
+            customerId: transactionData.customer_id,
+            items: transactionData.items,
+            subtotal: transactionData.subtotal,
+            discount: transactionData.discount,
+            total: transactionData.total,
+            paymentMethod: transactionData.payment_method,
+            notes: transactionData.notes,
+            timestamp: new Date().toISOString(),
+            synced: false,
+          });
+          toast.warning('Saved offline - will sync when connection is stable');
+          clearCart();
+          return { ...transactionData, offline: true };
+        }
+
+        toast.success('Transaction completed successfully!');
+        clearCart();
+        return data;
+      } else {
+        // Save offline
+        await offlineDB.addTransaction({
+          id: transactionData.id,
+          storeId: transactionData.store_id,
+          cashierId: transactionData.cashier_id,
+          customerId: transactionData.customer_id,
+          items: transactionData.items,
+          subtotal: transactionData.subtotal,
+          discount: transactionData.discount,
+          total: transactionData.total,
+          paymentMethod: transactionData.payment_method,
+          notes: transactionData.notes,
+          timestamp: new Date().toISOString(),
+          synced: false,
+        });
+        
+        toast.success('Transaction saved offline - will sync automatically');
+        clearCart();
+        return { ...transactionData, offline: true };
       }
-
-      toast.success('Transaction completed successfully!');
-      clearCart();
-      return data;
     } catch (error: any) {
       console.error('Transaction error:', error);
+      
+      // Last resort: save offline
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const subtotal = calculateSubtotal();
+          const total = calculateTotal();
+          const primaryPayment = payments.reduce((prev, current) => 
+            (current.amount > prev.amount) ? current : prev
+          );
+          
+          await offlineDB.addTransaction({
+            id: uuidv4(),
+            storeId,
+            cashierId: user.id,
+            customerId,
+            items: cart as any,
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            discount: parseFloat(discount.toFixed(2)),
+            total: parseFloat(total.toFixed(2)),
+            paymentMethod: primaryPayment.method,
+            notes,
+            timestamp: new Date().toISOString(),
+            synced: false,
+          });
+          
+          toast.warning('Saved offline due to error - will retry sync automatically');
+          clearCart();
+          return { offline: true };
+        }
+      } catch (offlineError) {
+        console.error('Failed to save offline:', offlineError);
+      }
+      
       toast.error(error?.message || 'Failed to process transaction');
       return null;
     } finally {
