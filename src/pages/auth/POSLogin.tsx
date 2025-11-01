@@ -121,25 +121,21 @@ export default function POSLogin() {
       userId = userData.user_id;
       fullName = userData.full_name;
 
-      // Cache POS user data for offline use
+      // Cache this user's credentials for offline use
       try {
         const { offlineDB } = await import('@/lib/offlineDB');
         await offlineDB.init();
         
-        // Fetch all POS users to cache
-        const { data: allUsers } = await supabase
-          .from('pos_users')
-          .select('*')
-          .eq('is_active', true);
-
-        if (allUsers && allUsers.length > 0) {
-          await offlineDB.savePOSUsers(allUsers.map(u => ({
-            ...u,
-            pin_hash: pinValue, // Store the PIN for offline verification (simple approach)
-            lastUpdated: new Date().toISOString()
-          })));
-          console.log('Cached', allUsers.length, 'POS users for offline use');
-        }
+        // Only cache the current user with their specific PIN
+        await offlineDB.savePOSUsers([{
+          id: posUserId,
+          user_id: userId,
+          full_name: fullName,
+          pin_hash: pinValue,
+          is_active: true,
+          lastUpdated: new Date().toISOString()
+        }]);
+        console.log('Cached credentials for', fullName, 'for offline use');
       } catch (cacheError) {
         console.error('Error caching user data:', cacheError);
         // Don't fail login if caching fails
