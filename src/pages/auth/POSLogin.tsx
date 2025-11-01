@@ -215,18 +215,35 @@ export default function POSLogin() {
         }
       }
 
-      // Online login
-      console.log('🟢 ONLINE MODE: Verifying PIN with server');
+      // Online login - wrap in try-catch to detect network failures
+      console.log('🟢 ONLINE MODE: Attempting to verify PIN with server');
       
-      const { data, error } = await supabase
-        .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
-
-      if (error) {
-        // Check if it's a network error - if so, try offline login as fallback
-        if (error.message?.includes('Failed to fetch') || 
-            error.message?.includes('INTERNET_DISCONNECTED') ||
-            error.message?.includes('NetworkError')) {
-          console.log('🔴 Network error detected, falling back to offline login');
+      let data: VerifyPinResult[] | null = null;
+      
+      try {
+        const result = await supabase
+          .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
+        
+        if (result.error) {
+          throw result.error;
+        }
+        
+        data = result.data;
+      } catch (networkError: any) {
+        // Network error detected - fall back to offline login
+        console.log('🔴 Network error caught during RPC call:', networkError);
+        console.log('🔴 Error type:', networkError?.constructor?.name);
+        console.log('🔴 Error message:', networkError?.message);
+        
+        const isNetworkError = 
+          networkError?.message?.includes('Failed to fetch') || 
+          networkError?.message?.includes('INTERNET_DISCONNECTED') ||
+          networkError?.message?.includes('NetworkError') ||
+          networkError?.message?.includes('Network request failed') ||
+          networkError?.name === 'TypeError';
+        
+        if (isNetworkError) {
+          console.log('🔴 Confirmed network error, attempting offline login fallback');
           toast.info('Network unavailable, attempting offline login...');
           
           try {
@@ -252,13 +269,15 @@ export default function POSLogin() {
             return;
           } catch (offlineError) {
             console.error('🔴 Offline fallback failed:', offlineError);
-            toast.error('Cannot connect to server and no offline data available. Please check your internet connection.');
+            toast.error('Cannot connect to server and no offline data available.');
             setPin('');
             setIsLoading(false);
             return;
           }
+        } else {
+          // Not a network error, rethrow
+          throw networkError;
         }
-        throw error;
       }
 
       if (!data || data.length === 0) {
