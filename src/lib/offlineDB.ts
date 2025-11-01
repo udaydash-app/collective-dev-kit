@@ -106,9 +106,13 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('transactions', 'readonly');
       const store = tx.objectStore('transactions');
-      const index = store.index('synced');
-      const request = index.getAll(IDBKeyRange.only(false));
-      request.onsuccess = () => resolve(request.result);
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        // Filter for unsynced transactions
+        const unsynced = request.result.filter((tx: OfflineTransaction) => !tx.synced);
+        resolve(unsynced);
+      };
       request.onerror = () => reject(request.error);
     });
   }
