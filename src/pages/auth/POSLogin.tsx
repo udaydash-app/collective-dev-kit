@@ -15,8 +15,35 @@ export default function POSLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
+  const [dbInitialized, setDbInitialized] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Check if running as installed PWA
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || 
+                      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+    console.log('Running as installed PWA:', standalone);
+  }, []);
+
+  // Initialize IndexedDB on component mount (critical for PWA)
+  useEffect(() => {
+    const initDB = async () => {
+      try {
+        console.log('Initializing IndexedDB for PWA...');
+        await offlineDB.init();
+        setDbInitialized(true);
+        console.log('✓ IndexedDB initialized successfully');
+      } catch (error) {
+        console.error('✗ Failed to initialize IndexedDB:', error);
+        toast.error('Failed to initialize offline storage. Offline mode will not work.');
+      }
+    };
+    
+    initDB();
+  }, []);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -35,10 +62,23 @@ export default function POSLogin() {
   // Check cached data status
   useEffect(() => {
     const checkCache = async () => {
+      // Wait for DB initialization
+      if (!dbInitialized) {
+        console.log('Waiting for DB initialization...');
+        return;
+      }
+      
       try {
+        console.log('Checking cached data status...');
         const products = await offlineDB.getProducts();
         const stores = await offlineDB.getStores();
         const categories = await offlineDB.getCategories();
+        
+        console.log('Cache status:', {
+          products: products.length,
+          stores: stores.length,
+          categories: categories.length
+        });
         
         setCacheStatus({
           products: products.length,
@@ -51,10 +91,13 @@ export default function POSLogin() {
     };
 
     checkCache();
-    const interval = setInterval(checkCache, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Only start polling if DB is initialized
+    if (dbInitialized) {
+      const interval = setInterval(checkCache, 10000); // Check every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [dbInitialized]);
 
   interface VerifyPinResult {
     pos_user_id: string;
@@ -89,45 +132,67 @@ export default function POSLogin() {
 
       // Try offline login first if offline
       if (isOffline) {
-        console.log('Offline mode: Checking cached credentials');
+        console.log('Offline mode detected: Checking cached credentials');
         
-        // Import offlineDB
-        const { offlineDB } = await import('@/lib/offlineDB');
-        await offlineDB.init();
-        
-        // Get all cached users and verify PIN
-        const cachedUsers = await offlineDB.getAllPOSUsers();
-        console.log('Found cached users:', cachedUsers.length);
-        console.log('Cached users:', cachedUsers);
-        console.log('Entered PIN:', pinValue);
-        
-        // Simple PIN matching (in production, you'd want proper hashing)
-        const matchedUser = cachedUsers.find(u => {
-          console.log('Checking user:', u.full_name, 'PIN:', u.pin_hash, 'Active:', u.is_active);
-          return u.pin_hash === pinValue && u.is_active;
-        });
-        console.log('Matched user:', matchedUser);
-
-        if (matchedUser) {
-          posUserId = matchedUser.id;
-          userId = matchedUser.user_id;
-          fullName = matchedUser.full_name;
-          console.log('Offline login successful');
-          
-          // Store offline session
-          localStorage.setItem('offline_pos_session', JSON.stringify({
-            pos_user_id: posUserId,
-            user_id: userId,
-            full_name: fullName,
-            timestamp: new Date().toISOString()
-          }));
-          
-          toast.success(`Welcome back, ${fullName} (Offline Mode)`);
-          await new Promise(resolve => setTimeout(resolve, 300));
-          navigate('/admin/pos');
+        // Ensure DB is initialized
+        if (!dbInitialized) {
+          console.error('Database not initialized yet');
+          toast.error('Offline storage is initializing. Please wait a moment and try again.');
+          setPin('');
+          setIsLoading(false);
           return;
-        } else {
-          toast.error('Invalid PIN or user not found in offline cache. Please connect to internet to login.');
+        }
+        
+        try {
+          console.log('Fetching cached POS users...');
+          const cachedUsers = await offlineDB.getAllPOSUsers();
+          console.log(`Found ${cachedUsers.length} cached users`);
+          
+          if (cachedUsers.length === 0) {
+            console.warn('No cached users found');
+            toast.error('No cached users found. Please connect to internet and login at least once to enable offline mode.');
+            setPin('');
+            setIsLoading(false);
+            return;
+          }
+          
+          console.log('Cached users:', cachedUsers.map(u => ({ name: u.full_name, active: u.is_active })));
+          console.log('Entered PIN:', pinValue);
+          
+          // Simple PIN matching
+          const matchedUser = cachedUsers.find(u => {
+            console.log(`Checking user: ${u.full_name}, PIN matches: ${u.pin_hash === pinValue}, Active: ${u.is_active}`);
+            return u.pin_hash === pinValue && u.is_active;
+          });
+          
+          if (matchedUser) {
+            console.log('✓ Offline login successful for:', matchedUser.full_name);
+            posUserId = matchedUser.id;
+            userId = matchedUser.user_id;
+            fullName = matchedUser.full_name;
+            
+            // Store offline session
+            localStorage.setItem('offline_pos_session', JSON.stringify({
+              pos_user_id: posUserId,
+              user_id: userId,
+              full_name: fullName,
+              timestamp: new Date().toISOString()
+            }));
+            
+            toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            navigate('/admin/pos');
+            return;
+          } else {
+            console.error('No matching user found for PIN');
+            toast.error('Invalid PIN or user not found in offline cache.');
+            setPin('');
+            setIsLoading(false);
+            return;
+          }
+        } catch (offlineError) {
+          console.error('Offline login error:', offlineError);
+          toast.error('Offline login failed. Error: ' + (offlineError as Error).message);
           setPin('');
           setIsLoading(false);
           return;
@@ -154,28 +219,30 @@ export default function POSLogin() {
       fullName = userData.full_name;
 
       // Cache this user's credentials for offline use
-      try {
-        const { offlineDB } = await import('@/lib/offlineDB');
-        await offlineDB.init();
-        
-        // Store the plain PIN for offline verification (less secure but necessary for offline mode)
-        await offlineDB.savePOSUsers([{
-          id: posUserId,
-          user_id: userId,
-          full_name: fullName,
-          pin_hash: pinValue, // Store the plain PIN that was successfully verified
-          is_active: true,
-          lastUpdated: new Date().toISOString()
-        }]);
-        console.log('Cached credentials for offline use:', {
-          id: posUserId,
-          full_name: fullName,
-          pin_cached: pinValue,
-          timestamp: new Date().toISOString()
-        });
-      } catch (cacheError) {
-        console.error('Error caching user data:', cacheError);
-        // Don't fail login if caching fails
+      if (dbInitialized) {
+        try {
+          console.log('Caching user credentials for offline use...');
+          // Store the plain PIN for offline verification (less secure but necessary for offline mode)
+          await offlineDB.savePOSUsers([{
+            id: posUserId,
+            user_id: userId,
+            full_name: fullName,
+            pin_hash: pinValue, // Store the plain PIN that was successfully verified
+            is_active: true,
+            lastUpdated: new Date().toISOString()
+          }]);
+          console.log('✓ Cached credentials for offline use:', {
+            id: posUserId,
+            full_name: fullName,
+            timestamp: new Date().toISOString()
+          });
+        } catch (cacheError) {
+          console.error('Error caching user data:', cacheError);
+          // Don't fail login if caching fails
+          toast.warning('Login successful, but failed to cache for offline use.');
+        }
+      } else {
+        console.warn('DB not initialized, skipping credential caching');
       }
       
       // Use pos_user_id if user_id is null (first time login)
@@ -332,9 +399,19 @@ export default function POSLogin() {
           <CardTitle className="text-3xl">POS System</CardTitle>
           <CardDescription>
             Enter your PIN to access the Point of Sale
+            {isStandalone && (
+              <span className="block mt-2 text-primary font-semibold">
+                📱 Running as Installed App
+              </span>
+            )}
             {isOffline && (
               <span className="block mt-2 text-amber-600 font-semibold">
-                ⚠️ Offline Mode - Using cached credentials
+                ⚠️ Offline Mode {!dbInitialized && '- Initializing...'}
+              </span>
+            )}
+            {!dbInitialized && !isOffline && (
+              <span className="block mt-2 text-muted-foreground text-sm">
+                Preparing offline mode...
               </span>
             )}
           </CardDescription>
