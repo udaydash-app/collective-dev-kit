@@ -130,16 +130,21 @@ export default function POSLogin() {
         const { offlineDB } = await import('@/lib/offlineDB');
         await offlineDB.init();
         
-        // Only cache the current user with their specific PIN
+        // Store the plain PIN for offline verification (less secure but necessary for offline mode)
         await offlineDB.savePOSUsers([{
           id: posUserId,
           user_id: userId,
           full_name: fullName,
-          pin_hash: pinValue,
+          pin_hash: pinValue, // Store the plain PIN that was successfully verified
           is_active: true,
           lastUpdated: new Date().toISOString()
         }]);
-        console.log('Cached credentials for', fullName, 'for offline use');
+        console.log('Cached credentials for offline use:', {
+          id: posUserId,
+          full_name: fullName,
+          pin_cached: pinValue,
+          timestamp: new Date().toISOString()
+        });
       } catch (cacheError) {
         console.error('Error caching user data:', cacheError);
         // Don't fail login if caching fails
