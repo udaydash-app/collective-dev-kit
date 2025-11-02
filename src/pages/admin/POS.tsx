@@ -1116,11 +1116,15 @@ export default function POS() {
   };
 
   const handleKeypadPercent = () => {
-    if (!selectedCartItemId && keypadMode !== 'cartDiscount') {
+    if (keypadMode === 'cartDiscount') {
+      setIsPercentMode(!isPercentMode);
+      return;
+    }
+    if (!selectedCartItemId) {
       toast.error('Please select a product or use cart discount first');
       return;
     }
-    if (keypadMode !== 'discount' && keypadMode !== 'cartDiscount') {
+    if (keypadMode !== 'discount') {
       toast.error('Please select discount mode first');
       return;
     }
@@ -1201,7 +1205,7 @@ export default function POS() {
         } else {
           toast.success(`Cart discount applied: ${formatCurrency(value)}`);
         }
-        // Add cart discount as a special item
+        // Add or update cart discount as a special item
         setCartDiscountItem({
           id: 'cart-discount',
           name: 'Cart Discount',
@@ -1698,9 +1702,9 @@ export default function POS() {
               <div className="text-xs text-muted-foreground mb-2 px-2">
                 {keypadMode === 'cartDiscount' ? (
                   <div className="flex items-center justify-between">
-                    <span>Cart Discount Mode</span>
+                    <span className="font-semibold text-primary">Cart Discount Mode - Enter amount</span>
                     <span className="font-semibold text-primary">
-                      CART DISC: {keypadInput || '0'}{isPercentMode ? '%' : ''}
+                      {keypadInput || '0'}{isPercentMode ? '%' : ''}
                     </span>
                   </div>
                 ) : selectedCartItemId ? (
@@ -1713,7 +1717,7 @@ export default function POS() {
                     )}
                   </div>
                 ) : (
-                  <span>Select a product from cart to use keypad</span>
+                  <span>Select a product from cart or use CART DISC</span>
                 )}
               </div>
               <NumericKeypad
@@ -1725,7 +1729,7 @@ export default function POS() {
                 onCartDiscountClick={handleKeypadCartDiscount}
                 onClear={handleKeypadClear}
                 onEnter={handleKeypadEnter}
-                disabled={!selectedCartItemId}
+                disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
                 activeMode={keypadMode}
                 isPercentMode={isPercentMode}
               />
