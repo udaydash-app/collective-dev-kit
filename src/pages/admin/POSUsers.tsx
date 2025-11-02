@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Users, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface POSUser {
   id: string;
@@ -174,7 +175,9 @@ export default function POSUsers() {
           <h1 className="text-3xl font-bold">POS Users Management</h1>
           <p className="text-muted-foreground">Manage PIN-based access for POS system</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleClose}>
               <Plus className="h-4 w-4 mr-2" />
@@ -237,6 +240,7 @@ export default function POSUsers() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>

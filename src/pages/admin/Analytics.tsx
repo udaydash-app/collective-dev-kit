@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Activity, ShoppingBag, TrendingUp, Users } from "lucide-react";
 import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface AnalyticsSummary {
   totalEvents: number;
@@ -127,7 +128,10 @@ export default function Analytics() {
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Analytics Dashboard</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <ReturnToPOSButton inline />
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

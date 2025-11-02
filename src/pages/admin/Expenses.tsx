@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone } from 'lucide-react';
 import { format } from 'date-fns';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 const EXPENSE_CATEGORIES = [
   'Rent',
@@ -161,7 +162,9 @@ export default function Expenses() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Daily Expenses</h1>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -282,6 +285,7 @@ export default function Expenses() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Store Selector */}

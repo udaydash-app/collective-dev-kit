@@ -16,6 +16,7 @@ import {
 import { Building2, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function BalanceSheet() {
   usePageView('Admin - Balance Sheet');
@@ -106,10 +107,13 @@ export default function BalanceSheet() {
           </h1>
           <p className="text-muted-foreground">Statement of financial position</p>
         </div>
-        <Button variant="outline">
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
+        </div>
       </div>
 
       {/* Date Filter */}

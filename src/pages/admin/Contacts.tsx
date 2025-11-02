@@ -25,9 +25,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Pencil, Trash2, Users, Building2, Upload, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Building2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface Contact {
   id: string;
@@ -244,10 +245,7 @@ export default function Contacts() {
           <p className="text-muted-foreground">Manage customers and suppliers</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/admin/pos')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Return to POS
-          </Button>
+          <ReturnToPOSButton inline />
           <Button onClick={() => navigate('/admin/import-contacts')} variant="outline">
             <Upload className="h-4 w-4 mr-2" />
             Import Contacts

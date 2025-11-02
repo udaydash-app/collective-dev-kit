@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface ProductVariant {
   id: string;
@@ -575,15 +576,8 @@ export default function Products() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Product Management</h1>
           <div className="flex gap-2">
-            <Button 
-              onClick={() => navigate("/admin/pos")}
-              variant="outline"
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Return to POS
-            </Button>
-            <Button 
+            <ReturnToPOSButton inline />
+            <Button
               onClick={handleAdd}
               className="gap-2"
             >

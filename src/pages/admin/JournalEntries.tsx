@@ -33,6 +33,7 @@ import { Plus, Trash2, Check, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface JournalLine {
   account_id: string;
@@ -217,13 +218,15 @@ export default function JournalEntries() {
           <h1 className="text-3xl font-bold">Journal Entries</h1>
           <p className="text-muted-foreground">Record manual accounting transactions</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleClose}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Entry
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleClose}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Entry
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Journal Entry</DialogTitle>
@@ -426,6 +429,7 @@ export default function JournalEntries() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Entries List */}

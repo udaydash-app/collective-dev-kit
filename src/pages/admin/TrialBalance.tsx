@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Scale, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');
@@ -123,10 +124,13 @@ export default function TrialBalance() {
             Verify that total debits equal total credits
           </p>
         </div>
-        <Button variant="outline">
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
+        </div>
       </div>
 
       {/* Date Filter */}

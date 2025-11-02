@@ -16,6 +16,7 @@ import {
 import { TrendingUp, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function ProfitLoss() {
   usePageView('Admin - Profit & Loss');
@@ -105,10 +106,13 @@ export default function ProfitLoss() {
           </h1>
           <p className="text-muted-foreground">Income statement for the period</p>
         </div>
-        <Button variant="outline">
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
+        </div>
       </div>
 
       {/* Date Range Filter */}

@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Plus, Trash2, Package, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface PurchaseItem {
   product_id: string;
@@ -242,10 +243,13 @@ export default function Purchases() {
             <h1 className="text-3xl font-bold">Purchase Management</h1>
             <p className="text-muted-foreground">Track inventory purchases and update stock</p>
           </div>
-          <Button onClick={() => setShowNewPurchase(true)}>
+          <div className="flex gap-2">
+            <ReturnToPOSButton inline />
+            <Button onClick={() => setShowNewPurchase(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Purchase
           </Button>
+          </div>
         </div>
 
         {/* Purchase History */}

@@ -16,6 +16,7 @@ import {
 import { Droplets, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function CashFlow() {
   usePageView('Admin - Cash Flow Statement');
@@ -184,10 +185,13 @@ export default function CashFlow() {
           </h1>
           <p className="text-muted-foreground">Statement of cash flows</p>
         </div>
-        <Button variant="outline">
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
+        </div>
       </div>
 
       {/* Date Range Filter */}

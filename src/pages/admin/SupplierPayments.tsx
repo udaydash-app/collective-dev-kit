@@ -14,6 +14,7 @@ import { Plus, Search, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface SupplierPayment {
   id: string;
@@ -176,10 +177,13 @@ export default function SupplierPayments() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Supplier Payments</h1>
-        <Button onClick={() => setOpen(true)}>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           New Payment
         </Button>
+        </div>
       </div>
 
       <Card>
