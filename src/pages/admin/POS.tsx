@@ -1353,10 +1353,10 @@ export default function POS() {
         </div>
 
         {/* Total Section */}
-        <div className="border-t p-2">
+        <div className="border-t p-3">
           <div className="flex justify-between items-center">
-            <span className="text-lg font-bold">TOTAL</span>
-            <span className="text-2xl font-bold text-primary">
+            <span className="text-2xl font-bold">TOTAL</span>
+            <span className="text-4xl font-bold text-primary">
               {formatCurrency(total)}
             </span>
           </div>
