@@ -21,14 +21,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Download } from 'lucide-react';
+import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   const [selectedAccount, setSelectedAccount] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState(
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
@@ -107,19 +119,7 @@ export default function GeneralLedger() {
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
 
   // Filter accounts based on search term
-  const filteredAccounts = (accounts || []).filter((account) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    const accountName = account.account_name?.toLowerCase() || '';
-    const accountCode = account.account_code?.toLowerCase() || '';
-    const contactName = account.contactName?.toLowerCase() || '';
-    
-    return (
-      accountName.includes(searchLower) ||
-      accountCode.includes(searchLower) ||
-      contactName.includes(searchLower)
-    );
-  });
+  const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
@@ -220,49 +220,68 @@ export default function GeneralLedger() {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-2">
-            <Label htmlFor="search">Search Account or Contact</Label>
-            <Input
-              id="search"
-              placeholder="Search by account or contact name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
             <Label htmlFor="account">Account *</Label>
-            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-              <SelectTrigger id="account">
-                <SelectValue placeholder="Select an account" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[400px]">
-                {filteredAccounts.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground text-center">
-                    {searchTerm ? 'No accounts found matching your search' : 'No accounts available'}
-                  </div>
-                ) : (
-                  filteredAccounts.map((account) => (
-                    <SelectItem 
-                      key={account.id} 
-                      value={account.id}
-                      className={account.isChild ? 'pl-8' : ''}
-                    >
-                      {account.isChild && '└─ '}
-                      {account.account_code} - {account.account_name}
-                      {account.contactName && ` (${account.contactName})`}
-                      {account.isCustomer && ' 👤'}
-                      {account.isSupplier && ' 🏢'}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="account"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {selectedAccount
+                    ? (() => {
+                        const account = selectedAccountData;
+                        return account ? (
+                          <span className="truncate">
+                            {account.isChild && '└─ '}
+                            {account.account_code} - {account.account_name}
+                            {account.contactName && ` (${account.contactName})`}
+                            {account.isCustomer && ' 👤'}
+                            {account.isSupplier && ' 🏢'}
+                          </span>
+                        ) : 'Select account...';
+                      })()
+                    : 'Select account...'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search account or contact..." />
+                  <CommandEmpty>No account found.</CommandEmpty>
+                  <CommandGroup className="max-h-[300px] overflow-auto">
+                    {accounts?.map((account) => (
+                      <CommandItem
+                        key={account.id}
+                        value={`${account.account_code} ${account.account_name} ${account.contactName || ''}`}
+                        onSelect={() => {
+                          setSelectedAccount(account.id);
+                          setOpen(false);
+                        }}
+                        className={cn(account.isChild && 'pl-8')}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
+                          )}
+                        />
+                        {account.isChild && '└─ '}
+                        {account.account_code} - {account.account_name}
+                        {account.contactName && ` (${account.contactName})`}
+                        {account.isCustomer && ' 👤'}
+                        {account.isSupplier && ' 🏢'}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
           <div>
             <Label htmlFor="start-date">Start Date</Label>
