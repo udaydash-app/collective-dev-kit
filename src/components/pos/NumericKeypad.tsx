@@ -7,10 +7,12 @@ interface NumericKeypadProps {
   onQtyClick: () => void;
   onDiscountClick: () => void;
   onPriceClick: () => void;
+  onPercentClick: () => void;
   onClear: () => void;
   onEnter: () => void;
   disabled?: boolean;
   activeMode?: 'qty' | 'discount' | 'price' | null;
+  isPercentMode?: boolean;
 }
 
 export const NumericKeypad: React.FC<NumericKeypadProps> = ({
@@ -18,10 +20,12 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
   onQtyClick,
   onDiscountClick,
   onPriceClick,
+  onPercentClick,
   onClear,
   onEnter,
   disabled = false,
-  activeMode = null
+  activeMode = null,
+  isPercentMode = false
 }) => {
   const numberButtons = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '00'];
   
@@ -48,7 +52,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onQtyClick}
           disabled={disabled}
           variant={activeMode === 'qty' ? 'default' : 'outline'}
-          className="h-14 text-xs font-semibold px-6"
+          className="h-12 text-xs font-semibold px-6"
         >
           QTY
         </Button>
@@ -56,7 +60,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onDiscountClick}
           disabled={disabled}
           variant={activeMode === 'discount' ? 'default' : 'outline'}
-          className="h-14 text-xs font-semibold px-6"
+          className="h-12 text-xs font-semibold px-6"
         >
           DISC
         </Button>
@@ -64,15 +68,24 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onPriceClick}
           disabled={disabled}
           variant={activeMode === 'price' ? 'default' : 'outline'}
-          className="h-14 text-xs font-semibold px-6"
+          className="h-12 text-xs font-semibold px-6"
         >
           PRICE
+        </Button>
+        <Button
+          onClick={onPercentClick}
+          disabled={disabled || activeMode !== 'discount'}
+          variant={isPercentMode ? 'default' : 'outline'}
+          className="h-12 text-xs font-semibold px-6"
+          title="Use percentage for discount"
+        >
+          %
         </Button>
         <Button
           onClick={onClear}
           disabled={disabled}
           variant="destructive"
-          className="h-14 text-xs font-semibold px-6"
+          className="h-12 text-xs font-semibold px-6"
         >
           CLEAR
         </Button>
@@ -80,7 +93,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onEnter}
           disabled={disabled}
           variant="default"
-          className="h-14 text-sm font-semibold bg-primary px-6"
+          className="h-12 text-sm font-semibold bg-primary px-6"
         >
           ENTER
         </Button>

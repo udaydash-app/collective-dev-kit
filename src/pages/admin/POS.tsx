@@ -98,6 +98,7 @@ export default function POS() {
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | null>(null);
   const [keypadInput, setKeypadInput] = useState<string>('');
+  const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1097,6 +1098,15 @@ export default function POS() {
     }
     setKeypadMode('discount');
     setKeypadInput('');
+    setIsPercentMode(false);
+  };
+
+  const handleKeypadPercent = () => {
+    if (!selectedCartItemId || keypadMode !== 'discount') {
+      toast.error('Please select discount mode first');
+      return;
+    }
+    setIsPercentMode(!isPercentMode);
   };
 
   const handleKeypadPrice = () => {
@@ -1110,6 +1120,7 @@ export default function POS() {
 
   const handleKeypadClear = () => {
     setKeypadInput('');
+    setIsPercentMode(false);
   };
 
   const handleKeypadEnter = () => {
@@ -1134,8 +1145,19 @@ export default function POS() {
         toast.success(`Quantity updated to ${Math.floor(value)}`);
         break;
       case 'discount':
-        updateItemDiscount(selectedCartItemId, value);
-        toast.success(`Discount updated to ${formatCurrency(value)}`);
+        // Calculate discount based on percentage or fixed amount
+        let discountAmount = value;
+        if (isPercentMode) {
+          const selectedItem = cart.find(item => item.id === selectedCartItemId);
+          if (selectedItem) {
+            const itemTotal = selectedItem.price * selectedItem.quantity;
+            discountAmount = (itemTotal * value) / 100;
+            toast.success(`Discount updated to ${value}% (${formatCurrency(discountAmount)})`);
+          }
+        } else {
+          toast.success(`Discount updated to ${formatCurrency(value)}`);
+        }
+        updateItemDiscount(selectedCartItemId, discountAmount);
         break;
       case 'price':
         if (value === 0) {
@@ -1149,6 +1171,7 @@ export default function POS() {
 
     setKeypadInput('');
     setKeypadMode(null);
+    setIsPercentMode(false);
   };
 
   return (
@@ -1625,7 +1648,7 @@ export default function POS() {
                     <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
                     {keypadMode && (
                       <span className="font-semibold text-primary">
-                        {keypadMode.toUpperCase()}: {keypadInput || '0'}
+                        {keypadMode.toUpperCase()}: {keypadInput || '0'}{isPercentMode && keypadMode === 'discount' ? '%' : ''}
                       </span>
                     )}
                   </div>
@@ -1638,10 +1661,12 @@ export default function POS() {
                 onQtyClick={handleKeypadQty}
                 onDiscountClick={handleKeypadDiscount}
                 onPriceClick={handleKeypadPrice}
+                onPercentClick={handleKeypadPercent}
                 onClear={handleKeypadClear}
                 onEnter={handleKeypadEnter}
                 disabled={!selectedCartItemId}
                 activeMode={keypadMode}
+                isPercentMode={isPercentMode}
               />
             </div>
 
