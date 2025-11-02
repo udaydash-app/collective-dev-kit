@@ -251,12 +251,12 @@ export default function StockAdjustment() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Barcode</TableHead>
-                    <TableHead>Variant</TableHead>
-                    <TableHead className="text-right">System Stock</TableHead>
-                    <TableHead className="text-right">Current Stock</TableHead>
-                    <TableHead className="text-right">Difference</TableHead>
+                    <TableHead className="h-10">Product Name</TableHead>
+                    <TableHead className="h-10">Barcode</TableHead>
+                    <TableHead className="h-10">Variant</TableHead>
+                    <TableHead className="text-right h-10">System Stock</TableHead>
+                    <TableHead className="text-right h-10">Current Stock</TableHead>
+                    <TableHead className="text-right h-10">Difference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -269,12 +269,12 @@ export default function StockAdjustment() {
                       const difference = calculateDifference(key, systemStock);
 
                       return (
-                        <TableRow key={product.id}>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell>{product.barcode || '-'}</TableCell>
-                          <TableCell>-</TableCell>
-                          <TableCell className="text-right">{systemStock}</TableCell>
-                          <TableCell className="text-right">
+                        <TableRow key={product.id} className="h-12">
+                          <TableCell className="font-medium py-2">{product.name}</TableCell>
+                          <TableCell className="py-2">{product.barcode || '-'}</TableCell>
+                          <TableCell className="py-2">-</TableCell>
+                          <TableCell className="text-right py-2">{systemStock}</TableCell>
+                          <TableCell className="text-right py-2">
                             <Input
                               type="number"
                               min="0"
@@ -286,10 +286,10 @@ export default function StockAdjustment() {
                                 }
                               }}
                               onBlur={() => handleStockUpdate(key, systemStock, product.id)}
-                              className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                              className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                             />
                           </TableCell>
-                          <TableCell className={`text-right font-semibold ${
+                          <TableCell className={`text-right font-semibold py-2 ${
                             difference === null ? '' : 
                             difference > 0 ? 'text-green-600' : 
                             difference < 0 ? 'text-red-600' : 
@@ -306,14 +306,14 @@ export default function StockAdjustment() {
                         const difference = calculateDifference(key, systemStock);
 
                         return (
-                          <TableRow key={variant.id}>
-                            <TableCell className="font-medium">
+                          <TableRow key={variant.id} className="h-12">
+                            <TableCell className="font-medium py-2">
                               {index === 0 ? product.name : ''}
                             </TableCell>
-                            <TableCell>{index === 0 ? (product.barcode || '-') : ''}</TableCell>
-                            <TableCell>{variant.label}</TableCell>
-                            <TableCell className="text-right">{systemStock}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="py-2">{index === 0 ? (product.barcode || '-') : ''}</TableCell>
+                            <TableCell className="py-2">{variant.label}</TableCell>
+                            <TableCell className="text-right py-2">{systemStock}</TableCell>
+                            <TableCell className="text-right py-2">
                               <Input
                                 type="number"
                                 min="0"
@@ -325,10 +325,10 @@ export default function StockAdjustment() {
                                   }
                                 }}
                                 onBlur={() => handleStockUpdate(key, systemStock, product.id, variant.id)}
-                                className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                                className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                               />
                             </TableCell>
-                            <TableCell className={`text-right font-semibold ${
+                            <TableCell className={`text-right font-semibold py-2 ${
                               difference === null ? '' : 
                               difference > 0 ? 'text-green-600' : 
                               difference < 0 ? 'text-red-600' : 
