@@ -36,7 +36,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     ref
   ) => {
     return (
-      <div ref={ref} className="receipt-container w-[80mm] px-1 py-1 bg-white text-black font-mono text-sm">
+      <div ref={ref} className="receipt-container w-[80mm] px-2 py-2 bg-white text-black font-mono text-sm">
         <style>{`
           @media print {
             @page {
@@ -50,7 +50,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             .receipt-container {
               width: 80mm !important;
               margin: 0 !important;
-              padding: 2mm !important;
+              padding: 3mm !important;
             }
           }
         `}</style>
@@ -67,12 +67,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
         </div>
 
-        <div className="border-t border-b border-black py-1 mb-1">
-          <div className="grid grid-cols-12 gap-0.5 text-[9px] font-bold mb-1 border-b border-dashed border-gray-400 pb-0.5">
-            <div className="col-span-4">Product</div>
+        <div className="border-t border-b border-black py-2 mb-2">
+          <div className="grid grid-cols-12 gap-1 text-[11px] font-bold mb-1 border-b border-dashed border-gray-400 pb-1">
+            <div className="col-span-5">Product</div>
             <div className="col-span-2 text-center">Qty</div>
             <div className="col-span-2 text-right">Price</div>
-            <div className="col-span-2 text-right">Disc</div>
+            <div className="col-span-1 text-right">Disc</div>
             <div className="col-span-2 text-right">Final</div>
           </div>
           {items.map((item, index) => {
@@ -81,11 +81,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             const finalAmount = itemTotal - (item.itemDiscount || 0);
             
             return (
-              <div key={index} className="grid grid-cols-12 gap-0.5 text-[8px] mb-0.5">
-                <div className="col-span-4 truncate">{item.name}</div>
+              <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
+                <div className="col-span-5 break-words leading-tight">{item.name}</div>
                 <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
                 <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrency(item.price) : ''}</div>
-                <div className="col-span-2 text-right">
+                <div className="col-span-1 text-right">
                   {!isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? formatCurrency(item.itemDiscount) : ''}
                 </div>
                 <div className="col-span-2 text-right font-semibold">{formatCurrency(finalAmount)}</div>
@@ -94,21 +94,21 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           })}
         </div>
 
-        <div className="space-y-1 mb-1">
+        <div className="space-y-1 mb-2">
           {discount > 0 && (
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-sm">
               <span>Cart Discount:</span>
               <span>-{formatCurrency(discount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-base border-t border-black pt-1">
+          <div className="flex justify-between font-bold text-lg border-t border-black pt-2">
             <span>TOTAL:</span>
             <span>{formatCurrency(total)}</span>
           </div>
         </div>
 
-        <div className="border-t border-black pt-1 mb-2">
-          <p className="text-xs">Payment Method: {paymentMethod.toUpperCase()}</p>
+        <div className="border-t border-black pt-2 mb-2">
+          <p className="text-sm">Payment Method: {paymentMethod.toUpperCase()}</p>
         </div>
 
         <div className="text-center text-xs">
