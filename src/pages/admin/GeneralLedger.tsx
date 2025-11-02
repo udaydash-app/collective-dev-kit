@@ -39,7 +39,7 @@ export default function GeneralLedger() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, customer_ledger_account_id, supplier_ledger_account_id');
+        .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id');
       if (error) throw error;
       return data;
     },
@@ -73,14 +73,32 @@ export default function GeneralLedger() {
       structuredAccounts.push({ ...parent, isParent: true });
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
       children.forEach(child => {
-        // Find associated contact
-        const contact = contacts.find(
-          c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
-        );
+        // Find associated contact based on account type
+        let contact;
+        
+        // Check if this is under Accounts Receivable (customer ledger)
+        if (parent.account_name?.toLowerCase().includes('receivable') || 
+            parent.account_name?.toLowerCase().includes('debtors')) {
+          contact = contacts.find(c => c.is_customer && c.customer_ledger_account_id === child.id);
+        }
+        // Check if this is under Accounts Payable (supplier ledger)
+        else if (parent.account_name?.toLowerCase().includes('payable') || 
+                 parent.account_name?.toLowerCase().includes('creditors')) {
+          contact = contacts.find(c => c.is_supplier && c.supplier_ledger_account_id === child.id);
+        }
+        // Fallback to check both
+        else {
+          contact = contacts.find(
+            c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
+          );
+        }
+        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
-          contactName: contact?.name 
+          contactName: contact?.name,
+          isCustomer: contact?.is_customer,
+          isSupplier: contact?.is_supplier
         });
       });
     });
@@ -220,8 +238,8 @@ export default function GeneralLedger() {
                     {account.isChild && '└─ '}
                     {account.account_code} - {account.account_name}
                     {account.contactName && ` (${account.contactName})`}
-                    {account.description?.includes('Customer') && ' 👤'}
-                    {account.description?.includes('Supplier') && ' 🏢'}
+                    {account.isCustomer && ' 👤'}
+                    {account.isSupplier && ' 🏢'}
                   </SelectItem>
                 ))}
               </SelectContent>
