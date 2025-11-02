@@ -162,6 +162,31 @@ export default function StockAdjustment() {
     },
   });
 
+  const createVariantMutation = useMutation({
+    mutationFn: async ({ productId, label, price }: any) => {
+      const { error } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: productId,
+          label: label,
+          price: price,
+          unit: 'pcs',
+          is_default: true,
+          is_available: true,
+          stock_quantity: 0,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      toast.success('Variant created successfully');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to create variant: ' + error.message);
+    },
+  });
+
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return;
@@ -220,6 +245,22 @@ export default function StockAdjustment() {
     updateVariantMutation.mutate({
       variantId,
       newLabel,
+    });
+  };
+
+  const handleVariantCreate = (key: string, productId: string, productPrice: number) => {
+    const inputValue = variantInputs[key];
+    if (inputValue === undefined || inputValue.trim() === '') return; // Not edited or empty
+    
+    const label = inputValue.trim();
+    if (!label) {
+      return;
+    }
+
+    createVariantMutation.mutate({
+      productId,
+      label,
+      price: productPrice,
     });
   };
 
@@ -423,7 +464,21 @@ export default function StockAdjustment() {
                               className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                             />
                           </TableCell>
-                          <TableCell className="py-2">-</TableCell>
+                          <TableCell className="py-2">
+                            <Input
+                              type="text"
+                              placeholder="Add variant"
+                              value={variantInputs[key] || ''}
+                              onChange={(e) => setVariantInputs({ ...variantInputs, [key]: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleVariantCreate(key, product.id, product.price || 0);
+                                }
+                              }}
+                              onBlur={() => handleVariantCreate(key, product.id, product.price || 0)}
+                              className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
+                            />
+                          </TableCell>
                           <TableCell className="text-right py-2">{systemStock}</TableCell>
                           <TableCell className="text-right py-2">
                             <Input
