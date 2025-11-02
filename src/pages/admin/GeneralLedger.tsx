@@ -46,7 +46,7 @@ export default function GeneralLedger() {
   });
 
   const { data: accounts } = useQuery({
-    queryKey: ['accounts-active'],
+    queryKey: ['accounts-active', contacts],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounts')
@@ -82,7 +82,6 @@ export default function GeneralLedger() {
       
       return structuredAccounts;
     },
-    enabled: !!contacts,
   });
 
   // Filter accounts based on search term
@@ -192,20 +191,22 @@ export default function GeneralLedger() {
       <Card className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-2">
+            <Label htmlFor="search">Search Account or Contact</Label>
+            <Input
+              id="search"
+              placeholder="Search by account or contact name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="md:col-span-2">
             <Label htmlFor="account">Account *</Label>
             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
               <SelectTrigger id="account">
                 <SelectValue placeholder="Select an account" />
               </SelectTrigger>
               <SelectContent className="max-h-[400px]">
-                <div className="p-2 sticky top-0 bg-background">
-                  <Input
-                    placeholder="Search by account or contact name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="h-8"
-                  />
-                </div>
                 {filteredAccounts?.map((account) => (
                   <SelectItem 
                     key={account.id} 
@@ -222,6 +223,9 @@ export default function GeneralLedger() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
           <div>
             <Label htmlFor="start-date">Start Date</Label>
