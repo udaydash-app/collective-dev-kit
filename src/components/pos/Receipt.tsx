@@ -60,7 +60,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
             </div>
           )}
-          <div className="-mt-2">
+          <div className="-mt-6">
             <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
             <p className="text-xs">Fresh groceries delivered to your doorstep</p>
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
