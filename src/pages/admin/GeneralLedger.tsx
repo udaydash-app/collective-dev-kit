@@ -171,8 +171,7 @@ export default function GeneralLedger() {
         .eq('account_id', selectedAccount)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', startDate)
-        .lte('journal_entries.entry_date', endDate)
-        .order('created_at', { ascending: true });
+        .lte('journal_entries.entry_date', endDate);
 
       if (error) throw error;
 
