@@ -5,6 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
+import { z } from 'zod';
+
+const priceSchema = z.number().positive().max(1000000);
+const amountSchema = z.number().nonnegative().max(10000000);
 
 interface TransactionCartProps {
   items: CartItem[];
@@ -42,6 +46,29 @@ export const TransactionCart = ({
     const subtotal = item.price * item.quantity;
     const discountAmount = (item.itemDiscount || 0) * item.quantity;
     return subtotal - discountAmount;
+  };
+
+  const handlePriceChange = (item: CartItem, newPrice: number) => {
+    try {
+      const validated = priceSchema.parse(newPrice);
+      onUpdatePrice?.(item.id, validated);
+    } catch (error) {
+      console.error('Invalid price value');
+    }
+  };
+
+  const handleFinalAmountChange = (item: CartItem, newFinalAmount: number) => {
+    try {
+      const validated = amountSchema.parse(newFinalAmount);
+      // Back-calculate the price per unit based on new final amount
+      const newPricePerUnit = validated / item.quantity;
+      const validatedPrice = priceSchema.parse(newPricePerUnit);
+      onUpdatePrice?.(item.id, validatedPrice);
+      // Clear item discount when editing final amount
+      onUpdateDiscount?.(item.id, 0);
+    } catch (error) {
+      console.error('Invalid final amount value');
+    }
   };
 
   return (
@@ -124,8 +151,28 @@ export const TransactionCart = ({
                         <span className="text-center block text-[10px] text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-[10px] py-1 px-1">
-                      {!isCartDiscount ? formatCurrency(Math.abs(item.price)) : ''}
+                    <TableCell className="text-right py-1 px-1">
+                      {!isCartDiscount && onUpdatePrice ? (
+                        <Input
+                          type="number"
+                          value={item.price || ''}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const newPrice = parseFloat(e.target.value);
+                            if (!isNaN(newPrice) && newPrice > 0) {
+                              handlePriceChange(item, newPrice);
+                            }
+                          }}
+                          className="w-16 h-5 text-right text-[10px] px-1"
+                          min="0.01"
+                          step="0.01"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : !isCartDiscount ? (
+                        <span className="text-[10px]">{formatCurrency(Math.abs(item.price))}</span>
+                      ) : (
+                        ''
+                      )}
                     </TableCell>
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdateDiscount ? (
@@ -151,8 +198,26 @@ export const TransactionCart = ({
                         ''
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-semibold text-[10px] py-1 px-1">
-                      {formatCurrency(calculateFinalAmount(item))}
+                    <TableCell className="text-right py-1 px-1">
+                      {!isCartDiscount && onUpdatePrice ? (
+                        <Input
+                          type="number"
+                          value={calculateFinalAmount(item).toFixed(2)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const newAmount = parseFloat(e.target.value);
+                            if (!isNaN(newAmount) && newAmount >= 0) {
+                              handleFinalAmountChange(item, newAmount);
+                            }
+                          }}
+                          className="w-20 h-5 text-right text-[10px] font-semibold px-1"
+                          min="0"
+                          step="0.01"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="font-semibold text-[10px]">{formatCurrency(calculateFinalAmount(item))}</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-1 px-1">
                       <Button
