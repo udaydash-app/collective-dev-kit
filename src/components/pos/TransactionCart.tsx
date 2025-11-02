@@ -58,12 +58,12 @@ export const TransactionCart = ({
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
-                <TableHead className="text-xs py-1.5">Product name</TableHead>
-                <TableHead className="text-center text-xs py-1.5 w-[130px]">Qty</TableHead>
-                <TableHead className="text-right text-xs py-1.5 w-[80px]">Price</TableHead>
-                <TableHead className="text-right text-xs py-1.5 w-[80px]">Discount</TableHead>
-                <TableHead className="text-right text-xs py-1.5 w-[100px]">Final Amount</TableHead>
-                <TableHead className="w-[40px] py-1.5"></TableHead>
+                <TableHead className="text-[10px] py-1 px-1">Product name</TableHead>
+                <TableHead className="text-center text-[10px] py-1 px-1 w-[110px]">Qty</TableHead>
+                <TableHead className="text-right text-[10px] py-1 px-1 w-[70px]">Price</TableHead>
+                <TableHead className="text-right text-[10px] py-1 px-1 w-[70px]">Disc</TableHead>
+                <TableHead className="text-right text-[10px] py-1 px-1 w-[85px]">Final</TableHead>
+                <TableHead className="w-[35px] py-1 px-1"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,22 +80,22 @@ export const TransactionCart = ({
                     )}
                     onClick={() => !isCartDiscount && onSelectItem?.(item.id)}
                   >
-                    <TableCell className="py-1.5">
-                      <span className={cn("text-xs font-medium", isCartDiscount && "text-orange-600 dark:text-orange-400")}>{item.name}</span>
+                    <TableCell className="py-1 px-1">
+                      <span className={cn("text-[10px] font-medium line-clamp-2", isCartDiscount && "text-orange-600 dark:text-orange-400")}>{item.name}</span>
                     </TableCell>
-                    <TableCell className="py-1.5">
+                    <TableCell className="py-1 px-1">
                       {!isCartDiscount ? (
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-0.5">
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-6 w-6"
+                            className="h-5 w-5"
                             onClick={(e) => {
                               e.stopPropagation();
                               onUpdateQuantity(item.id, item.quantity - 1);
                             }}
                           >
-                            <Minus className="h-2.5 w-2.5" />
+                            <Minus className="h-2 w-2" />
                           </Button>
                           <Input
                             type="number"
@@ -104,30 +104,30 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               onUpdateQuantity(item.id, parseInt(e.target.value) || 1);
                             }}
-                            className="w-12 h-6 text-center text-xs"
+                            className="w-10 h-5 text-center text-[10px] px-0"
                             min="1"
                             onClick={(e) => e.stopPropagation()}
                           />
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-6 w-6"
+                            className="h-5 w-5"
                             onClick={(e) => {
                               e.stopPropagation();
                               onUpdateQuantity(item.id, item.quantity + 1);
                             }}
                           >
-                            <Plus className="h-2.5 w-2.5" />
+                            <Plus className="h-2 w-2" />
                           </Button>
                         </div>
                       ) : (
-                        <span className="text-center block text-xs text-muted-foreground">-</span>
+                        <span className="text-center block text-[10px] text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-xs py-1.5">
+                    <TableCell className="text-right text-[10px] py-1 px-1">
                       {formatCurrency(Math.abs(item.price))}
                     </TableCell>
-                    <TableCell className="text-right py-1.5">
+                    <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdateDiscount ? (
                         <Input
                           type="number"
@@ -136,29 +136,29 @@ export const TransactionCart = ({
                             e.stopPropagation();
                             onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
                           }}
-                          className="w-16 h-6 text-right text-xs ml-auto"
+                          className="w-14 h-5 text-right text-[10px] ml-auto px-1"
                           min="0"
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="text-xs">{formatCurrency(item.itemDiscount || 0)}</span>
+                        <span className="text-[10px]">{formatCurrency(item.itemDiscount || 0)}</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-semibold text-xs py-1.5">
+                    <TableCell className="text-right font-semibold text-[10px] py-1 px-1">
                       {formatCurrency(calculateFinalAmount(item))}
                     </TableCell>
-                    <TableCell className="py-1.5">
+                    <TableCell className="py-1 px-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-destructive"
+                        className="h-5 w-5 text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
                           onRemove(item.id);
                         }}
                       >
-                        <Trash2 className="h-2.5 w-2.5" />
+                        <Trash2 className="h-2 w-2" />
                       </Button>
                     </TableCell>
                   </TableRow>
