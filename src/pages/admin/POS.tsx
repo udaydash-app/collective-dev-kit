@@ -456,7 +456,7 @@ export default function POS() {
     creditSales: sessionTransactions
       ?.filter(t => t.payment_method === 'credit')
       .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    mobileMoneyS: sessionTransactions
+    mobileMoneySales: sessionTransactions
       ?.filter(t => t.payment_method === 'mobile_money')
       .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
     totalSales: sessionTransactions
@@ -486,9 +486,15 @@ export default function POS() {
       .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
   };
 
-  // Calculate expected cash (opening cash + cash sales)
+  // Calculate expected cash (opening cash + cash sales + mobile money sales - cash purchases - mobile purchases - cash expenses - mobile money expenses)
   const expectedCashAtClose = currentCashSession 
-    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + dayActivity.cashSales
+    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + 
+      dayActivity.cashSales + 
+      dayActivity.mobileMoneySales - 
+      dayActivity.cashPurchases - 
+      dayActivity.mobileMoneyPurchases - 
+      dayActivity.cashExpenses - 
+      dayActivity.mobileMoneyExpenses
     : 0;
 
   const { data: categories } = useQuery({
@@ -596,7 +602,48 @@ export default function POS() {
       const cashSales = transactions
         ?.filter(t => t.payment_method === 'cash')
         .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
-      const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + cashSales;
+      
+      const mobileMoneySales = transactions
+        ?.filter(t => t.payment_method === 'mobile_money')
+        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+
+      // Fetch purchases for this session
+      const { data: purchases } = await supabase
+        .from('purchases')
+        .select('total_amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('purchased_at', currentCashSession.opened_at);
+
+      const cashPurchases = purchases
+        ?.filter(p => p.payment_method === 'cash')
+        .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
+      
+      const mobileMoneyPurchases = purchases
+        ?.filter(p => p.payment_method === 'mobile_money')
+        .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
+
+      // Fetch expenses for this session
+      const { data: expenses } = await supabase
+        .from('expenses')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      const cashExpenses = expenses
+        ?.filter(e => e.payment_method === 'cash')
+        .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
+      
+      const mobileMoneyExpenses = expenses
+        ?.filter(e => e.payment_method === 'mobile_money')
+        .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
+
+      const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + 
+        cashSales + 
+        mobileMoneySales - 
+        cashPurchases - 
+        mobileMoneyPurchases - 
+        cashExpenses - 
+        mobileMoneyExpenses;
       const cashDifference = closingCash - expectedCash;
 
       const { error } = await supabase

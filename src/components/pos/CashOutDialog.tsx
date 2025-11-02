@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 interface DayActivity {
   cashSales: number;
   creditSales: number;
-  mobileMoneyS: number;
+  mobileMoneySales: number;
   totalSales: number;
   totalTransactions: number;
   purchases: number;
@@ -46,7 +46,7 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
   const salesActivities = [
     { icon: DollarSign, label: 'Cash Sales', value: dayActivity.cashSales, color: 'text-green-600' },
     { icon: CreditCard, label: 'Credit Sales', value: dayActivity.creditSales, color: 'text-blue-600' },
-    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneyS, color: 'text-purple-600' },
+    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneySales, color: 'text-purple-600' },
   ];
 
   const purchaseActivities = [
