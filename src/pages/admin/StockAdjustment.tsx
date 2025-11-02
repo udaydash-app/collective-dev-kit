@@ -13,6 +13,7 @@ export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
@@ -152,6 +153,40 @@ export default function StockAdjustment() {
     return currentStock - systemStock;
   };
 
+  const handleBarcodeScanned = (barcode: string) => {
+    if (!barcode.trim() || !filteredProducts) return;
+    
+    // Find product by barcode
+    const product = filteredProducts.find((p) => {
+      // Check main product barcode
+      if (p.barcode === barcode) return true;
+      // Check variant barcodes
+      if (p.product_variants?.some((v: any) => v.barcode === barcode)) return true;
+      return false;
+    });
+
+    if (product) {
+      // Check if it's a variant match
+      const variant = product.product_variants?.find((v: any) => v.barcode === barcode);
+      const key = variant ? `variant-${variant.id}` : `product-${product.id}`;
+      
+      // Focus on the input field
+      setTimeout(() => {
+        const input = document.querySelector(`input[data-key="${key}"]`) as HTMLInputElement;
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 100);
+      
+      toast.success(`Found: ${product.name}${variant ? ` (${variant.label})` : ''}`);
+    } else {
+      toast.error('Product not found with barcode: ' + barcode);
+    }
+    
+    setBarcodeInput('');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -170,7 +205,23 @@ export default function StockAdjustment() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="barcode">Scan Barcode</Label>
+              <Input
+                id="barcode"
+                placeholder="Scan or enter barcode..."
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleBarcodeScanned(barcodeInput);
+                  }
+                }}
+                autoComplete="off"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="store">Store *</Label>
               <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
@@ -210,7 +261,7 @@ export default function StockAdjustment() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search"
-                  placeholder="Search by name or barcode..."
+                  placeholder="Search by name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -279,6 +330,7 @@ export default function StockAdjustment() {
                               type="number"
                               min="0"
                               value={stockInputs[key] || ''}
+                              data-key={key}
                               onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -318,6 +370,7 @@ export default function StockAdjustment() {
                                 type="number"
                                 min="0"
                                 value={stockInputs[key] || ''}
+                                data-key={key}
                                 onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
