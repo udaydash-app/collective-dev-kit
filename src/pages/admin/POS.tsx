@@ -1615,51 +1615,54 @@ export default function POS() {
             </div>
           )}
 
-          {/* Quick Actions Grid */}
-          <div className="grid grid-cols-3 xl:grid-cols-4 gap-2 mt-4">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className={cn(
-                  "h-20 flex flex-col items-center justify-center p-2 text-white border-none transition-colors",
-                  action.color,
-                  "hover:opacity-90"
-                )}
-                onClick={action.action}
-              >
-                <action.icon className="h-5 w-5 mb-1" />
-                <span className="text-xs text-center">{action.label}</span>
-              </Button>
-            ))}
-          </div>
-
-          {/* Numeric Keypad */}
-          <div className="mt-4">
-            <div className="text-xs text-muted-foreground mb-2 px-2">
-              {selectedCartItemId ? (
-                <div className="flex items-center justify-between">
-                  <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
-                  {keypadMode && (
-                    <span className="font-semibold text-primary">
-                      {keypadMode.toUpperCase()}: {keypadInput || '0'}
-                    </span>
+          {/* Quick Actions and Numeric Keypad Side by Side */}
+          <div className="flex gap-2 mt-4">
+            {/* Quick Actions Grid - 2 columns, left side */}
+            <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className={cn(
+                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
+                    action.color,
+                    "hover:opacity-90"
                   )}
-                </div>
-              ) : (
-                <span>Select a product from cart to use keypad</span>
-              )}
+                  onClick={action.action}
+                >
+                  <action.icon className="h-4 w-4 mb-0.5" />
+                  <span className="text-[10px] text-center leading-tight">{action.label}</span>
+                </Button>
+              ))}
             </div>
-            <NumericKeypad
-              onNumberClick={handleKeypadNumber}
-              onQtyClick={handleKeypadQty}
-              onDiscountClick={handleKeypadDiscount}
-              onPriceClick={handleKeypadPrice}
-              onClear={handleKeypadClear}
-              onEnter={handleKeypadEnter}
-              disabled={!selectedCartItemId}
-              activeMode={keypadMode}
-            />
+
+            {/* Numeric Keypad - right side */}
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground mb-2 px-2">
+                {selectedCartItemId ? (
+                  <div className="flex items-center justify-between">
+                    <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
+                    {keypadMode && (
+                      <span className="font-semibold text-primary">
+                        {keypadMode.toUpperCase()}: {keypadInput || '0'}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span>Select a product from cart to use keypad</span>
+                )}
+              </div>
+              <NumericKeypad
+                onNumberClick={handleKeypadNumber}
+                onQtyClick={handleKeypadQty}
+                onDiscountClick={handleKeypadDiscount}
+                onPriceClick={handleKeypadPrice}
+                onClear={handleKeypadClear}
+                onEnter={handleKeypadEnter}
+                disabled={!selectedCartItemId}
+                activeMode={keypadMode}
+              />
+            </div>
           </div>
         </div>
       </div>
