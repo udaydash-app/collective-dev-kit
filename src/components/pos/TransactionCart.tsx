@@ -125,7 +125,7 @@ export const TransactionCart = ({
                       )}
                     </TableCell>
                     <TableCell className="text-right text-[10px] py-1 px-1">
-                      {formatCurrency(Math.abs(item.price))}
+                      {!isCartDiscount ? formatCurrency(Math.abs(item.price)) : ''}
                     </TableCell>
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdateDiscount ? (
@@ -141,8 +141,10 @@ export const TransactionCart = ({
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
                         />
-                      ) : (
+                      ) : !isCartDiscount ? (
                         <span className="text-[10px]">{formatCurrency(item.itemDiscount || 0)}</span>
+                      ) : (
+                        ''
                       )}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-[10px] py-1 px-1">
