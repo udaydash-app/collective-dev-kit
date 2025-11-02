@@ -122,19 +122,26 @@ export default function GeneralLedger() {
   // Filter accounts based on search term
   const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
   
+  console.log('Total accounts:', accounts?.length);
+  console.log('Search value:', searchValue);
+  
   const filteredAccounts = accounts?.filter((account) => {
-    if (!searchValue) return true;
+    if (!searchValue || searchValue.trim() === '') return true;
     const searchLower = searchValue.toLowerCase();
     const accountName = account.account_name?.toLowerCase() || '';
     const accountCode = account.account_code?.toLowerCase() || '';
     const contactName = account.contactName?.toLowerCase() || '';
     
-    return (
+    const matches = (
       accountName.includes(searchLower) ||
       accountCode.includes(searchLower) ||
       contactName.includes(searchLower)
     );
+    
+    return matches;
   }) || [];
+  
+  console.log('Filtered accounts:', filteredAccounts.length);
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
