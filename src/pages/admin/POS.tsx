@@ -701,7 +701,14 @@ export default function POS() {
       supportPhone: settings?.company_phone,
     };
     
-    const result = await processTransaction(payments, selectedStoreId);
+    // Pass cartDiscountItem as additionalItems to processTransaction
+    const result = await processTransaction(
+      payments, 
+      selectedStoreId, 
+      selectedCustomer?.id, 
+      orderNotes,
+      cartDiscountItem ? [cartDiscountItem] : undefined
+    );
     
     if (result) {
       // Clear cart discount after successful transaction
@@ -750,10 +757,11 @@ export default function POS() {
       // Parse transaction items
       const items = Array.isArray(transaction.items) ? transaction.items : [];
       
-      // Prepare transaction data
+      // Prepare transaction data - properly preserve item structure including id
       const transactionData = {
         transactionNumber: transaction.transaction_number,
         items: items.map((item: any) => ({
+          id: item.id || 'unknown',
           name: item.name || 'Unknown Item',
           quantity: item.quantity || 1,
           price: item.price || 0,

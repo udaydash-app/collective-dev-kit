@@ -116,7 +116,8 @@ export const usePOSTransaction = () => {
     payments: Array<{ id: string; method: string; amount: number }>,
     storeId: string,
     customerId?: string,
-    notes?: string
+    notes?: string,
+    additionalItems?: CartItem[]
   ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -145,12 +146,15 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
+      // Combine cart items with any additional items (like cart discount)
+      const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
+
       const transactionData = {
         id: uuidv4(),
         cashier_id: user.id,
         store_id: storeId,
         customer_id: customerId,
-        items: cart as any,
+        items: allItems as any,
         subtotal: parseFloat(subtotal.toFixed(2)),
         tax: 0,
         discount: parseFloat(discount.toFixed(2)),
@@ -233,12 +237,15 @@ export const usePOSTransaction = () => {
             (current.amount > prev.amount) ? current : prev
           );
           
+          // Combine cart items with any additional items (like cart discount)
+          const allItemsForOffline = additionalItems ? [...cart, ...additionalItems] : cart;
+          
           await offlineDB.addTransaction({
             id: uuidv4(),
             storeId,
             cashierId: user.id,
             customerId,
-            items: cart as any,
+            items: allItemsForOffline as any,
             subtotal: parseFloat(subtotal.toFixed(2)),
             discount: parseFloat(discount.toFixed(2)),
             total: parseFloat(total.toFixed(2)),
