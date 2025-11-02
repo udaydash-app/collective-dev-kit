@@ -63,8 +63,6 @@ export default function GeneralLedger() {
 
   // Map accounts with contact names after both queries complete
   const accounts = rawAccounts && contacts ? (() => {
-    console.log('Contacts loaded:', contacts.length);
-    
     // Organize accounts by parent-child relationship
     const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
     const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
@@ -95,10 +93,6 @@ export default function GeneralLedger() {
           );
         }
         
-        if (contact) {
-          console.log(`Mapped contact ${contact.name} to account ${child.account_name}`);
-        }
-        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
@@ -109,7 +103,6 @@ export default function GeneralLedger() {
       });
     });
     
-    console.log('Structured accounts with contacts:', structuredAccounts.filter(a => a.contactName).length);
     return structuredAccounts;
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
 
@@ -150,18 +143,23 @@ export default function GeneralLedger() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', startDate)
         .lte('journal_entries.entry_date', endDate)
-        .order('journal_entries.entry_date', { ascending: true });
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
+
+      // Sort by entry date in JavaScript since we can't order by nested field
+      const sortedLines = lines?.sort((a, b) => 
+        new Date(a.journal_entries.entry_date).getTime() - new Date(b.journal_entries.entry_date).getTime()
+      );
 
       // Get account details
       const { data: account } = await supabase
         .from('accounts')
         .select('*')
         .eq('id', selectedAccount)
-        .single();
+        .maybeSingle();
 
-      return { lines, account };
+      return { lines: sortedLines, account };
     },
     enabled: !!selectedAccount,
   });
