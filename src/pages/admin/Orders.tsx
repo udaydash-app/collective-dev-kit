@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -204,9 +204,11 @@ export default function AdminOrders() {
           order_number: transaction.transaction_number,
           customer_name: 'Walk-in Customer',
           stores: transaction.stores,
+          store_id: transaction.store_id,
           total: transaction.total,
           subtotal: transaction.subtotal,
           tax: transaction.tax,
+          discount: transaction.discount || 0,
           delivery_fee: 0,
           created_at: transaction.created_at,
           items: transaction.items || [],
@@ -475,6 +477,31 @@ export default function AdminOrders() {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
     }
+  };
+
+  const handleEditOrder = (order: any) => {
+    // Store the order data in localStorage so POS can load it
+    const orderData = {
+      id: order.id,
+      type: order.type,
+      items: order.items.map((item: any) => ({
+        id: item.id || (item.products?.id),
+        name: item.name || item.products?.name,
+        price: item.price || item.unit_price || item.products?.price || 0,
+        customPrice: item.customPrice,
+        quantity: item.quantity || 1,
+        itemDiscount: item.itemDiscount || 0,
+        barcode: item.barcode || item.products?.barcode
+      })),
+      discount: order.type === 'pos' ? (order.discount || 0) : 0,
+      customer: order.customer_name,
+      storeId: order.store_id
+    };
+    
+    localStorage.setItem('pos-edit-order', JSON.stringify(orderData));
+    
+    // Navigate to POS with edit flag
+    navigate(`/admin/pos?editOrder=${order.id}`);
   };
 
   const handleSendReceiptWhatsApp = () => {
@@ -1067,6 +1094,14 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 {expandedOrders.has(order.id) ? 'Hide' : 'View'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditOrder(order)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
                               </Button>
                               <Button
                                 size="sm"

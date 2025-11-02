@@ -100,6 +100,8 @@ export default function POS() {
   const [keypadInput, setKeypadInput] = useState<string>('');
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -151,6 +153,7 @@ export default function POS() {
 
   // Load order into POS if orderId is in URL params
   const loadedOrderRef = useRef<string | null>(null);
+  const editedOrderRef = useRef<string | null>(null);
   
   useEffect(() => {
     const orderId = searchParams.get('orderId');
@@ -158,6 +161,16 @@ export default function POS() {
       loadedOrderRef.current = orderId;
       setIsLoadingOrder(true);
       loadOrderToPOS(orderId);
+    }
+  }, [searchParams, isLoadingOrder, cart.length]);
+
+  // Load order for editing from localStorage
+  useEffect(() => {
+    const editOrderId = searchParams.get('editOrder');
+    if (editOrderId && editOrderId !== editedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+      editedOrderRef.current = editOrderId;
+      setIsLoadingOrder(true);
+      loadEditOrderToPOS(editOrderId);
     }
   }, [searchParams, isLoadingOrder, cart.length]);
 
@@ -171,9 +184,14 @@ export default function POS() {
           stores(id, name)
         `)
         .eq('id', orderId)
-        .single();
+        .maybeSingle();
 
       if (orderError) throw orderError;
+      if (!order) {
+        toast.error('Order not found');
+        navigate('/admin/pos', { replace: true });
+        return;
+      }
 
       // Fetch order items with product details
       const { data: items, error: itemsError } = await supabase
@@ -228,6 +246,84 @@ export default function POS() {
       console.error('Error loading order:', error);
       toast.error('Failed to load order into POS');
       // Clear orderId from URL even on error
+      navigate('/admin/pos', { replace: true });
+    } finally {
+      setIsLoadingOrder(false);
+    }
+  };
+
+  const loadEditOrderToPOS = async (editOrderId: string) => {
+    try {
+      // Get order data from localStorage
+      const storedData = localStorage.getItem('pos-edit-order');
+      if (!storedData) {
+        toast.error('Order data not found');
+        navigate('/admin/pos', { replace: true });
+        return;
+      }
+
+      const orderData = JSON.parse(storedData);
+      
+      // Clear localStorage
+      localStorage.removeItem('pos-edit-order');
+      
+      // Store editing info
+      setEditingOrderId(orderData.id);
+      setEditingOrderType(orderData.type);
+      
+      // Set store if available
+      if (orderData.storeId) {
+        setSelectedStoreId(orderData.storeId);
+      }
+
+      // Load items into cart
+      if (orderData.items && orderData.items.length > 0) {
+        for (const item of orderData.items) {
+          // Skip cart-discount items as they'll be recalculated
+          if (item.id === 'cart-discount') {
+            // Recreate the cart discount
+            setCartDiscountItem({
+              id: 'cart-discount',
+              name: 'Cart Discount',
+              price: item.price || 0,
+              quantity: 1,
+              itemDiscount: 0,
+            });
+            continue;
+          }
+
+          // Add each item with quantity of 1, then update quantity
+          addToCart({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            barcode: item.barcode,
+          });
+          
+          // Update quantity if greater than 1
+          if (item.quantity > 1) {
+            updateQuantity(item.id, item.quantity);
+          }
+          
+          // Apply custom price if present
+          if (item.customPrice) {
+            updateItemPrice(item.id, item.customPrice);
+          }
+          
+          // Apply item discount if present
+          if (item.itemDiscount && item.itemDiscount > 0) {
+            updateItemDiscount(item.id, item.itemDiscount);
+          }
+        }
+        
+        // Clear URL parameter
+        navigate('/admin/pos', { replace: true });
+        
+        toast.success(`Loaded ${orderData.type === 'pos' ? 'sale' : 'order'} for editing`);
+      }
+    } catch (error: any) {
+      console.error('Error loading order for editing:', error);
+      toast.error('Failed to load order for editing');
       navigate('/admin/pos', { replace: true });
     } finally {
       setIsLoadingOrder(false);
@@ -713,6 +809,30 @@ export default function POS() {
     );
     
     if (result) {
+      // If editing an existing order/transaction, delete the old one
+      if (editingOrderId) {
+        try {
+          if (editingOrderType === 'pos') {
+            await supabase
+              .from('pos_transactions')
+              .delete()
+              .eq('id', editingOrderId);
+          } else if (editingOrderType === 'online') {
+            await supabase
+              .from('orders')
+              .delete()
+              .eq('id', editingOrderId);
+          }
+          toast.info('Previous transaction replaced with updated version');
+        } catch (error) {
+          console.error('Error deleting old transaction:', error);
+        }
+        
+        // Clear editing state
+        setEditingOrderId(null);
+        setEditingOrderType(null);
+      }
+      
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
       
@@ -1359,6 +1479,12 @@ export default function POS() {
 
         {/* Cart Items */}
         <div className="flex-1 overflow-hidden p-1">
+          {editingOrderId && (
+            <div className="mb-2 p-2 bg-amber-100 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded text-xs text-amber-900 dark:text-amber-200">
+              <div className="font-semibold">Editing {editingOrderType === 'pos' ? 'Sale' : 'Order'}</div>
+              <div className="text-[10px] opacity-80">ID: {editingOrderId.slice(0, 8)}...</div>
+            </div>
+          )}
           <TransactionCart
             items={[...cart, ...(cartDiscountItem ? [cartDiscountItem] : [])]}
             onUpdateQuantity={updateQuantity}
