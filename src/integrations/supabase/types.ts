@@ -363,6 +363,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           credit_limit: number | null
+          customer_ledger_account_id: string | null
           email: string | null
           id: string
           is_customer: boolean
@@ -372,6 +373,7 @@ export type Database = {
           opening_balance: number | null
           phone: string | null
           state: string | null
+          supplier_ledger_account_id: string | null
           tax_id: string | null
           updated_at: string
           zip_code: string | null
@@ -385,6 +387,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
+          customer_ledger_account_id?: string | null
           email?: string | null
           id?: string
           is_customer?: boolean
@@ -394,6 +397,7 @@ export type Database = {
           opening_balance?: number | null
           phone?: string | null
           state?: string | null
+          supplier_ledger_account_id?: string | null
           tax_id?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -407,6 +411,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
+          customer_ledger_account_id?: string | null
           email?: string | null
           id?: string
           is_customer?: boolean
@@ -416,11 +421,27 @@ export type Database = {
           opening_balance?: number | null
           phone?: string | null
           state?: string | null
+          supplier_ledger_account_id?: string | null
           tax_id?: string | null
           updated_at?: string
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_customer_ledger_account_id_fkey"
+            columns: ["customer_ledger_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_supplier_ledger_account_id_fkey"
+            columns: ["supplier_ledger_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -860,6 +881,66 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      payment_receipts: {
+        Row: {
+          amount: number
+          contact_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          receipt_number: string
+          received_by: string | null
+          reference: string | null
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contact_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          receipt_number?: string
+          received_by?: string | null
+          reference?: string | null
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contact_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          receipt_number?: string
+          received_by?: string | null
+          reference?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pos_transactions: {
         Row: {

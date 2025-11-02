@@ -486,11 +486,39 @@ export default function POS() {
       .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
   };
 
-  // Calculate expected cash (opening cash + cash sales + mobile money sales - cash purchases - mobile purchases - cash expenses - mobile money expenses)
+  // Fetch payment receipts for this session
+  const { data: paymentReceipts } = useQuery({
+    queryKey: ['session-payment-receipts', currentCashSession?.id],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+      
+      const { data, error } = await supabase
+        .from('payment_receipts')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentCashSession
+  });
+
+  const cashPayments = paymentReceipts
+    ?.filter(p => p.payment_method === 'cash')
+    .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+  
+  const mobileMoneyPayments = paymentReceipts
+    ?.filter(p => p.payment_method === 'mobile_money')
+    .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+
+  // Calculate expected cash (opening cash + cash sales + mobile money sales + cash payments + mobile money payments - cash purchases - mobile purchases - cash expenses - mobile money expenses)
   const expectedCashAtClose = currentCashSession 
     ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + 
       dayActivity.cashSales + 
-      dayActivity.mobileMoneySales - 
+      dayActivity.mobileMoneySales + 
+      cashPayments + 
+      mobileMoneyPayments - 
       dayActivity.cashPurchases - 
       dayActivity.mobileMoneyPurchases - 
       dayActivity.cashExpenses - 
@@ -637,9 +665,26 @@ export default function POS() {
         ?.filter(e => e.payment_method === 'mobile_money')
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
+      // Fetch payment receipts for this session
+      const { data: paymentReceipts } = await supabase
+        .from('payment_receipts')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      const cashPayments = paymentReceipts
+        ?.filter(p => p.payment_method === 'cash')
+        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+      
+      const mobileMoneyPayments = paymentReceipts
+        ?.filter(p => p.payment_method === 'mobile_money')
+        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+
       const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + 
         cashSales + 
-        mobileMoneySales - 
+        mobileMoneySales + 
+        cashPayments + 
+        mobileMoneyPayments - 
         cashPurchases - 
         mobileMoneyPurchases - 
         cashExpenses - 
@@ -846,11 +891,16 @@ export default function POS() {
     };
     
     // Pass cartDiscountItem as additionalItems to processTransaction
+    // Add customer ID to notes for credit sales journal entry tracking
+    const notesWithCustomer = selectedCustomer && payments.some(p => p.method === 'credit')
+      ? `${orderNotes ? orderNotes + ' | ' : ''}customer:${selectedCustomer.id}`
+      : orderNotes;
+    
     const result = await processTransaction(
       payments, 
       selectedStoreId, 
       selectedCustomer?.id, 
-      orderNotes,
+      notesWithCustomer,
       cartDiscountItem ? [cartDiscountItem] : undefined,
       cartDiscountAmount // Pass the cart discount amount
     );
