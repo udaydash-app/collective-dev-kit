@@ -281,11 +281,12 @@ export default function CloseDayReport() {
             ?.filter(r => r.payment_method === 'cash')
             .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0) || 0;
 
-          // Get cash purchases
+          // Get cash purchases made by this cashier
           const { data: sessionPurchases } = await supabase
             .from('purchases')
             .select('total_amount, payment_method')
             .eq('store_id', session.store_id)
+            .eq('purchased_by', session.cashier_id)
             .gte('purchased_at', sessionStart)
             .lte('purchased_at', sessionEnd);
 
@@ -293,11 +294,12 @@ export default function CloseDayReport() {
             ?.filter(p => p.payment_method === 'cash')
             .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
-          // Get cash expenses
+          // Get cash expenses paid by this cashier
           const { data: sessionExpenses } = await supabase
             .from('expenses')
             .select('amount, payment_method, expense_date, created_at')
             .eq('store_id', session.store_id)
+            .eq('created_by', session.cashier_id)
             .gte('created_at', sessionStart)
             .lte('created_at', sessionEnd);
 
