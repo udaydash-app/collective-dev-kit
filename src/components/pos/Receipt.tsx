@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatCurrencyCompact } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
 interface ReceiptProps {
@@ -54,10 +54,10 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             }
           }
         `}</style>
-        <div className="text-center mb-2">
+        <div className="text-center mb-1">
           {logoUrl && (
-            <div className="flex justify-center mb-1">
-              <img src={logoUrl} alt="Company Logo" className="h-16 w-auto object-contain" />
+            <div className="flex justify-center mb-0">
+              <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
             </div>
           )}
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
@@ -84,11 +84,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
                 <div className="col-span-5 break-words leading-tight">{item.name}</div>
                 <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
-                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrency(item.price) : ''}</div>
+                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(item.price) : ''}</div>
                 <div className="col-span-1 text-right">
-                  {!isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? formatCurrency(item.itemDiscount) : ''}
+                  {!isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? formatCurrencyCompact(item.itemDiscount) : ''}
                 </div>
-                <div className="col-span-2 text-right font-semibold">{formatCurrency(finalAmount)}</div>
+                <div className="col-span-2 text-right font-semibold">{formatCurrencyCompact(finalAmount)}</div>
               </div>
             );
           })}

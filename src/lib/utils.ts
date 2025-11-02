@@ -10,3 +10,9 @@ export function formatCurrency(amount: number | null | undefined): string {
   const value = amount ?? 0;
   return `${value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
 }
+
+// Currency formatting without currency sign for compact displays
+export function formatCurrencyCompact(amount: number | null | undefined): string {
+  const value = amount ?? 0;
+  return value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
