@@ -1615,28 +1615,9 @@ export default function POS() {
             </div>
           )}
 
-          {/* Quick Actions and Numeric Keypad Side by Side */}
+          {/* Numeric Keypad and Quick Actions Side by Side */}
           <div className="flex gap-2 mt-4">
-            {/* Quick Actions Grid - 2 columns, left side */}
-            <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className={cn(
-                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
-                    action.color,
-                    "hover:opacity-90"
-                  )}
-                  onClick={action.action}
-                >
-                  <action.icon className="h-4 w-4 mb-0.5" />
-                  <span className="text-[10px] text-center leading-tight">{action.label}</span>
-                </Button>
-              ))}
-            </div>
-
-            {/* Numeric Keypad - right side */}
+            {/* Numeric Keypad - left side */}
             <div className="flex-1">
               <div className="text-xs text-muted-foreground mb-2 px-2">
                 {selectedCartItemId ? (
@@ -1662,6 +1643,25 @@ export default function POS() {
                 disabled={!selectedCartItemId}
                 activeMode={keypadMode}
               />
+            </div>
+
+            {/* Quick Actions Grid - 2 columns, right side */}
+            <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className={cn(
+                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
+                    action.color,
+                    "hover:opacity-90"
+                  )}
+                  onClick={action.action}
+                >
+                  <action.icon className="h-4 w-4 mb-0.5" />
+                  <span className="text-[10px] text-center leading-tight">{action.label}</span>
+                </Button>
+              ))}
             </div>
           </div>
         </div>
