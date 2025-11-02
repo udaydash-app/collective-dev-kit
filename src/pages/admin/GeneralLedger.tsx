@@ -41,6 +41,7 @@ export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const [startDate, setStartDate] = useState(
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
@@ -120,6 +121,20 @@ export default function GeneralLedger() {
 
   // Filter accounts based on search term
   const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
+  
+  const filteredAccounts = accounts?.filter((account) => {
+    if (!searchValue) return true;
+    const searchLower = searchValue.toLowerCase();
+    const accountName = account.account_name?.toLowerCase() || '';
+    const accountCode = account.account_code?.toLowerCase() || '';
+    const contactName = account.contactName?.toLowerCase() || '';
+    
+    return (
+      accountName.includes(searchLower) ||
+      accountCode.includes(searchLower) ||
+      contactName.includes(searchLower)
+    );
+  }) || [];
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
@@ -250,17 +265,22 @@ export default function GeneralLedger() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0">
-                <Command>
-                  <CommandInput placeholder="Search account or contact..." />
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search account or contact..." 
+                    value={searchValue}
+                    onValueChange={setSearchValue}
+                  />
                   <CommandEmpty>No account found.</CommandEmpty>
                   <CommandGroup className="max-h-[300px] overflow-auto">
-                    {accounts?.map((account) => (
+                    {filteredAccounts.map((account) => (
                       <CommandItem
                         key={account.id}
-                        value={`${account.account_code} ${account.account_name} ${account.contactName || ''}`}
-                        onSelect={() => {
-                          setSelectedAccount(account.id);
+                        value={account.id}
+                        onSelect={(value) => {
+                          setSelectedAccount(value);
                           setOpen(false);
+                          setSearchValue('');
                         }}
                         className={cn(account.isChild && 'pl-8')}
                       >
