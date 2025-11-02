@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Megaphone } from "lucide-react";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import {
   Dialog,
   DialogContent,
@@ -198,17 +199,19 @@ export default function AdminAnnouncements() {
               Create and manage daily updates shown as ribbon on home page
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Announcement
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex gap-2">
+            <ReturnToPOSButton inline />
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Announcement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingAnnouncement ? "Edit Announcement" : "Create New Announcement"}
@@ -385,6 +388,7 @@ export default function AdminAnnouncements() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {loading ? (

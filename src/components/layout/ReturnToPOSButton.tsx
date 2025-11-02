@@ -2,7 +2,12 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-export const ReturnToPOSButton = () => {
+interface ReturnToPOSButtonProps {
+  inline?: boolean;
+  className?: string;
+}
+
+export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPOSButtonProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,7 +29,7 @@ export const ReturnToPOSButton = () => {
       onClick={() => navigate("/admin/pos")}
       variant="outline"
       size="sm"
-      className="fixed top-4 right-4 z-50 shadow-lg"
+      className={inline ? className : `fixed top-4 right-4 z-50 shadow-lg ${className}`}
     >
       <ArrowLeft className="h-4 w-4 mr-2" />
       Return to POS

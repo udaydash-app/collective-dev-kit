@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import { format } from "date-fns";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface Offer {
   id: string;
@@ -213,10 +214,13 @@ export default function AdminOffers() {
             Create and manage promotional offers
           </p>
         </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Offer
-        </Button>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Offer
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border">

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Search } from "lucide-react";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface Category {
   id: string;
@@ -178,14 +179,16 @@ export default function AdminCategories() {
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Manage Categories</h1>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleAdd}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Category
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex gap-2">
+            <ReturnToPOSButton inline />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={handleAdd}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Category
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingCategory?.id ? "Edit Category" : "Add Category"}
@@ -292,6 +295,7 @@ export default function AdminCategories() {
               )}
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="relative">
