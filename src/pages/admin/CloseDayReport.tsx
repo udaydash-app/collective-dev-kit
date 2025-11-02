@@ -268,11 +268,12 @@ export default function CloseDayReport() {
             ?.filter(t => t.payment_method === 'cash')
             .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
 
-          // Get cash payment receipts
+          // Get cash payment receipts for this cashier
           const { data: sessionReceipts } = await supabase
             .from('payment_receipts')
             .select('amount, payment_method')
             .eq('store_id', session.store_id)
+            .eq('received_by', session.cashier_id)
             .gte('created_at', sessionStart)
             .lte('created_at', sessionEnd);
 
