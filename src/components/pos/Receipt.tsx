@@ -54,17 +54,19 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             }
           }
         `}</style>
-        <div className="text-center mb-1">
+        <div className="text-center">
           {logoUrl && (
-            <div className="flex justify-center mb-0">
+            <div className="flex justify-center">
               <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
             </div>
           )}
-          <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
-          <p className="text-xs">Fresh groceries delivered to your doorstep</p>
-          <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
-          <p className="text-xs">{date.toLocaleString()}</p>
-          {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
+          <div className="-mt-2">
+            <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
+            <p className="text-xs">Fresh groceries delivered to your doorstep</p>
+            <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
+            <p className="text-xs">{date.toLocaleString()}</p>
+            {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
+          </div>
         </div>
 
         <div className="border-t border-b border-black py-2 mb-2">
