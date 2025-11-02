@@ -1,24 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Package, Edit, Search, Filter } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Package, Search, Filter } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [newQuantity, setNewQuantity] = useState('');
-  const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -71,14 +66,15 @@ export default function StockAdjustment() {
   });
 
   const updateStockMutation = useMutation({
-    mutationFn: async ({ productId, variantId, newStock, reason }: any) => {
+    mutationFn: async ({ productId, variantId, systemStock, currentStock }: any) => {
       const { data: { user } } = await supabase.auth.getUser();
+      const difference = currentStock - systemStock;
       
       if (variantId) {
         // Update variant stock
         const { error } = await supabase
           .from('product_variants')
-          .update({ stock_quantity: newStock })
+          .update({ stock_quantity: currentStock })
           .eq('id', variantId);
 
         if (error) throw error;
@@ -86,7 +82,7 @@ export default function StockAdjustment() {
         // Update product stock
         const { error } = await supabase
           .from('products')
-          .update({ stock_quantity: newStock })
+          .update({ stock_quantity: currentStock })
           .eq('id', productId);
 
         if (error) throw error;
@@ -99,8 +95,8 @@ export default function StockAdjustment() {
           product_id: productId,
           variant_id: variantId,
           adjustment_type: 'manual',
-          quantity_change: newStock,
-          reason: reason,
+          quantity_change: difference,
+          reason: 'Physical stock count adjustment',
           adjusted_by: user?.id,
           store_id: selectedStoreId,
         });
@@ -109,37 +105,33 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
-      toast.success('Stock quantity updated successfully');
-      setEditingProduct(null);
-      setNewQuantity('');
-      setAdjustmentReason('');
+      toast.success('Stock updated successfully');
     },
     onError: (error: any) => {
       toast.error('Failed to update stock: ' + error.message);
     },
   });
 
-  const handleSaveAdjustment = () => {
-    if (!newQuantity || newQuantity === '') {
-      toast.error('Please enter a quantity');
-      return;
-    }
-    if (!adjustmentReason.trim()) {
-      toast.error('Please provide a reason for the adjustment');
-      return;
-    }
+  const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
+    const inputValue = stockInputs[key];
+    if (!inputValue || inputValue === '') return;
 
-    const qty = parseInt(newQuantity);
-    if (isNaN(qty) || qty < 0) {
+    const currentStock = parseInt(inputValue);
+    if (isNaN(currentStock) || currentStock < 0) {
       toast.error('Please enter a valid quantity');
       return;
     }
 
+    if (currentStock === systemStock) {
+      // No change needed
+      return;
+    }
+
     updateStockMutation.mutate({
-      productId: editingProduct.id,
-      variantId: editingProduct.variantId,
-      newStock: qty,
-      reason: adjustmentReason,
+      productId,
+      variantId,
+      systemStock,
+      currentStock,
     });
   };
 
@@ -152,10 +144,12 @@ export default function StockAdjustment() {
     );
   });
 
-  const getStockStatus = (stock: number) => {
-    if (stock === 0) return { label: 'Out of Stock', color: 'destructive' };
-    if (stock < 10) return { label: 'Low Stock', color: 'warning' };
-    return { label: 'In Stock', color: 'success' };
+  const calculateDifference = (key: string, systemStock: number) => {
+    const inputValue = stockInputs[key];
+    if (!inputValue || inputValue === '') return null;
+    const currentStock = parseInt(inputValue);
+    if (isNaN(currentStock)) return null;
+    return currentStock - systemStock;
   };
 
   return (
@@ -227,7 +221,7 @@ export default function StockAdjustment() {
         </CardContent>
       </Card>
 
-      {/* Products List */}
+      {/* Products Table */}
       {!selectedStoreId ? (
         <Card>
           <CardContent className="p-8 text-center">
@@ -253,180 +247,104 @@ export default function StockAdjustment() {
             <CardTitle>Products ({filteredProducts?.length || 0})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredProducts?.map((product) => {
-                const hasVariants = product.product_variants && product.product_variants.length > 0;
-                const baseStock = product.stock_quantity || 0;
-                const baseStatus = getStockStatus(baseStock);
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>Barcode</TableHead>
+                    <TableHead>Variant</TableHead>
+                    <TableHead className="text-right">System Stock</TableHead>
+                    <TableHead className="text-right">Current Stock</TableHead>
+                    <TableHead className="text-right">Difference</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts?.map((product) => {
+                    const hasVariants = product.product_variants && product.product_variants.length > 0;
 
-                return (
-                  <div key={product.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-lg">{product.name}</h3>
-                          <Badge variant={baseStatus.color as any}>{baseStatus.label}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {product.categories?.name || 'Uncategorized'}
-                          {product.barcode && ` • Barcode: ${product.barcode}`}
-                        </p>
-                      </div>
-                    </div>
+                    if (!hasVariants) {
+                      const systemStock = product.stock_quantity || 0;
+                      const key = `product-${product.id}`;
+                      const difference = calculateDifference(key, systemStock);
 
-                    {/* Base Product Stock */}
-                    {!hasVariants && (
-                      <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Current Stock</p>
-                          <p className="text-2xl font-bold">{baseStock}</p>
-                        </div>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setEditingProduct({ ...product, variantId: null });
-                                setNewQuantity(baseStock.toString());
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>{product.barcode || '-'}</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell className="text-right">{systemStock}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="Enter count"
+                              value={stockInputs[key] || ''}
+                              onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleStockUpdate(key, systemStock, product.id);
+                                }
                               }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Adjust
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Adjust Stock - {product.name}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label>Current Stock</Label>
-                                <p className="text-2xl font-bold">{baseStock}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="newQuantity">New Quantity *</Label>
-                                <Input
-                                  id="newQuantity"
-                                  type="number"
-                                  min="0"
-                                  value={newQuantity}
-                                  onChange={(e) => setNewQuantity(e.target.value)}
-                                  placeholder="Enter new quantity"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="reason">Reason for Adjustment *</Label>
-                                <Textarea
-                                  id="reason"
-                                  value={adjustmentReason}
-                                  onChange={(e) => setAdjustmentReason(e.target.value)}
-                                  placeholder="e.g., Physical count, damaged goods, etc."
-                                  rows={3}
-                                />
-                              </div>
-                              <Button 
-                                onClick={handleSaveAdjustment} 
-                                className="w-full"
-                                disabled={updateStockMutation.isPending}
-                              >
-                                {updateStockMutation.isPending ? 'Saving...' : 'Save Adjustment'}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    )}
+                              onBlur={() => handleStockUpdate(key, systemStock, product.id)}
+                              className="w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className={`text-right font-semibold ${
+                            difference === null ? '' : 
+                            difference > 0 ? 'text-green-600' : 
+                            difference < 0 ? 'text-red-600' : 
+                            'text-muted-foreground'
+                          }`}>
+                            {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    } else {
+                      return product.product_variants.map((variant: any, index: number) => {
+                        const systemStock = variant.stock_quantity || 0;
+                        const key = `variant-${variant.id}`;
+                        const difference = calculateDifference(key, systemStock);
 
-                    {/* Variants Stock */}
-                    {hasVariants && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Variants:</p>
-                        {product.product_variants.map((variant: any) => {
-                          const variantStock = variant.stock_quantity || 0;
-                          const variantStatus = getStockStatus(variantStock);
-
-                          return (
-                            <div key={variant.id} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div>
-                                  <p className="font-medium">{variant.label}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Stock: <span className="font-semibold">{variantStock}</span>
-                                  </p>
-                                </div>
-                                <Badge variant={variantStatus.color as any} className="ml-2">
-                                  {variantStatus.label}
-                                </Badge>
-                              </div>
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setEditingProduct({ 
-                                        ...product, 
-                                        variantId: variant.id,
-                                        variantLabel: variant.label 
-                                      });
-                                      setNewQuantity(variantStock.toString());
-                                    }}
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Adjust
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>
-                                      Adjust Stock - {product.name} ({variant.label})
-                                    </DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                      <Label>Current Stock</Label>
-                                      <p className="text-2xl font-bold">{variantStock}</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label htmlFor="newQuantity">New Quantity *</Label>
-                                      <Input
-                                        id="newQuantity"
-                                        type="number"
-                                        min="0"
-                                        value={newQuantity}
-                                        onChange={(e) => setNewQuantity(e.target.value)}
-                                        placeholder="Enter new quantity"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label htmlFor="reason">Reason for Adjustment *</Label>
-                                      <Textarea
-                                        id="reason"
-                                        value={adjustmentReason}
-                                        onChange={(e) => setAdjustmentReason(e.target.value)}
-                                        placeholder="e.g., Physical count, damaged goods, etc."
-                                        rows={3}
-                                      />
-                                    </div>
-                                    <Button 
-                                      onClick={handleSaveAdjustment} 
-                                      className="w-full"
-                                      disabled={updateStockMutation.isPending}
-                                    >
-                                      {updateStockMutation.isPending ? 'Saving...' : 'Save Adjustment'}
-                                    </Button>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        return (
+                          <TableRow key={variant.id}>
+                            <TableCell className="font-medium">
+                              {index === 0 ? product.name : ''}
+                            </TableCell>
+                            <TableCell>{index === 0 ? (product.barcode || '-') : ''}</TableCell>
+                            <TableCell>{variant.label}</TableCell>
+                            <TableCell className="text-right">{systemStock}</TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                min="0"
+                                placeholder="Enter count"
+                                value={stockInputs[key] || ''}
+                                onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleStockUpdate(key, systemStock, product.id, variant.id);
+                                  }
+                                }}
+                                onBlur={() => handleStockUpdate(key, systemStock, product.id, variant.id)}
+                                className="w-24 text-right"
+                              />
+                            </TableCell>
+                            <TableCell className={`text-right font-semibold ${
+                              difference === null ? '' : 
+                              difference > 0 ? 'text-green-600' : 
+                              difference < 0 ? 'text-red-600' : 
+                              'text-muted-foreground'
+                            }`}>
+                              {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    }
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
