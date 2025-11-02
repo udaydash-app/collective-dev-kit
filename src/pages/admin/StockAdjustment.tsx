@@ -278,7 +278,6 @@ export default function StockAdjustment() {
                             <Input
                               type="number"
                               min="0"
-                              placeholder="Enter count"
                               value={stockInputs[key] || ''}
                               onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
                               onKeyDown={(e) => {
@@ -318,7 +317,6 @@ export default function StockAdjustment() {
                               <Input
                                 type="number"
                                 min="0"
-                                placeholder="Enter count"
                                 value={stockInputs[key] || ''}
                                 onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
                                 onKeyDown={(e) => {
