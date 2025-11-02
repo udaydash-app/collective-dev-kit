@@ -28,10 +28,22 @@ import { formatCurrency } from '@/lib/utils';
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const { data: contacts } = useQuery({
+    queryKey: ['contacts-for-ledger'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, customer_ledger_account_id, supplier_ledger_account_id');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: accounts } = useQuery({
     queryKey: ['accounts-active'],
@@ -50,18 +62,38 @@ export default function GeneralLedger() {
       const parentAccounts = data?.filter(a => !a.parent_account_id) || [];
       const childAccounts = data?.filter(a => a.parent_account_id) || [];
       
-      // Create a structured list
+      // Create a structured list with contact names
       const structuredAccounts: any[] = [];
       parentAccounts.forEach(parent => {
         structuredAccounts.push({ ...parent, isParent: true });
         const children = childAccounts.filter(c => c.parent_account_id === parent.id);
         children.forEach(child => {
-          structuredAccounts.push({ ...child, isChild: true });
+          // Find associated contact
+          const contact = contacts?.find(
+            c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
+          );
+          structuredAccounts.push({ 
+            ...child, 
+            isChild: true,
+            contactName: contact?.name 
+          });
         });
       });
       
       return structuredAccounts;
     },
+    enabled: !!contacts,
+  });
+
+  // Filter accounts based on search term
+  const filteredAccounts = accounts?.filter((account) => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      account.account_name?.toLowerCase().includes(searchLower) ||
+      account.account_code?.toLowerCase().includes(searchLower) ||
+      account.contactName?.toLowerCase().includes(searchLower)
+    );
   });
 
   const { data: ledgerData, isLoading } = useQuery({
@@ -166,7 +198,15 @@ export default function GeneralLedger() {
                 <SelectValue placeholder="Select an account" />
               </SelectTrigger>
               <SelectContent className="max-h-[400px]">
-                {accounts?.map((account) => (
+                <div className="p-2 sticky top-0 bg-background">
+                  <Input
+                    placeholder="Search by account or contact name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                {filteredAccounts?.map((account) => (
                   <SelectItem 
                     key={account.id} 
                     value={account.id}
@@ -174,6 +214,7 @@ export default function GeneralLedger() {
                   >
                     {account.isChild && '└─ '}
                     {account.account_code} - {account.account_name}
+                    {account.contactName && ` (${account.contactName})`}
                     {account.description?.includes('Customer') && ' 👤'}
                     {account.description?.includes('Supplier') && ' 🏢'}
                   </SelectItem>
