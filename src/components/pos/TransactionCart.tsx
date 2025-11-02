@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 import { z } from 'zod';
+import { toast } from 'sonner';
 
 const priceSchema = z.number().positive().max(1000000);
 const amountSchema = z.number().nonnegative().max(10000000);
@@ -52,8 +53,12 @@ export const TransactionCart = ({
     try {
       const validated = priceSchema.parse(newPrice);
       onUpdatePrice?.(item.id, validated);
+      // Clear item discount when price is manually changed
+      if (item.itemDiscount && item.itemDiscount > 0) {
+        onUpdateDiscount?.(item.id, 0);
+      }
     } catch (error) {
-      console.error('Invalid price value');
+      toast.error('Invalid price. Must be between 0.01 and 1,000,000');
     }
   };
 
@@ -67,7 +72,7 @@ export const TransactionCart = ({
       // Clear item discount when editing final amount
       onUpdateDiscount?.(item.id, 0);
     } catch (error) {
-      console.error('Invalid final amount value');
+      toast.error('Invalid amount. Must be between 0 and 10,000,000');
     }
   };
 
