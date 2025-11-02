@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
 interface TransactionCartProps {
@@ -12,6 +12,9 @@ interface TransactionCartProps {
   onUpdateDiscount?: (productId: string, discount: number) => void;
   onRemove: (productId: string) => void;
   onClear: () => void;
+  selectedItemId?: string;
+  onSelectItem?: (productId: string) => void;
+  onUpdatePrice?: (productId: string, price: number) => void;
 }
 
 export const TransactionCart = ({
@@ -20,6 +23,9 @@ export const TransactionCart = ({
   onUpdateDiscount,
   onRemove,
   onClear,
+  selectedItemId,
+  onSelectItem,
+  onUpdatePrice,
 }: TransactionCartProps) => {
   if (items.length === 0) {
     return (
@@ -62,7 +68,14 @@ export const TransactionCart = ({
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.id} className="text-xs">
+                <TableRow 
+                  key={item.id} 
+                  className={cn(
+                    "text-xs cursor-pointer transition-colors",
+                    selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15"
+                  )}
+                  onClick={() => onSelectItem?.(item.id)}
+                >
                   <TableCell className="py-1.5">
                     <span className="text-xs font-medium">{item.name}</span>
                   </TableCell>

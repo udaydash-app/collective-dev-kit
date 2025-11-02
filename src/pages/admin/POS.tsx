@@ -63,6 +63,8 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 
+import { NumericKeypad } from '@/components/pos/NumericKeypad';
+
 export default function POS() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -93,6 +95,9 @@ export default function POS() {
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
+  const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
+  const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | null>(null);
+  const [keypadInput, setKeypadInput] = useState<string>('');
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1062,6 +1067,90 @@ export default function POS() {
     }
   };
 
+  // Numeric Keypad Handlers
+  const handleSelectCartItem = (itemId: string) => {
+    setSelectedCartItemId(itemId);
+    setKeypadInput('');
+  };
+
+  const handleKeypadNumber = (value: string) => {
+    if (!selectedCartItemId) {
+      toast.error('Please select a product from the cart first');
+      return;
+    }
+    setKeypadInput(prev => prev + value);
+  };
+
+  const handleKeypadQty = () => {
+    if (!selectedCartItemId) {
+      toast.error('Please select a product from the cart first');
+      return;
+    }
+    setKeypadMode('qty');
+    setKeypadInput('');
+  };
+
+  const handleKeypadDiscount = () => {
+    if (!selectedCartItemId) {
+      toast.error('Please select a product from the cart first');
+      return;
+    }
+    setKeypadMode('discount');
+    setKeypadInput('');
+  };
+
+  const handleKeypadPrice = () => {
+    if (!selectedCartItemId) {
+      toast.error('Please select a product from the cart first');
+      return;
+    }
+    setKeypadMode('price');
+    setKeypadInput('');
+  };
+
+  const handleKeypadClear = () => {
+    setKeypadInput('');
+  };
+
+  const handleKeypadEnter = () => {
+    if (!selectedCartItemId || !keypadMode || !keypadInput) {
+      toast.error('Please select mode and enter a value');
+      return;
+    }
+
+    const value = parseFloat(keypadInput);
+    if (isNaN(value) || value < 0) {
+      toast.error('Invalid value');
+      return;
+    }
+
+    switch (keypadMode) {
+      case 'qty':
+        if (value === 0) {
+          toast.error('Quantity must be greater than 0');
+          return;
+        }
+        updateQuantity(selectedCartItemId, Math.floor(value));
+        toast.success(`Quantity updated to ${Math.floor(value)}`);
+        break;
+      case 'discount':
+        updateItemDiscount(selectedCartItemId, value);
+        toast.success(`Discount updated to ${formatCurrency(value)}`);
+        break;
+      case 'price':
+        if (value === 0) {
+          toast.error('Price must be greater than 0');
+          return;
+        }
+        updateItemPrice(selectedCartItemId, value);
+        toast.success(`Price updated to ${formatCurrency(value)}`);
+        break;
+    }
+
+    setKeypadInput('');
+    setKeypadMode(null);
+  };
+
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
@@ -1174,8 +1263,11 @@ export default function POS() {
             items={cart}
             onUpdateQuantity={updateQuantity}
             onUpdateDiscount={updateItemDiscount}
+            onUpdatePrice={updateItemPrice}
             onRemove={removeFromCart}
             onClear={clearCart}
+            selectedItemId={selectedCartItemId || undefined}
+            onSelectItem={handleSelectCartItem}
           />
         </div>
 
@@ -1540,6 +1632,34 @@ export default function POS() {
                 <span className="text-xs text-center">{action.label}</span>
               </Button>
             ))}
+          </div>
+
+          {/* Numeric Keypad */}
+          <div className="mt-4">
+            <div className="text-xs text-muted-foreground mb-2 px-2">
+              {selectedCartItemId ? (
+                <div className="flex items-center justify-between">
+                  <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
+                  {keypadMode && (
+                    <span className="font-semibold text-primary">
+                      {keypadMode.toUpperCase()}: {keypadInput || '0'}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span>Select a product from cart to use keypad</span>
+              )}
+            </div>
+            <NumericKeypad
+              onNumberClick={handleKeypadNumber}
+              onQtyClick={handleKeypadQty}
+              onDiscountClick={handleKeypadDiscount}
+              onPriceClick={handleKeypadPrice}
+              onClear={handleKeypadClear}
+              onEnter={handleKeypadEnter}
+              disabled={!selectedCartItemId}
+              activeMode={keypadMode}
+            />
           </div>
         </div>
       </div>
