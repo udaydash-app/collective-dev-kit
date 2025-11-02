@@ -1,7 +1,6 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef } from 'react';
 import { formatCurrency } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
-import { removeBackground, loadImageFromUrl } from '@/lib/removeBackground';
 
 interface ReceiptProps {
   transactionNumber: string;
@@ -36,35 +35,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     },
     ref
   ) => {
-    const [processedLogoUrl, setProcessedLogoUrl] = useState<string | null>(null);
-    const [isProcessingLogo, setIsProcessingLogo] = useState(false);
-
-    useEffect(() => {
-      if (logoUrl && !isProcessingLogo && !processedLogoUrl) {
-        setIsProcessingLogo(true);
-        loadImageFromUrl(logoUrl)
-          .then((img) => removeBackground(img))
-          .then((blob) => {
-            const url = URL.createObjectURL(blob);
-            setProcessedLogoUrl(url);
-          })
-          .catch((error) => {
-            console.error('Failed to remove background:', error);
-            // Fallback to original logo
-            setProcessedLogoUrl(logoUrl);
-          })
-          .finally(() => {
-            setIsProcessingLogo(false);
-          });
-      }
-
-      return () => {
-        if (processedLogoUrl && processedLogoUrl !== logoUrl) {
-          URL.revokeObjectURL(processedLogoUrl);
-        }
-      };
-    }, [logoUrl, isProcessingLogo, processedLogoUrl]);
-
     return (
       <div ref={ref} className="receipt-container w-[80mm] px-2 py-2 bg-white text-black font-mono text-sm">
         <style>{`
@@ -85,9 +55,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           }
         `}</style>
         <div className="text-center mb-2">
-          {processedLogoUrl && (
-            <div className="flex justify-center mb-2">
-              <img src={processedLogoUrl} alt="Company Logo" className="h-20 w-auto object-contain" />
+          {logoUrl && (
+            <div className="flex justify-center mb-1">
+              <img src={logoUrl} alt="Company Logo" className="h-16 w-auto object-contain" />
             </div>
           )}
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
