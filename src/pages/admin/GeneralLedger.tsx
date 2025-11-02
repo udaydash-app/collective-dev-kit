@@ -248,7 +248,12 @@ export default function GeneralLedger() {
               id="search"
               placeholder="Search by account code, name, or contact..."
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                if (e.target.value.trim() === '') {
+                  setSelectedAccount('');
+                }
+              }}
             />
           </div>
 
