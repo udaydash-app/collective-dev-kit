@@ -1169,7 +1169,7 @@ export default function POS() {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-hidden p-1">
           <TransactionCart
             items={cart}
             onUpdateQuantity={updateQuantity}

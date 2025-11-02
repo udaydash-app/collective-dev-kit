@@ -39,34 +39,34 @@ export const TransactionCart = ({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
+    <div className="space-y-1 h-full flex flex-col">
+      <div className="flex items-center justify-between px-2">
         <h3 className="font-semibold text-sm">Cart Items ({items.length})</h3>
-        <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
+        <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs px-2">
           Clear All
         </Button>
       </div>
 
-      <Card>
-        <div className="max-h-[calc(100vh-280px)] overflow-auto">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
-                <TableHead className="text-xs py-2">Product name</TableHead>
-                <TableHead className="text-center text-xs py-2 w-[130px]">Qty</TableHead>
-                <TableHead className="text-right text-xs py-2 w-[80px]">Price</TableHead>
-                <TableHead className="text-right text-xs py-2 w-[80px]">Discount</TableHead>
-                <TableHead className="text-right text-xs py-2 w-[100px]">Final Amount</TableHead>
-                <TableHead className="w-[40px] py-2"></TableHead>
+                <TableHead className="text-xs py-1.5">Product name</TableHead>
+                <TableHead className="text-center text-xs py-1.5 w-[130px]">Qty</TableHead>
+                <TableHead className="text-right text-xs py-1.5 w-[80px]">Price</TableHead>
+                <TableHead className="text-right text-xs py-1.5 w-[80px]">Discount</TableHead>
+                <TableHead className="text-right text-xs py-1.5 w-[100px]">Final Amount</TableHead>
+                <TableHead className="w-[40px] py-1.5"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id} className="text-xs">
-                  <TableCell className="py-2">
+                  <TableCell className="py-1.5">
                     <span className="text-xs font-medium">{item.name}</span>
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="py-1.5">
                     <div className="flex items-center justify-center gap-1">
                       <Button
                         variant="outline"
@@ -95,10 +95,10 @@ export const TransactionCart = ({
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right text-xs py-2">
+                  <TableCell className="text-right text-xs py-1.5">
                     {formatCurrency(item.price)}
                   </TableCell>
-                  <TableCell className="text-right py-2">
+                  <TableCell className="text-right py-1.5">
                     {onUpdateDiscount ? (
                       <Input
                         type="number"
@@ -114,10 +114,10 @@ export const TransactionCart = ({
                       <span className="text-xs">{formatCurrency(item.itemDiscount || 0)}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-xs py-2">
+                  <TableCell className="text-right font-semibold text-xs py-1.5">
                     {formatCurrency(calculateFinalAmount(item))}
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="py-1.5">
                     <Button
                       variant="ghost"
                       size="icon"
