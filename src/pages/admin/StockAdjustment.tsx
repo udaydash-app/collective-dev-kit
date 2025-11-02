@@ -286,7 +286,7 @@ export default function StockAdjustment() {
                                 }
                               }}
                               onBlur={() => handleStockUpdate(key, systemStock, product.id)}
-                              className="w-24 text-right"
+                              className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
                             />
                           </TableCell>
                           <TableCell className={`text-right font-semibold ${
@@ -325,7 +325,7 @@ export default function StockAdjustment() {
                                   }
                                 }}
                                 onBlur={() => handleStockUpdate(key, systemStock, product.id, variant.id)}
-                                className="w-24 text-right"
+                                className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
                               />
                             </TableCell>
                             <TableCell className={`text-right font-semibold ${
