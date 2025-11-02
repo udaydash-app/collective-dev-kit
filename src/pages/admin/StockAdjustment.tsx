@@ -15,6 +15,7 @@ export default function StockAdjustment() {
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
+  const [barcodeInputs, setBarcodeInputs] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -113,6 +114,35 @@ export default function StockAdjustment() {
     },
   });
 
+  const updateBarcodeMutation = useMutation({
+    mutationFn: async ({ productId, variantId, newBarcode }: any) => {
+      if (variantId) {
+        // Update variant barcode
+        const { error } = await supabase
+          .from('product_variants')
+          .update({ barcode: newBarcode || null })
+          .eq('id', variantId);
+
+        if (error) throw error;
+      } else {
+        // Update product barcode
+        const { error } = await supabase
+          .from('products')
+          .update({ barcode: newBarcode || null })
+          .eq('id', productId);
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      toast.success('Barcode updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update barcode: ' + error.message);
+    },
+  });
+
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return;
@@ -133,6 +163,23 @@ export default function StockAdjustment() {
       variantId,
       systemStock,
       currentStock,
+    });
+  };
+
+  const handleBarcodeUpdate = (key: string, originalBarcode: string, productId: string, variantId?: string) => {
+    const inputValue = barcodeInputs[key];
+    if (inputValue === undefined) return; // Not edited
+    
+    const newBarcode = inputValue.trim();
+    if (newBarcode === originalBarcode) {
+      // No change
+      return;
+    }
+
+    updateBarcodeMutation.mutate({
+      productId,
+      variantId,
+      newBarcode,
     });
   };
 
@@ -322,7 +369,20 @@ export default function StockAdjustment() {
                       return (
                         <TableRow key={product.id} className="h-12">
                           <TableCell className="font-medium py-2">{product.name}</TableCell>
-                          <TableCell className="py-2">{product.barcode || '-'}</TableCell>
+                          <TableCell className="py-2">
+                            <Input
+                              type="text"
+                              value={barcodeInputs[key] !== undefined ? barcodeInputs[key] : (product.barcode || '')}
+                              onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [key]: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleBarcodeUpdate(key, product.barcode || '', product.id);
+                                }
+                              }}
+                              onBlur={() => handleBarcodeUpdate(key, product.barcode || '', product.id)}
+                              className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
+                            />
+                          </TableCell>
                           <TableCell className="py-2">-</TableCell>
                           <TableCell className="text-right py-2">{systemStock}</TableCell>
                           <TableCell className="text-right py-2">
@@ -362,7 +422,22 @@ export default function StockAdjustment() {
                             <TableCell className="font-medium py-2">
                               {index === 0 ? product.name : ''}
                             </TableCell>
-                            <TableCell className="py-2">{index === 0 ? (product.barcode || '-') : ''}</TableCell>
+                            <TableCell className="py-2">
+                              {index === 0 ? (
+                                <Input
+                                  type="text"
+                                  value={barcodeInputs[`product-${product.id}`] !== undefined ? barcodeInputs[`product-${product.id}`] : (product.barcode || '')}
+                                  onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [`product-${product.id}`]: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleBarcodeUpdate(`product-${product.id}`, product.barcode || '', product.id);
+                                    }
+                                  }}
+                                  onBlur={() => handleBarcodeUpdate(`product-${product.id}`, product.barcode || '', product.id)}
+                                  className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
+                                />
+                              ) : ''}
+                            </TableCell>
                             <TableCell className="py-2">{variant.label}</TableCell>
                             <TableCell className="text-right py-2">{systemStock}</TableCell>
                             <TableCell className="text-right py-2">
