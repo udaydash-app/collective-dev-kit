@@ -63,6 +63,8 @@ export default function GeneralLedger() {
 
   // Map accounts with contact names after both queries complete
   const accounts = rawAccounts && contacts ? (() => {
+    console.log('Contacts loaded:', contacts.length);
+    
     // Organize accounts by parent-child relationship
     const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
     const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
@@ -93,27 +95,36 @@ export default function GeneralLedger() {
           );
         }
         
+        if (contact) {
+          console.log(`Mapped contact ${contact.name} to account ${child.account_name}`);
+        }
+        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
-          contactName: contact?.name,
-          isCustomer: contact?.is_customer,
-          isSupplier: contact?.is_supplier
+          contactName: contact?.name || '',
+          isCustomer: contact?.is_customer || false,
+          isSupplier: contact?.is_supplier || false
         });
       });
     });
     
+    console.log('Structured accounts with contacts:', structuredAccounts.filter(a => a.contactName).length);
     return structuredAccounts;
-  })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id }));
+  })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
 
   // Filter accounts based on search term
   const filteredAccounts = accounts?.filter((account) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
+    const accountName = account.account_name?.toLowerCase() || '';
+    const accountCode = account.account_code?.toLowerCase() || '';
+    const contactName = account.contactName?.toLowerCase() || '';
+    
     return (
-      account.account_name?.toLowerCase().includes(searchLower) ||
-      account.account_code?.toLowerCase().includes(searchLower) ||
-      account.contactName?.toLowerCase().includes(searchLower)
+      accountName.includes(searchLower) ||
+      accountCode.includes(searchLower) ||
+      contactName.includes(searchLower)
     );
   });
 
