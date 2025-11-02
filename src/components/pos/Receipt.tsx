@@ -55,11 +55,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           }
         `}</style>
         <div className="text-center mb-2">
-          {logoUrl && (
-            <div className="flex justify-center mb-4">
-              <img src={logoUrl} alt="Company Logo" className="h-64 w-auto object-contain" />
-            </div>
-          )}
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
