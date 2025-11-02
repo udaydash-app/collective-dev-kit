@@ -96,9 +96,10 @@ export default function POS() {
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
-  const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | null>(null);
+  const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
   const [keypadInput, setKeypadInput] = useState<string>('');
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
+  const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1070,11 +1071,17 @@ export default function POS() {
 
   // Numeric Keypad Handlers
   const handleSelectCartItem = (itemId: string) => {
+    // Don't allow selecting cart discount item
+    if (itemId === 'cart-discount') return;
     setSelectedCartItemId(itemId);
     setKeypadInput('');
   };
 
   const handleKeypadNumber = (value: string) => {
+    if (keypadMode === 'cartDiscount') {
+      setKeypadInput(prev => prev + value);
+      return;
+    }
     if (!selectedCartItemId) {
       toast.error('Please select a product from the cart first');
       return;
@@ -1101,8 +1108,19 @@ export default function POS() {
     setIsPercentMode(false);
   };
 
+  const handleKeypadCartDiscount = () => {
+    setKeypadMode('cartDiscount');
+    setKeypadInput('');
+    setIsPercentMode(false);
+    setSelectedCartItemId(null);
+  };
+
   const handleKeypadPercent = () => {
-    if (!selectedCartItemId || keypadMode !== 'discount') {
+    if (!selectedCartItemId && keypadMode !== 'cartDiscount') {
+      toast.error('Please select a product or use cart discount first');
+      return;
+    }
+    if (keypadMode !== 'discount' && keypadMode !== 'cartDiscount') {
       toast.error('Please select discount mode first');
       return;
     }
@@ -1121,10 +1139,13 @@ export default function POS() {
   const handleKeypadClear = () => {
     setKeypadInput('');
     setIsPercentMode(false);
+    if (keypadMode === 'cartDiscount') {
+      setKeypadMode(null);
+    }
   };
 
   const handleKeypadEnter = () => {
-    if (!selectedCartItemId || !keypadMode || !keypadInput) {
+    if (!keypadMode || !keypadInput) {
       toast.error('Please select mode and enter a value');
       return;
     }
@@ -1137,6 +1158,7 @@ export default function POS() {
 
     switch (keypadMode) {
       case 'qty':
+        if (!selectedCartItemId) return;
         if (value === 0) {
           toast.error('Quantity must be greater than 0');
           return;
@@ -1145,6 +1167,7 @@ export default function POS() {
         toast.success(`Quantity updated to ${Math.floor(value)}`);
         break;
       case 'discount':
+        if (!selectedCartItemId) return;
         // Calculate discount based on percentage or fixed amount
         let discountAmount = value;
         if (isPercentMode) {
@@ -1160,12 +1183,32 @@ export default function POS() {
         updateItemDiscount(selectedCartItemId, discountAmount);
         break;
       case 'price':
+        if (!selectedCartItemId) return;
         if (value === 0) {
           toast.error('Price must be greater than 0');
           return;
         }
         updateItemPrice(selectedCartItemId, value);
         toast.success(`Price updated to ${formatCurrency(value)}`);
+        break;
+      case 'cartDiscount':
+        // Calculate cart discount
+        let cartDiscountAmount = value;
+        if (isPercentMode) {
+          const cartSubtotal = calculateSubtotal();
+          cartDiscountAmount = (cartSubtotal * value) / 100;
+          toast.success(`Cart discount applied: ${value}% (${formatCurrency(cartDiscountAmount)})`);
+        } else {
+          toast.success(`Cart discount applied: ${formatCurrency(value)}`);
+        }
+        // Add cart discount as a special item
+        setCartDiscountItem({
+          id: 'cart-discount',
+          name: 'Cart Discount',
+          price: -cartDiscountAmount,
+          quantity: 1,
+          itemDiscount: 0,
+        });
         break;
     }
 
@@ -1283,12 +1326,22 @@ export default function POS() {
         {/* Cart Items */}
         <div className="flex-1 overflow-hidden p-1">
           <TransactionCart
-            items={cart}
+            items={[...cart, ...(cartDiscountItem ? [cartDiscountItem] : [])]}
             onUpdateQuantity={updateQuantity}
             onUpdateDiscount={updateItemDiscount}
             onUpdatePrice={updateItemPrice}
-            onRemove={removeFromCart}
-            onClear={clearCart}
+            onRemove={(id) => {
+              if (id === 'cart-discount') {
+                setCartDiscountItem(null);
+                toast.success('Cart discount removed');
+              } else {
+                removeFromCart(id);
+              }
+            }}
+            onClear={() => {
+              clearCart();
+              setCartDiscountItem(null);
+            }}
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
           />
@@ -1643,7 +1696,14 @@ export default function POS() {
             {/* Numeric Keypad - left side */}
             <div className="flex-1">
               <div className="text-xs text-muted-foreground mb-2 px-2">
-                {selectedCartItemId ? (
+                {keypadMode === 'cartDiscount' ? (
+                  <div className="flex items-center justify-between">
+                    <span>Cart Discount Mode</span>
+                    <span className="font-semibold text-primary">
+                      CART DISC: {keypadInput || '0'}{isPercentMode ? '%' : ''}
+                    </span>
+                  </div>
+                ) : selectedCartItemId ? (
                   <div className="flex items-center justify-between">
                     <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
                     {keypadMode && (
@@ -1662,6 +1722,7 @@ export default function POS() {
                 onDiscountClick={handleKeypadDiscount}
                 onPriceClick={handleKeypadPrice}
                 onPercentClick={handleKeypadPercent}
+                onCartDiscountClick={handleKeypadCartDiscount}
                 onClear={handleKeypadClear}
                 onEnter={handleKeypadEnter}
                 disabled={!selectedCartItemId}

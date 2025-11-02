@@ -8,10 +8,11 @@ interface NumericKeypadProps {
   onDiscountClick: () => void;
   onPriceClick: () => void;
   onPercentClick: () => void;
+  onCartDiscountClick: () => void;
   onClear: () => void;
   onEnter: () => void;
   disabled?: boolean;
-  activeMode?: 'qty' | 'discount' | 'price' | null;
+  activeMode?: 'qty' | 'discount' | 'price' | 'cartDiscount' | null;
   isPercentMode?: boolean;
 }
 
@@ -21,6 +22,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
   onDiscountClick,
   onPriceClick,
   onPercentClick,
+  onCartDiscountClick,
   onClear,
   onEnter,
   disabled = false,
@@ -52,7 +54,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onQtyClick}
           disabled={disabled}
           variant={activeMode === 'qty' ? 'default' : 'outline'}
-          className="h-12 text-xs font-semibold px-6"
+          className="h-11 text-xs font-semibold px-4"
         >
           QTY
         </Button>
@@ -60,7 +62,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onDiscountClick}
           disabled={disabled}
           variant={activeMode === 'discount' ? 'default' : 'outline'}
-          className="h-12 text-xs font-semibold px-6"
+          className="h-11 text-xs font-semibold px-4"
         >
           DISC
         </Button>
@@ -68,32 +70,40 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           onClick={onPriceClick}
           disabled={disabled}
           variant={activeMode === 'price' ? 'default' : 'outline'}
-          className="h-12 text-xs font-semibold px-6"
+          className="h-11 text-xs font-semibold px-4"
         >
           PRICE
         </Button>
         <Button
+          onClick={onCartDiscountClick}
+          disabled={false}
+          variant={activeMode === 'cartDiscount' ? 'default' : 'outline'}
+          className="h-11 text-[10px] font-semibold px-2 leading-tight"
+        >
+          CART<br/>DISC
+        </Button>
+        <Button
           onClick={onPercentClick}
-          disabled={disabled || activeMode !== 'discount'}
+          disabled={disabled || (activeMode !== 'discount' && activeMode !== 'cartDiscount')}
           variant={isPercentMode ? 'default' : 'outline'}
-          className="h-12 text-xs font-semibold px-6"
+          className="h-11 text-xs font-semibold px-4"
           title="Use percentage for discount"
         >
           %
         </Button>
         <Button
           onClick={onClear}
-          disabled={disabled}
+          disabled={disabled && activeMode !== 'cartDiscount'}
           variant="destructive"
-          className="h-12 text-xs font-semibold px-6"
+          className="h-11 text-xs font-semibold px-4"
         >
           CLEAR
         </Button>
         <Button
           onClick={onEnter}
-          disabled={disabled}
+          disabled={disabled && activeMode !== 'cartDiscount'}
           variant="default"
-          className="h-12 text-sm font-semibold bg-primary px-6"
+          className="h-11 text-sm font-semibold bg-primary px-4"
         >
           ENTER
         </Button>
