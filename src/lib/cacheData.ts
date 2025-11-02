@@ -12,7 +12,7 @@ export async function cacheEssentialData() {
     const productsQuery = supabase
       .from('products')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_available', true);
     
     const productsResult: any = await productsQuery;
     const products = productsResult.data;
