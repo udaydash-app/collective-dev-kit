@@ -122,26 +122,33 @@ export default function GeneralLedger() {
   // Filter accounts based on search term
   const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
   
-  console.log('Total accounts:', accounts?.length);
-  console.log('Search value:', searchValue);
-  
   const filteredAccounts = accounts?.filter((account) => {
+    // If no search term, show all accounts
     if (!searchValue || searchValue.trim() === '') return true;
-    const searchLower = searchValue.toLowerCase();
-    const accountName = account.account_name?.toLowerCase() || '';
-    const accountCode = account.account_code?.toLowerCase() || '';
-    const contactName = account.contactName?.toLowerCase() || '';
     
-    const matches = (
-      accountName.includes(searchLower) ||
-      accountCode.includes(searchLower) ||
-      contactName.includes(searchLower)
-    );
+    const searchLower = searchValue.toLowerCase().trim();
+    const accountName = (account.account_name || '').toLowerCase();
+    const accountCode = (account.account_code || '').toLowerCase();
+    const contactName = (account.contactName || '').toLowerCase();
     
-    return matches;
+    // Only match if the search term is actually found in a non-empty field
+    const nameMatch = accountName.length > 0 && accountName.includes(searchLower);
+    const codeMatch = accountCode.length > 0 && accountCode.includes(searchLower);
+    const contactMatch = contactName.length > 0 && contactName.includes(searchLower);
+    
+    return nameMatch || codeMatch || contactMatch;
   }) || [];
   
+  console.log('Total accounts:', accounts?.length);
+  console.log('Search value:', searchValue);
   console.log('Filtered accounts:', filteredAccounts.length);
+  if (searchValue) {
+    console.log('Filtered results:', filteredAccounts.map(a => ({
+      code: a.account_code,
+      name: a.account_name,
+      contact: a.contactName
+    })));
+  }
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
