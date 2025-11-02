@@ -17,6 +17,7 @@ export default function StockAdjustment() {
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
   const [barcodeInputs, setBarcodeInputs] = useState<Record<string, string>>({});
   const [variantInputs, setVariantInputs] = useState<Record<string, string>>({});
+  const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -187,6 +188,24 @@ export default function StockAdjustment() {
     },
   });
 
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ productId, categoryId }: any) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ category_id: categoryId || null })
+        .eq('id', productId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      toast.success('Category updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update category: ' + error.message);
+    },
+  });
+
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return;
@@ -261,6 +280,18 @@ export default function StockAdjustment() {
       productId,
       label,
       price: productPrice,
+    });
+  };
+
+  const handleCategoryUpdate = (productId: string, originalCategoryId: string | null, newCategoryId: string) => {
+    if (newCategoryId === originalCategoryId) {
+      // No change
+      return;
+    }
+
+    updateCategoryMutation.mutate({
+      productId,
+      categoryId: newCategoryId === 'none' ? null : newCategoryId,
     });
   };
 
@@ -431,6 +462,7 @@ export default function StockAdjustment() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="h-10">Product Name</TableHead>
+                    <TableHead className="h-10">Category</TableHead>
                     <TableHead className="h-10">Barcode</TableHead>
                     <TableHead className="h-10">Variant</TableHead>
                     <TableHead className="text-right h-10">System Stock</TableHead>
@@ -450,6 +482,27 @@ export default function StockAdjustment() {
                       return (
                         <TableRow key={product.id} className="h-12">
                           <TableCell className="font-medium py-2">{product.name}</TableCell>
+                          <TableCell className="py-2">
+                            <Select
+                              value={categoryInputs[product.id] || product.category_id || 'none'}
+                              onValueChange={(value) => {
+                                setCategoryInputs({ ...categoryInputs, [product.id]: value });
+                                handleCategoryUpdate(product.id, product.category_id, value);
+                              }}
+                            >
+                              <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No Category</SelectItem>
+                                {categories?.map((category) => (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell className="py-2">
                             <Input
                               type="text"
@@ -516,6 +569,29 @@ export default function StockAdjustment() {
                           <TableRow key={variant.id} className="h-12">
                             <TableCell className="font-medium py-2">
                               {index === 0 ? product.name : ''}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              {index === 0 ? (
+                                <Select
+                                  value={categoryInputs[product.id] || product.category_id || 'none'}
+                                  onValueChange={(value) => {
+                                    setCategoryInputs({ ...categoryInputs, [product.id]: value });
+                                    handleCategoryUpdate(product.id, product.category_id, value);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">No Category</SelectItem>
+                                    {categories?.map((category) => (
+                                      <SelectItem key={category.id} value={category.id}>
+                                        {category.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : ''}
                             </TableCell>
                             <TableCell className="py-2">
                               {index === 0 ? (
