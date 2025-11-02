@@ -40,7 +40,7 @@ export const TransactionCart = ({
 
   const calculateFinalAmount = (item: CartItem) => {
     const subtotal = item.price * item.quantity;
-    const discountAmount = item.itemDiscount || 0;
+    const discountAmount = (item.itemDiscount || 0) * item.quantity;
     return subtotal - discountAmount;
   };
 

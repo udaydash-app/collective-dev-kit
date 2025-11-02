@@ -102,7 +102,7 @@ export const usePOSTransaction = () => {
     return cart.reduce((sum, item) => {
       const effectivePrice = item.customPrice ?? item.price;
       const itemTotal = effectivePrice * item.quantity;
-      const itemDiscountAmount = item.itemDiscount ?? 0;
+      const itemDiscountAmount = (item.itemDiscount ?? 0) * item.quantity;
       return sum + itemTotal - itemDiscountAmount;
     }, 0);
   };
