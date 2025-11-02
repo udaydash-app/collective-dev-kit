@@ -80,7 +80,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           {items.map((item, index) => {
             const isCartDiscount = item.id === 'cart-discount';
             const itemTotal = item.price * item.quantity;
-            const finalAmount = itemTotal - (item.itemDiscount || 0);
+            const discountAmount = (item.itemDiscount || 0) * item.quantity;
+            const finalAmount = itemTotal - discountAmount;
             
             return (
               <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
