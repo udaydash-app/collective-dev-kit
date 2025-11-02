@@ -89,7 +89,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
                 <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(item.price) : ''}</div>
                 <div className="col-span-1 text-right">
-                  {!isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? formatCurrencyCompact(item.itemDiscount) : ''}
+                  {!isCartDiscount && discountAmount > 0 ? formatCurrencyCompact(discountAmount) : ''}
                 </div>
                 <div className="col-span-2 text-right font-semibold">{formatCurrencyCompact(finalAmount)}</div>
               </div>

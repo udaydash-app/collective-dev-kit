@@ -563,7 +563,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
         const subtotal = updatedItems.reduce((sum, item) => {
           const effectivePrice = item.customPrice ?? item.price;
           const itemTotal = effectivePrice * item.quantity;
-          const itemDiscountAmount = item.itemDiscount ?? 0;
+          const itemDiscountAmount = (item.itemDiscount ?? 0) * item.quantity;
           return sum + itemTotal - itemDiscountAmount;
         }, 0);
 
@@ -628,7 +628,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
         const subtotal = updatedItems.reduce((sum, item) => {
           const effectivePrice = item.customPrice ?? item.price;
           const itemTotal = effectivePrice * item.quantity;
-          const itemDiscountAmount = item.itemDiscount ?? 0;
+          const itemDiscountAmount = (item.itemDiscount ?? 0) * item.quantity;
           return sum + itemTotal - itemDiscountAmount;
         }, 0);
 
@@ -692,7 +692,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
       const subtotal = updatedItems.reduce((sum, item) => {
         const effectivePrice = item.customPrice ?? item.price;
         const itemTotal = effectivePrice * item.quantity;
-        const itemDiscountAmount = item.itemDiscount ?? 0;
+        const itemDiscountAmount = (item.itemDiscount ?? 0) * item.quantity;
         return sum + itemTotal - itemDiscountAmount;
       }, 0);
 
