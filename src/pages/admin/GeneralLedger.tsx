@@ -123,8 +123,8 @@ export default function GeneralLedger() {
   const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
   
   const filteredAccounts = accounts?.filter((account) => {
-    // If no search term, show all accounts
-    if (!searchValue || searchValue.trim() === '') return true;
+    // If no search term, show nothing
+    if (!searchValue || searchValue.trim() === '') return false;
     
     const searchLower = searchValue.toLowerCase().trim();
     const accountName = (account.account_name || '').toLowerCase();
