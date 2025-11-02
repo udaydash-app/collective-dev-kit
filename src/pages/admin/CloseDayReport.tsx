@@ -252,20 +252,60 @@ export default function CloseDayReport() {
       // Calculate expected cash for each session
       const sessionsWithCalculations = await Promise.all(
         (cashSessions || []).map(async (session) => {
+          const sessionStart = session.opened_at;
+          const sessionEnd = session.closed_at || `${endDate}T23:59:59`;
+
+          // Get cash sales
           const { data: sessionTransactions } = await supabase
             .from('pos_transactions')
             .select('total, payment_method')
             .eq('cashier_id', session.cashier_id)
             .eq('store_id', session.store_id)
-            .gte('created_at', session.opened_at)
-            .lte('created_at', session.closed_at || `${endDate}T23:59:59`);
+            .gte('created_at', sessionStart)
+            .lte('created_at', sessionEnd);
 
           const cashSales = sessionTransactions
             ?.filter(t => t.payment_method === 'cash')
             .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
 
+          // Get cash payment receipts
+          const { data: sessionReceipts } = await supabase
+            .from('payment_receipts')
+            .select('amount, payment_method')
+            .eq('store_id', session.store_id)
+            .gte('created_at', sessionStart)
+            .lte('created_at', sessionEnd);
+
+          const cashPaymentsReceived = sessionReceipts
+            ?.filter(r => r.payment_method === 'cash')
+            .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0) || 0;
+
+          // Get cash purchases
+          const { data: sessionPurchases } = await supabase
+            .from('purchases')
+            .select('total_amount, payment_method')
+            .eq('store_id', session.store_id)
+            .gte('purchased_at', sessionStart)
+            .lte('purchased_at', sessionEnd);
+
+          const cashPurchases = sessionPurchases
+            ?.filter(p => p.payment_method === 'cash')
+            .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
+
+          // Get cash expenses
+          const { data: sessionExpenses } = await supabase
+            .from('expenses')
+            .select('amount, payment_method, expense_date, created_at')
+            .eq('store_id', session.store_id)
+            .gte('created_at', sessionStart)
+            .lte('created_at', sessionEnd);
+
+          const cashExpenses = sessionExpenses
+            ?.filter(e => e.payment_method === 'cash')
+            .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
+
           const openingCash = parseFloat(session.opening_cash?.toString() || '0');
-          const calculatedExpectedCash = openingCash + cashSales;
+          const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses;
           const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
           const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
 
@@ -274,6 +314,9 @@ export default function CloseDayReport() {
             calculated_expected_cash: calculatedExpectedCash,
             calculated_difference: calculatedDifference,
             cash_sales: cashSales,
+            cash_payments_received: cashPaymentsReceived,
+            cash_purchases: cashPurchases,
+            cash_expenses: cashExpenses,
             transaction_count: sessionTransactions?.length || 0,
           };
         })
