@@ -56,7 +56,7 @@ export const usePOSTransaction = () => {
         image_url: product.image_url,
       };
       console.log('Adding new item to cart:', newItem);
-      return [...prev, newItem];
+      return [newItem, ...prev];
     });
     toast.success(`${product.name} added to cart`);
   };
