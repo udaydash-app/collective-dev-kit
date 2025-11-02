@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Package, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -353,6 +354,7 @@ export default function StockAdjustment() {
           <h1 className="text-3xl font-bold">Stock Adjustment</h1>
           <p className="text-muted-foreground">View and adjust inventory after physical verification</p>
         </div>
+        <ReturnToPOSButton />
       </div>
 
       {/* Filters */}
