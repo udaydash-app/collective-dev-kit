@@ -68,43 +68,40 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         </div>
 
         <div className="border-t border-b border-black py-1 mb-1">
-          {items.map((item, index) => (
-            <div key={index} className="mb-2">
-              <div className="flex justify-between">
-                <span className="flex-1">{item.name}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span>
-                  {item.quantity} x {formatCurrency(item.price)}
-                </span>
-                <span>{formatCurrency(item.price * item.quantity)}</span>
-              </div>
-              {item.itemDiscount && item.itemDiscount > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="ml-2">Item Discount:</span>
-                  <span>-{formatCurrency(item.itemDiscount)}</span>
+          <div className="grid grid-cols-12 gap-0.5 text-[9px] font-bold mb-1 border-b border-dashed border-gray-400 pb-0.5">
+            <div className="col-span-4">Product</div>
+            <div className="col-span-2 text-center">Qty</div>
+            <div className="col-span-2 text-right">Price</div>
+            <div className="col-span-2 text-right">Disc</div>
+            <div className="col-span-2 text-right">Final</div>
+          </div>
+          {items.map((item, index) => {
+            const isCartDiscount = item.id === 'cart-discount';
+            const itemTotal = item.price * item.quantity;
+            const finalAmount = itemTotal - (item.itemDiscount || 0);
+            
+            return (
+              <div key={index} className="grid grid-cols-12 gap-0.5 text-[8px] mb-0.5">
+                <div className="col-span-4 truncate">{item.name}</div>
+                <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
+                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrency(item.price) : ''}</div>
+                <div className="col-span-2 text-right">
+                  {!isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? formatCurrency(item.itemDiscount) : ''}
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="col-span-2 text-right font-semibold">{formatCurrency(finalAmount)}</div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="space-y-1 mb-1">
-          <div className="flex justify-between">
-            <span>Subtotal:</span>
-            <span>{formatCurrency(subtotal)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Tax (15%):</span>
-            <span>{formatCurrency(tax)}</span>
-          </div>
           {discount > 0 && (
-            <div className="flex justify-between">
-              <span>Discount:</span>
+            <div className="flex justify-between text-xs">
+              <span>Cart Discount:</span>
               <span>-{formatCurrency(discount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-lg border-t border-black pt-1">
+          <div className="flex justify-between font-bold text-base border-t border-black pt-1">
             <span>TOTAL:</span>
             <span>{formatCurrency(total)}</span>
           </div>
