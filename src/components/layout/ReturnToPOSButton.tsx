@@ -11,7 +11,7 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Only show on admin pages (except POS itself, POS login, Products page, Import Contacts page, Contacts page, and Product Import page)
+  // Only show on admin pages (except POS itself, POS login, Products page, Import Contacts page, Contacts page, Product Import page, and pages with inline buttons)
   if (
     location.pathname === "/admin/pos" || 
     location.pathname === "/pos-login" ||
@@ -19,6 +19,9 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
     location.pathname === "/admin/import-contacts" ||
     location.pathname === "/admin/contacts" ||
     location.pathname === "/admin/import-products" ||
+    location.pathname === "/admin/offers" ||
+    location.pathname === "/admin/announcements" ||
+    location.pathname === "/admin/categories" ||
     !location.pathname.startsWith("/admin")
   ) {
     return null;
