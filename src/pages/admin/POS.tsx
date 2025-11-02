@@ -708,7 +708,8 @@ export default function POS() {
       selectedStoreId, 
       selectedCustomer?.id, 
       orderNotes,
-      cartDiscountItem ? [cartDiscountItem] : undefined
+      cartDiscountItem ? [cartDiscountItem] : undefined,
+      cartDiscountAmount // Pass the cart discount amount
     );
     
     if (result) {

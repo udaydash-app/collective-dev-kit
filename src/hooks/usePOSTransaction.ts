@@ -117,7 +117,8 @@ export const usePOSTransaction = () => {
     storeId: string,
     customerId?: string,
     notes?: string,
-    additionalItems?: CartItem[]
+    additionalItems?: CartItem[],
+    discountOverride?: number
   ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -140,6 +141,9 @@ export const usePOSTransaction = () => {
 
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
+      
+      // Use discount override if provided (for cart-level discounts), otherwise use item-level discount
+      const finalDiscount = discountOverride !== undefined ? discountOverride : discount;
 
       // Determine primary payment method (highest amount)
       const primaryPayment = payments.reduce((prev, current) => 
@@ -167,8 +171,8 @@ export const usePOSTransaction = () => {
         items: itemsToSave as any,
         subtotal: parseFloat(subtotal.toFixed(2)),
         tax: 0,
-        discount: parseFloat(discount.toFixed(2)),
-        total: parseFloat(total.toFixed(2)),
+        discount: parseFloat(finalDiscount.toFixed(2)),
+        total: parseFloat((subtotal - finalDiscount).toFixed(2)),
         payment_method: primaryPayment.method,
         payment_details: payments.map(p => ({
           method: p.method,
@@ -259,6 +263,8 @@ export const usePOSTransaction = () => {
             barcode: item.barcode,
           }));
           
+          const finalDiscountOffline = discountOverride !== undefined ? discountOverride : discount;
+          
           await offlineDB.addTransaction({
             id: uuidv4(),
             storeId,
@@ -266,8 +272,8 @@ export const usePOSTransaction = () => {
             customerId,
             items: itemsForOffline as any,
             subtotal: parseFloat(subtotal.toFixed(2)),
-            discount: parseFloat(discount.toFixed(2)),
-            total: parseFloat(total.toFixed(2)),
+            discount: parseFloat(finalDiscountOffline.toFixed(2)),
+            total: parseFloat((subtotal - finalDiscountOffline).toFixed(2)),
             paymentMethod: primaryPayment.method,
             notes,
             timestamp: new Date().toISOString(),
