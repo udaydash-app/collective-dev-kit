@@ -2,12 +2,14 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
 interface TransactionCartProps {
   items: CartItem[];
   onUpdateQuantity: (productId: string, quantity: number) => void;
+  onUpdateDiscount?: (productId: string, discount: number) => void;
   onRemove: (productId: string) => void;
   onClear: () => void;
 }
@@ -15,6 +17,7 @@ interface TransactionCartProps {
 export const TransactionCart = ({
   items,
   onUpdateQuantity,
+  onUpdateDiscount,
   onRemove,
   onClear,
 }: TransactionCartProps) => {
@@ -29,6 +32,12 @@ export const TransactionCart = ({
     );
   }
 
+  const calculateFinalAmount = (item: CartItem) => {
+    const subtotal = item.price * item.quantity;
+    const discountAmount = item.itemDiscount || 0;
+    return subtotal - discountAmount;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -38,71 +47,101 @@ export const TransactionCart = ({
         </Button>
       </div>
 
-      <div className="space-y-2 max-h-[500px] overflow-y-auto">
-        {items.map((item) => (
-          <Card key={item.id} className="p-3">
-            <div className="flex items-center gap-3">
-              {item.image_url && (
-                <img
-                  src={item.image_url}
-                  alt={item.name}
-                  className="w-12 h-12 object-cover rounded"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{item.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(item.price)} each
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                >
-                  <Minus className="h-3 w-3" />
-                </Button>
-                <Input
-                  type="number"
-                  value={item.quantity || ''}
-                  onChange={(e) =>
-                    onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
-                  }
-                  placeholder="Qty"
-                  className="w-16 h-8 text-center"
-                  min="1"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive"
-                  onClick={() => onRemove(item.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">
-                {item.quantity} × {formatCurrency(item.price)}
-              </span>
-              <span className="font-semibold">
-                {formatCurrency(item.price * item.quantity)}
-              </span>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <div className="max-h-[500px] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product name</TableHead>
+                <TableHead className="text-center w-[140px]">Qty</TableHead>
+                <TableHead className="text-right w-[100px]">Price</TableHead>
+                <TableHead className="text-right w-[100px]">Discount</TableHead>
+                <TableHead className="text-right w-[120px]">Final Amount</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {item.image_url && (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      )}
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Input
+                        type="number"
+                        value={item.quantity || ''}
+                        onChange={(e) =>
+                          onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
+                        }
+                        className="w-14 h-7 text-center"
+                        min="1"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(item.price)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {onUpdateDiscount ? (
+                      <Input
+                        type="number"
+                        value={item.itemDiscount || 0}
+                        onChange={(e) =>
+                          onUpdateDiscount(item.id, parseFloat(e.target.value) || 0)
+                        }
+                        className="w-20 h-7 text-right ml-auto"
+                        min="0"
+                        step="0.01"
+                      />
+                    ) : (
+                      formatCurrency(item.itemDiscount || 0)
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(calculateFinalAmount(item))}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => onRemove(item.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
 };

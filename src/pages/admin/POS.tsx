@@ -45,6 +45,7 @@ import { CashInDialog } from '@/components/pos/CashInDialog';
 import { CashOutDialog } from '@/components/pos/CashOutDialog';
 import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
+import { TransactionCart } from '@/components/pos/TransactionCart';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -1169,109 +1170,13 @@ export default function POS() {
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-2">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <ShoppingCart className="h-8 w-8 mb-1 opacity-50" />
-              <p className="text-xs">Cart is empty</p>
-              <p className="text-[10px]">Scan or add products</p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-xs">Items</span>
-                <Button variant="ghost" size="sm" onClick={clearCart} className="h-6 text-xs px-2">
-                  Clear
-                </Button>
-              </div>
-              {cart.map((item) => {
-                const effectivePrice = item.customPrice ?? item.price;
-                const itemTotal = effectivePrice * item.quantity;
-                const itemDiscountAmount = item.itemDiscount ?? 0;
-                const finalItemTotal = itemTotal - itemDiscountAmount;
-
-                return (
-                  <Card key={item.id} className="p-1.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-xs truncate">{item.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {formatCurrency(item.price)}
-                          {(item as any).selectedVariant && (
-                            <span className="ml-1">
-                              • {(item as any).selectedVariant.label || 
-                                 `${(item as any).selectedVariant.quantity}${(item as any).selectedVariant.unit}`}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 min-w-[1.25rem]"
-                        onClick={() => removeFromCart(item.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    
-                    {/* Quantity and Price Controls */}
-                    <div className="flex items-center gap-1 mb-1">
-                      <div className="flex items-center gap-0.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-xs"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        >
-                          -
-                        </Button>
-                        <span className="w-7 text-center font-medium text-xs">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-xs"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      
-                      <div className="flex-1 flex items-center gap-0.5">
-                        <span className="text-[10px] text-muted-foreground shrink-0">P:</span>
-                        <Input
-                          type="number"
-                          value={effectivePrice}
-                          onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || item.price)}
-                          className="h-6 text-xs text-center"
-                          step="0.01"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Item Discount */}
-                    <div className="flex items-center gap-1">
-                      <div className="flex-1 flex items-center gap-0.5">
-                        <span className="text-[10px] text-muted-foreground shrink-0">D:</span>
-                        <Input
-                          type="number"
-                          value={itemDiscountAmount}
-                          onChange={(e) => updateItemDiscount(item.id, parseFloat(e.target.value) || 0)}
-                          className="h-6 text-xs text-center"
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                        />
-                      </div>
-                      <span className="font-semibold text-xs min-w-[3rem] text-right">
-                        {formatCurrency(finalItemTotal)}
-                      </span>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+          <TransactionCart
+            items={cart}
+            onUpdateQuantity={updateQuantity}
+            onUpdateDiscount={updateItemDiscount}
+            onRemove={removeFromCart}
+            onClear={clearCart}
+          />
         </div>
 
         {/* Total Section */}
