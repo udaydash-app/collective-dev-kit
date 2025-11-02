@@ -34,6 +34,7 @@ import { Plus, Search, Pencil, Trash2, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface Account {
   id: string;
@@ -201,13 +202,15 @@ export default function ChartOfAccounts() {
           <h1 className="text-3xl font-bold">Chart of Accounts</h1>
           <p className="text-muted-foreground">Manage your accounting structure</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleClose}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Account
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleClose}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Account
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle>
@@ -324,6 +327,7 @@ export default function ChartOfAccounts() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search */}
