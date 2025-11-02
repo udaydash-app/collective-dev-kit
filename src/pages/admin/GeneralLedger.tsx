@@ -76,6 +76,14 @@ export default function GeneralLedger() {
 
   // Map accounts with contact names after both queries complete
   const accounts = rawAccounts && contacts ? (() => {
+    console.log('=== Contact Mapping Debug ===');
+    console.log('Total contacts:', contacts.length);
+    console.log('Contacts:', contacts.map(c => ({
+      name: c.name,
+      customer_ledger: c.customer_ledger_account_id,
+      supplier_ledger: c.supplier_ledger_account_id
+    })));
+    
     // Organize accounts by parent-child relationship
     const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
     const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
@@ -83,7 +91,7 @@ export default function GeneralLedger() {
     // Create a structured list with contact names
     const structuredAccounts: any[] = [];
     parentAccounts.forEach(parent => {
-      structuredAccounts.push({ ...parent, isParent: true });
+      structuredAccounts.push({ ...parent, isParent: true, contactName: '' });
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
       children.forEach(child => {
         // Find associated contact based on account type
@@ -106,6 +114,10 @@ export default function GeneralLedger() {
           );
         }
         
+        if (contact) {
+          console.log(`Mapped contact "${contact.name}" to account "${child.account_name}"`);
+        }
+        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
@@ -115,6 +127,9 @@ export default function GeneralLedger() {
         });
       });
     });
+    
+    console.log('Accounts with contacts:', structuredAccounts.filter(a => a.contactName).length);
+    console.log('=== End Contact Mapping Debug ===');
     
     return structuredAccounts;
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
