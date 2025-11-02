@@ -58,7 +58,6 @@ import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
-import { ReturnToPOSButton } from "./components/layout/ReturnToPOSButton";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import PWAInstall from "./pages/PWAInstall";
 
@@ -83,7 +82,6 @@ const AppContent = () => {
       <OrderStatusNotifications />
       <OfflineIndicator />
       <BrowserRouter>
-        <ReturnToPOSButton />
         <Routes>
           {/* Customer-facing home */}
           <Route path="/" element={<Index />} />
