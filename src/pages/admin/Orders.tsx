@@ -45,6 +45,7 @@ import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, Fi
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import {
   Collapsible,
   CollapsibleContent,
@@ -963,6 +964,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
             <h1 className="text-3xl font-bold">Order Management</h1>
             <p className="text-muted-foreground">View and fulfill customer orders</p>
           </div>
+          <ReturnToPOSButton inline />
         </div>
 
         <Card>

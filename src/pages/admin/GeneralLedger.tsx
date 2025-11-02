@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn } from '@/lib/utils';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import {
   Command,
   CommandEmpty,
@@ -229,10 +230,13 @@ export default function GeneralLedger() {
             View detailed transaction history by account
           </p>
         </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

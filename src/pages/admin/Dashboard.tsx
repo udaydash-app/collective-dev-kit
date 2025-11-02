@@ -22,6 +22,7 @@ import {
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
             <p className="text-muted-foreground">Manage your Global Market operations</p>
           </div>
           <div className="flex gap-2">
+            <ReturnToPOSButton inline />
             <Button
               variant={timeRange === 'day' ? 'default' : 'outline'}
               size="sm"

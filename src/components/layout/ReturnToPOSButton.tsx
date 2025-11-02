@@ -11,27 +11,13 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
   const navigate = useNavigate();
   const location = useLocation();
 
-  // For inline buttons, always show on admin pages
-  if (inline) {
-    if (!location.pathname.startsWith("/admin")) {
-      return null;
-    }
-  } else {
-    // Only show fixed button on admin pages (except specific pages)
-    if (
-      location.pathname === "/admin/pos" || 
-      location.pathname === "/pos-login" ||
-      location.pathname === "/admin/products" ||
-      location.pathname === "/admin/import-contacts" ||
-      location.pathname === "/admin/contacts" ||
-      location.pathname === "/admin/import-products" ||
-      location.pathname === "/admin/offers" ||
-      location.pathname === "/admin/announcements" ||
-      location.pathname === "/admin/categories" ||
-      !location.pathname.startsWith("/admin")
-    ) {
-      return null;
-    }
+  // Only show on admin pages (not on /admin/pos or /pos-login)
+  if (
+    location.pathname === "/admin/pos" || 
+    location.pathname === "/pos-login" ||
+    !location.pathname.startsWith("/admin")
+  ) {
+    return null;
   }
 
   return (
@@ -39,7 +25,7 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
       onClick={() => navigate("/admin/pos")}
       variant="outline"
       size="sm"
-      className={inline ? className : `fixed top-4 right-4 z-50 shadow-lg ${className}`}
+      className={className}
     >
       <ArrowLeft className="h-4 w-4 mr-2" />
       Return to POS
