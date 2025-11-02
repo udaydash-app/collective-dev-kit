@@ -1065,7 +1065,7 @@ export default function POS() {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
-      <div className="w-[380px] border-r flex flex-col bg-card">
+      <div className="w-[550px] border-r flex flex-col bg-card">
         {/* Header */}
         <div className="p-2 border-b space-y-2">
           <div className="flex items-center justify-between">
@@ -1416,7 +1416,7 @@ export default function POS() {
           )}
 
           {/* Paginated Items Grid */}
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {/* Show Categories when no category selected and no search */}
             {!selectedCategory && !searchTerm && paginatedItems?.map((category: any) => (
               <Button
@@ -1524,7 +1524,7 @@ export default function POS() {
           )}
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-4 xl:grid-cols-6 gap-2 mt-4">
+          <div className="grid grid-cols-3 xl:grid-cols-4 gap-2 mt-4">
             {quickActions.map((action, index) => (
               <Button
                 key={index}
