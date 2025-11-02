@@ -76,6 +76,11 @@ export default function Products() {
   const [showVariants, setShowVariants] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterStore, setFilterStore] = useState<string>("all");
+  const [filterAvailability, setFilterAvailability] = useState<string>("all");
+  const [filterFeatured, setFilterFeatured] = useState<string>("all");
+  const [filterStock, setFilterStock] = useState<string>("all");
 
   useEffect(() => {
     fetchProducts();
@@ -537,11 +542,27 @@ export default function Products() {
 
   const filteredProducts = products.filter(product => {
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = 
       product.name.toLowerCase().includes(query) ||
       (product.description?.toLowerCase() || '').includes(query) ||
-      (product.categories?.name?.toLowerCase() || '').includes(query)
-    );
+      (product.categories?.name?.toLowerCase() || '').includes(query);
+
+    const matchesCategory = filterCategory === "all" || product.category_id === filterCategory;
+    const matchesStore = filterStore === "all" || product.store_id === filterStore;
+    const matchesAvailability = 
+      filterAvailability === "all" || 
+      (filterAvailability === "available" && product.is_available) ||
+      (filterAvailability === "unavailable" && !product.is_available);
+    const matchesFeatured = 
+      filterFeatured === "all" ||
+      (filterFeatured === "featured" && product.is_featured) ||
+      (filterFeatured === "not-featured" && !product.is_featured);
+    const matchesStock = 
+      filterStock === "all" ||
+      (filterStock === "in-stock" && product.stock_quantity > 0) ||
+      (filterStock === "out-of-stock" && product.stock_quantity === 0);
+
+    return matchesSearch && matchesCategory && matchesStore && matchesAvailability && matchesFeatured && matchesStock;
   });
 
   console.log('Admin: Total products:', products.length, 'Filtered:', filteredProducts.length, 'Search:', searchQuery);
@@ -589,7 +610,107 @@ export default function Products() {
           </div>
         </div>
 
-        <div className="mb-6 space-y-3">
+        <div className="mb-6 space-y-4">
+          {/* Filters Section */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <Label htmlFor="filter-category" className="text-xs font-medium">Category</Label>
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger id="filter-category">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="filter-store" className="text-xs font-medium">Store</Label>
+                  <Select value={filterStore} onValueChange={setFilterStore}>
+                    <SelectTrigger id="filter-store">
+                      <SelectValue placeholder="All Stores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stores</SelectItem>
+                      {stores.map(store => (
+                        <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="filter-availability" className="text-xs font-medium">Availability</Label>
+                  <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+                    <SelectTrigger id="filter-availability">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="unavailable">Unavailable</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="filter-featured" className="text-xs font-medium">Featured</Label>
+                  <Select value={filterFeatured} onValueChange={setFilterFeatured}>
+                    <SelectTrigger id="filter-featured">
+                      <SelectValue placeholder="All Products" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Products</SelectItem>
+                      <SelectItem value="featured">Featured Only</SelectItem>
+                      <SelectItem value="not-featured">Not Featured</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="filter-stock" className="text-xs font-medium">Stock Level</Label>
+                  <Select value={filterStock} onValueChange={setFilterStock}>
+                    <SelectTrigger id="filter-stock">
+                      <SelectValue placeholder="All Stock" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stock</SelectItem>
+                      <SelectItem value="in-stock">In Stock</SelectItem>
+                      <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(filterCategory !== "all" || filterStore !== "all" || filterAvailability !== "all" || filterFeatured !== "all" || filterStock !== "all") && (
+                <div className="mt-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setFilterCategory("all");
+                      setFilterStore("all");
+                      setFilterAvailability("all");
+                      setFilterFeatured("all");
+                      setFilterStock("all");
+                    }}
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Search Bar */}
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
