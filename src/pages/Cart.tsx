@@ -2,9 +2,11 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { ShoppingBag, Minus, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
@@ -54,30 +56,80 @@ export default function Cart() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4 pb-32">
-            {cartItems.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                      {item.products.image_url ? (
-                        <img 
-                          src={item.products.image_url} 
-                          alt={item.products.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl">
-                          🛒
+          <div className="pb-32">
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[100px]">Image</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-center">Quantity</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cartItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden">
+                          {item.products.image_url ? (
+                            <img 
+                              src={item.products.image_url} 
+                              alt={item.products.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">
+                              🛒
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
+                      </TableCell>
+                      <TableCell>
                         <div>
-                          <h3 className="font-semibold">{item.products.name}</h3>
+                          <p className="font-semibold">{item.products.name}</p>
                           <p className="text-sm text-muted-foreground">{item.products.unit}</p>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(item.products.price)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              updateQuantity(isGuest ? item.product_id : item.id, value);
+                            }}
+                            className="w-16 h-8 text-center"
+                            min="1"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(item.products.price * item.quantity)}
+                      </TableCell>
+                      <TableCell>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -85,36 +137,12 @@ export default function Cart() {
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(isGuest ? item.product_id : item.id, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <span className="text-lg font-bold text-primary">
-                          {formatCurrency(item.products.price * item.quantity)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
 
             <div className="fixed bottom-20 left-0 right-0 p-4 bg-background border-t">
               <div className="max-w-screen-xl mx-auto">
