@@ -461,10 +461,10 @@ export default function StockAdjustment() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="h-10">Product Name</TableHead>
-                    <TableHead className="h-10">Category</TableHead>
-                    <TableHead className="h-10">Barcode</TableHead>
-                    <TableHead className="h-10">Variant</TableHead>
+                    <TableHead className="h-10 text-left">Product Name</TableHead>
+                    <TableHead className="h-10 text-left">Category</TableHead>
+                    <TableHead className="h-10 text-left">Barcode</TableHead>
+                    <TableHead className="h-10 text-left">Variant</TableHead>
                     <TableHead className="text-right h-10">System Stock</TableHead>
                     <TableHead className="text-right h-10">Current Stock</TableHead>
                     <TableHead className="text-right h-10">Difference</TableHead>
@@ -481,8 +481,8 @@ export default function StockAdjustment() {
 
                       return (
                         <TableRow key={product.id} className="h-12">
-                          <TableCell className="font-medium py-2">{product.name}</TableCell>
-                          <TableCell className="py-2">
+                          <TableCell className="font-medium py-2 text-left">{product.name}</TableCell>
+                          <TableCell className="py-2 text-left">
                             <Select
                               value={categoryInputs[product.id] || product.category_id || 'none'}
                               onValueChange={(value) => {
@@ -490,7 +490,7 @@ export default function StockAdjustment() {
                                 handleCategoryUpdate(product.id, product.category_id, value);
                               }}
                             >
-                              <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                              <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent text-left">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -567,10 +567,10 @@ export default function StockAdjustment() {
 
                         return (
                           <TableRow key={variant.id} className="h-12">
-                            <TableCell className="font-medium py-2">
+                            <TableCell className="font-medium py-2 text-left">
                               {index === 0 ? product.name : ''}
                             </TableCell>
-                            <TableCell className="py-2">
+                            <TableCell className="py-2 text-left">
                               {index === 0 ? (
                                 <Select
                                   value={categoryInputs[product.id] || product.category_id || 'none'}
@@ -579,7 +579,7 @@ export default function StockAdjustment() {
                                     handleCategoryUpdate(product.id, product.category_id, value);
                                   }}
                                 >
-                                  <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                                  <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent text-left">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
