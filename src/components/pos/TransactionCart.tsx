@@ -39,51 +39,42 @@ export const TransactionCart = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Cart Items ({items.length})</h3>
-        <Button variant="ghost" size="sm" onClick={onClear}>
+        <h3 className="font-semibold text-sm">Cart Items ({items.length})</h3>
+        <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
           Clear All
         </Button>
       </div>
 
       <Card>
-        <div className="max-h-[500px] overflow-auto">
+        <div className="max-h-[calc(100vh-280px)] overflow-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Product name</TableHead>
-                <TableHead className="text-center w-[140px]">Qty</TableHead>
-                <TableHead className="text-right w-[100px]">Price</TableHead>
-                <TableHead className="text-right w-[100px]">Discount</TableHead>
-                <TableHead className="text-right w-[120px]">Final Amount</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+              <TableRow className="text-xs">
+                <TableHead className="text-xs py-2">Product name</TableHead>
+                <TableHead className="text-center text-xs py-2 w-[130px]">Qty</TableHead>
+                <TableHead className="text-right text-xs py-2 w-[80px]">Price</TableHead>
+                <TableHead className="text-right text-xs py-2 w-[80px]">Discount</TableHead>
+                <TableHead className="text-right text-xs py-2 w-[100px]">Final Amount</TableHead>
+                <TableHead className="w-[40px] py-2"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {item.image_url && (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="w-10 h-10 object-cover rounded"
-                        />
-                      )}
-                      <span className="font-medium">{item.name}</span>
-                    </div>
+                <TableRow key={item.id} className="text-xs">
+                  <TableCell className="py-2">
+                    <span className="text-xs font-medium">{item.name}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2">
                     <div className="flex items-center justify-center gap-1">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                         onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-2.5 w-2.5" />
                       </Button>
                       <Input
                         type="number"
@@ -91,23 +82,23 @@ export const TransactionCart = ({
                         onChange={(e) =>
                           onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
                         }
-                        className="w-14 h-7 text-center"
+                        className="w-12 h-6 text-center text-xs"
                         min="1"
                       />
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                         onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-2.5 w-2.5" />
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right text-xs py-2">
                     {formatCurrency(item.price)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-2">
                     {onUpdateDiscount ? (
                       <Input
                         type="number"
@@ -115,25 +106,25 @@ export const TransactionCart = ({
                         onChange={(e) =>
                           onUpdateDiscount(item.id, parseFloat(e.target.value) || 0)
                         }
-                        className="w-20 h-7 text-right ml-auto"
+                        className="w-16 h-6 text-right text-xs ml-auto"
                         min="0"
                         step="0.01"
                       />
                     ) : (
-                      formatCurrency(item.itemDiscount || 0)
+                      <span className="text-xs">{formatCurrency(item.itemDiscount || 0)}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold">
+                  <TableCell className="text-right font-semibold text-xs py-2">
                     {formatCurrency(calculateFinalAmount(item))}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-destructive"
+                      className="h-6 w-6 text-destructive"
                       onClick={() => onRemove(item.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-2.5 w-2.5" />
                     </Button>
                   </TableCell>
                 </TableRow>
