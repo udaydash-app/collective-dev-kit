@@ -33,7 +33,8 @@ import {
   Droplets,
   Edit,
   MessageCircle,
-  LogOut
+  LogOut,
+  Receipt as ReceiptIcon
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -1142,6 +1143,7 @@ export default function POS() {
       { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
       { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
+      { icon: ReceiptIcon, label: 'Payment Receipts', path: '/admin/payment-receipts' },
       { icon: TrendingDown, label: 'Daily Expenses', path: '/admin/expenses' },
       { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
       { icon: TrendingUp, label: 'Profit & Loss', path: '/admin/profit-loss' },
