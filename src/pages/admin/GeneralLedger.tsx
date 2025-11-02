@@ -107,7 +107,7 @@ export default function GeneralLedger() {
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
 
   // Filter accounts based on search term
-  const filteredAccounts = accounts?.filter((account) => {
+  const filteredAccounts = (accounts || []).filter((account) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     const accountName = account.account_name?.toLowerCase() || '';
@@ -238,19 +238,25 @@ export default function GeneralLedger() {
                 <SelectValue placeholder="Select an account" />
               </SelectTrigger>
               <SelectContent className="max-h-[400px]">
-                {filteredAccounts?.map((account) => (
-                  <SelectItem 
-                    key={account.id} 
-                    value={account.id}
-                    className={account.isChild ? 'pl-8' : ''}
-                  >
-                    {account.isChild && '└─ '}
-                    {account.account_code} - {account.account_name}
-                    {account.contactName && ` (${account.contactName})`}
-                    {account.isCustomer && ' 👤'}
-                    {account.isSupplier && ' 🏢'}
-                  </SelectItem>
-                ))}
+                {filteredAccounts.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground text-center">
+                    {searchTerm ? 'No accounts found matching your search' : 'No accounts available'}
+                  </div>
+                ) : (
+                  filteredAccounts.map((account) => (
+                    <SelectItem 
+                      key={account.id} 
+                      value={account.id}
+                      className={account.isChild ? 'pl-8' : ''}
+                    >
+                      {account.isChild && '└─ '}
+                      {account.account_code} - {account.account_name}
+                      {account.contactName && ` (${account.contactName})`}
+                      {account.isCustomer && ' 👤'}
+                      {account.isSupplier && ' 🏢'}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
