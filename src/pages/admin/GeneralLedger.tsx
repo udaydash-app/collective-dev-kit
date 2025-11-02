@@ -235,8 +235,18 @@ export default function GeneralLedger() {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <Label htmlFor="search">Search Account or Contact</Label>
+            <Input
+              id="search"
+              placeholder="Search by account code, name, or contact..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+            />
+          </div>
+
+          <div className="md:col-span-2">
             <Label htmlFor="account">Account *</Label>
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
@@ -266,42 +276,44 @@ export default function GeneralLedger() {
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0">
                 <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search account or contact..." 
-                    value={searchValue}
-                    onValueChange={setSearchValue}
-                  />
-                  <CommandEmpty>No account found.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-auto">
-                    {filteredAccounts.map((account) => (
-                      <CommandItem
-                        key={account.id}
-                        value={account.id}
-                        onSelect={(value) => {
-                          setSelectedAccount(value);
-                          setOpen(false);
-                          setSearchValue('');
-                        }}
-                        className={cn(account.isChild && 'pl-8')}
-                      >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
-                          )}
-                        />
-                        {account.isChild && '└─ '}
-                        {account.account_code} - {account.account_name}
-                        {account.contactName && ` (${account.contactName})`}
-                        {account.isCustomer && ' 👤'}
-                        {account.isSupplier && ' 🏢'}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                  {filteredAccounts.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      {searchValue ? 'No accounts found matching your search' : 'No accounts available'}
+                    </div>
+                  ) : (
+                    <CommandGroup className="max-h-[300px] overflow-auto">
+                      {filteredAccounts.map((account) => (
+                        <CommandItem
+                          key={account.id}
+                          value={account.id}
+                          onSelect={(value) => {
+                            setSelectedAccount(value);
+                            setOpen(false);
+                          }}
+                          className={cn(account.isChild && 'pl-8')}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                          {account.isChild && '└─ '}
+                          {account.account_code} - {account.account_name}
+                          {account.contactName && ` (${account.contactName})`}
+                          {account.isCustomer && ' 👤'}
+                          {account.isSupplier && ' 🏢'}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
                 </Command>
               </PopoverContent>
             </Popover>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
           <div>
             <Label htmlFor="start-date">Start Date</Label>
