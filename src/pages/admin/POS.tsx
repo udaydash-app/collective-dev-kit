@@ -682,16 +682,18 @@ export default function POS() {
 
   const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
+    const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
     const transactionDataPrep = {
-      items: cart.map(item => ({
+      items: allItems.map(item => ({
+        id: item.id,
         name: item.name,
         quantity: item.quantity,
         price: item.customPrice ?? item.price,
         itemDiscount: item.itemDiscount || 0,
       })),
       subtotal: calculateSubtotal(),
-      discount: discount,
-      total: calculateTotal(),
+      discount: cartDiscountAmount,
+      total: total,
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
@@ -702,6 +704,9 @@ export default function POS() {
     const result = await processTransaction(payments, selectedStoreId);
     
     if (result) {
+      // Clear cart discount after successful transaction
+      setCartDiscountItem(null);
+      
       // Add transaction number to the prepared data
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
