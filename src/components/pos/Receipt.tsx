@@ -56,8 +56,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         `}</style>
         <div className="text-center mb-2">
           {logoUrl && (
-            <div className="flex justify-center mb-3">
-              <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
+            <div className="flex justify-center mb-4">
+              <img src={logoUrl} alt="Company Logo" className="h-64 w-auto object-contain" />
             </div>
           )}
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
@@ -94,14 +94,14 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           })}
         </div>
 
-        <div className="space-y-1 mb-3 border-t-2 border-black pt-2 mt-3">
+        <div className="space-y-2 mb-4 border-t-2 border-black pt-3 mt-4">
           {discount > 0 && (
-            <div className="flex justify-between text-sm mb-2">
+            <div className="flex justify-between text-base mb-3">
               <span>Cart Discount:</span>
-              <span>-{formatCurrency(discount)}</span>
+              <span className="font-semibold">-{formatCurrency(discount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-xl border-t border-black pt-2 mt-2">
+          <div className="flex justify-between font-bold text-2xl border-t-2 border-black pt-3 mt-3">
             <span>TOTAL:</span>
             <span>{formatCurrency(total)}</span>
           </div>
