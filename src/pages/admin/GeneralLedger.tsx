@@ -45,8 +45,8 @@ export default function GeneralLedger() {
     },
   });
 
-  const { data: accounts } = useQuery({
-    queryKey: ['accounts-active', contacts],
+  const { data: rawAccounts } = useQuery({
+    queryKey: ['accounts-active'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounts')
@@ -57,32 +57,36 @@ export default function GeneralLedger() {
         .eq('is_active', true)
         .order('account_code');
       if (error) throw error;
-      
-      // Organize accounts by parent-child relationship
-      const parentAccounts = data?.filter(a => !a.parent_account_id) || [];
-      const childAccounts = data?.filter(a => a.parent_account_id) || [];
-      
-      // Create a structured list with contact names
-      const structuredAccounts: any[] = [];
-      parentAccounts.forEach(parent => {
-        structuredAccounts.push({ ...parent, isParent: true });
-        const children = childAccounts.filter(c => c.parent_account_id === parent.id);
-        children.forEach(child => {
-          // Find associated contact
-          const contact = contacts?.find(
-            c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
-          );
-          structuredAccounts.push({ 
-            ...child, 
-            isChild: true,
-            contactName: contact?.name 
-          });
-        });
-      });
-      
-      return structuredAccounts;
+      return data;
     },
   });
+
+  // Map accounts with contact names after both queries complete
+  const accounts = rawAccounts && contacts ? (() => {
+    // Organize accounts by parent-child relationship
+    const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
+    const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
+    
+    // Create a structured list with contact names
+    const structuredAccounts: any[] = [];
+    parentAccounts.forEach(parent => {
+      structuredAccounts.push({ ...parent, isParent: true });
+      const children = childAccounts.filter(c => c.parent_account_id === parent.id);
+      children.forEach(child => {
+        // Find associated contact
+        const contact = contacts.find(
+          c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
+        );
+        structuredAccounts.push({ 
+          ...child, 
+          isChild: true,
+          contactName: contact?.name 
+        });
+      });
+    });
+    
+    return structuredAccounts;
+  })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id }));
 
   // Filter accounts based on search term
   const filteredAccounts = accounts?.filter((account) => {
