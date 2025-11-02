@@ -76,14 +76,6 @@ export default function GeneralLedger() {
 
   // Map accounts with contact names after both queries complete
   const accounts = rawAccounts && contacts ? (() => {
-    console.log('=== Contact Mapping Debug ===');
-    console.log('Total contacts:', contacts.length);
-    console.log('Contacts:', contacts.map(c => ({
-      name: c.name,
-      customer_ledger: c.customer_ledger_account_id,
-      supplier_ledger: c.supplier_ledger_account_id
-    })));
-    
     // Organize accounts by parent-child relationship
     const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
     const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
@@ -114,10 +106,6 @@ export default function GeneralLedger() {
           );
         }
         
-        if (contact) {
-          console.log(`Mapped contact "${contact.name}" to account "${child.account_name}"`);
-        }
-        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
@@ -127,9 +115,6 @@ export default function GeneralLedger() {
         });
       });
     });
-    
-    console.log('Accounts with contacts:', structuredAccounts.filter(a => a.contactName).length);
-    console.log('=== End Contact Mapping Debug ===');
     
     return structuredAccounts;
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
@@ -153,17 +138,6 @@ export default function GeneralLedger() {
     
     return nameMatch || codeMatch || contactMatch;
   }) || [];
-  
-  console.log('Total accounts:', accounts?.length);
-  console.log('Search value:', searchValue);
-  console.log('Filtered accounts:', filteredAccounts.length);
-  if (searchValue) {
-    console.log('Filtered results:', filteredAccounts.map(a => ({
-      code: a.account_code,
-      name: a.account_name,
-      contact: a.contactName
-    })));
-  }
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
