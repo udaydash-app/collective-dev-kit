@@ -688,7 +688,8 @@ export default function POS() {
         id: item.id,
         name: item.name,
         quantity: item.quantity,
-        price: item.customPrice ?? item.price,
+        price: item.price, // Original price
+        customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
       })),
       subtotal: calculateSubtotal(),
@@ -757,14 +758,14 @@ export default function POS() {
       // Parse transaction items
       const items = Array.isArray(transaction.items) ? transaction.items : [];
       
-      // Prepare transaction data - properly preserve item structure including id
+      // Prepare transaction data - properly preserve item structure including custom prices and discounts
       const transactionData = {
         transactionNumber: transaction.transaction_number,
         items: items.map((item: any) => ({
           id: item.id || 'unknown',
           name: item.name || 'Unknown Item',
           quantity: item.quantity || 1,
-          price: item.price || 0,
+          price: (item.customPrice ?? item.price) || 0, // Use custom price if available
           itemDiscount: item.itemDiscount || 0,
         })),
         subtotal: parseFloat(transaction.subtotal?.toString() || '0'),
@@ -821,10 +822,24 @@ export default function POS() {
   const handleSendLastReceiptWhatsApp = () => {
     if (!lastTransactionData) return;
     
-    // Format items list
-    const itemsList = lastTransactionData.items.map((item: any) => 
-      `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
-    ).join('\n\n');
+    // Format items list with proper pricing and discounts
+    const itemsList = lastTransactionData.items.map((item: any) => {
+      const isCartDiscount = item.id === 'cart-discount';
+      if (isCartDiscount) {
+        return `${item.name}: ${formatCurrency(item.price * item.quantity)}`;
+      }
+      
+      const itemTotal = item.price * item.quantity;
+      const itemDiscount = item.itemDiscount || 0;
+      const finalAmount = itemTotal - itemDiscount;
+      
+      let line = `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)}`;
+      if (itemDiscount > 0) {
+        line += ` - ${formatCurrency(itemDiscount)} disc`;
+      }
+      line += ` = ${formatCurrency(finalAmount)}`;
+      return line;
+    }).join('\n\n');
     
     // Build receipt-formatted message
     let message = `*${lastTransactionData.storeName || 'Global Market'}*\n`;

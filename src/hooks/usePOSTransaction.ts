@@ -147,14 +147,24 @@ export const usePOSTransaction = () => {
       );
 
       // Combine cart items with any additional items (like cart discount)
+      // Map items to include all necessary fields
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
+      const itemsToSave = allItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price, // Original price
+        customPrice: item.customPrice, // Custom/modified price if any
+        itemDiscount: item.itemDiscount || 0,
+        barcode: item.barcode,
+      }));
 
       const transactionData = {
         id: uuidv4(),
         cashier_id: user.id,
         store_id: storeId,
         customer_id: customerId,
-        items: allItems as any,
+        items: itemsToSave as any,
         subtotal: parseFloat(subtotal.toFixed(2)),
         tax: 0,
         discount: parseFloat(discount.toFixed(2)),
@@ -239,13 +249,22 @@ export const usePOSTransaction = () => {
           
           // Combine cart items with any additional items (like cart discount)
           const allItemsForOffline = additionalItems ? [...cart, ...additionalItems] : cart;
+          const itemsForOffline = allItemsForOffline.map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price, // Original price
+            customPrice: item.customPrice, // Custom/modified price if any
+            itemDiscount: item.itemDiscount || 0,
+            barcode: item.barcode,
+          }));
           
           await offlineDB.addTransaction({
             id: uuidv4(),
             storeId,
             cashierId: user.id,
             customerId,
-            items: allItemsForOffline as any,
+            items: itemsForOffline as any,
             subtotal: parseFloat(subtotal.toFixed(2)),
             discount: parseFloat(discount.toFixed(2)),
             total: parseFloat(total.toFixed(2)),
