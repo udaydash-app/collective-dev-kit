@@ -539,19 +539,14 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Calculate expected cash (opening + sales + customer payments - purchases - expenses - supplier payments)
+  // Calculate expected cash (opening + cash sales + cash payments - cash purchases - cash expenses - cash supplier payments)
   const expectedCashAtClose = currentCashSession 
     ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + 
       dayActivity.cashSales + 
-      dayActivity.mobileMoneySales + 
-      cashPayments + 
-      mobileMoneyPayments - 
+      cashPayments - 
       dayActivity.cashPurchases - 
-      dayActivity.mobileMoneyPurchases - 
       dayActivity.cashExpenses - 
-      dayActivity.mobileMoneyExpenses - 
-      cashSupplierPayments - 
-      mobileMoneySupplierPayments
+      cashSupplierPayments
     : 0;
 
   const { data: categories } = useQuery({
@@ -726,15 +721,10 @@ export default function POS() {
 
       const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + 
         cashSales + 
-        mobileMoneySales + 
-        cashPayments + 
-        mobileMoneyPayments - 
+        cashPayments - 
         cashPurchases - 
-        mobileMoneyPurchases - 
         cashExpenses - 
-        mobileMoneyExpenses - 
-        cashSupplierPayments - 
-        mobileMoneySupplierPayments;
+        cashSupplierPayments;
       const cashDifference = closingCash - expectedCash;
 
       const { error } = await supabase
