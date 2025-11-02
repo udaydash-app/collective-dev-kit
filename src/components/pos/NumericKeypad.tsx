@@ -9,11 +9,13 @@ interface NumericKeypadProps {
   onPriceClick: () => void;
   onPercentClick: () => void;
   onCartDiscountClick: () => void;
+  onPayClick: () => void;
   onClear: () => void;
   onEnter: () => void;
   disabled?: boolean;
   activeMode?: 'qty' | 'discount' | 'price' | 'cartDiscount' | null;
   isPercentMode?: boolean;
+  payDisabled?: boolean;
 }
 
 export const NumericKeypad: React.FC<NumericKeypadProps> = ({
@@ -23,11 +25,13 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
   onPriceClick,
   onPercentClick,
   onCartDiscountClick,
+  onPayClick,
   onClear,
   onEnter,
   disabled = false,
   activeMode = null,
-  isPercentMode = false
+  isPercentMode = false,
+  payDisabled = false
 }) => {
   const numberButtons = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '00'];
   
@@ -106,6 +110,15 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
           className="h-11 text-sm font-semibold bg-primary px-4"
         >
           ENTER
+        </Button>
+        
+        {/* Big PAY button at the bottom */}
+        <Button
+          onClick={onPayClick}
+          disabled={payDisabled}
+          className="h-16 text-lg font-bold bg-green-600 hover:bg-green-700 text-white mt-1"
+        >
+          PAY
         </Button>
       </div>
     </div>

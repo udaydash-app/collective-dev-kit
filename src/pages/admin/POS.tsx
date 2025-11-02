@@ -665,7 +665,8 @@ export default function POS() {
   );
 
   const subtotal = calculateSubtotal();
-  const total = calculateTotal();
+  const cartDiscountAmount = cartDiscountItem ? Math.abs(cartDiscountItem.price) : 0;
+  const total = subtotal - cartDiscountAmount;
 
   const handleCheckout = () => {
     if (!selectedStoreId) {
@@ -1352,65 +1353,12 @@ export default function POS() {
         </div>
 
         {/* Total Section */}
-        <div className="border-t p-2 space-y-2">
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">{formatCurrency(subtotal)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Bill Discount</span>
-                <span className="font-medium">-{formatCurrency(discount)}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground shrink-0">Disc:</span>
-              <Input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                className="h-6 text-xs"
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-              />
-            </div>
-            <div className="flex justify-between items-center pt-1 border-t">
-              <span className="text-sm font-bold">TOTAL</span>
-              <span className="text-lg font-bold text-primary">
-                {formatCurrency(total)}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-[#F7DC6F] hover:bg-[#F4D03F] text-foreground h-8"
-            >
-              <User className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="bg-[#EC7063] hover:bg-[#E74C3C] h-8 text-[10px]"
-              onClick={clearCart}
-              disabled={cart.length === 0}
-            >
-              <Trash2 className="h-3 w-3 mr-0.5" />
-              CLEAR
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#7DCEA0] hover:bg-[#52BE80] text-foreground h-8 text-xs font-bold"
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || !selectedStoreId}
-              title={!selectedStoreId ? 'Please select a store' : cart.length === 0 ? 'Cart is empty' : 'Process payment'}
-            >
-              PAY
-            </Button>
+        <div className="border-t p-2">
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-bold">TOTAL</span>
+            <span className="text-2xl font-bold text-primary">
+              {formatCurrency(total)}
+            </span>
           </div>
         </div>
       </div>
@@ -1727,11 +1675,13 @@ export default function POS() {
                 onPriceClick={handleKeypadPrice}
                 onPercentClick={handleKeypadPercent}
                 onCartDiscountClick={handleKeypadCartDiscount}
+                onPayClick={handleCheckout}
                 onClear={handleKeypadClear}
                 onEnter={handleKeypadEnter}
                 disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
                 activeMode={keypadMode}
                 isPercentMode={isPercentMode}
+                payDisabled={cart.length === 0 || !selectedStoreId}
               />
             </div>
 
