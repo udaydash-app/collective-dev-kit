@@ -32,6 +32,7 @@ import AdminChartOfAccounts from "./pages/admin/ChartOfAccounts";
 import AdminJournalEntries from "./pages/admin/JournalEntries";
 import AdminGeneralLedger from "./pages/admin/GeneralLedger";
 import AdminPaymentReceipts from "./pages/admin/PaymentReceipts";
+import AdminSupplierPayments from "./pages/admin/SupplierPayments";
 import AdminTrialBalance from "./pages/admin/TrialBalance";
 import AdminProfitLoss from "./pages/admin/ProfitLoss";
 import AdminBalanceSheet from "./pages/admin/BalanceSheet";
@@ -117,6 +118,7 @@ const AppContent = () => {
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
+          <Route path="/admin/supplier-payments" element={<AdminRoute><AdminSupplierPayments /></AdminRoute>} />
           <Route path="/admin/trial-balance" element={<AdminRoute><AdminTrialBalance /></AdminRoute>} />
           <Route path="/admin/profit-loss" element={<AdminRoute><AdminProfitLoss /></AdminRoute>} />
           <Route path="/admin/balance-sheet" element={<AdminRoute><AdminBalanceSheet /></AdminRoute>} />

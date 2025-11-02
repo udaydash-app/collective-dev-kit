@@ -505,6 +505,24 @@ export default function POS() {
     enabled: !!currentCashSession
   });
 
+  // Fetch supplier payments for this session
+  const { data: supplierPayments } = useQuery({
+    queryKey: ['session-supplier-payments', currentCashSession?.id],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+      
+      const { data, error } = await supabase
+        .from('supplier_payments')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentCashSession
+  });
+
   const cashPayments = paymentReceipts
     ?.filter(p => p.payment_method === 'cash')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
@@ -513,7 +531,15 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Calculate expected cash (opening cash + cash sales + mobile money sales + cash payments + mobile money payments - cash purchases - mobile purchases - cash expenses - mobile money expenses)
+  const cashSupplierPayments = supplierPayments
+    ?.filter(p => p.payment_method === 'cash')
+    .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+  
+  const mobileMoneySupplierPayments = supplierPayments
+    ?.filter(p => p.payment_method === 'mobile_money')
+    .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+
+  // Calculate expected cash (opening + sales + customer payments - purchases - expenses - supplier payments)
   const expectedCashAtClose = currentCashSession 
     ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + 
       dayActivity.cashSales + 
@@ -523,7 +549,9 @@ export default function POS() {
       dayActivity.cashPurchases - 
       dayActivity.mobileMoneyPurchases - 
       dayActivity.cashExpenses - 
-      dayActivity.mobileMoneyExpenses
+      dayActivity.mobileMoneyExpenses - 
+      cashSupplierPayments - 
+      mobileMoneySupplierPayments
     : 0;
 
   const { data: categories } = useQuery({
@@ -681,6 +709,21 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
+      // Fetch supplier payments for this session
+      const { data: supplierPayments } = await supabase
+        .from('supplier_payments')
+        .select('amount, payment_method')
+        .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at);
+
+      const cashSupplierPayments = supplierPayments
+        ?.filter(p => p.payment_method === 'cash')
+        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+      
+      const mobileMoneySupplierPayments = supplierPayments
+        ?.filter(p => p.payment_method === 'mobile_money')
+        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+
       const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + 
         cashSales + 
         mobileMoneySales + 
@@ -689,7 +732,9 @@ export default function POS() {
         cashPurchases - 
         mobileMoneyPurchases - 
         cashExpenses - 
-        mobileMoneyExpenses;
+        mobileMoneyExpenses - 
+        cashSupplierPayments - 
+        mobileMoneySupplierPayments;
       const cashDifference = closingCash - expectedCash;
 
       const { error } = await supabase
@@ -1144,6 +1189,7 @@ export default function POS() {
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
       { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
       { icon: ReceiptIcon, label: 'Payment Receipts', path: '/admin/payment-receipts' },
+      { icon: DollarSign, label: 'Supplier Payments', path: '/admin/supplier-payments' },
       { icon: TrendingDown, label: 'Daily Expenses', path: '/admin/expenses' },
       { icon: DollarSign, label: 'Trial Balance', path: '/admin/trial-balance' },
       { icon: TrendingUp, label: 'Profit & Loss', path: '/admin/profit-loss' },
