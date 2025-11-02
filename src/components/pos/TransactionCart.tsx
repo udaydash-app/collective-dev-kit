@@ -129,20 +129,24 @@ export const TransactionCart = ({
                     </TableCell>
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdateDiscount ? (
-                        <Input
-                          type="number"
-                          value={item.itemDiscount || 0}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
-                          }}
-                          className="w-14 h-5 text-right text-[10px] ml-auto px-1"
-                          min="0"
-                          step="0.01"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : !isCartDiscount ? (
-                        <span className="text-[10px]">{formatCurrency(item.itemDiscount || 0)}</span>
+                        item.itemDiscount && item.itemDiscount > 0 ? (
+                          <Input
+                            type="number"
+                            value={item.itemDiscount}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
+                            }}
+                            className="w-14 h-5 text-right text-[10px] ml-auto px-1"
+                            min="0"
+                            step="0.01"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span className="text-[10px]"></span>
+                        )
+                      ) : !isCartDiscount && item.itemDiscount && item.itemDiscount > 0 ? (
+                        <span className="text-[10px]">{formatCurrency(item.itemDiscount)}</span>
                       ) : (
                         ''
                       )}
