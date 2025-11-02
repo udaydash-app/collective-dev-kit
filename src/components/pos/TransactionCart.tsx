@@ -45,7 +45,8 @@ export const TransactionCart = ({
   }
 
   const calculateFinalAmount = (item: CartItem) => {
-    const subtotal = item.price * item.quantity;
+    const effectivePrice = item.customPrice ?? item.price;
+    const subtotal = effectivePrice * item.quantity;
     const discountAmount = (item.itemDiscount || 0) * item.quantity;
     return subtotal - discountAmount;
   };
@@ -161,7 +162,7 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdatePrice ? (
                         <Input
                           type="number"
-                          value={item.price || ''}
+                          value={(item.customPrice ?? item.price) || ''}
                           onChange={(e) => {
                             e.stopPropagation();
                             const newPrice = parseFloat(e.target.value);
@@ -175,7 +176,7 @@ export const TransactionCart = ({
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : !isCartDiscount ? (
-                        <span className="text-[10px]">{formatCurrency(Math.abs(item.price))}</span>
+                        <span className="text-[10px]">{formatCurrency(Math.abs(item.customPrice ?? item.price))}</span>
                       ) : (
                         ''
                       )}
