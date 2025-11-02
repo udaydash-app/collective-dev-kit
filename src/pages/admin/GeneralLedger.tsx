@@ -38,11 +38,29 @@ export default function GeneralLedger() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounts')
-        .select('*')
+        .select(`
+          *,
+          parent:parent_account_id(account_name, account_code)
+        `)
         .eq('is_active', true)
         .order('account_code');
       if (error) throw error;
-      return data;
+      
+      // Organize accounts by parent-child relationship
+      const parentAccounts = data?.filter(a => !a.parent_account_id) || [];
+      const childAccounts = data?.filter(a => a.parent_account_id) || [];
+      
+      // Create a structured list
+      const structuredAccounts: any[] = [];
+      parentAccounts.forEach(parent => {
+        structuredAccounts.push({ ...parent, isParent: true });
+        const children = childAccounts.filter(c => c.parent_account_id === parent.id);
+        children.forEach(child => {
+          structuredAccounts.push({ ...child, isChild: true });
+        });
+      });
+      
+      return structuredAccounts;
     },
   });
 
@@ -147,10 +165,17 @@ export default function GeneralLedger() {
               <SelectTrigger id="account">
                 <SelectValue placeholder="Select an account" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[400px]">
                 {accounts?.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
+                  <SelectItem 
+                    key={account.id} 
+                    value={account.id}
+                    className={account.isChild ? 'pl-8' : ''}
+                  >
+                    {account.isChild && '└─ '}
                     {account.account_code} - {account.account_name}
+                    {account.description?.includes('Customer') && ' 👤'}
+                    {account.description?.includes('Supplier') && ' 🏢'}
                   </SelectItem>
                 ))}
               </SelectContent>
