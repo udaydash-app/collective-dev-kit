@@ -16,6 +16,7 @@ export default function StockAdjustment() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
   const [barcodeInputs, setBarcodeInputs] = useState<Record<string, string>>({});
+  const [variantInputs, setVariantInputs] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -143,6 +144,24 @@ export default function StockAdjustment() {
     },
   });
 
+  const updateVariantMutation = useMutation({
+    mutationFn: async ({ variantId, newLabel }: any) => {
+      const { error } = await supabase
+        .from('product_variants')
+        .update({ label: newLabel })
+        .eq('id', variantId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      toast.success('Variant label updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update variant: ' + error.message);
+    },
+  });
+
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return;
@@ -180,6 +199,27 @@ export default function StockAdjustment() {
       productId,
       variantId,
       newBarcode,
+    });
+  };
+
+  const handleVariantUpdate = (key: string, originalLabel: string, variantId: string) => {
+    const inputValue = variantInputs[key];
+    if (inputValue === undefined) return; // Not edited
+    
+    const newLabel = inputValue.trim();
+    if (!newLabel) {
+      toast.error('Variant label cannot be empty');
+      return;
+    }
+    
+    if (newLabel === originalLabel) {
+      // No change
+      return;
+    }
+
+    updateVariantMutation.mutate({
+      variantId,
+      newLabel,
     });
   };
 
@@ -438,7 +478,20 @@ export default function StockAdjustment() {
                                 />
                               ) : ''}
                             </TableCell>
-                            <TableCell className="py-2">{variant.label}</TableCell>
+                            <TableCell className="py-2">
+                              <Input
+                                type="text"
+                                value={variantInputs[key] !== undefined ? variantInputs[key] : variant.label}
+                                onChange={(e) => setVariantInputs({ ...variantInputs, [key]: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleVariantUpdate(key, variant.label, variant.id);
+                                  }
+                                }}
+                                onBlur={() => handleVariantUpdate(key, variant.label, variant.id)}
+                                className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
+                              />
+                            </TableCell>
                             <TableCell className="text-right py-2">{systemStock}</TableCell>
                             <TableCell className="text-right py-2">
                               <Input
