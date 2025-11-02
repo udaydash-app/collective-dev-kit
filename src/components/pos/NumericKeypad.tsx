@@ -26,63 +26,65 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({
   const numberButtons = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '00'];
   
   return (
-    <div className="grid grid-cols-4 gap-1.5 p-2 bg-card border rounded-lg">
-      {/* Function buttons */}
-      <Button
-        onClick={onQtyClick}
-        disabled={disabled}
-        variant={activeMode === 'qty' ? 'default' : 'outline'}
-        className="h-12 text-xs font-semibold"
-      >
-        QTY
-      </Button>
-      <Button
-        onClick={onDiscountClick}
-        disabled={disabled}
-        variant={activeMode === 'discount' ? 'default' : 'outline'}
-        className="h-12 text-xs font-semibold"
-      >
-        DISC
-      </Button>
-      <Button
-        onClick={onPriceClick}
-        disabled={disabled}
-        variant={activeMode === 'price' ? 'default' : 'outline'}
-        className="h-12 text-xs font-semibold"
-      >
-        PRICE
-      </Button>
-      <Button
-        onClick={onClear}
-        disabled={disabled}
-        variant="destructive"
-        className="h-12 text-xs font-semibold"
-      >
-        CLEAR
-      </Button>
+    <div className="flex gap-1.5 p-2 bg-card border rounded-lg">
+      {/* Number buttons on the left - 3x4 grid */}
+      <div className="grid grid-cols-3 gap-1.5 flex-1">
+        {numberButtons.map((num) => (
+          <Button
+            key={num}
+            onClick={() => onNumberClick(num)}
+            disabled={disabled}
+            variant="secondary"
+            className="h-14 text-lg font-semibold"
+          >
+            {num}
+          </Button>
+        ))}
+      </div>
       
-      {/* Number buttons */}
-      {numberButtons.map((num) => (
+      {/* Function buttons on the right */}
+      <div className="flex flex-col gap-1.5">
         <Button
-          key={num}
-          onClick={() => onNumberClick(num)}
+          onClick={onQtyClick}
           disabled={disabled}
-          variant="secondary"
-          className="h-14 text-lg font-semibold"
+          variant={activeMode === 'qty' ? 'default' : 'outline'}
+          className="h-14 text-xs font-semibold px-6"
         >
-          {num}
+          QTY
         </Button>
-      ))}
-      
-      {/* Enter button - spans 2 columns */}
-      <Button
-        onClick={onEnter}
-        disabled={disabled}
-        variant="default"
-        className="h-14 col-span-2 text-sm font-semibold bg-primary"
-      >
-        ENTER
-      </Button>
+        <Button
+          onClick={onDiscountClick}
+          disabled={disabled}
+          variant={activeMode === 'discount' ? 'default' : 'outline'}
+          className="h-14 text-xs font-semibold px-6"
+        >
+          DISC
+        </Button>
+        <Button
+          onClick={onPriceClick}
+          disabled={disabled}
+          variant={activeMode === 'price' ? 'default' : 'outline'}
+          className="h-14 text-xs font-semibold px-6"
+        >
+          PRICE
+        </Button>
+        <Button
+          onClick={onClear}
+          disabled={disabled}
+          variant="destructive"
+          className="h-14 text-xs font-semibold px-6"
+        >
+          CLEAR
+        </Button>
+        <Button
+          onClick={onEnter}
+          disabled={disabled}
+          variant="default"
+          className="h-14 text-sm font-semibold bg-primary px-6"
+        >
+          ENTER
+        </Button>
+      </div>
     </div>
   );
 };
