@@ -1576,17 +1576,27 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
-    // Auto-hold current cart if not empty, then recall ticket
+    // Capture current cart state before any modifications
+    const currentCartSnapshot = cart.length > 0 ? [...cart] : null;
+    const currentTotal = calculateTotal();
+    
+    // Close dialog
+    setShowHoldTicket(false);
+    
+    // Clear cart first
+    clearCart();
+    
+    // Update tickets: remove recalled ticket and add auto-hold if needed
     setHeldTickets(prev => {
       let updatedTickets = prev.filter(t => t.id !== ticket.id);
       
-      // If there's a current cart, auto-hold it
-      if (cart.length > 0) {
+      // If there was a current cart, auto-hold it
+      if (currentCartSnapshot) {
         const autoHoldTicket = {
           id: Date.now().toString(),
           name: `Auto-hold ${new Date().toLocaleTimeString()}`,
-          items: [...cart],
-          total: calculateTotal(),
+          items: currentCartSnapshot,
+          total: currentTotal,
           timestamp: new Date(),
         };
         updatedTickets = [...updatedTickets, autoHoldTicket];
@@ -1595,12 +1605,6 @@ export default function POS() {
       
       return updatedTickets;
     });
-    
-    // Close dialog
-    setShowHoldTicket(false);
-
-    // Clear cart
-    clearCart();
 
     // Restore ticket items to cart
     setTimeout(() => {
