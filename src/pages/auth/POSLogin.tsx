@@ -467,7 +467,7 @@ export default function POSLogin() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
-          <div className="flex items-center justify-center mx-auto -mb-16">
+          <div className="flex items-center justify-center mx-auto -mt-4 -mb-20">
             <img src={logo} alt="Global Market" className="h-64 w-64 object-contain" />
           </div>
           <CardTitle className="text-3xl">POS System</CardTitle>
