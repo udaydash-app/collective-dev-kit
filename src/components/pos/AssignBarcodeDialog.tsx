@@ -106,7 +106,7 @@ export const AssignBarcodeDialog = ({
                   <Button
                     onClick={() => {
                       onClose();
-                      navigate('/admin/products');
+                      navigate('/admin/products?addNew=true');
                     }}
                     className="w-full"
                   >

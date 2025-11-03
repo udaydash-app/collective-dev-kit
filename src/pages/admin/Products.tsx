@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ interface Store {
 
 export default function Products() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -201,6 +202,19 @@ export default function Products() {
     setShowVariants(false);
     setIsDialogOpen(true);
   };
+
+  // Auto-open add product dialog if addNew parameter is present
+  useEffect(() => {
+    const shouldAddNew = searchParams.get('addNew');
+    if (shouldAddNew === 'true' && stores.length > 0 && !isDialogOpen) {
+      // Remove the query parameter
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('addNew');
+      setSearchParams(newSearchParams);
+      // Open the add product dialog
+      handleAdd();
+    }
+  }, [searchParams, stores, isDialogOpen]);
 
   const addVariant = () => {
     setVariants([...variants, {
