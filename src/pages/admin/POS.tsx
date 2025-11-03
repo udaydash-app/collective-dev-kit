@@ -2001,33 +2001,35 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="p-1.5 border-b bg-card">
-          <div className="flex gap-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchTerm.trim()) {
-                    // Check if it looks like a barcode (all digits)
-                    if (/^\d+$/.test(searchTerm.trim())) {
-                      handleBarcodeScan(searchTerm.trim());
-                      setSearchTerm(''); // Clear after scanning
+        {/* Search Bar - Only show when browsing products */}
+        {(selectedCategory || searchTerm) && (
+          <div className="p-1.5 border-b bg-card">
+            <div className="flex gap-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchTerm.trim()) {
+                      // Check if it looks like a barcode (all digits)
+                      if (/^\d+$/.test(searchTerm.trim())) {
+                        handleBarcodeScan(searchTerm.trim());
+                        setSearchTerm(''); // Clear after scanning
+                      }
                     }
-                  }
-                }}
-                className="pl-7 h-7 text-xs"
-                autoFocus
-              />
+                  }}
+                  className="pl-7 h-7 text-xs"
+                  autoFocus
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Dashboard/Analytics or Products Grid - Scrollable */}
         <div className="flex-1 overflow-y-auto p-2 pb-0">
@@ -2035,11 +2037,11 @@ export default function POS() {
           {!selectedCategory && !searchTerm ? (
             <>
               {/* Date Range Selector */}
-              <div className="mb-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="mb-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                   <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -2052,12 +2054,12 @@ export default function POS() {
                 </div>
                 
                 {dateRange === 'custom' && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Input
                       type="date"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="h-8 text-xs"
+                      className="h-7 text-xs"
                       placeholder="Start Date"
                     />
                     <span className="text-xs text-muted-foreground">to</span>
@@ -2065,7 +2067,7 @@ export default function POS() {
                       type="date"
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="h-8 text-xs"
+                      className="h-7 text-xs"
                       placeholder="End Date"
                     />
                   </div>
@@ -2073,122 +2075,100 @@ export default function POS() {
               </div>
 
               {/* Analytics Cards Grid */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
                 {/* Cash Sales Card */}
-                <Card className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                        <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span className="text-xs font-medium text-emerald-900 dark:text-emerald-100">Cash Sales</span>
+                <Card className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-1 rounded bg-emerald-500/20">
+                      <Banknote className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                     </div>
+                    <span className="text-[10px] font-medium text-emerald-900 dark:text-emerald-100">Cash Sales</span>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
-                      {formatCurrency(analyticsData?.cashSales || 0)}
-                    </p>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                      Total cash transactions
-                    </p>
-                  </div>
+                  <p className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                    {formatCurrency(analyticsData?.cashSales || 0)}
+                  </p>
                 </Card>
 
                 {/* Credit Sales Card */}
-                <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-blue-500/20">
-                        <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span className="text-xs font-medium text-blue-900 dark:text-blue-100">Credit Sales</span>
+                <Card className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-1 rounded bg-blue-500/20">
+                      <CreditCard className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                     </div>
+                    <span className="text-[10px] font-medium text-blue-900 dark:text-blue-100">Credit Sales</span>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                      {formatCurrency(analyticsData?.creditSales || 0)}
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Total credit transactions
-                    </p>
-                  </div>
+                  <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                    {formatCurrency(analyticsData?.creditSales || 0)}
+                  </p>
                 </Card>
               </div>
 
               {/* Top Performers Grid */}
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5">
                 {/* Top Selling Item Card */}
-                <Card className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-amber-500/20">
-                        <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <span className="text-xs font-medium text-amber-900 dark:text-amber-100">Top Selling Item</span>
+                <Card className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-1 rounded bg-amber-500/20">
+                      <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                     </div>
+                    <span className="text-[10px] font-medium text-amber-900 dark:text-amber-100">Top Selling Item</span>
                   </div>
-                  <div className="space-y-1">
-                    {analyticsData?.topItem ? (
-                      <>
-                        <p className="text-lg font-bold text-amber-900 dark:text-amber-100">
-                          {analyticsData.topItem.name}
-                        </p>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-amber-700 dark:text-amber-300">
-                            Quantity: {analyticsData.topItem.quantity}
-                          </span>
-                          <span className="font-semibold text-amber-900 dark:text-amber-100">
-                            {formatCurrency(analyticsData.topItem.revenue)}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-sm text-amber-700 dark:text-amber-300">No sales data</p>
-                    )}
-                  </div>
+                  {analyticsData?.topItem ? (
+                    <>
+                      <p className="text-sm font-bold text-amber-900 dark:text-amber-100 mb-0.5">
+                        {analyticsData.topItem.name}
+                      </p>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-amber-700 dark:text-amber-300">
+                          Qty: {analyticsData.topItem.quantity}
+                        </span>
+                        <span className="font-semibold text-amber-900 dark:text-amber-100">
+                          {formatCurrency(analyticsData.topItem.revenue)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">No sales data</p>
+                  )}
                 </Card>
 
                 {/* Top Customer Card */}
-                <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-purple-500/20">
-                        <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <span className="text-xs font-medium text-purple-900 dark:text-purple-100">Top Customer</span>
+                <Card className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-1 rounded bg-purple-500/20">
+                      <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                     </div>
+                    <span className="text-[10px] font-medium text-purple-900 dark:text-purple-100">Top Customer</span>
                   </div>
-                  <div className="space-y-1">
-                    {analyticsData?.topCustomer ? (
-                      <>
-                        <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
-                          {analyticsData.topCustomer.name}
-                        </p>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-purple-700 dark:text-purple-300">
-                            {analyticsData.topCustomer.count} transactions
-                          </span>
-                          <span className="font-semibold text-purple-900 dark:text-purple-100">
-                            {formatCurrency(analyticsData.topCustomer.total)}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-sm text-purple-700 dark:text-purple-300">No customer data</p>
-                    )}
-                  </div>
+                  {analyticsData?.topCustomer ? (
+                    <>
+                      <p className="text-sm font-bold text-purple-900 dark:text-purple-100 mb-0.5">
+                        {analyticsData.topCustomer.name}
+                      </p>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-purple-700 dark:text-purple-300">
+                          {analyticsData.topCustomer.count} orders
+                        </span>
+                        <span className="font-semibold text-purple-900 dark:text-purple-100">
+                          {formatCurrency(analyticsData.topCustomer.total)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-purple-700 dark:text-purple-300">No customer data</p>
+                  )}
                 </Card>
 
                 {/* Total Transactions */}
-                <Card className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
+                <Card className="p-2 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-slate-500/20">
-                        <BarChart3 className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 rounded bg-slate-500/20">
+                        <BarChart3 className="h-3 w-3 text-slate-600 dark:text-slate-400" />
                       </div>
-                      <span className="text-xs font-medium text-slate-900 dark:text-slate-100">Total Transactions</span>
+                      <span className="text-[10px] font-medium text-slate-900 dark:text-slate-100">Total Transactions</span>
                     </div>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                       {analyticsData?.totalTransactions || 0}
                     </p>
                   </div>
@@ -2196,26 +2176,26 @@ export default function POS() {
               </div>
 
               {/* Category Grid for Quick Access */}
-              <div className="mt-4 pt-3 border-t border-border">
-                <h3 className="text-xs font-medium mb-2 text-muted-foreground">Quick Access - Categories</h3>
+              <div className="mt-2 pt-2 border-t border-border">
+                <h3 className="text-[10px] font-medium mb-1.5 text-muted-foreground">Quick Access - Categories</h3>
                 <div className="grid grid-cols-3 gap-1.5">
                   {categories?.slice(0, 6).map((category: any) => (
                     <Button
                       key={category.id}
                       variant="outline"
-                      className="h-16 flex flex-col items-center justify-center p-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      className="h-14 flex flex-col items-center justify-center p-1 hover:bg-primary hover:text-primary-foreground transition-colors"
                       onClick={() => handleCategorySelect(category.id)}
                     >
                       {category.image_url ? (
                         <img
                           src={category.image_url}
                           alt={category.name}
-                          className="h-8 w-8 object-cover rounded mb-1"
+                          className="h-6 w-6 object-cover rounded mb-0.5"
                         />
                       ) : (
-                        <Package className="h-6 w-6 mb-1 opacity-50" />
+                        <Package className="h-5 w-5 mb-0.5 opacity-50" />
                       )}
-                      <p className="text-[10px] font-medium text-center line-clamp-1">
+                      <p className="text-[9px] font-medium text-center line-clamp-1">
                         {category.name}
                       </p>
                     </Button>
