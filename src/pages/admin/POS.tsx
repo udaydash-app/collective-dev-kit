@@ -719,15 +719,20 @@ export default function POS() {
       transactions.forEach(transaction => {
         const items = transaction.items as any[];
         items.forEach(item => {
-          if (!productSales[item.productId]) {
-            productSales[item.productId] = {
+          // Skip cart-discount items
+          if (item.id === 'cart-discount') return;
+          
+          if (!productSales[item.id]) {
+            productSales[item.id] = {
               name: item.name,
               quantity: 0,
               revenue: 0
             };
           }
-          productSales[item.productId].quantity += item.quantity;
-          productSales[item.productId].revenue += item.price * item.quantity;
+          productSales[item.id].quantity += item.quantity;
+          // Use customPrice if available, otherwise use regular price
+          const itemPrice = item.customPrice || item.price;
+          productSales[item.id].revenue += itemPrice * item.quantity;
         });
       });
 
