@@ -1576,17 +1576,11 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    // Close dialog immediately
+    setShowHoldTicket(false);
+    
     // Remove recalled ticket from state
-    setHeldTickets(prev => {
-      const updatedTickets = prev.filter(t => t.id !== ticket.id);
-      
-      // Close dialog if no tickets remain
-      if (updatedTickets.length === 0) {
-        setTimeout(() => setShowHoldTicket(false), 100);
-      }
-      
-      return updatedTickets;
-    });
+    setHeldTickets(prev => prev.filter(t => t.id !== ticket.id));
 
     // Clear cart
     clearCart();
