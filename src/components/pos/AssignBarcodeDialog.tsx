@@ -27,6 +27,22 @@ export const AssignBarcodeDialog = ({
   const [productSearch, setProductSearch] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // First check if barcode already exists
+  const { data: existingProduct } = useQuery({
+    queryKey: ['existing-barcode', barcode],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, barcode')
+        .eq('barcode', barcode)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen && !!barcode,
+  });
+
   const { data: products, isLoading } = useQuery({
     queryKey: ['products-for-barcode', productSearch],
     queryFn: async () => {
@@ -79,6 +95,17 @@ export const AssignBarcodeDialog = ({
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          {existingProduct && (
+            <Card className="p-4 bg-destructive/10 border-destructive">
+              <p className="text-sm font-medium text-destructive">
+                This barcode is already assigned to: <span className="font-bold">{existingProduct.name}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Please use a different barcode or update the existing product.
+              </p>
+            </Card>
+          )}
+
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -96,7 +123,7 @@ export const AssignBarcodeDialog = ({
               </div>
             )}
 
-            {products && products.length === 0 && productSearch && (
+            {!existingProduct && products && products.length === 0 && productSearch && (
               <Card className="p-6 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
                   No products found for "{productSearch}"
