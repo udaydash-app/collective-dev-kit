@@ -631,11 +631,54 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Calculate expected cash (Total opening cash + cash sales + cash payments - cash purchases - cash expenses - cash supplier payments)
+  // Fetch journal entries affecting cash account for today
+  const { data: cashJournalEntries } = useQuery({
+    queryKey: ['today-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
+      
+      // Get cash account ID
+      const { data: cashAccount } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('account_code', '1010')
+        .single();
+      
+      if (!cashAccount) return [];
+      
+      // Get journal entry lines for cash account from posted entries today
+      const { data } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner(status, entry_date, created_at)
+        `)
+        .eq('account_id', cashAccount.id)
+        .eq('journal_entries.status', 'posted')
+        .gte('journal_entries.created_at', startOfToday.toISOString());
+      
+      return data || [];
+    },
+    enabled: !!currentCashSession
+  });
+
+  // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
+  const journalCashEffect = cashJournalEntries
+    ?.reduce((sum, entry) => {
+      const debit = parseFloat(entry.debit_amount?.toString() || '0');
+      const credit = parseFloat(entry.credit_amount?.toString() || '0');
+      return sum + debit - credit;
+    }, 0) || 0;
+
+  // Calculate expected cash (Total opening cash + cash sales + cash payments + journal entries - cash purchases - cash expenses - cash supplier payments)
   const expectedCashAtClose = currentCashSession 
     ? (totalOpeningCash || 0) + 
       dayActivity.cashSales + 
-      cashPayments - 
+      cashPayments +
+      journalCashEffect - 
       dayActivity.cashPurchases - 
       dayActivity.cashExpenses - 
       cashSupplierPayments
