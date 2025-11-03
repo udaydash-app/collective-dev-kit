@@ -283,24 +283,33 @@ export default function Pricing() {
     }
   };
 
-  const handleApplyDiscount = () => {
+  const handleApplyDiscount = async () => {
     if (!discountPercentage || parseFloat(discountPercentage) === 0) {
       toast.error('Enter a discount percentage');
       return;
     }
 
     const discount = parseFloat(discountPercentage);
-    const newPrices: Record<string, string> = {};
+    const prices: Array<{ product_id: string; price: number }> = [];
 
     filteredProducts?.forEach(product => {
       if (product.price) {
         const discountedPrice = product.price * (1 - discount / 100);
-        newPrices[product.id] = discountedPrice.toFixed(2);
+        prices.push({
+          product_id: product.id,
+          price: parseFloat(discountedPrice.toFixed(2))
+        });
       }
     });
 
-    setCustomerProductPrices(newPrices);
-    toast.success(`Applied ${discount}% discount to all products`);
+    if (prices.length === 0) {
+      toast.error('No products to apply discount to');
+      return;
+    }
+
+    // Save directly to database
+    updateCustomerPricesMutation.mutate(prices);
+    toast.success(`Applied ${discount}% discount to ${prices.length} products`);
   };
 
   const handleSaveCartDiscount = () => {
@@ -438,7 +447,7 @@ export default function Pricing() {
         {/* Customer Pricing Tab */}
         <TabsContent value="customer" className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex gap-4 flex-1">
+            <div className="flex gap-4 flex-1 items-center">
               <Select value={selectedCustomer || ''} onValueChange={handleCustomerChange}>
                 <SelectTrigger className="w-[300px]">
                   <SelectValue placeholder="Select a customer" />
@@ -456,6 +465,13 @@ export default function Pricing() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              {selectedCustomer && parseFloat(customerDiscountPercentage) > 0 && (
+                <Badge variant="default" className="text-lg px-4 py-2">
+                  {customerDiscountPercentage}% Discount Applied
+                </Badge>
+              )}
+              
               {selectedCustomer && (
                 <Button onClick={() => setShowAssignProductsDialog(true)}>
                   <Edit className="h-4 w-4 mr-2" />
@@ -514,9 +530,9 @@ export default function Pricing() {
           {selectedCustomer && (
             <Card>
               <CardHeader>
-                <CardTitle>Custom Prices for {selectedCustomerData?.name}</CardTitle>
+                <CardTitle>Products with Custom Pricing</CardTitle>
                 <CardDescription>
-                  Products with customer-specific pricing
+                  All products with discount applied for {selectedCustomerData?.name}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -527,13 +543,16 @@ export default function Pricing() {
                       <TableHead>Category</TableHead>
                       <TableHead className="text-right">Standard Price</TableHead>
                       <TableHead className="text-right">Custom Price</TableHead>
-                      <TableHead className="text-right">Difference</TableHead>
+                      <TableHead className="text-right">Savings</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {productsWithCustomerPrices?.filter(p => p.customer_price).map((product) => {
-                      const diff = product.customer_price && product.price 
-                        ? ((product.customer_price - product.price) / product.price * 100).toFixed(1)
+                      const savings = product.customer_price && product.price 
+                        ? product.price - product.customer_price
+                        : 0;
+                      const savingsPercent = product.customer_price && product.price 
+                        ? ((savings / product.price) * 100).toFixed(1)
                         : null;
                       return (
                         <TableRow key={product.id}>
@@ -543,16 +562,16 @@ export default function Pricing() {
                           <TableCell className="text-sm text-muted-foreground">
                             {product.categories?.name || '-'}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right text-muted-foreground line-through">
                             {product.price ? formatCurrency(product.price) : '-'}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-primary">
+                          <TableCell className="text-right font-bold text-primary text-lg">
                             {product.customer_price ? formatCurrency(product.customer_price) : '-'}
                           </TableCell>
                           <TableCell className="text-right">
-                            {diff ? (
-                              <Badge variant={parseFloat(diff) < 0 ? 'destructive' : 'default'}>
-                                {diff}%
+                            {savingsPercent ? (
+                              <Badge variant="default" className="bg-green-600">
+                                {savingsPercent}% off
                               </Badge>
                             ) : '-'}
                           </TableCell>
@@ -562,7 +581,7 @@ export default function Pricing() {
                     {productsWithCustomerPrices?.filter(p => p.customer_price).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No custom prices set for this customer yet
+                          No custom prices set for this customer yet. Click "Manage Prices" to apply discounts.
                         </TableCell>
                       </TableRow>
                     )}
