@@ -1576,10 +1576,14 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    console.log('Recalling ticket:', ticket.id, 'Current held tickets:', heldTickets.length);
+    
     // Remove recalled ticket and auto-hold current cart in ONE state update
     setHeldTickets(prev => {
+      console.log('Before filter - tickets:', prev.length);
       // Filter out the recalled ticket
       let updatedTickets = prev.filter(t => t.id !== ticket.id);
+      console.log('After filter - tickets:', updatedTickets.length);
       
       // Auto-hold current cart if not empty
       if (cart.length > 0) {
@@ -1599,6 +1603,7 @@ export default function POS() {
         setShowHoldTicket(false);
       }
       
+    console.log('Final tickets:', updatedTickets.length);
       return updatedTickets;
     });
 
