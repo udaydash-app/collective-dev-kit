@@ -319,9 +319,8 @@ export default function POSLogin() {
         console.warn('DB not initialized, skipping credential caching');
       }
       
-      // Use pos_user_id if user_id is null (first time login)
-      const emailIdentifier = userData.user_id || userData.pos_user_id;
-      const authEmail = `pos-${emailIdentifier}@pos.globalmarket.app`;
+      // Auth email is always based on pos_user_id (not user_id)
+      const authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
       
       // Create a password that meets Supabase requirements (min 6 chars)
       // Pad PIN to ensure it's at least 6 characters
