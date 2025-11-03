@@ -1576,30 +1576,33 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
-    // Remove recalled ticket from held tickets list FIRST
+    // Remove recalled ticket and auto-hold current cart in ONE state update
     setHeldTickets(prev => {
-      const updatedTickets = prev.filter(t => t.id !== ticket.id);
+      // Filter out the recalled ticket
+      let updatedTickets = prev.filter(t => t.id !== ticket.id);
+      
+      // Auto-hold current cart if not empty
+      if (cart.length > 0) {
+        const autoHoldTicket = {
+          id: Date.now().toString(),
+          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+          items: [...cart],
+          total: calculateTotal(),
+          timestamp: new Date(),
+        };
+        updatedTickets = [...updatedTickets, autoHoldTicket];
+        toast.info('Current cart auto-held');
+      }
+      
       // Close dialog if no tickets remain
       if (updatedTickets.length === 0) {
         setShowHoldTicket(false);
       }
+      
       return updatedTickets;
     });
 
-    // Auto-hold current cart if not empty
-    if (cart.length > 0) {
-      const autoHoldTicket = {
-        id: Date.now().toString(),
-        name: `Auto-hold ${new Date().toLocaleTimeString()}`,
-        items: [...cart],
-        total: calculateTotal(),
-        timestamp: new Date(),
-      };
-      setHeldTickets(prev => [...prev, autoHoldTicket]);
-      toast.info('Current cart auto-held');
-    }
-
-    // Clear cart first
+    // Clear cart
     clearCart();
 
     // Restore ticket items to cart
