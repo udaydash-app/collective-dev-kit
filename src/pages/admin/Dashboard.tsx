@@ -46,6 +46,12 @@ export default function AdminDashboard() {
         .select('total, status, created_at')
         .gte('created_at', startDate.toISOString());
 
+      // Get POS transactions
+      const { data: posTransactions } = await supabase
+        .from('pos_transactions')
+        .select('total, created_at')
+        .gte('created_at', startDate.toISOString());
+
       // Get products
       const { data: products, count: totalProducts } = await supabase
         .from('products')
@@ -56,13 +62,18 @@ export default function AdminDashboard() {
         .from('profiles')
         .select('*', { count: 'exact' });
 
-      // Calculate revenue
-      const revenue = orders?.reduce((sum, order) => sum + Number(order.total), 0) || 0;
+      // Calculate revenue (orders + POS transactions)
+      const ordersRevenue = orders?.reduce((sum, order) => sum + Number(order.total), 0) || 0;
+      const posRevenue = posTransactions?.reduce((sum, tx) => sum + Number(tx.total), 0) || 0;
+      const revenue = ordersRevenue + posRevenue;
       const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0;
+      const totalTransactions = (orders?.length || 0) + (posTransactions?.length || 0);
 
       return {
         revenue,
         orders: orders?.length || 0,
+        posTransactions: posTransactions?.length || 0,
+        totalTransactions,
         pendingOrders,
         totalProducts: totalProducts || 0,
         totalUsers: totalUsers || 0,
@@ -136,13 +147,13 @@ export default function AdminDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">Transactions</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.orders || 0}</div>
+              <div className="text-2xl font-bold">{stats?.totalTransactions || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.pendingOrders || 0} pending
+                {stats?.orders || 0} orders • {stats?.posTransactions || 0} POS
               </p>
             </CardContent>
           </Card>
