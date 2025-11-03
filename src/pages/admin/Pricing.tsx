@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
@@ -29,23 +28,21 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, DollarSign, Users, Package, Edit, Save, X, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Search, Package, Edit, Save, UserCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { Checkbox } from '@/components/ui/checkbox';
 
-interface CustomPriceTier {
+interface Customer {
   id: string;
   name: string;
-  description?: string;
-  is_active: boolean;
-  created_at: string;
+  email?: string;
+  phone?: string;
 }
 
-interface CustomTierPrice {
+interface CustomerProductPrice {
   id: string;
-  tier_id: string;
+  customer_id: string;
   product_id: string;
   price: number;
 }
@@ -58,13 +55,6 @@ export default function Pricing() {
   
   // Standard pricing state
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [bulkEditOpen, setBulkEditOpen] = useState(false);
-  const [bulkPrices, setBulkPrices] = useState({
-    retail: '',
-    wholesale: '',
-    vip: '',
-  });
   const [editPrices, setEditPrices] = useState({
     retail: '',
     wholesale: '',
@@ -72,14 +62,10 @@ export default function Pricing() {
     cost: '',
   });
 
-  // Custom tiers state
-  const [selectedTier, setSelectedTier] = useState<string | null>(null);
-  const [showNewTierDialog, setShowNewTierDialog] = useState(false);
-  const [showEditTierDialog, setShowEditTierDialog] = useState(false);
+  // Customer pricing state
+  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [showAssignProductsDialog, setShowAssignProductsDialog] = useState(false);
-  const [newTierData, setNewTierData] = useState({ name: '', description: '' });
-  const [editingTierData, setEditingTierData] = useState<CustomPriceTier | null>(null);
-  const [tierProductPrices, setTierProductPrices] = useState<Record<string, string>>({});
+  const [customerProductPrices, setCustomerProductPrices] = useState<Record<string, string>>({});
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -108,127 +94,71 @@ export default function Pricing() {
     },
   });
 
-  // Fetch custom price tiers
-  const { data: customTiers, isLoading: tiersLoading } = useQuery({
-    queryKey: ['custom-price-tiers'],
+  // Fetch customers
+  const { data: customers, isLoading: customersLoading } = useQuery({
+    queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('custom_price_tiers')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data as CustomPriceTier[];
-    },
-  });
-
-  // Fetch tier prices for selected tier
-  const { data: tierPrices } = useQuery({
-    queryKey: ['custom-tier-prices', selectedTier],
-    queryFn: async () => {
-      if (!selectedTier) return [];
-      const { data, error } = await supabase
-        .from('custom_tier_prices')
-        .select('*')
-        .eq('tier_id', selectedTier);
-      if (error) throw error;
-      return data as CustomTierPrice[];
-    },
-    enabled: !!selectedTier,
-  });
-
-  // Fetch customers assigned to tiers
-  const { data: tierCustomers } = useQuery({
-    queryKey: ['tier-customers', selectedTier],
-    queryFn: async () => {
-      if (!selectedTier) return [];
       const { data, error } = await supabase
         .from('contacts')
         .select('id, name, email, phone')
-        .eq('custom_price_tier_id', selectedTier)
-        .eq('is_customer', true);
+        .eq('is_customer', true)
+        .order('name');
       if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedTier,
-  });
-
-  // Create custom tier
-  const createTierMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
-      const { error } = await supabase
-        .from('custom_price_tiers')
-        .insert([data]);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['custom-price-tiers'] });
-      toast.success('Custom price tier created');
-      setShowNewTierDialog(false);
-      setNewTierData({ name: '', description: '' });
-    },
-    onError: (error: any) => {
-      toast.error('Failed to create tier: ' + error.message);
+      return data as Customer[];
     },
   });
 
-  // Update tier prices
-  const updateTierPricesMutation = useMutation({
+  // Fetch customer product prices for selected customer
+  const { data: customerPrices } = useQuery({
+    queryKey: ['customer-product-prices', selectedCustomer],
+    queryFn: async () => {
+      if (!selectedCustomer) return [];
+      const { data, error } = await supabase
+        .from('customer_product_prices')
+        .select('*')
+        .eq('customer_id', selectedCustomer);
+      if (error) throw error;
+      return data as CustomerProductPrice[];
+    },
+    enabled: !!selectedCustomer,
+  });
+
+  // Update customer product prices
+  const updateCustomerPricesMutation = useMutation({
     mutationFn: async (prices: Array<{ product_id: string; price: number }>) => {
-      if (!selectedTier) return;
+      if (!selectedCustomer) return;
       
-      // Delete existing prices for this tier
+      // Delete existing prices for this customer
       await supabase
-        .from('custom_tier_prices')
+        .from('customer_product_prices')
         .delete()
-        .eq('tier_id', selectedTier);
+        .eq('customer_id', selectedCustomer);
 
       // Insert new prices
       const inserts = prices.map(p => ({
-        tier_id: selectedTier,
+        customer_id: selectedCustomer,
         product_id: p.product_id,
         price: p.price,
       }));
 
       const { error } = await supabase
-        .from('custom_tier_prices')
+        .from('customer_product_prices')
         .insert(inserts);
         
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['custom-tier-prices'] });
-      toast.success('Tier prices updated');
+      queryClient.invalidateQueries({ queryKey: ['customer-product-prices'] });
+      toast.success('Customer prices updated');
       setShowAssignProductsDialog(false);
-      setTierProductPrices({});
+      setCustomerProductPrices({});
     },
     onError: (error: any) => {
       toast.error('Failed to update prices: ' + error.message);
     },
   });
 
-  // Delete tier
-  const deleteTierMutation = useMutation({
-    mutationFn: async (tierId: string) => {
-      const { error } = await supabase
-        .from('custom_price_tiers')
-        .delete()
-        .eq('id', tierId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['custom-price-tiers'] });
-      toast.success('Price tier deleted');
-      if (selectedTier === editingTierData?.id) {
-        setSelectedTier(null);
-      }
-    },
-    onError: (error: any) => {
-      toast.error('Failed to delete tier: ' + error.message);
-    },
-  });
-
-  // Standard pricing mutations (keeping existing functionality)
+  // Standard pricing mutations
   const updateStandardPricesMutation = useMutation({
     mutationFn: async ({ id, prices }: { id: string; prices: any }) => {
       const { error } = await supabase
@@ -252,28 +182,14 @@ export default function Pricing() {
     },
   });
 
-  const handleCreateTier = () => {
-    if (!newTierData.name.trim()) {
-      toast.error('Tier name is required');
-      return;
-    }
-    createTierMutation.mutate(newTierData);
-  };
-
-  const handleDeleteTier = (tier: CustomPriceTier) => {
-    if (confirm(`Delete price tier "${tier.name}"? This will remove all associated prices.`)) {
-      deleteTierMutation.mutate(tier.id);
-    }
-  };
-
-  const handleSaveTierPrices = () => {
+  const handleSaveCustomerPrices = () => {
     // Start with existing prices
     const existingPricesMap = new Map(
-      tierPrices?.map(tp => [tp.product_id, tp.price]) || []
+      customerPrices?.map(cp => [cp.product_id, cp.price]) || []
     );
 
     // Update with newly entered prices
-    Object.entries(tierProductPrices).forEach(([productId, price]) => {
+    Object.entries(customerProductPrices).forEach(([productId, price]) => {
       if (price && parseFloat(price) > 0) {
         existingPricesMap.set(productId, parseFloat(price));
       }
@@ -290,7 +206,7 @@ export default function Pricing() {
       return;
     }
 
-    updateTierPricesMutation.mutate(prices);
+    updateCustomerPricesMutation.mutate(prices);
   };
 
   const handleEditStandardPrice = (product: any) => {
@@ -317,11 +233,11 @@ export default function Pricing() {
     return matchesSearch && matchesCategory;
   });
 
-  const productsWithTierPrices = filteredProducts?.map(product => {
-    const tierPrice = tierPrices?.find(tp => tp.product_id === product.id);
+  const productsWithCustomerPrices = filteredProducts?.map(product => {
+    const customerPrice = customerPrices?.find(cp => cp.product_id === product.id);
     return {
       ...product,
-      tier_price: tierPrice?.price,
+      customer_price: customerPrice?.price,
     };
   });
 
@@ -330,13 +246,15 @@ export default function Pricing() {
     return ((price - cost) / price * 100).toFixed(1);
   };
 
+  const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Pricing Management</h1>
           <p className="text-muted-foreground">
-            Manage standard and custom pricing tiers
+            Manage standard pricing and customer-specific pricing
           </p>
         </div>
         <ReturnToPOSButton inline />
@@ -345,7 +263,7 @@ export default function Pricing() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="standard">Standard Tiers</TabsTrigger>
-          <TabsTrigger value="custom">Custom Price Tiers</TabsTrigger>
+          <TabsTrigger value="customer">Customer Pricing</TabsTrigger>
         </TabsList>
 
         {/* Standard Tiers Tab */}
@@ -456,89 +374,65 @@ export default function Pricing() {
           </Card>
         </TabsContent>
 
-        {/* Custom Tiers Tab */}
-        <TabsContent value="custom" className="space-y-4">
+        {/* Customer Pricing Tab */}
+        <TabsContent value="customer" className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex gap-4">
-              <Select value={selectedTier || ''} onValueChange={setSelectedTier}>
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Select a price tier" />
+            <div className="flex gap-4 flex-1">
+              <Select value={selectedCustomer || ''} onValueChange={setSelectedCustomer}>
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue placeholder="Select a customer" />
                 </SelectTrigger>
                 <SelectContent className="bg-background">
-                  {customTiers?.map((tier) => (
-                    <SelectItem key={tier.id} value={tier.id}>
-                      {tier.name}
+                  {customers?.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      <div className="flex flex-col">
+                        <span>{customer.name}</span>
+                        {customer.email && (
+                          <span className="text-xs text-muted-foreground">{customer.email}</span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedTier && (
+              {selectedCustomer && (
                 <Button onClick={() => setShowAssignProductsDialog(true)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Manage Prices
                 </Button>
               )}
             </div>
-            <Button onClick={() => setShowNewTierDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Price Tier
-            </Button>
           </div>
 
-          {/* Tier Management */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {customTiers?.map((tier) => (
-              <Card key={tier.id} className={selectedTier === tier.id ? 'border-primary' : ''}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{tier.name}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteTier(tier)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                  {tier.description && (
-                    <CardDescription>{tier.description}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Products:</span>
-                      <Badge variant="secondary">
-                        {tierPrices?.filter(tp => tp.tier_id === tier.id).length || 0}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Customers:</span>
-                      <Badge variant="secondary">
-                        {tierCustomers?.length || 0}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {customTiers?.length === 0 && (
-              <Card className="col-span-full">
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  No custom price tiers created yet. Click "Create Price Tier" to get started.
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Products with Tier Prices */}
-          {selectedTier && (
+          {/* Selected Customer Info */}
+          {selectedCustomer && selectedCustomerData && (
             <Card>
               <CardHeader>
-                <CardTitle>Products in {customTiers?.find(t => t.id === selectedTier)?.name}</CardTitle>
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserCircle className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>{selectedCustomerData.name}</CardTitle>
+                    <CardDescription>
+                      {selectedCustomerData.email || selectedCustomerData.phone || 'No contact info'}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary" className="ml-auto">
+                    {customerPrices?.length || 0} custom prices
+                  </Badge>
+                </div>
+              </CardHeader>
+            </Card>
+          )}
+
+          {/* Products with Customer Prices */}
+          {selectedCustomer && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Custom Prices for {selectedCustomerData?.name}</CardTitle>
                 <CardDescription>
-                  Products with custom prices for this tier
+                  Products with customer-specific pricing
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -553,9 +447,9 @@ export default function Pricing() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productsWithTierPrices?.filter(p => p.tier_price).map((product) => {
-                      const diff = product.tier_price && product.price 
-                        ? ((product.tier_price - product.price) / product.price * 100).toFixed(1)
+                    {productsWithCustomerPrices?.filter(p => p.customer_price).map((product) => {
+                      const diff = product.customer_price && product.price 
+                        ? ((product.customer_price - product.price) / product.price * 100).toFixed(1)
                         : null;
                       return (
                         <TableRow key={product.id}>
@@ -578,7 +472,7 @@ export default function Pricing() {
                             {product.price ? formatCurrency(product.price) : '-'}
                           </TableCell>
                           <TableCell className="text-right font-bold text-primary">
-                            {product.tier_price ? formatCurrency(product.tier_price) : '-'}
+                            {product.customer_price ? formatCurrency(product.customer_price) : '-'}
                           </TableCell>
                           <TableCell className="text-right">
                             {diff ? (
@@ -590,10 +484,10 @@ export default function Pricing() {
                         </TableRow>
                       );
                     })}
-                    {productsWithTierPrices?.filter(p => p.tier_price).length === 0 && (
+                    {productsWithCustomerPrices?.filter(p => p.customer_price).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No products assigned to this tier yet
+                          No custom prices set for this customer yet
                         </TableCell>
                       </TableRow>
                     )}
@@ -602,54 +496,24 @@ export default function Pricing() {
               </CardContent>
             </Card>
           )}
+
+          {!selectedCustomer && (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <UserCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Select a customer to manage their custom pricing</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
-
-      {/* Dialogs */}
-      {/* Create Tier Dialog */}
-      <Dialog open={showNewTierDialog} onOpenChange={setShowNewTierDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Custom Price Tier</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="tier-name">Tier Name *</Label>
-              <Input
-                id="tier-name"
-                value={newTierData.name}
-                onChange={(e) => setNewTierData({ ...newTierData, name: e.target.value })}
-                placeholder="e.g., Premium Partners, Schools, Hotels"
-              />
-            </div>
-            <div>
-              <Label htmlFor="tier-description">Description</Label>
-              <Textarea
-                id="tier-description"
-                value={newTierData.description}
-                onChange={(e) => setNewTierData({ ...newTierData, description: e.target.value })}
-                placeholder="Optional description"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowNewTierDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateTier}>
-                Create Tier
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Assign Products Dialog */}
       <Dialog open={showAssignProductsDialog} onOpenChange={setShowAssignProductsDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Assign Products - {customTiers?.find(t => t.id === selectedTier)?.name}
+              Assign Products - {selectedCustomerData?.name}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -672,7 +536,7 @@ export default function Pricing() {
               </TableHeader>
               <TableBody>
                 {filteredProducts?.map((product) => {
-                  const existingPrice = tierPrices?.find(tp => tp.product_id === product.id);
+                  const existingPrice = customerPrices?.find(cp => cp.product_id === product.id);
                   return (
                     <TableRow key={product.id}>
                       <TableCell>
@@ -698,9 +562,9 @@ export default function Pricing() {
                           type="number"
                           step="0.01"
                           placeholder="Enter price"
-                          value={tierProductPrices[product.id] || existingPrice?.price || ''}
-                          onChange={(e) => setTierProductPrices({
-                            ...tierProductPrices,
+                          value={customerProductPrices[product.id] || existingPrice?.price || ''}
+                          onChange={(e) => setCustomerProductPrices({
+                            ...customerProductPrices,
                             [product.id]: e.target.value,
                           })}
                           className="w-32 ml-auto"
@@ -715,7 +579,7 @@ export default function Pricing() {
               <Button variant="outline" onClick={() => setShowAssignProductsDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveTierPrices}>
+              <Button onClick={handleSaveCustomerPrices}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Prices
               </Button>
