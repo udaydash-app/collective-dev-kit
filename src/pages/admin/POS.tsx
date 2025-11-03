@@ -1240,6 +1240,10 @@ export default function POS() {
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
       
+      // Reset customer selection to walk-in customer
+      setSelectedCustomer(null);
+      setCustomerPrices({});
+      
       // Add transaction number to the prepared data
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
