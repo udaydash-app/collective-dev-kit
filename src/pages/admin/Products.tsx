@@ -206,13 +206,37 @@ export default function Products() {
   // Auto-open add product dialog if addNew parameter is present
   useEffect(() => {
     const shouldAddNew = searchParams.get('addNew');
+    const barcodeParam = searchParams.get('barcode');
+    
     if (shouldAddNew === 'true' && stores.length > 0 && !isDialogOpen) {
-      // Remove the query parameter
+      // Remove the query parameters
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.delete('addNew');
+      newSearchParams.delete('barcode');
       setSearchParams(newSearchParams);
-      // Open the add product dialog
-      handleAdd();
+      
+      // Set up new product with barcode pre-filled
+      setIsAddingNew(true);
+      setEditingProduct({
+        id: 'new',
+        name: '',
+        description: '',
+        price: 0,
+        unit: 'pcs',
+        image_url: null,
+        category_id: null,
+        store_id: stores[0].id,
+        is_available: true,
+        is_featured: false,
+        stock_quantity: 0,
+        barcode: barcodeParam || null,
+      } as Product);
+      setSelectedImage(null);
+      setPreviewUrl(null);
+      setImageUrl("");
+      setVariants([]);
+      setShowVariants(false);
+      setIsDialogOpen(true);
     }
   }, [searchParams, stores, isDialogOpen]);
 
