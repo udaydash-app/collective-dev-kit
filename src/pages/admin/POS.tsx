@@ -1164,13 +1164,13 @@ export default function POS() {
   const menuSections = {
     sales: [
       { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
+      { icon: DollarSign, label: 'Pricing Management', path: '/admin/pricing' },
       { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
       { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
     ],
     inventory: [
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
-      { icon: DollarSign, label: 'Pricing Management', path: '/admin/pricing' },
       { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
