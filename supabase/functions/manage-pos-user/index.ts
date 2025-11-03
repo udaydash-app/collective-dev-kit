@@ -101,6 +101,21 @@ serve(async (req) => {
 
       if (error) throw error
 
+      // Update auth user password if PIN was changed and user_id exists
+      if (pin && posUser.user_id) {
+        const authPassword = `PIN${pin.padStart(6, '0')}`
+        
+        const { error: passwordError } = await supabaseClient.auth.admin.updateUserById(
+          posUser.user_id,
+          { password: authPassword }
+        )
+
+        if (passwordError) {
+          console.error('Failed to update auth password:', passwordError)
+          throw new Error('Failed to update login credentials: ' + passwordError.message)
+        }
+      }
+
       // Update role if user_id exists and role is provided
       if (posUser.user_id && role) {
         // Check if role exists
