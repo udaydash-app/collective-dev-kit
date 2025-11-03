@@ -184,6 +184,7 @@ export default function Contacts() {
       ...formData,
       credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
       opening_balance: formData.opening_balance ? parseFloat(formData.opening_balance) : 0,
+      custom_price_tier_id: formData.custom_price_tier_id || null,
     };
 
     if (editingContact) {
