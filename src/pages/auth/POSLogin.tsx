@@ -9,6 +9,7 @@ import { Store, Hash, Loader2, WifiOff, Database } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
+import logo from '@/assets/logo.png';
 
 export default function POSLogin() {
   const [pin, setPin] = useState('');
@@ -463,11 +464,11 @@ export default function POSLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-            <Store className="w-10 h-10 text-primary" />
+          <div className="flex items-center justify-center mx-auto mb-4">
+            <img src={logo} alt="Global Market" className="h-32 w-32 object-contain" />
           </div>
           <CardTitle className="text-3xl">POS System</CardTitle>
           <CardDescription>
