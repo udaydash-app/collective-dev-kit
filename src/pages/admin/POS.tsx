@@ -1555,10 +1555,14 @@ export default function POS() {
       timestamp: new Date(),
     };
 
+    // Close dialog immediately for better UX
+    setShowHoldTicket(false);
+    
+    // Update state
     setHeldTickets(prev => [...prev, newTicket]);
     clearCart();
+    
     toast.success(`Ticket "${ticketName}" held successfully`);
-    setShowHoldTicket(false);
   };
 
   const handleRecallTicket = (ticket: any) => {
