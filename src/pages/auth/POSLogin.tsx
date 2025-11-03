@@ -327,64 +327,18 @@ export default function POSLogin() {
       // Pad PIN to ensure it's at least 6 characters
       const authPassword = `PIN${pinValue.padStart(6, '0')}`;
       
-      // Try to sign in
+      // Try to sign in - the auth user should already exist from the edge function
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password: authPassword,
       });
 
       if (authError) {
-        // If user doesn't exist in auth, create them
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: authEmail,
-          password: authPassword,
-          options: {
-            data: {
-              full_name: userData.full_name,
-            },
-            emailRedirectTo: `${window.location.origin}/admin/pos`
-          }
-        });
-
-        if (signUpError) {
-          console.error('Signup error:', signUpError);
-          throw signUpError;
-        }
-
-        // Update pos_users with the new auth user_id
-        if (signUpData.user && !userData.user_id) {
-          const { error: updateError } = await supabase
-            .from('pos_users')
-            .update({ user_id: signUpData.user.id })
-            .eq('id', userData.pos_user_id);
-          
-          if (updateError) {
-            console.error('Error updating pos_users:', updateError);
-          }
-          
-          // Assign cashier role to the new user
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: signUpData.user.id,
-              role: 'cashier'
-            });
-          
-          if (roleError) {
-            console.error('Error inserting role:', roleError);
-            throw new Error('Failed to assign role: ' + roleError.message);
-          }
-          
-          console.log('Successfully assigned cashier role to user:', signUpData.user.id);
-        }
-
-        // Try signing in again
-        const { error: retryError } = await supabase.auth.signInWithPassword({
-          email: authEmail,
-          password: authPassword,
-        });
-
-        if (retryError) throw retryError;
+        console.error('Auth error:', authError);
+        toast.error('Login failed. Your PIN may have been recently changed. Please try again or contact an administrator.');
+        setPin('');
+        setIsLoading(false);
+        return;
       }
       
       // Ensure role exists for existing users (in case they were created before role assignment was added)
