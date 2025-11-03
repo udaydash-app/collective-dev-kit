@@ -1067,14 +1067,16 @@ export default function POS() {
   // Fetch customer prices when customer is selected
   useEffect(() => {
     const fetchCustomerPrices = async () => {
+      // First, reset all cart items to retail price
+      cart.forEach((item) => {
+        if (item.itemDiscount && item.itemDiscount > 0) {
+          updateItemDiscount(item.id, 0);
+        }
+      });
+
       if (!selectedCustomer) {
         setCustomerPrices({});
-        // Clear all item discounts when customer is removed
-        cart.forEach((item) => {
-          if (item.itemDiscount && item.itemDiscount > 0) {
-            updateItemDiscount(item.id, 0);
-          }
-        });
+        toast.info('Prices reset to retail');
         return;
       }
 
@@ -1121,6 +1123,8 @@ export default function POS() {
           } else {
             toast.info(`No custom prices available for current cart items`);
           }
+        } else {
+          toast.info(`No custom prices set for ${selectedCustomer.name}`);
         }
       } catch (error) {
         console.error('Error fetching customer prices:', error);
