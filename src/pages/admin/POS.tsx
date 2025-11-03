@@ -35,8 +35,12 @@ import {
   MessageCircle,
   LogOut,
   Receipt as ReceiptIcon,
-  Plus
+  Plus,
+  Calendar,
+  Award,
+  Banknote
 } from 'lucide-react';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -98,6 +102,9 @@ export default function POS() {
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
+  const [dateRange, setDateRange] = useState<'today' | 'month' | 'year' | 'custom'>('today');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
@@ -647,6 +654,110 @@ export default function POS() {
       return data || [];
     },
     enabled: !!selectedCategory || !!searchTerm,
+  });
+
+  // Get date range for analytics
+  const getDateRange = () => {
+    const now = new Date();
+    switch (dateRange) {
+      case 'today':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'month':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'year':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          return { 
+            start: startOfDay(new Date(customStartDate)), 
+            end: endOfDay(new Date(customEndDate)) 
+          };
+        }
+        return { start: startOfDay(now), end: endOfDay(now) };
+      default:
+        return { start: startOfDay(now), end: endOfDay(now) };
+    }
+  };
+
+  // Analytics queries
+  const { data: analyticsData } = useQuery({
+    queryKey: ['pos-analytics', selectedStoreId, dateRange, customStartDate, customEndDate],
+    queryFn: async () => {
+      if (!selectedStoreId) return null;
+      
+      const { start, end } = getDateRange();
+      
+      // Get transactions for the period
+      const { data: transactions } = await supabase
+        .from('pos_transactions')
+        .select('*, items')
+        .eq('store_id', selectedStoreId)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      if (!transactions) return null;
+
+      // Calculate cash and credit sales
+      const cashSales = transactions
+        .filter(t => t.payment_method === 'cash')
+        .reduce((sum, t) => sum + Number(t.total), 0);
+      
+      const creditSales = transactions
+        .filter(t => t.payment_method === 'credit')
+        .reduce((sum, t) => sum + Number(t.total), 0);
+
+      // Calculate top selling item
+      const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+      
+      transactions.forEach(transaction => {
+        const items = transaction.items as any[];
+        items.forEach(item => {
+          if (!productSales[item.productId]) {
+            productSales[item.productId] = {
+              name: item.name,
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          productSales[item.productId].quantity += item.quantity;
+          productSales[item.productId].revenue += item.price * item.quantity;
+        });
+      });
+
+      const topItem = Object.values(productSales).sort((a, b) => b.revenue - a.revenue)[0] || null;
+
+      // Get top customer (from notes field where customer info is stored)
+      const customerTransactions: Record<string, { name: string; total: number; count: number }> = {};
+      
+      transactions.forEach(transaction => {
+        if (transaction.notes?.includes('customer:')) {
+          const customerMatch = transaction.notes.match(/customer:([^,]+),([^)]+)/);
+          if (customerMatch) {
+            const [, customerId, customerName] = customerMatch;
+            if (!customerTransactions[customerId]) {
+              customerTransactions[customerId] = {
+                name: customerName,
+                total: 0,
+                count: 0
+              };
+            }
+            customerTransactions[customerId].total += Number(transaction.total);
+            customerTransactions[customerId].count += 1;
+          }
+        }
+      });
+
+      const topCustomer = Object.values(customerTransactions).sort((a, b) => b.total - a.total)[0] || null;
+
+      return {
+        cashSales,
+        creditSales,
+        topItem,
+        topCustomer,
+        totalTransactions: transactions.length
+      };
+    },
+    enabled: !!selectedStoreId,
   });
 
   // Cash management handlers
@@ -1918,133 +2029,303 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Categories/Products Grid - Scrollable */}
+        {/* Dashboard/Analytics or Products Grid - Scrollable */}
         <div className="flex-1 overflow-y-auto p-2 pb-0">
-          {/* Breadcrumb */}
-          {(selectedCategory || searchTerm) && (
-            <div className="mb-2 flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToCategories}
-                className="h-7 text-xs"
-              >
-                ← Back
-              </Button>
-              {selectedCategory && (
-                <span className="text-xs text-muted-foreground">
-                  / {categories?.find(c => c.id === selectedCategory)?.name}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Paginated Items Grid */}
-          <div className="grid grid-cols-3 gap-1.5">
-            {/* Show Categories when no category selected and no search */}
-            {!selectedCategory && !searchTerm && paginatedItems?.map((category: any) => (
-              <Button
-                key={category.id}
-                variant="outline"
-                className="h-20 flex flex-col items-center justify-center p-1.5 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                onClick={() => handleCategorySelect(category.id)}
-              >
-                {category.image_url ? (
-                  <img
-                    src={category.image_url}
-                    alt={category.name}
-                    className="h-10 w-10 object-cover rounded mb-1 flex-shrink-0"
-                  />
-                ) : (
-                  <Package className="h-7 w-7 mb-1 opacity-50 flex-shrink-0" />
-                )}
-                <p className="text-[10px] font-medium text-center line-clamp-2 break-words w-full leading-tight">
-                  {category.name}
-                </p>
-              </Button>
-            ))}
-
-            {/* Show Products when category selected or searching */}
-            {(selectedCategory || searchTerm) && paginatedItems?.map((product: any) => {
-              const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
-              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-              const displayPrice = availableVariants.length > 0 
-                ? defaultVariant?.price 
-                : product.price;
-
-              return (
-                <Button
-                  key={product.id}
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center p-1.5 hover:bg-[#5DADE2] hover:text-white hover:border-[#5DADE2] transition-colors"
-                  onClick={() => handleProductClick(product)}
-                >
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="h-10 w-10 object-cover rounded mb-0.5"
+          {/* Show Dashboard when no category/search selected */}
+          {!selectedCategory && !searchTerm ? (
+            <>
+              {/* Date Range Selector */}
+              <div className="mb-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="custom">Custom Period</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {dateRange === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="Start Date"
                     />
-                  ) : (
-                    <Package className="h-7 w-7 mb-0.5 opacity-50" />
-                  )}
-                  <p className="text-[10px] font-medium text-center line-clamp-1 mb-0.5">
-                    {product.name}
-                  </p>
-                  <p className="text-xs font-bold">
-                    {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
-                  </p>
-                  {availableVariants.length > 1 && (
-                    <span className="text-[8px] text-muted-foreground">
-                      {availableVariants.length} variants
-                    </span>
-                  )}
-                </Button>
-              );
-            })}
-            
-            {(selectedCategory || searchTerm) && paginatedItems?.length === 0 && (
-              <div className="col-span-full text-center py-8 text-xs text-muted-foreground">
-                No products found
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="End Date"
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-1.5 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="h-7 px-3 text-xs"
-              >
-                Prev
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    className="w-7 h-7 text-xs p-0"
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                ))}
+              {/* Analytics Cards Grid */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {/* Cash Sales Card */}
+                <Card className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/20">
+                        <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-emerald-900 dark:text-emerald-100">Cash Sales</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                      {formatCurrency(analyticsData?.cashSales || 0)}
+                    </p>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                      Total cash transactions
+                    </p>
+                  </div>
+                </Card>
+
+                {/* Credit Sales Card */}
+                <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-blue-500/20">
+                        <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-xs font-medium text-blue-900 dark:text-blue-100">Credit Sales</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                      {formatCurrency(analyticsData?.creditSales || 0)}
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Total credit transactions
+                    </p>
+                  </div>
+                </Card>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="h-12 px-6"
-              >
-                Next
-              </Button>
-            </div>
+
+              {/* Top Performers Grid */}
+              <div className="grid grid-cols-1 gap-2">
+                {/* Top Selling Item Card */}
+                <Card className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-500/20">
+                        <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <span className="text-xs font-medium text-amber-900 dark:text-amber-100">Top Selling Item</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    {analyticsData?.topItem ? (
+                      <>
+                        <p className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                          {analyticsData.topItem.name}
+                        </p>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-amber-700 dark:text-amber-300">
+                            Quantity: {analyticsData.topItem.quantity}
+                          </span>
+                          <span className="font-semibold text-amber-900 dark:text-amber-100">
+                            {formatCurrency(analyticsData.topItem.revenue)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-amber-700 dark:text-amber-300">No sales data</p>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Top Customer Card */}
+                <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-purple-500/20">
+                        <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-xs font-medium text-purple-900 dark:text-purple-100">Top Customer</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    {analyticsData?.topCustomer ? (
+                      <>
+                        <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                          {analyticsData.topCustomer.name}
+                        </p>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-purple-700 dark:text-purple-300">
+                            {analyticsData.topCustomer.count} transactions
+                          </span>
+                          <span className="font-semibold text-purple-900 dark:text-purple-100">
+                            {formatCurrency(analyticsData.topCustomer.total)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-purple-700 dark:text-purple-300">No customer data</p>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Total Transactions */}
+                <Card className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-slate-500/20">
+                        <BarChart3 className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-900 dark:text-slate-100">Total Transactions</span>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      {analyticsData?.totalTransactions || 0}
+                    </p>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Category Grid for Quick Access */}
+              <div className="mt-4 pt-3 border-t border-border">
+                <h3 className="text-xs font-medium mb-2 text-muted-foreground">Quick Access - Categories</h3>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {categories?.slice(0, 6).map((category: any) => (
+                    <Button
+                      key={category.id}
+                      variant="outline"
+                      className="h-16 flex flex-col items-center justify-center p-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => handleCategorySelect(category.id)}
+                    >
+                      {category.image_url ? (
+                        <img
+                          src={category.image_url}
+                          alt={category.name}
+                          className="h-8 w-8 object-cover rounded mb-1"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 mb-1 opacity-50" />
+                      )}
+                      <p className="text-[10px] font-medium text-center line-clamp-1">
+                        {category.name}
+                      </p>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Breadcrumb */}
+              <div className="mb-2 flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBackToCategories}
+                  className="h-7 text-xs"
+                >
+                  ← Back
+                </Button>
+                {selectedCategory && (
+                  <span className="text-xs text-muted-foreground">
+                    / {categories?.find(c => c.id === selectedCategory)?.name}
+                  </span>
+                )}
+              </div>
+
+              {/* Products Grid */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {paginatedItems?.map((product: any) => {
+                  const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+                  const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+                  const displayPrice = availableVariants.length > 0 
+                    ? defaultVariant?.price 
+                    : product.price;
+
+                  return (
+                    <Button
+                      key={product.id}
+                      variant="outline"
+                      className="h-20 flex flex-col items-center justify-center p-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="h-10 w-10 object-cover rounded mb-0.5"
+                        />
+                      ) : (
+                        <Package className="h-7 w-7 mb-0.5 opacity-50" />
+                      )}
+                      <p className="text-[10px] font-medium text-center line-clamp-1 mb-0.5">
+                        {product.name}
+                      </p>
+                      <p className="text-xs font-bold">
+                        {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
+                      </p>
+                      {availableVariants.length > 1 && (
+                        <span className="text-[8px] text-muted-foreground">
+                          {availableVariants.length} variants
+                        </span>
+                      )}
+                    </Button>
+                  );
+                })}
+                
+                {paginatedItems?.length === 0 && (
+                  <div className="col-span-full text-center py-8 text-xs text-muted-foreground">
+                    No products found
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-1.5 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-7 px-3 text-xs"
+                  >
+                    Prev
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className="w-7 h-7 text-xs p-0"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-7 px-3 text-xs"
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
