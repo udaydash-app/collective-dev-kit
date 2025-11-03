@@ -55,7 +55,7 @@ export default function StockAdjustment() {
         .select(`
           *,
           categories(name),
-          product_variants(id, label, stock_quantity, is_available)
+          product_variants(id, label, stock_quantity, is_available, barcode)
         `)
         .eq('store_id', selectedStoreId)
         .order('name');
