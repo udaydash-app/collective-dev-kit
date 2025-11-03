@@ -193,7 +193,15 @@ export default function AdminOrders() {
           .select('id, full_name')
           .in('id', cashierIds);
         
+        // Fetch customer names for POS transactions with customer_id
+        const customerIds = [...new Set(posTransactions.map(t => t.customer_id).filter(Boolean))];
+        const { data: customers } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .in('id', customerIds);
+        
         const cashierMap = new Map(cashierProfiles?.map(p => [p.id, p.full_name]) || []);
+        const customerMap = new Map(customers?.map(c => [c.id, c.name]) || []);
         
         const filteredPOSTransactions = posTransactions.filter(transaction => {
           if (statusFilter === 'all') return true;
@@ -203,7 +211,7 @@ export default function AdminOrders() {
         allOrders.push(...filteredPOSTransactions.map(transaction => ({
           id: transaction.id,
           order_number: transaction.transaction_number,
-          customer_name: 'Walk-in Customer',
+          customer_name: transaction.customer_id ? customerMap.get(transaction.customer_id) || 'Walk-in Customer' : 'Walk-in Customer',
           stores: transaction.stores,
           store_id: transaction.store_id,
           total: transaction.total,

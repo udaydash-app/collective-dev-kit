@@ -1073,6 +1073,7 @@ export type Database = {
         Row: {
           cashier_id: string
           created_at: string
+          customer_id: string | null
           discount: number
           id: string
           items: Json
@@ -1089,6 +1090,7 @@ export type Database = {
         Insert: {
           cashier_id: string
           created_at?: string
+          customer_id?: string | null
           discount?: number
           id?: string
           items?: Json
@@ -1105,6 +1107,7 @@ export type Database = {
         Update: {
           cashier_id?: string
           created_at?: string
+          customer_id?: string | null
           discount?: number
           id?: string
           items?: Json
@@ -1119,6 +1122,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pos_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pos_transactions_store_id_fkey"
             columns: ["store_id"]
