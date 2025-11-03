@@ -83,6 +83,36 @@ export default function GeneralLedger() {
     
     // Create a structured list with contact names
     const structuredAccounts: any[] = [];
+    
+    // Add unified accounts for contacts who are both customers and suppliers
+    const dualRoleContacts = contacts.filter(c => c.is_customer && c.is_supplier && c.customer_ledger_account_id && c.supplier_ledger_account_id);
+    if (dualRoleContacts.length > 0) {
+      structuredAccounts.push({
+        id: 'unified-header',
+        account_code: 'UNIFIED',
+        account_name: '═══ Combined Customer/Supplier Accounts ═══',
+        isParent: true,
+        contactName: '',
+        isHeader: true
+      });
+      
+      dualRoleContacts.forEach(contact => {
+        structuredAccounts.push({
+          id: `unified-${contact.id}`,
+          account_code: 'UNIFIED',
+          account_name: `${contact.name} (Combined View)`,
+          isChild: true,
+          contactName: contact.name,
+          isCustomer: true,
+          isSupplier: true,
+          isUnified: true,
+          contactId: contact.id,
+          customerAccountId: contact.customer_ledger_account_id,
+          supplierAccountId: contact.supplier_ledger_account_id
+        });
+      });
+    }
+    
     parentAccounts.forEach(parent => {
       structuredAccounts.push({ ...parent, isParent: true, contactName: '' });
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
@@ -145,7 +175,69 @@ export default function GeneralLedger() {
     queryFn: async () => {
       if (!selectedAccount) return null;
 
-      // Get journal entry lines for the selected account
+      const selectedAccountInfo = accounts?.find(a => a.id === selectedAccount);
+      
+      // Handle unified account view
+      if (selectedAccountInfo?.isUnified) {
+        const { customerAccountId, supplierAccountId } = selectedAccountInfo;
+        
+        // Fetch lines from both customer and supplier accounts
+        const { data: customerLines, error: customerError } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            *,
+            journal_entries!inner (
+              entry_number,
+              entry_date,
+              description,
+              reference,
+              status
+            )
+          `)
+          .eq('account_id', customerAccountId)
+          .eq('journal_entries.status', 'posted')
+          .gte('journal_entries.entry_date', startDate)
+          .lte('journal_entries.entry_date', endDate);
+
+        const { data: supplierLines, error: supplierError } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            *,
+            journal_entries!inner (
+              entry_number,
+              entry_date,
+              description,
+              reference,
+              status
+            )
+          `)
+          .eq('account_id', supplierAccountId)
+          .eq('journal_entries.status', 'posted')
+          .gte('journal_entries.entry_date', startDate)
+          .lte('journal_entries.entry_date', endDate);
+
+        if (customerError || supplierError) throw customerError || supplierError;
+
+        // Mark lines with their source type
+        const markedCustomerLines = customerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
+        const markedSupplierLines = supplierLines?.map(line => ({ ...line, sourceType: 'payable' })) || [];
+        
+        // Combine and sort all lines
+        const allLines = [...markedCustomerLines, ...markedSupplierLines].sort((a, b) => 
+          new Date(a.journal_entries.entry_date).getTime() - new Date(b.journal_entries.entry_date).getTime()
+        );
+
+        return { 
+          lines: allLines, 
+          account: { 
+            account_name: selectedAccountInfo.account_name,
+            account_type: 'unified',
+            isUnified: true
+          } 
+        };
+      }
+
+      // Regular single account view
       const { data: lines, error } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -165,7 +257,7 @@ export default function GeneralLedger() {
 
       if (error) throw error;
 
-      // Sort by entry date in JavaScript since we can't order by nested field
+      // Sort by entry date
       const sortedLines = lines?.sort((a, b) => 
         new Date(a.journal_entries.entry_date).getTime() - new Date(b.journal_entries.entry_date).getTime()
       );
@@ -189,9 +281,19 @@ export default function GeneralLedger() {
     const accountType = ledgerData.account.account_type;
     
     return ledgerData.lines.map((line: any) => {
-      // For assets and expenses: debit increases, credit decreases
-      // For liabilities, equity, and revenue: credit increases, debit decreases
-      if (['asset', 'expense'].includes(accountType)) {
+      // For unified accounts, calculate net position
+      // Receivable (customer owes us) is positive, Payable (we owe them) is negative
+      if (accountType === 'unified') {
+        if (line.sourceType === 'receivable') {
+          // Customer account: debit increases what they owe us
+          balance += line.debit_amount - line.credit_amount;
+        } else {
+          // Supplier account: credit increases what we owe them (negative balance)
+          balance -= (line.credit_amount - line.debit_amount);
+        }
+      }
+      // Regular account logic
+      else if (['asset', 'expense'].includes(accountType)) {
         balance += line.debit_amount - line.credit_amount;
       } else {
         balance += line.credit_amount - line.debit_amount;
@@ -206,13 +308,13 @@ export default function GeneralLedger() {
 
   const ledgerEntries = calculateRunningBalance();
 
-  const totalDebit = ledgerData?.lines?.reduce(
-    (sum: number, line: any) => sum + line.debit_amount,
+  const totalDebit = (ledgerData?.lines as any[])?.reduce(
+    (sum: number, line: any) => sum + (line.debit_amount || 0),
     0
   ) || 0;
 
-  const totalCredit = ledgerData?.lines?.reduce(
-    (sum: number, line: any) => sum + line.credit_amount,
+  const totalCredit = (ledgerData?.lines as any[])?.reduce(
+    (sum: number, line: any) => sum + (line.credit_amount || 0),
     0
   ) || 0;
 
@@ -355,26 +457,26 @@ export default function GeneralLedger() {
             <div>
               <p className="text-sm text-muted-foreground">Account</p>
               <p className="text-lg font-bold">
-                {ledgerData.account.account_code} - {ledgerData.account.account_name}
+                {(ledgerData.account as any).isUnified ? 'UNIFIED' : (ledgerData.account as any).account_code} - {ledgerData.account.account_name}
               </p>
               <Badge className="mt-1">
-                {ledgerData.account.account_type}
+                {(ledgerData.account as any).isUnified ? 'Combined Customer/Supplier' : ledgerData.account.account_type}
               </Badge>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Debits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(totalDebit)}
+                {formatCurrency(Number(totalDebit))}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Credits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(totalCredit)}
+                {formatCurrency(Number(totalCredit))}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Net Change</p>
+              <p className="text-sm text-muted-foreground">{(ledgerData.account as any).isUnified ? 'Net Position' : 'Net Change'}</p>
               <p
                 className={`text-lg font-bold font-mono ${
                   netChange >= 0 ? 'text-green-600' : 'text-red-600'
