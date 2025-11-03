@@ -409,7 +409,6 @@ export default function POSUsers() {
               <h3 className="font-semibold text-blue-900 dark:text-blue-100">Security Note</h3>
               <p className="text-sm text-blue-700 dark:text-blue-300">
                 PINs are securely hashed using bcrypt. Users will use their PIN to log into the POS system.
-                Default test PIN is <code className="bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">1234</code>
               </p>
             </div>
           </div>
