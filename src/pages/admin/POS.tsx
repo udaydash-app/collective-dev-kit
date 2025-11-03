@@ -42,7 +42,7 @@ import {
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
@@ -53,6 +53,7 @@ import { CashOutDialog } from '@/components/pos/CashOutDialog';
 import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
 import { TransactionCart } from '@/components/pos/TransactionCart';
+import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -77,6 +78,7 @@ import { Label } from '@/components/ui/label';
 export default function POS() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,6 +119,8 @@ export default function POS() {
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
+  const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1074,8 +1078,10 @@ export default function POS() {
         addToCartWithCustomPrice(data);
       }
     } else {
-      console.error('Product not found for barcode:', barcode);
-      toast.error('Product not found');
+      // Product not found - open assign barcode dialog
+      console.log('Product not found for barcode:', barcode);
+      setScannedBarcode(barcode);
+      setAssignBarcodeOpen(true);
     }
   };
 
@@ -2527,6 +2533,19 @@ export default function POS() {
         onClose={() => setVariantSelectorOpen(false)}
         product={selectedProduct}
         onSelectVariant={handleVariantSelect}
+      />
+
+      <AssignBarcodeDialog
+        isOpen={assignBarcodeOpen}
+        onClose={() => {
+          setAssignBarcodeOpen(false);
+          setScannedBarcode('');
+        }}
+        barcode={scannedBarcode}
+        onBarcodeAssigned={() => {
+          setScannedBarcode('');
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+        }}
       />
 
       {/* Notes Dialog */}
