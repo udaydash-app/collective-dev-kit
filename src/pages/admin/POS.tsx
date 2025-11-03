@@ -1576,9 +1576,15 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    console.log('=== RECALL TICKET START ===');
+    console.log('Recalling ticket ID:', ticket.id);
+    console.log('Current heldTickets:', heldTickets.map(t => ({ id: t.id, name: t.name })));
+    
     // Capture current cart state before any modifications
     const currentCartSnapshot = cart.length > 0 ? [...cart] : null;
     const currentTotal = calculateTotal();
+    
+    console.log('Current cart has items:', currentCartSnapshot ? 'YES' : 'NO');
     
     // Close dialog
     setShowHoldTicket(false);
@@ -1588,7 +1594,17 @@ export default function POS() {
     
     // Update tickets: remove recalled ticket and add auto-hold if needed
     setHeldTickets(prev => {
-      let updatedTickets = prev.filter(t => t.id !== ticket.id);
+      console.log('Setting held tickets, prev count:', prev.length);
+      console.log('Prev ticket IDs:', prev.map(t => t.id));
+      console.log('Filtering out ticket ID:', ticket.id);
+      
+      let updatedTickets = prev.filter(t => {
+        const shouldKeep = t.id !== ticket.id;
+        console.log(`Ticket ${t.id} === ${ticket.id}? ${t.id === ticket.id}, keeping: ${shouldKeep}`);
+        return shouldKeep;
+      });
+      
+      console.log('After filter, ticket count:', updatedTickets.length);
       
       // If there was a current cart, auto-hold it
       if (currentCartSnapshot) {
@@ -1600,9 +1616,11 @@ export default function POS() {
           timestamp: new Date(),
         };
         updatedTickets = [...updatedTickets, autoHoldTicket];
+        console.log('Added auto-hold ticket, new count:', updatedTickets.length);
         toast.info('Current cart auto-held');
       }
       
+      console.log('Final ticket IDs:', updatedTickets.map(t => t.id));
       return updatedTickets;
     });
 
@@ -1628,6 +1646,7 @@ export default function POS() {
         }
       });
       toast.success(`Ticket "${ticket.name}" recalled`);
+      console.log('=== RECALL TICKET END ===');
     }, 50);
   };
 
