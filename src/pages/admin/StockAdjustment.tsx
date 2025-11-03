@@ -596,8 +596,8 @@ export default function StockAdjustment() {
                               ) : ''}
                             </TableCell>
                             <TableCell className="py-2">
-                              {index === 0 && product.barcode ? (
-                                <div className="space-y-1">
+                              <div className="space-y-1">
+                                {index === 0 && (
                                   <Input
                                     type="text"
                                     value={barcodeInputs[`product-${product.id}`] !== undefined ? barcodeInputs[`product-${product.id}`] : (product.barcode || '')}
@@ -611,23 +611,7 @@ export default function StockAdjustment() {
                                     className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                                     placeholder="Product barcode"
                                   />
-                                  {variant.barcode && (
-                                    <Input
-                                      type="text"
-                                      value={barcodeInputs[key] !== undefined ? barcodeInputs[key] : (variant.barcode || '')}
-                                      onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [key]: e.target.value })}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          handleBarcodeUpdate(key, variant.barcode || '', product.id, variant.id);
-                                        }
-                                      }}
-                                      onBlur={() => handleBarcodeUpdate(key, variant.barcode || '', product.id, variant.id)}
-                                      className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2 text-xs text-muted-foreground"
-                                      placeholder="Variant barcode"
-                                    />
-                                  )}
-                                </div>
-                              ) : (
+                                )}
                                 <Input
                                   type="text"
                                   value={barcodeInputs[key] !== undefined ? barcodeInputs[key] : (variant.barcode || '')}
@@ -641,7 +625,7 @@ export default function StockAdjustment() {
                                   className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                                   placeholder="Variant barcode"
                                 />
-                              )}
+                              </div>
                             </TableCell>
                             <TableCell className="py-2">
                               <Input
