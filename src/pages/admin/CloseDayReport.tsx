@@ -412,6 +412,7 @@ export default function CloseDayReport() {
           purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           cashSessions: [],
+          totalOpeningCash: 0,
         });
       }
       const dayData = dateMap.get(date);
@@ -433,6 +434,7 @@ export default function CloseDayReport() {
           purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           cashSessions: [],
+          totalOpeningCash: 0,
         });
       }
       const dayData = dateMap.get(date);
@@ -453,6 +455,7 @@ export default function CloseDayReport() {
           purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           cashSessions: [],
+          totalOpeningCash: 0,
         });
       }
       const dayData = dateMap.get(date);
@@ -473,9 +476,12 @@ export default function CloseDayReport() {
           purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           cashSessions: [],
+          totalOpeningCash: 0,
         });
       }
-      dateMap.get(date).cashSessions.push(session);
+      const dayData = dateMap.get(date);
+      dayData.cashSessions.push(session);
+      dayData.totalOpeningCash += parseFloat(session.opening_cash?.toString() || '0');
     });
 
     return Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
@@ -1049,7 +1055,13 @@ export default function CloseDayReport() {
                 {/* Cash Sessions for this day */}
                 {dayData.cashSessions.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-lg font-semibold">Cash Sessions</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-lg font-semibold">Cash Sessions</h4>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Total Opening Cash (All Users)</p>
+                        <p className="text-xl font-bold text-primary">{formatCurrency(dayData.totalOpeningCash || 0)}</p>
+                      </div>
+                    </div>
                     {dayData.cashSessions.map((session: any) => {
                       const isOpen = session.status === 'open';
                       const expectedCash = session.calculated_expected_cash;
