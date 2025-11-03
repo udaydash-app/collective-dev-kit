@@ -2095,45 +2095,39 @@ export default function POS() {
                 )}
               </div>
 
-              {/* Analytics Cards Grid with Mini Charts */}
-              <div className="space-y-2">
-                {/* Sales Overview Card - Clickable with Mini Pie Chart */}
+              {/* Analytics Cards Grid - Compact Version */}
+              <div className="space-y-1.5">
+                {/* Sales Overview Card - Compact */}
                 <Card 
-                  className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02] animate-fade-in"
+                  className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-all"
                   onClick={() => setExpandedMetric('sales')}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                          <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="p-0.5 rounded bg-emerald-500/20">
+                          <BarChart3 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                         </div>
-                        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Sales Breakdown</span>
+                        <span className="text-[10px] font-semibold text-emerald-900 dark:text-emerald-100">Sales</span>
                       </div>
-                      <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mb-2">
+                      <p className="text-base font-bold text-emerald-900 dark:text-emerald-100 mb-0.5 truncate">
                         {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0))}
                       </p>
-                      <div className="space-y-1 text-[10px]">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-emerald-700 dark:text-emerald-300">Cash: {formatCurrency(analyticsData?.cashSales || 0)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
-                          <span className="text-emerald-700 dark:text-emerald-300">Credit: {formatCurrency(analyticsData?.creditSales || 0)}</span>
-                        </div>
+                      <div className="flex gap-2 text-[8px]">
+                        <span className="text-emerald-700 dark:text-emerald-300">💵 {formatCurrency(analyticsData?.cashSales || 0)}</span>
+                        <span className="text-emerald-700 dark:text-emerald-300">💳 {formatCurrency(analyticsData?.creditSales || 0)}</span>
                       </div>
                     </div>
                     {analyticsData?.paymentMethodData && analyticsData.paymentMethodData.length > 0 && (
-                      <div className="w-24 h-24">
+                      <div className="w-14 h-14 flex-shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
                               data={analyticsData.paymentMethodData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={15}
-                              outerRadius={35}
+                              innerRadius={8}
+                              outerRadius={20}
                               fill="#8884d8"
                               dataKey="value"
                             >
@@ -2146,132 +2140,96 @@ export default function POS() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-2 text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                    <span>Tap for detailed charts</span>
-                    <ChevronDown className="h-3 w-3 animate-bounce" />
-                  </div>
                 </Card>
 
-                {/* Top Products Card - Clickable with Mini Bar Chart */}
+                {/* Top Products Card - Compact */}
                 <Card 
-                  className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02] animate-fade-in"
+                  className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition-all"
                   onClick={() => setExpandedMetric('products')}
                 >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-lg bg-amber-500/20">
-                          <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">Top Products</span>
-                      </div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-0.5 rounded bg-amber-500/20">
+                      <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                     </div>
-                    {analyticsData?.topItem ? (
-                      <>
-                        <div>
-                          <p className="text-sm font-bold text-amber-900 dark:text-amber-100 mb-1">
-                            {analyticsData.topItem.name}
-                          </p>
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-amber-700 dark:text-amber-300">
-                              Qty: {analyticsData.topItem.quantity}
-                            </span>
-                            <span className="font-semibold text-amber-900 dark:text-amber-100">
-                              {formatCurrency(analyticsData.topItem.revenue)}
-                            </span>
-                          </div>
-                        </div>
-                        {analyticsData?.topProducts && analyticsData.topProducts.length > 0 && (
-                          <div className="h-20 -mx-1">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={analyticsData.topProducts.slice(0, 3)}>
-                                <Bar dataKey="revenue" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-amber-700 dark:text-amber-300">No sales data</p>
-                    )}
-                    <div className="text-[9px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
-                      <span>Tap for top 5 chart</span>
-                      <ChevronDown className="h-3 w-3 animate-bounce" />
-                    </div>
+                    <span className="text-[10px] font-semibold text-amber-900 dark:text-amber-100">Top Product</span>
                   </div>
+                  {analyticsData?.topItem ? (
+                    <>
+                      <p className="text-xs font-bold text-amber-900 dark:text-amber-100 mb-0.5 truncate">
+                        {analyticsData.topItem.name}
+                      </p>
+                      <div className="flex items-center justify-between text-[9px] mb-1">
+                        <span className="text-amber-700 dark:text-amber-300">Qty: {analyticsData.topItem.quantity}</span>
+                        <span className="font-semibold text-amber-900 dark:text-amber-100">{formatCurrency(analyticsData.topItem.revenue)}</span>
+                      </div>
+                      {analyticsData?.topProducts && analyticsData.topProducts.length > 0 && (
+                        <div className="h-10 -mx-1">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.topProducts.slice(0, 3)}>
+                              <Bar dataKey="revenue" fill="#F59E0B" radius={[2, 2, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-amber-700 dark:text-amber-300">No data</p>
+                  )}
                 </Card>
 
-                {/* Top Customers Card - Clickable with Mini Bar Chart */}
+                {/* Top Customers Card - Compact */}
                 <Card 
-                  className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02] animate-fade-in"
+                  className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-all"
                   onClick={() => setExpandedMetric('customers')}
                 >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-lg bg-purple-500/20">
-                          <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <span className="text-xs font-semibold text-purple-900 dark:text-purple-100">Top Customers</span>
-                      </div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="p-0.5 rounded bg-purple-500/20">
+                      <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                     </div>
-                    {analyticsData?.topCustomer ? (
-                      <>
-                        <div>
-                          <p className="text-sm font-bold text-purple-900 dark:text-purple-100 mb-1">
-                            {analyticsData.topCustomer.name}
-                          </p>
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-purple-700 dark:text-purple-300">
-                              {analyticsData.topCustomer.count} orders
-                            </span>
-                            <span className="font-semibold text-purple-900 dark:text-purple-100">
-                              {formatCurrency(analyticsData.topCustomer.total)}
-                            </span>
-                          </div>
-                        </div>
-                        {analyticsData?.topCustomers && analyticsData.topCustomers.length > 0 && (
-                          <div className="h-20 -mx-1">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={analyticsData.topCustomers.slice(0, 3)}>
-                                <Bar dataKey="total" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-purple-700 dark:text-purple-300">No customer data</p>
-                    )}
-                    <div className="text-[9px] text-purple-600 dark:text-purple-400 flex items-center gap-1 font-medium">
-                      <span>Tap for top 5 chart</span>
-                      <ChevronDown className="h-3 w-3 animate-bounce" />
-                    </div>
+                    <span className="text-[10px] font-semibold text-purple-900 dark:text-purple-100">Top Customer</span>
                   </div>
+                  {analyticsData?.topCustomer ? (
+                    <>
+                      <p className="text-xs font-bold text-purple-900 dark:text-purple-100 mb-0.5 truncate">
+                        {analyticsData.topCustomer.name}
+                      </p>
+                      <div className="flex items-center justify-between text-[9px] mb-1">
+                        <span className="text-purple-700 dark:text-purple-300">{analyticsData.topCustomer.count} orders</span>
+                        <span className="font-semibold text-purple-900 dark:text-purple-100">{formatCurrency(analyticsData.topCustomer.total)}</span>
+                      </div>
+                      {analyticsData?.topCustomers && analyticsData.topCustomers.length > 0 && (
+                        <div className="h-10 -mx-1">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.topCustomers.slice(0, 3)}>
+                              <Bar dataKey="total" fill="#8B5CF6" radius={[2, 2, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-purple-700 dark:text-purple-300">No data</p>
+                  )}
                 </Card>
 
-                {/* Quick Stats Row */}
+                {/* Quick Stats Row - Compact */}
                 <div className="grid grid-cols-2 gap-1.5">
-                  <Card className="p-2 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <div className="p-1 rounded bg-slate-500/20">
-                        <ReceiptIcon className="h-3 w-3 text-slate-600 dark:text-slate-400" />
-                      </div>
-                      <span className="text-[10px] font-medium text-slate-900 dark:text-slate-100">Transactions</span>
+                  <Card className="p-1.5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <ReceiptIcon className="h-2.5 w-2.5 text-slate-600 dark:text-slate-400" />
+                      <span className="text-[9px] font-medium text-slate-900 dark:text-slate-100">Transactions</span>
                     </div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
                       {analyticsData?.totalTransactions || 0}
                     </p>
                   </Card>
 
-                  <Card className="p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <div className="p-1 rounded bg-indigo-500/20">
-                        <TrendingUp className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <span className="text-[10px] font-medium text-indigo-900 dark:text-indigo-100">Avg Sale</span>
+                  <Card className="p-1.5 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <TrendingUp className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-[9px] font-medium text-indigo-900 dark:text-indigo-100">Avg Sale</span>
                     </div>
-                    <p className="text-lg font-bold text-indigo-900 dark:text-indigo-100">
+                    <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 truncate">
                       {analyticsData?.totalTransactions 
                         ? formatCurrency(((analyticsData.cashSales || 0) + (analyticsData.creditSales || 0)) / analyticsData.totalTransactions)
                         : formatCurrency(0)
