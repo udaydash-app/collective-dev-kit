@@ -77,7 +77,6 @@ export default function POS() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerPrices, setCustomerPrices] = useState<Record<string, number>>({});
-  const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -599,18 +598,20 @@ export default function POS() {
   const { data: customers } = useQuery({
     queryKey: ['pos-customers', customerSearch],
     queryFn: async () => {
-      if (!customerSearch || customerSearch.length < 2) return [];
-      
-      const { data } = await supabase
+      let query = supabase
         .from('contacts')
         .select('*')
         .eq('is_customer', true)
-        .or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`)
-        .limit(10);
+        .order('name');
       
+      // Apply search filter if search term exists
+      if (customerSearch && customerSearch.length >= 2) {
+        query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+      }
+      
+      const { data } = await query.limit(50);
       return data || [];
     },
-    enabled: customerSearch.length >= 2,
   });
 
   const { data: products } = useQuery({
@@ -2210,18 +2211,14 @@ export default function POS() {
                 <Input
                   placeholder="Search customer by name, phone or email..."
                   value={customerSearch}
-                  onChange={(e) => {
-                    setCustomerSearch(e.target.value);
-                    setShowCustomerResults(true);
-                  }}
-                  onFocus={() => setShowCustomerResults(true)}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
                   className="pl-9"
                   autoFocus
                 />
               </div>
               
               {/* Customer Results */}
-              {showCustomerResults && customerSearch.length >= 2 && customers && customers.length > 0 && (
+              {customers && customers.length > 0 && (
                 <div className="space-y-2">
                   {customers.map((customer) => (
                     <Button
@@ -2231,7 +2228,6 @@ export default function POS() {
                       onClick={() => {
                         setSelectedCustomer(customer);
                         setCustomerSearch('');
-                        setShowCustomerResults(false);
                         setShowCustomerDialog(false);
                       }}
                     >
@@ -2247,15 +2243,9 @@ export default function POS() {
                 </div>
               )}
               
-              {customerSearch.length >= 2 && (!customers || customers.length === 0) && (
+              {(!customers || customers.length === 0) && (
                 <div className="text-center py-8 text-muted-foreground">
-                  No customers found
-                </div>
-              )}
-              
-              {customerSearch.length < 2 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Enter at least 2 characters to search
+                  {customerSearch.length >= 2 ? 'No customers found' : 'No customers available'}
                 </div>
               )}
             </div>
