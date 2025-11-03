@@ -328,6 +328,7 @@ export default function AdminOrders() {
               <p class="text-xs mt-2">Transaction: ${order.order_number}</p>
               <p class="text-xs">${new Date(order.created_at).toLocaleString()}</p>
               ${order.type === 'pos' ? `<p class="text-xs">Cashier: ${order.cashier_name}</p>` : ''}
+              ${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `<p class="text-xs">Customer: ${order.customer_name}</p>` : ''}
             </div>
 
             <div class="border-t border-b py-2 mb-2">
@@ -448,6 +449,7 @@ export default function AdminOrders() {
         total: Number(order.total),
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
+        customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
         logoUrl: settings?.logo_url || undefined,
         supportPhone: settings?.company_phone || undefined
       });
@@ -506,6 +508,7 @@ export default function AdminOrders() {
       })),
       discount: order.type === 'pos' ? (order.discount || 0) : 0,
       customer: order.customer_name,
+      customerId: order.type === 'pos' ? order.customer_id : null,
       storeId: order.store_id
     };
     
@@ -530,7 +533,7 @@ Fresh groceries delivered to your doorstep
 
 *Transaction:* ${order.order_number}
 *Date:* ${new Date(order.created_at).toLocaleString()}
-${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}
+${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `*Customer:* ${order.customer_name}\n` : ''}
 ----------------------------
 *ITEMS:*
 ${itemsList}
@@ -1655,6 +1658,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
             }))}
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
+            customerName={selectedReceiptOrder.customer_name && selectedReceiptOrder.customer_name !== 'Walk-in Customer' ? selectedReceiptOrder.customer_name : undefined}
             tax={Number(selectedReceiptOrder.tax || 0)}
             total={Number(selectedReceiptOrder.total)}
             paymentMethod={(selectedReceiptOrder.payment_method || 'Online').toUpperCase()}

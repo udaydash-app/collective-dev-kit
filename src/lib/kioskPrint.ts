@@ -19,6 +19,7 @@ export interface KioskReceiptData {
   total: number;
   paymentMethod: string;
   cashierName?: string;
+  customerName?: string;
   logoUrl?: string;
   supportPhone?: string;
 }
@@ -188,6 +189,7 @@ class KioskPrintService {
             <div class="small mt-2">Transaction: ${data.transactionNumber}</div>
             <div class="small">${data.date.toLocaleString()}</div>
             ${data.cashierName ? `<div class="small">Cashier: ${data.cashierName}</div>` : ''}
+            ${data.customerName ? `<div class="small">Customer: ${data.customerName}</div>` : ''}
           </div>
 
           <div class="border-top border-bottom mb-2">

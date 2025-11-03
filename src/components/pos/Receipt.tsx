@@ -12,6 +12,7 @@ interface ReceiptProps {
   paymentMethod: string;
   date: Date;
   cashierName?: string;
+  customerName?: string;
   storeName?: string;
   logoUrl?: string;
   supportPhone?: string;
@@ -29,6 +30,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       paymentMethod,
       date,
       cashierName,
+      customerName,
       storeName,
       logoUrl,
       supportPhone,
@@ -66,6 +68,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
             <p className="text-xs">{date.toLocaleString()}</p>
             {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
+            {customerName && <p className="text-xs">Customer: {customerName}</p>}
           </div>
         </div>
 
