@@ -627,14 +627,23 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Calculate expected cash (opening + cash sales + cash payments - cash purchases - cash expenses - cash supplier payments)
+  // Calculate expected cash (Total opening cash + cash sales + cash payments - cash purchases - cash expenses - cash supplier payments)
   const expectedCashAtClose = currentCashSession 
-    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') + 
+    ? (totalOpeningCash || 0) + 
       dayActivity.cashSales + 
       cashPayments - 
       dayActivity.cashPurchases - 
       dayActivity.cashExpenses - 
       cashSupplierPayments
+    : 0;
+
+  // Calculate expected mobile money (mobile money sales + mobile money payments - mobile money purchases - mobile money expenses - mobile money supplier payments)
+  const expectedMobileMoneyAtClose = currentCashSession
+    ? dayActivity.mobileMoneySales +
+      mobileMoneyPayments -
+      dayActivity.mobileMoneyPurchases -
+      dayActivity.mobileMoneyExpenses -
+      mobileMoneySupplierPayments
     : 0;
 
   const { data: categories } = useQuery({
@@ -942,13 +951,19 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-      const expectedCash = parseFloat(currentCashSession.opening_cash.toString()) + 
+      const expectedCash = (totalOpeningCash || 0) + 
         cashSales + 
         cashPayments - 
         cashPurchases - 
         cashExpenses - 
         cashSupplierPayments;
       const cashDifference = closingCash - expectedCash;
+
+      const expectedMobileMoney = mobileMoneySales +
+        mobileMoneyPayments -
+        mobileMoneyPurchases -
+        mobileMoneyExpenses -
+        mobileMoneySupplierPayments;
 
       const { error } = await supabase
         .from('cash_sessions')
@@ -2568,6 +2583,7 @@ export default function POS() {
           onConfirm={handleCashOut}
           openingCash={parseFloat(currentCashSession.opening_cash?.toString() || '0')}
           expectedCash={expectedCashAtClose}
+          expectedMobileMoney={expectedMobileMoneyAtClose}
           dayActivity={dayActivity}
           totalOpeningCash={totalOpeningCash}
           paymentReceipts={paymentReceiptsData}

@@ -38,12 +38,13 @@ interface CashOutDialogProps {
   onConfirm: (closingCash: number, notes?: string) => Promise<void>;
   openingCash: number;
   expectedCash: number;
+  expectedMobileMoney: number;
   dayActivity: DayActivity;
   totalOpeningCash?: number;
   paymentReceipts?: PaymentReceipts;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, dayActivity, totalOpeningCash, paymentReceipts }: CashOutDialogProps) => {
+export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -237,6 +238,19 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
                   <p className="text-xs text-muted-foreground mb-1">Expected Cash</p>
                   <p className="text-lg font-bold text-primary">{formatCurrency(expectedCash)}</p>
                 </div>
+              </div>
+
+              <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg mt-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-purple-600" />
+                    <p className="text-sm font-medium">Expected Mobile Money</p>
+                  </div>
+                  <p className="text-lg font-bold text-purple-600">{formatCurrency(expectedMobileMoney)}</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mobile Sales + Payments - Purchases - Expenses - Supplier Payments
+                </p>
               </div>
 
               <div className="space-y-2">
