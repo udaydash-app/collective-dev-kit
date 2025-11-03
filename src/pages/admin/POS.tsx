@@ -152,10 +152,10 @@ export default function POS() {
 
   // Save held tickets to localStorage
   React.useEffect(() => {
+    console.log('Syncing heldTickets to localStorage, count:', heldTickets.length);
     if (heldTickets.length > 0) {
       localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
     } else {
-      // Clear localStorage when no tickets remain
       localStorage.removeItem('pos-held-tickets');
     }
   }, [heldTickets]);
@@ -174,27 +174,6 @@ export default function POS() {
     calculateTotal,
     processTransaction,
   } = usePOSTransaction();
-
-  // Auto-hold cart when navigating away from POS
-  React.useEffect(() => {
-    return () => {
-      if (cart.length > 0) {
-        const newTicket = {
-          id: Date.now().toString(),
-          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
-          items: cart,
-          total: calculateTotal(),
-          timestamp: new Date(),
-        };
-        
-        const stored = localStorage.getItem('pos-held-tickets');
-        const existing = stored ? JSON.parse(stored) : [];
-        localStorage.setItem('pos-held-tickets', JSON.stringify([...existing, newTicket]));
-      }
-    };
-  }, [cart, calculateTotal]);
-
-  // Save held tickets to localStorage whenever they change
 
   // Load order into POS if orderId is in URL params
   const loadedOrderRef = useRef<string | null>(null);
