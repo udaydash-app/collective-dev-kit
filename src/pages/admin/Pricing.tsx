@@ -508,13 +508,7 @@ export default function Pricing() {
           {/* Products with Custom Prices */}
           {selectedCustomer && (
             <Card>
-              <CardHeader>
-                <CardTitle>Products with Custom Pricing</CardTitle>
-                <CardDescription>
-                  Custom prices assigned to {selectedCustomerData?.name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <Table>
                   <TableHeader>
                     <TableRow>
