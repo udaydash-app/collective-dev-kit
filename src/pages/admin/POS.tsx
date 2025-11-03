@@ -1687,7 +1687,7 @@ export default function POS() {
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-xs">{selectedCustomer ? selectedCustomer.name : 'Guest'}</p>
+                <p className="font-semibold text-xs">{selectedCustomer ? selectedCustomer.name : 'Walk-in Customer'}</p>
                 <p className="text-[10px] text-muted-foreground">
                   {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'No info') : 'Click to select customer'}
                 </p>
