@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer } from 'lucide-react';
+import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 type ReportType = 
@@ -114,12 +115,12 @@ export default function CloseDayReport() {
       if (reportType === 'sales-by-customer') {
         const { data: transactions } = await supabase
           .from('pos_transactions')
-          .select('total, notes, created_at')
+          .select('id, total, notes, items, created_at')
           .eq('store_id', selectedStoreId)
           .gte('created_at', `${startDate}T00:00:00`)
           .lte('created_at', `${endDate}T23:59:59`);
 
-        const customerMap = new Map<string, { name: string; totalSpent: number; orderCount: number }>();
+        const customerMap = new Map<string, { name: string; totalSpent: number; orderCount: number; orders: any[] }>();
         
         transactions?.forEach((t: any) => {
           // Extract customer info from notes field
@@ -134,11 +135,12 @@ export default function CloseDayReport() {
             }
           }
           
-          const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0 };
+          const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0, orders: [] };
           customerMap.set(customerId, {
             name: customerName,
             totalSpent: current.totalSpent + parseFloat(t.total?.toString() || '0'),
             orderCount: current.orderCount + 1,
+            orders: [...current.orders, { id: t.id, total: t.total, items: t.items, created_at: t.created_at }],
           });
         });
 
@@ -587,9 +589,20 @@ export default function CloseDayReport() {
 
     // Sales by Customer Report
     if (reportData.type === 'sales-by-customer') {
-      const data = reportData.data as Array<{ name: string; totalSpent: number; orderCount: number }>;
+      const data = reportData.data as Array<{ name: string; totalSpent: number; orderCount: number; orders: any[] }>;
       const totalRevenue = data.reduce((sum, item) => sum + item.totalSpent, 0);
       const totalOrders = data.reduce((sum, item) => sum + item.orderCount, 0);
+      const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
+
+      const toggleCustomer = (index: number) => {
+        const newExpanded = new Set(expandedCustomers);
+        if (newExpanded.has(index)) {
+          newExpanded.delete(index);
+        } else {
+          newExpanded.add(index);
+        }
+        setExpandedCustomers(newExpanded);
+      };
 
       return (
         <Card>
@@ -621,14 +634,49 @@ export default function CloseDayReport() {
                 <div className="text-right">% of Total</div>
               </div>
               {data.map((item, index) => (
-                <div key={index} className="grid grid-cols-5 gap-4 py-2 border-b">
-                  <div className="col-span-2 font-medium">{item.name}</div>
-                  <div className="text-right">{item.orderCount}</div>
-                  <div className="text-right font-semibold">{formatCurrency(item.totalSpent)}</div>
-                  <div className="text-right text-muted-foreground">
-                    {((item.totalSpent / totalRevenue) * 100).toFixed(1)}%
-                  </div>
-                </div>
+                <Collapsible key={index} open={expandedCustomers.has(index)} onOpenChange={() => toggleCustomer(index)}>
+                  <CollapsibleTrigger asChild>
+                    <div className="grid grid-cols-5 gap-4 py-2 border-b cursor-pointer hover:bg-muted/50">
+                      <div className="col-span-2 font-medium flex items-center gap-2">
+                        {expandedCustomers.has(index) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        {item.name}
+                      </div>
+                      <div className="text-right">{item.orderCount}</div>
+                      <div className="text-right font-semibold">{formatCurrency(item.totalSpent)}</div>
+                      <div className="text-right text-muted-foreground">
+                        {((item.totalSpent / totalRevenue) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="ml-8 mt-2 mb-4 space-y-2">
+                      {item.orders.map((order: any, orderIndex: number) => (
+                        <div key={orderIndex} className="border rounded-lg p-3 bg-muted/20">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium">
+                              Order #{orderIndex + 1} - {format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}
+                            </span>
+                            <span className="text-sm font-bold">{formatCurrency(order.total)}</span>
+                          </div>
+                          <div className="space-y-1">
+                            {order.items?.map((item: any, itemIndex: number) => (
+                              <div key={itemIndex} className="flex justify-between text-sm text-muted-foreground pl-4">
+                                <span>
+                                  {item.quantity}x {item.name} {item.variant && `(${item.variant})`}
+                                </span>
+                                <span>{formatCurrency(item.total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               ))}
             </div>
           </CardContent>
