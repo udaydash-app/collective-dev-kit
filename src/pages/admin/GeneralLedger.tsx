@@ -333,44 +333,63 @@ export default function GeneralLedger() {
     const doc = new jsPDF();
     
     // Title
-    doc.setFontSize(18);
-    doc.text('General Ledger Report', 14, 20);
+    doc.setFontSize(16);
+    doc.text('General Ledger Report', 14, 15);
     
     // Account info
-    doc.setFontSize(11);
-    doc.text(`Account: ${accountName} - ${accountInfo.account_name}`, 14, 30);
-    doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, 37);
-    doc.text(`Period: ${startDate} to ${endDate}`, 14, 44);
+    doc.setFontSize(9);
+    doc.text(`Account: ${accountName} - ${accountInfo.account_name}`, 14, 23);
+    doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, 28);
+    doc.text(`Period: ${startDate} to ${endDate}`, 14, 33);
     
     // Prepare table data
     const tableData = ledgerEntries.map((entry: any) => [
       new Date(entry.journal_entries.entry_date).toLocaleDateString(),
       entry.journal_entries.entry_number,
-      `${entry.journal_entries.description}${entry.description ? '\n' + entry.description : ''}`,
-      entry.journal_entries.reference || '-',
-      entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-',
-      entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-',
-      formatCurrency(Math.abs(entry.running_balance)) + (entry.running_balance < 0 ? ' CR' : ''),
+      entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
+      entry.journal_entries.reference || '',
+      entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
+      entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
+      Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
     ]);
     
     // Add table
     autoTable(doc, {
-      startY: 50,
-      head: [['Date', 'Entry #', 'Description', 'Ref', 'Debit', 'Credit', 'Balance']],
+      startY: 38,
+      head: [['Date', 'Entry', 'Description', 'Ref', 'Debit', 'Credit', 'Balance']],
       body: tableData,
       foot: [
-        ['', '', '', 'Total:', formatCurrency(totalDebit), formatCurrency(totalCredit), ''],
+        ['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
         ['', '', '', accountInfo.isUnified ? 'Net Position:' : 'Net Change:', '', '', 
-         formatCurrency(Math.abs(netChange)) + (netChange < 0 ? ' CR' : '')]
+         Math.abs(netChange).toFixed(2) + (netChange < 0 ? ' CR' : '')]
       ],
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [34, 197, 94] },
-      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
-      columnStyles: {
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right', fontStyle: 'bold' },
+      styles: { 
+        fontSize: 7,
+        cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
       },
+      headStyles: { 
+        fillColor: [34, 197, 94],
+        fontSize: 8,
+        fontStyle: 'bold'
+      },
+      footStyles: { 
+        fillColor: [240, 240, 240], 
+        textColor: [0, 0, 0], 
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
+        6: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+      },
+      margin: { left: 14, right: 14 },
     });
     
     // Save PDF
