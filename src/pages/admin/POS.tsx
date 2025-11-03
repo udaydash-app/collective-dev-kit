@@ -34,7 +34,8 @@ import {
   Edit,
   MessageCircle,
   LogOut,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Plus
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,11 +96,6 @@ export default function POS() {
     timestamp: Date;
   }>>([]);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState('');
-  const [newCustomerPhone, setNewCustomerPhone] = useState('');
-  const [newCustomerEmail, setNewCustomerEmail] = useState('');
-  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
@@ -1011,47 +1007,6 @@ export default function POS() {
     setSelectedCategory(null);
     setSearchTerm('');
     setCurrentPage(1);
-  };
-
-  const handleAddNewCustomer = async () => {
-    if (!newCustomerName.trim()) {
-      toast.error('Customer name is required');
-      return;
-    }
-
-    setIsAddingCustomer(true);
-    try {
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert({
-          name: newCustomerName.trim(),
-          phone: newCustomerPhone.trim() || null,
-          email: newCustomerEmail.trim() || null,
-          is_customer: true,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Select the newly created customer
-      setSelectedCustomer(data);
-      
-      // Clear form and close dialogs
-      setNewCustomerName('');
-      setNewCustomerPhone('');
-      setNewCustomerEmail('');
-      setShowAddCustomer(false);
-      setShowCustomerDialog(false);
-      
-      toast.success('Customer added successfully');
-    } catch (error: any) {
-      console.error('Error adding customer:', error);
-      toast.error('Failed to add customer');
-    } finally {
-      setIsAddingCustomer(false);
-    }
   };
 
   // Pagination logic
@@ -2251,133 +2206,74 @@ export default function POS() {
             <DialogTitle>Select Customer</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
-            {!showAddCustomer ? (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search customer by name, phone or email..."
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      className="pl-9"
-                      autoFocus
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => setShowAddCustomer(true)}
-                    variant="default"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Add New
-                  </Button>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customer by name, phone or email..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="pl-9"
+                    autoFocus
+                  />
                 </div>
-                
-                {/* Customer Results */}
-                {customers && customers.length > 0 && (
-                  <div className="space-y-2">
-                    {customers.map((customer) => (
-                      <Button
-                        key={customer.id}
-                        variant="outline"
-                        className="w-full justify-start text-left h-auto py-3"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setCustomerSearch('');
-                          setShowCustomerDialog(false);
-                        }}
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{customer.name}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {customer.phone && customer.phone}
-                            {customer.email && ` • ${customer.email}`}
-                          </span>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                
-                {(!customers || customers.length === 0) && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {customerSearch.length >= 2 ? 'No customers found' : 'No customers available'}
-                  </div>
-                )}
+                <Button 
+                  onClick={() => {
+                    setShowCustomerDialog(false);
+                    navigate('/admin/contacts');
+                  }}
+                  variant="default"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Add New Customer
+                </Button>
               </div>
-            ) : (
-              <div className="space-y-4 p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Add New Customer</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowAddCustomer(false);
-                      setNewCustomerName('');
-                      setNewCustomerPhone('');
-                      setNewCustomerEmail('');
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Name *</label>
-                    <Input
-                      placeholder="Customer name"
-                      value={newCustomerName}
-                      onChange={(e) => setNewCustomerName(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Phone</label>
-                    <Input
-                      placeholder="Phone number"
-                      value={newCustomerPhone}
-                      onChange={(e) => setNewCustomerPhone(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Email</label>
-                    <Input
-                      type="email"
-                      placeholder="Email address"
-                      value={newCustomerEmail}
-                      onChange={(e) => setNewCustomerEmail(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2 pt-4">
+              
+              {/* Customer Results */}
+              {customers && customers.length > 0 && (
+                <div className="space-y-2">
+                  {customers.map((customer) => (
                     <Button
+                      key={customer.id}
                       variant="outline"
-                      className="flex-1"
+                      className="w-full justify-start text-left h-auto py-3"
                       onClick={() => {
-                        setShowAddCustomer(false);
-                        setNewCustomerName('');
-                        setNewCustomerPhone('');
-                        setNewCustomerEmail('');
+                        setSelectedCustomer(customer);
+                        setCustomerSearch('');
+                        setShowCustomerDialog(false);
                       }}
-                      disabled={isAddingCustomer}
                     >
-                      Cancel
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{customer.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {customer.phone && customer.phone}
+                          {customer.email && ` • ${customer.email}`}
+                        </span>
+                      </div>
                     </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={handleAddNewCustomer}
-                      disabled={isAddingCustomer || !newCustomerName.trim()}
+                  ))}
+                </div>
+              )}
+              
+              {(!customers || customers.length === 0) && (
+                <div className="text-center py-8 text-muted-foreground">
+                  {customerSearch.length >= 2 ? 'No customers found' : 'No customers available'}
+                  <div className="mt-4">
+                    <Button 
+                      onClick={() => {
+                        setShowCustomerDialog(false);
+                        navigate('/admin/contacts');
+                      }}
+                      variant="outline"
                     >
-                      {isAddingCustomer ? 'Adding...' : 'Add Customer'}
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Customer
                     </Button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
