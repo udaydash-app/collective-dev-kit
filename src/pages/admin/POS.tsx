@@ -41,6 +41,7 @@ import {
   Banknote
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -105,6 +106,7 @@ export default function POS() {
   const [dateRange, setDateRange] = useState<'today' | 'month' | 'year' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [expandedMetric, setExpandedMetric] = useState<'sales' | 'products' | 'customers' | null>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
@@ -749,12 +751,31 @@ export default function POS() {
 
       const topCustomer = Object.values(customerTransactions).sort((a, b) => b.total - a.total)[0] || null;
 
+      // Prepare data for charts
+      const topProducts = Object.values(productSales)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+
+      const topCustomers = Object.values(customerTransactions)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+      const paymentMethodData = [
+        { name: 'Cash', value: cashSales },
+        { name: 'Credit', value: creditSales },
+        { name: 'Mobile Money', value: transactions.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + Number(t.total), 0) }
+      ].filter(item => item.value > 0);
+
       return {
         cashSales,
         creditSales,
         topItem,
         topCustomer,
-        totalTransactions: transactions.length
+        totalTransactions: transactions.length,
+        topProducts,
+        topCustomers,
+        paymentMethodData,
+        allTransactions: transactions
       };
     },
     enabled: !!selectedStoreId,
@@ -2076,42 +2097,58 @@ export default function POS() {
 
               {/* Analytics Cards Grid */}
               <div className="grid grid-cols-2 gap-1.5 mb-2">
-                {/* Cash Sales Card */}
-                <Card className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-1 rounded bg-emerald-500/20">
-                      <Banknote className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                {/* Sales Overview Card - Clickable */}
+                <Card 
+                  className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setExpandedMetric('sales')}
+                >
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 rounded bg-emerald-500/20">
+                        <BarChart3 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-[10px] font-medium text-emerald-900 dark:text-emerald-100">Sales</span>
                     </div>
-                    <span className="text-[10px] font-medium text-emerald-900 dark:text-emerald-100">Cash Sales</span>
+                    <ChevronDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <p className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
-                    {formatCurrency(analyticsData?.cashSales || 0)}
+                    {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0))}
+                  </p>
+                  <p className="text-[9px] text-emerald-700 dark:text-emerald-300">
+                    Click for breakdown
                   </p>
                 </Card>
 
-                {/* Credit Sales Card */}
-                <Card className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                {/* Total Transactions Card */}
+                <Card className="p-2 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-1 rounded bg-blue-500/20">
-                      <CreditCard className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    <div className="p-1 rounded bg-slate-500/20">
+                      <ReceiptIcon className="h-3 w-3 text-slate-600 dark:text-slate-400" />
                     </div>
-                    <span className="text-[10px] font-medium text-blue-900 dark:text-blue-100">Credit Sales</span>
+
+                    <span className="text-[10px] font-medium text-slate-900 dark:text-slate-100">Transactions</span>
                   </div>
-                  <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                    {formatCurrency(analyticsData?.creditSales || 0)}
+                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {analyticsData?.totalTransactions || 0}
                   </p>
                 </Card>
               </div>
 
               {/* Top Performers Grid */}
               <div className="grid grid-cols-1 gap-1.5">
-                {/* Top Selling Item Card */}
-                <Card className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-1 rounded bg-amber-500/20">
-                      <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                {/* Top Selling Item Card - Clickable */}
+                <Card 
+                  className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setExpandedMetric('products')}
+                >
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 rounded bg-amber-500/20">
+                        <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <span className="text-[10px] font-medium text-amber-900 dark:text-amber-100">Top Selling Item</span>
                     </div>
-                    <span className="text-[10px] font-medium text-amber-900 dark:text-amber-100">Top Selling Item</span>
+                    <ChevronDown className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                   </div>
                   {analyticsData?.topItem ? (
                     <>
@@ -2132,13 +2169,19 @@ export default function POS() {
                   )}
                 </Card>
 
-                {/* Top Customer Card */}
-                <Card className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-1 rounded bg-purple-500/20">
-                      <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                {/* Top Customer Card - Clickable */}
+                <Card 
+                  className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setExpandedMetric('customers')}
+                >
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 rounded bg-purple-500/20">
+                        <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-[10px] font-medium text-purple-900 dark:text-purple-100">Top Customer</span>
                     </div>
-                    <span className="text-[10px] font-medium text-purple-900 dark:text-purple-100">Top Customer</span>
+                    <ChevronDown className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                   </div>
                   {analyticsData?.topCustomer ? (
                     <>
@@ -2157,21 +2200,6 @@ export default function POS() {
                   ) : (
                     <p className="text-xs text-purple-700 dark:text-purple-300">No customer data</p>
                   )}
-                </Card>
-
-                {/* Total Transactions */}
-                <Card className="p-2 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="p-1 rounded bg-slate-500/20">
-                        <BarChart3 className="h-3 w-3 text-slate-600 dark:text-slate-400" />
-                      </div>
-                      <span className="text-[10px] font-medium text-slate-900 dark:text-slate-100">Total Transactions</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                      {analyticsData?.totalTransactions || 0}
-                    </p>
-                  </div>
                 </Card>
               </div>
             </>
@@ -2599,6 +2627,125 @@ export default function POS() {
           )}
         </div>
       </div>
+
+      {/* Analytics Detail Dialog */}
+      <Dialog open={expandedMetric !== null} onOpenChange={() => setExpandedMetric(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {expandedMetric === 'sales' && 'Sales Breakdown'}
+              {expandedMetric === 'products' && 'Top Selling Products'}
+              {expandedMetric === 'customers' && 'Top Customers'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Sales Breakdown */}
+            {expandedMetric === 'sales' && analyticsData?.paymentMethodData && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Pie Chart */}
+                  <Card className="p-4">
+                    <h3 className="text-sm font-semibold mb-4">Sales by Payment Method</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={analyticsData.paymentMethodData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={(entry) => `${entry.name}: ${formatCurrency(entry.value)}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {analyticsData.paymentMethodData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={['#22C55E', '#3B82F6', '#F59E0B'][index % 3]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          formatter={(value: any) => formatCurrency(Number(value))}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Card>
+
+                  {/* Summary Stats */}
+                  <Card className="p-4">
+                    <h3 className="text-sm font-semibold mb-4">Summary</h3>
+                    <div className="space-y-3">
+                      {analyticsData.paymentMethodData.map((item: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center border-b pb-2">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: ['#22C55E', '#3B82F6', '#F59E0B'][index % 3] }}
+                            />
+                            <span className="text-sm font-medium">{item.name}</span>
+                          </div>
+                          <span className="text-sm font-bold">{formatCurrency(item.value)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-2 border-t-2">
+                        <span className="text-sm font-bold">Total Sales</span>
+                        <span className="text-lg font-bold text-primary">
+                          {formatCurrency(analyticsData.paymentMethodData.reduce((sum: number, item: any) => sum + item.value, 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {/* Top Products */}
+            {expandedMetric === 'products' && analyticsData?.topProducts && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold mb-4">Top 5 Products by Revenue</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analyticsData.topProducts}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <RechartsTooltip 
+                      formatter={(value: any, name: string) => {
+                        if (name === 'revenue') return [formatCurrency(Number(value)), 'Revenue'];
+                        return [value, 'Quantity'];
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="quantity" fill="#F59E0B" name="Quantity Sold" />
+                    <Bar dataKey="revenue" fill="#22C55E" name="Revenue" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            )}
+
+            {/* Top Customers */}
+            {expandedMetric === 'customers' && analyticsData?.topCustomers && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold mb-4">Top 5 Customers by Spending</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analyticsData.topCustomers}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <RechartsTooltip 
+                      formatter={(value: any, name: string) => {
+                        if (name === 'total') return [formatCurrency(Number(value)), 'Total Spent'];
+                        return [value, 'Orders'];
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="count" fill="#3B82F6" name="Number of Orders" />
+                    <Bar dataKey="total" fill="#8B5CF6" name="Total Spent" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
