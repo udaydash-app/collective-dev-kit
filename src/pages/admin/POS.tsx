@@ -434,6 +434,30 @@ export default function POS() {
     enabled: !!selectedStoreId,
   });
 
+  // Fetch all cash sessions for today to calculate total opening cash
+  const { data: todayCashSessions } = useQuery({
+    queryKey: ['today-cash-sessions', selectedStoreId, currentCashSession?.opened_at],
+    queryFn: async () => {
+      if (!selectedStoreId || !currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
+      
+      const { data } = await supabase
+        .from('cash_sessions')
+        .select('opening_cash')
+        .eq('store_id', selectedStoreId)
+        .gte('opened_at', startOfToday.toISOString());
+      
+      return data || [];
+    },
+    enabled: !!selectedStoreId && !!currentCashSession,
+  });
+
+  // Calculate total opening cash from all users
+  const totalOpeningCash = todayCashSessions?.reduce((sum, session) => {
+    return sum + parseFloat(session.opening_cash?.toString() || '0');
+  }, 0) || 0;
+
   // Show cash in dialog if no active session
   useEffect(() => {
     if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
@@ -2526,6 +2550,7 @@ export default function POS() {
           openingCash={parseFloat(currentCashSession.opening_cash?.toString() || '0')}
           expectedCash={expectedCashAtClose}
           dayActivity={dayActivity}
+          totalOpeningCash={totalOpeningCash}
         />
       )}
 

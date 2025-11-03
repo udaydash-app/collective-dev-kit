@@ -32,9 +32,10 @@ interface CashOutDialogProps {
   openingCash: number;
   expectedCash: number;
   dayActivity: DayActivity;
+  totalOpeningCash?: number;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, dayActivity }: CashOutDialogProps) => {
+export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, dayActivity, totalOpeningCash }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -175,9 +176,18 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
             {/* Cash Management */}
             <div className="space-y-4">
               <h3 className="font-semibold text-sm">Cash Management</h3>
+              
+              {/* Total Opening Cash from All Users */}
+              {totalOpeningCash !== undefined && totalOpeningCash !== openingCash && (
+                <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Total Opening Cash (All Users)</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(totalOpeningCash)}</p>
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-accent rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Opening Cash</p>
+                  <p className="text-xs text-muted-foreground mb-1">Your Opening Cash</p>
                   <p className="text-lg font-bold">{formatCurrency(openingCash)}</p>
                 </div>
                 <div className="p-3 bg-primary/10 rounded-lg">
