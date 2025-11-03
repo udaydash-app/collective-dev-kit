@@ -1175,6 +1175,7 @@ export default function POS() {
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
     ],
     accounting: [
+      { icon: DollarSign, label: 'Open Cash', action: () => setShowCashIn(true) },
       { icon: BookOpen, label: 'Chart of Accounts', path: '/admin/chart-of-accounts' },
       { icon: FileText, label: 'Journal Entries', path: '/admin/journal-entries' },
       { icon: BookOpen, label: 'General Ledger', path: '/admin/general-ledger' },
@@ -1717,7 +1718,7 @@ export default function POS() {
                 {menuSections.accounting.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
-                    onClick={() => navigate(item.path)}
+                    onClick={() => item.action ? item.action() : navigate(item.path)}
                     className="cursor-pointer py-1.5 text-xs"
                   >
                     <item.icon className="h-3 w-3 mr-1.5" />
