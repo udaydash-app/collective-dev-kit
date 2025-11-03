@@ -313,10 +313,10 @@ export default function CloseDayReport() {
           // Get cash payment receipts from ALL users during this period
           const { data: sessionReceipts } = await supabase
             .from('payment_receipts')
-            .select('amount, payment_method')
+            .select('amount, payment_method, payment_date')
             .eq('store_id', session.store_id)
-            .gte('created_at', sessionStart)
-            .lte('created_at', sessionEnd);
+            .gte('payment_date', sessionStart.split('T')[0])
+            .lte('payment_date', sessionEnd.split('T')[0]);
 
           const cashPaymentsReceived = sessionReceipts
             ?.filter(r => r.payment_method === 'cash')
@@ -337,10 +337,10 @@ export default function CloseDayReport() {
           // Get cash expenses from ALL users during this period
           const { data: sessionExpenses } = await supabase
             .from('expenses')
-            .select('amount, payment_method, expense_date, created_at')
+            .select('amount, payment_method, expense_date')
             .eq('store_id', session.store_id)
-            .gte('created_at', sessionStart)
-            .lte('created_at', sessionEnd);
+            .gte('expense_date', sessionStart.split('T')[0])
+            .lte('expense_date', sessionEnd.split('T')[0]);
 
           const cashExpenses = sessionExpenses
             ?.filter(e => e.payment_method === 'cash')
