@@ -372,6 +372,7 @@ export type Database = {
           notes: string | null
           opening_balance: number | null
           phone: string | null
+          price_tier: Database["public"]["Enums"]["price_tier"] | null
           state: string | null
           supplier_ledger_account_id: string | null
           tax_id: string | null
@@ -396,6 +397,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number | null
           phone?: string | null
+          price_tier?: Database["public"]["Enums"]["price_tier"] | null
           state?: string | null
           supplier_ledger_account_id?: string | null
           tax_id?: string | null
@@ -420,6 +422,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number | null
           phone?: string | null
+          price_tier?: Database["public"]["Enums"]["price_tier"] | null
           state?: string | null
           supplier_ledger_account_id?: string | null
           tax_id?: string | null
@@ -1046,6 +1049,8 @@ export type Database = {
           stock_quantity: number | null
           unit: string
           updated_at: string
+          vip_price: number | null
+          wholesale_price: number | null
         }
         Insert: {
           barcode?: string | null
@@ -1061,6 +1066,8 @@ export type Database = {
           stock_quantity?: number | null
           unit: string
           updated_at?: string
+          vip_price?: number | null
+          wholesale_price?: number | null
         }
         Update: {
           barcode?: string | null
@@ -1076,6 +1083,8 @@ export type Database = {
           stock_quantity?: number | null
           unit?: string
           updated_at?: string
+          vip_price?: number | null
+          wholesale_price?: number | null
         }
         Relationships: [
           {
@@ -1108,6 +1117,8 @@ export type Database = {
           tags: string[] | null
           unit: string
           updated_at: string
+          vip_price: number | null
+          wholesale_price: number | null
         }
         Insert: {
           barcode?: string | null
@@ -1129,6 +1140,8 @@ export type Database = {
           tags?: string[] | null
           unit: string
           updated_at?: string
+          vip_price?: number | null
+          wholesale_price?: number | null
         }
         Update: {
           barcode?: string | null
@@ -1150,6 +1163,8 @@ export type Database = {
           tags?: string[] | null
           unit?: string
           updated_at?: string
+          vip_price?: number | null
+          wholesale_price?: number | null
         }
         Relationships: [
           {
@@ -1645,6 +1660,7 @@ export type Database = {
     Enums: {
       account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
       app_role: "admin" | "moderator" | "user" | "cashier"
+      price_tier: "retail" | "wholesale" | "vip"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1774,6 +1790,7 @@ export const Constants = {
     Enums: {
       account_type: ["asset", "liability", "equity", "revenue", "expense"],
       app_role: ["admin", "moderator", "user", "cashier"],
+      price_tier: ["retail", "wholesale", "vip"],
     },
   },
 } as const
