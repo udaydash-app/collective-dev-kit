@@ -101,18 +101,72 @@ serve(async (req) => {
 
       if (error) throw error
 
-      // Update auth user password if PIN was changed and user_id exists
-      if (pin && posUser.user_id) {
+      // Handle auth user creation/update if PIN was changed
+      if (pin) {
+        const authEmail = `pos-${posUser.id}@pos.globalmarket.app`
         const authPassword = `PIN${pin.padStart(6, '0')}`
-        
-        const { error: passwordError } = await supabaseClient.auth.admin.updateUserById(
-          posUser.user_id,
-          { password: authPassword }
-        )
 
-        if (passwordError) {
-          console.error('Failed to update auth password:', passwordError)
-          throw new Error('Failed to update login credentials: ' + passwordError.message)
+        if (posUser.user_id) {
+          // Update existing auth user password
+          const { error: passwordError } = await supabaseClient.auth.admin.updateUserById(
+            posUser.user_id,
+            { password: authPassword }
+          )
+
+          if (passwordError) {
+            console.error('Failed to update auth password:', passwordError)
+            throw new Error('Failed to update login credentials: ' + passwordError.message)
+          }
+        } else {
+          // user_id is null, try to find existing auth user or create new one
+          // First try to get existing user by email
+          const { data: { users }, error: listError } = await supabaseClient.auth.admin.listUsers()
+          
+          if (listError) throw listError
+
+          const existingAuthUser = users.find(u => u.email === authEmail)
+
+          if (existingAuthUser) {
+            // Found existing auth user, update password and link it
+            const { error: passwordError } = await supabaseClient.auth.admin.updateUserById(
+              existingAuthUser.id,
+              { password: authPassword }
+            )
+
+            if (passwordError) throw passwordError
+
+            // Update pos_users with the user_id
+            const { error: linkError } = await supabaseClient
+              .from('pos_users')
+              .update({ user_id: existingAuthUser.id })
+              .eq('id', posUser.id)
+
+            if (linkError) throw linkError
+
+            posUser.user_id = existingAuthUser.id
+          } else {
+            // Create new auth user
+            const { data: authData, error: createError } = await supabaseClient.auth.admin.createUser({
+              email: authEmail,
+              password: authPassword,
+              email_confirm: true,
+              user_metadata: {
+                full_name: full_name,
+              }
+            })
+
+            if (createError) throw createError
+
+            // Update pos_users with the new user_id
+            const { error: linkError } = await supabaseClient
+              .from('pos_users')
+              .update({ user_id: authData.user.id })
+              .eq('id', posUser.id)
+
+            if (linkError) throw linkError
+
+            posUser.user_id = authData.user.id
+          }
         }
       }
 
