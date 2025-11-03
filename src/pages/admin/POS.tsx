@@ -1800,7 +1800,6 @@ export default function POS() {
                 autoFocus
               />
             </div>
-            <BarcodeScanner onScan={handleBarcodeScan} />
           </div>
         </div>
 
