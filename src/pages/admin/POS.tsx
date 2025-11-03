@@ -1592,10 +1592,27 @@ export default function POS() {
     // Clear cart first
     clearCart();
 
-    // Add ticket items to cart
+    // Restore ticket items to cart directly (preserves quantities, custom prices, and discounts)
     setTimeout(() => {
+      // Add each item with its full properties including quantity
       ticket.items.forEach((item: any) => {
-        addToCart(item);
+        // Add item multiple times based on quantity to properly restore cart state
+        for (let i = 0; i < item.quantity; i++) {
+          addToCart({
+            ...item,
+            quantity: 1 // addToCart will handle quantity internally
+          });
+        }
+        
+        // Restore custom price if it exists
+        if (item.customPrice) {
+          updateItemPrice(item.id, item.customPrice);
+        }
+        
+        // Restore item discount if it exists
+        if (item.itemDiscount && item.itemDiscount > 0) {
+          updateItemDiscount(item.id, item.itemDiscount);
+        }
       });
 
       // Remove recalled ticket from held tickets list
