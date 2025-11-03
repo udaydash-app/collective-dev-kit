@@ -39,6 +39,7 @@ import AdminBalanceSheet from "./pages/admin/BalanceSheet";
 import AdminCashFlow from "./pages/admin/CashFlow";
 import AdminPOSUsers from "./pages/admin/POSUsers";
 import AdminExpenses from "./pages/admin/Expenses";
+import AdminOpenCashRegister from "./pages/admin/OpenCashRegister";
 import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
@@ -121,6 +122,7 @@ const AppContent = () => {
           <Route path="/admin/profit-loss" element={<AdminRoute><AdminProfitLoss /></AdminRoute>} />
           <Route path="/admin/balance-sheet" element={<AdminRoute><AdminBalanceSheet /></AdminRoute>} />
           <Route path="/admin/cash-flow" element={<AdminRoute><AdminCashFlow /></AdminRoute>} />
+          <Route path="/admin/open-cash-register" element={<AdminRoute><AdminOpenCashRegister /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />

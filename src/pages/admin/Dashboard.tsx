@@ -17,7 +17,8 @@ import {
   Tags,
   Tag,
   Megaphone,
-  CreditCard
+  CreditCard,
+  Wallet
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -340,6 +341,12 @@ export default function AdminDashboard() {
                   <Button variant="outline" className="w-full">
                     <Megaphone className="mr-2 h-4 w-4" />
                     Manage Announcements
+                  </Button>
+                </Link>
+                <Link to="/admin/open-cash-register">
+                  <Button variant="outline" className="w-full">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Open Cash Register
                   </Button>
                 </Link>
                 <Button variant="outline" className="w-full">
