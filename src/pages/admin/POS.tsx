@@ -901,6 +901,12 @@ export default function POS() {
     const fetchCustomerPrices = async () => {
       if (!selectedCustomer) {
         setCustomerPrices({});
+        // Clear all item discounts when customer is removed
+        cart.forEach((item) => {
+          if (item.itemDiscount && item.itemDiscount > 0) {
+            updateItemDiscount(item.id, 0);
+          }
+        });
         return;
       }
 
@@ -1667,7 +1673,10 @@ export default function POS() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedCustomer(null)}
+                onClick={() => {
+                  setSelectedCustomer(null);
+                  toast.info('Customer removed - prices reset to retail');
+                }}
                 className="h-6 w-6 p-0"
               >
                 <X className="h-3 w-3" />
