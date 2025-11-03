@@ -128,8 +128,12 @@ export default function POS() {
     });
   }, []);
 
-  // Load held tickets from localStorage and show dialog if tickets exist
+  // Load held tickets from localStorage only once on mount
+  const loadedTicketsRef = useRef(false);
   React.useEffect(() => {
+    if (loadedTicketsRef.current) return;
+    loadedTicketsRef.current = true;
+    
     const stored = localStorage.getItem('pos-held-tickets');
     if (stored) {
       try {
@@ -139,6 +143,7 @@ export default function POS() {
           timestamp: new Date(t.timestamp),
         }));
         setHeldTickets(tickets);
+        console.log('Loaded tickets from localStorage:', tickets.length);
         
         // Auto-open hold ticket dialog if there are held tickets
         if (tickets.length > 0) {
@@ -152,6 +157,8 @@ export default function POS() {
 
   // Save held tickets to localStorage
   React.useEffect(() => {
+    if (!loadedTicketsRef.current) return; // Don't save before initial load
+    
     console.log('Syncing heldTickets to localStorage, count:', heldTickets.length);
     if (heldTickets.length > 0) {
       localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
