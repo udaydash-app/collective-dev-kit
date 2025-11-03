@@ -366,7 +366,7 @@ export default function POS() {
   }, [stores, selectedStoreId]);
 
   // Check for active cash session
-  const { data: activeCashSession, refetch: refetchCashSession } = useQuery({
+  const { data: activeCashSession, refetch: refetchCashSession, isLoading: isLoadingCashSession } = useQuery({
     queryKey: ['active-cash-session', selectedStoreId],
     queryFn: async () => {
       if (!selectedStoreId) return null;
@@ -391,11 +391,11 @@ export default function POS() {
 
   // Show cash in dialog if no active session
   useEffect(() => {
-    if (selectedStoreId && activeCashSession === null && !showCashIn) {
+    if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
       setShowCashIn(true);
     }
     setCurrentCashSession(activeCashSession);
-  }, [activeCashSession, selectedStoreId]);
+  }, [activeCashSession, selectedStoreId, isLoadingCashSession]);
 
   // Get session transactions for expected cash calculation
   const { data: sessionTransactions } = useQuery({
