@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
+import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 
 interface ProductSearchProps {
@@ -15,6 +16,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState('');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -162,8 +165,11 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       if (exactMatch) {
         // Found exact barcode match - add directly to cart
         handleProductSelect(exactMatch);
+      } else {
+        // No exact match found - open assign barcode dialog
+        setScannedBarcode(searchTerm.trim());
+        setAssignBarcodeOpen(true);
       }
-      // If no exact match, the regular search results will show
     }
   };
 
@@ -247,6 +253,20 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         onClose={() => setVariantSelectorOpen(false)}
         product={selectedProduct}
         onSelectVariant={handleVariantSelect}
+      />
+
+      <AssignBarcodeDialog
+        isOpen={assignBarcodeOpen}
+        onClose={() => {
+          setAssignBarcodeOpen(false);
+          setSearchTerm('');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        }}
+        barcode={scannedBarcode}
+        onBarcodeAssigned={() => {
+          setSearchTerm('');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        }}
       />
     </div>
   );
