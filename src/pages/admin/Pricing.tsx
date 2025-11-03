@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
@@ -28,31 +29,35 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, DollarSign, Users, Package, Edit, Save, X } from 'lucide-react';
+import { Search, DollarSign, Users, Package, Edit, Save, X, Plus, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Checkbox } from '@/components/ui/checkbox';
 
-interface Product {
+interface CustomPriceTier {
   id: string;
   name: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface CustomTierPrice {
+  id: string;
+  tier_id: string;
+  product_id: string;
   price: number;
-  cost_price?: number;
-  wholesale_price?: number;
-  vip_price?: number;
-  image_url?: string;
-  category_id?: string;
-  categories?: {
-    name: string;
-  };
 }
 
 export default function Pricing() {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('standard');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  // Standard pricing state
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkPrices, setBulkPrices] = useState({
@@ -67,8 +72,17 @@ export default function Pricing() {
     cost: '',
   });
 
-  // Fetch products with categories
-  const { data: products, isLoading } = useQuery({
+  // Custom tiers state
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [showNewTierDialog, setShowNewTierDialog] = useState(false);
+  const [showEditTierDialog, setShowEditTierDialog] = useState(false);
+  const [showAssignProductsDialog, setShowAssignProductsDialog] = useState(false);
+  const [newTierData, setNewTierData] = useState({ name: '', description: '' });
+  const [editingTierData, setEditingTierData] = useState<CustomPriceTier | null>(null);
+  const [tierProductPrices, setTierProductPrices] = useState<Record<string, string>>({});
+
+  // Fetch products
+  const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ['products-pricing'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -76,11 +90,11 @@ export default function Pricing() {
         .select('*, categories(name)')
         .order('name');
       if (error) throw error;
-      return data as Product[];
+      return data;
     },
   });
 
-  // Fetch categories for filter
+  // Fetch categories
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -94,29 +108,128 @@ export default function Pricing() {
     },
   });
 
-  // Fetch customers by tier
-  const { data: customerStats } = useQuery({
-    queryKey: ['customer-stats'],
+  // Fetch custom price tiers
+  const { data: customTiers, isLoading: tiersLoading } = useQuery({
+    queryKey: ['custom-price-tiers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('contacts')
-        .select('price_tier')
-        .eq('is_customer', true);
-      
+        .from('custom_price_tiers')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
       if (error) throw error;
-      
-      const stats = {
-        retail: data?.filter(c => c.price_tier === 'retail' || !c.price_tier).length || 0,
-        wholesale: data?.filter(c => c.price_tier === 'wholesale').length || 0,
-        vip: data?.filter(c => c.price_tier === 'vip').length || 0,
-      };
-      
-      return stats;
+      return data as CustomPriceTier[];
     },
   });
 
-  // Update product prices
-  const updatePricesMutation = useMutation({
+  // Fetch tier prices for selected tier
+  const { data: tierPrices } = useQuery({
+    queryKey: ['custom-tier-prices', selectedTier],
+    queryFn: async () => {
+      if (!selectedTier) return [];
+      const { data, error } = await supabase
+        .from('custom_tier_prices')
+        .select('*')
+        .eq('tier_id', selectedTier);
+      if (error) throw error;
+      return data as CustomTierPrice[];
+    },
+    enabled: !!selectedTier,
+  });
+
+  // Fetch customers assigned to tiers
+  const { data: tierCustomers } = useQuery({
+    queryKey: ['tier-customers', selectedTier],
+    queryFn: async () => {
+      if (!selectedTier) return [];
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, email, phone')
+        .eq('custom_price_tier_id', selectedTier)
+        .eq('is_customer', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedTier,
+  });
+
+  // Create custom tier
+  const createTierMutation = useMutation({
+    mutationFn: async (data: { name: string; description: string }) => {
+      const { error } = await supabase
+        .from('custom_price_tiers')
+        .insert([data]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom-price-tiers'] });
+      toast.success('Custom price tier created');
+      setShowNewTierDialog(false);
+      setNewTierData({ name: '', description: '' });
+    },
+    onError: (error: any) => {
+      toast.error('Failed to create tier: ' + error.message);
+    },
+  });
+
+  // Update tier prices
+  const updateTierPricesMutation = useMutation({
+    mutationFn: async (prices: Array<{ product_id: string; price: number }>) => {
+      if (!selectedTier) return;
+      
+      // Delete existing prices for this tier
+      await supabase
+        .from('custom_tier_prices')
+        .delete()
+        .eq('tier_id', selectedTier);
+
+      // Insert new prices
+      const inserts = prices.map(p => ({
+        tier_id: selectedTier,
+        product_id: p.product_id,
+        price: p.price,
+      }));
+
+      const { error } = await supabase
+        .from('custom_tier_prices')
+        .insert(inserts);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom-tier-prices'] });
+      toast.success('Tier prices updated');
+      setShowAssignProductsDialog(false);
+      setTierProductPrices({});
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update prices: ' + error.message);
+    },
+  });
+
+  // Delete tier
+  const deleteTierMutation = useMutation({
+    mutationFn: async (tierId: string) => {
+      const { error } = await supabase
+        .from('custom_price_tiers')
+        .delete()
+        .eq('id', tierId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom-price-tiers'] });
+      toast.success('Price tier deleted');
+      if (selectedTier === editingTierData?.id) {
+        setSelectedTier(null);
+      }
+    },
+    onError: (error: any) => {
+      toast.error('Failed to delete tier: ' + error.message);
+    },
+  });
+
+  // Standard pricing mutations (keeping existing functionality)
+  const updateStandardPricesMutation = useMutation({
     mutationFn: async ({ id, prices }: { id: string; prices: any }) => {
       const { error } = await supabase
         .from('products')
@@ -131,45 +244,45 @@ export default function Pricing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products-pricing'] });
-      toast.success('Prices updated successfully');
+      toast.success('Prices updated');
       setEditingProduct(null);
     },
-    onError: (error) => {
-      toast.error('Failed to update prices: ' + error.message);
+    onError: (error: any) => {
+      toast.error('Failed to update: ' + error.message);
     },
   });
 
-  // Bulk update prices
-  const bulkUpdateMutation = useMutation({
-    mutationFn: async (prices: any) => {
-      const updates = selectedProducts.map(id => ({
-        id,
-        price: prices.retail ? parseFloat(prices.retail) : undefined,
-        wholesale_price: prices.wholesale ? parseFloat(prices.wholesale) : undefined,
-        vip_price: prices.vip ? parseFloat(prices.vip) : undefined,
+  const handleCreateTier = () => {
+    if (!newTierData.name.trim()) {
+      toast.error('Tier name is required');
+      return;
+    }
+    createTierMutation.mutate(newTierData);
+  };
+
+  const handleDeleteTier = (tier: CustomPriceTier) => {
+    if (confirm(`Delete price tier "${tier.name}"? This will remove all associated prices.`)) {
+      deleteTierMutation.mutate(tier.id);
+    }
+  };
+
+  const handleSaveTierPrices = () => {
+    const prices = Object.entries(tierProductPrices)
+      .filter(([_, price]) => price && parseFloat(price) > 0)
+      .map(([product_id, price]) => ({
+        product_id,
+        price: parseFloat(price),
       }));
 
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('products')
-          .update(update)
-          .eq('id', update.id);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products-pricing'] });
-      toast.success(`Updated prices for ${selectedProducts.length} products`);
-      setBulkEditOpen(false);
-      setSelectedProducts([]);
-      setBulkPrices({ retail: '', wholesale: '', vip: '' });
-    },
-    onError: (error) => {
-      toast.error('Failed to bulk update: ' + error.message);
-    },
-  });
+    if (prices.length === 0) {
+      toast.error('Add at least one product with a price');
+      return;
+    }
 
-  const handleEdit = (product: Product) => {
+    updateTierPricesMutation.mutate(prices);
+  };
+
+  const handleEditStandardPrice = (product: any) => {
     setEditingProduct(product);
     setEditPrices({
       retail: product.price?.toString() || '',
@@ -179,42 +292,26 @@ export default function Pricing() {
     });
   };
 
-  const handleSave = () => {
+  const handleSaveStandardPrices = () => {
     if (!editingProduct) return;
-    updatePricesMutation.mutate({
+    updateStandardPricesMutation.mutate({
       id: editingProduct.id,
       prices: editPrices,
     });
-  };
-
-  const handleBulkUpdate = () => {
-    if (selectedProducts.length === 0) {
-      toast.error('No products selected');
-      return;
-    }
-    bulkUpdateMutation.mutate(bulkPrices);
-  };
-
-  const toggleProductSelection = (productId: string) => {
-    setSelectedProducts(prev =>
-      prev.includes(productId)
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedProducts.length === filteredProducts?.length) {
-      setSelectedProducts([]);
-    } else {
-      setSelectedProducts(filteredProducts?.map(p => p.id) || []);
-    }
   };
 
   const filteredProducts = products?.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  const productsWithTierPrices = filteredProducts?.map(product => {
+    const tierPrice = tierPrices?.find(tp => tp.product_id === product.id);
+    return {
+      ...product,
+      tier_price: tierPrice?.price,
+    };
   });
 
   const calculateMargin = (price: number, cost?: number) => {
@@ -228,196 +325,395 @@ export default function Pricing() {
         <div>
           <h1 className="text-3xl font-bold">Pricing Management</h1>
           <p className="text-muted-foreground">
-            Manage product prices for different customer tiers
+            Manage standard and custom pricing tiers
           </p>
         </div>
-        <div className="flex gap-2">
-          <ReturnToPOSButton inline />
-          {selectedProducts.length > 0 && (
-            <Button onClick={() => setBulkEditOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit {selectedProducts.length} Selected
-            </Button>
-          )}
-        </div>
+        <ReturnToPOSButton inline />
       </div>
 
-      {/* Customer Tier Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retail Customers</CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customerStats?.retail || 0}</div>
-            <p className="text-xs text-muted-foreground">Standard pricing tier</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Wholesale Customers</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customerStats?.wholesale || 0}</div>
-            <p className="text-xs text-muted-foreground">Discounted pricing tier</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">VIP Customers</CardTitle>
-            <Users className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customerStats?.vip || 0}</div>
-            <p className="text-xs text-muted-foreground">Special pricing tier</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="standard">Standard Tiers</TabsTrigger>
+          <TabsTrigger value="custom">Custom Price Tiers</TabsTrigger>
+        </TabsList>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="flex gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories?.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Products Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedProducts.length === filteredProducts?.length && filteredProducts?.length > 0}
-                  onCheckedChange={toggleSelectAll}
+        {/* Standard Tiers Tab */}
+        <TabsContent value="standard" className="space-y-4">
+          {/* Filters */}
+          <Card className="p-4">
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
-              </TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead className="text-right">Retail Price</TableHead>
-              <TableHead className="text-right">Wholesale Price</TableHead>
-              <TableHead className="text-right">VIP Price</TableHead>
-              <TableHead className="text-right">Margin</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  Loading products...
-                </TableCell>
-              </TableRow>
-            ) : filteredProducts?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  No products found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts?.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedProducts.includes(product.id)}
-                      onCheckedChange={() => toggleProductSelection(product.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.name}
-                          className="h-10 w-10 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                          <Package className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories?.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </Card>
+
+          {/* Products Table */}
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Retail</TableHead>
+                  <TableHead className="text-right">Wholesale</TableHead>
+                  <TableHead className="text-right">VIP</TableHead>
+                  <TableHead className="text-right">Margin</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredProducts?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      No products found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts?.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                          ) : (
+                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="font-medium">{product.name}</span>
                         </div>
-                      )}
-                      <span className="font-medium">{product.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {product.categories?.name || '-'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.cost_price ? formatCurrency(product.cost_price) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {product.price ? formatCurrency(product.price) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.wholesale_price ? (
-                      <span className="text-blue-600">
-                        {formatCurrency(product.wholesale_price)}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.vip_price ? (
-                      <span className="text-purple-600">
-                        {formatCurrency(product.vip_price)}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.price && product.cost_price ? (
-                      <Badge variant="outline">
-                        {calculateMargin(product.price, product.cost_price)}%
-                      </Badge>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {product.categories?.name || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {product.price ? formatCurrency(product.price) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-600">
+                        {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right text-purple-600">
+                        {product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.price && product.cost_price ? (
+                          <Badge variant="outline">
+                            {calculateMargin(product.price, product.cost_price)}%
+                          </Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditStandardPrice(product)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* Custom Tiers Tab */}
+        <TabsContent value="custom" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-4">
+              <Select value={selectedTier || ''} onValueChange={setSelectedTier}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Select a price tier" />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  {customTiers?.map((tier) => (
+                    <SelectItem key={tier.id} value={tier.id}>
+                      {tier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTier && (
+                <Button onClick={() => setShowAssignProductsDialog(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Manage Prices
+                </Button>
+              )}
+            </div>
+            <Button onClick={() => setShowNewTierDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Price Tier
+            </Button>
+          </div>
+
+          {/* Tier Management */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {customTiers?.map((tier) => (
+              <Card key={tier.id} className={selectedTier === tier.id ? 'border-primary' : ''}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{tier.name}</CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEdit(product)}
+                      onClick={() => handleDeleteTier(tier)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                  </div>
+                  {tier.description && (
+                    <CardDescription>{tier.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Products:</span>
+                      <Badge variant="secondary">
+                        {tierPrices?.filter(tp => tp.tier_id === tier.id).length || 0}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Customers:</span>
+                      <Badge variant="secondary">
+                        {tierCustomers?.length || 0}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
 
-      {/* Edit Product Dialog */}
+            {customTiers?.length === 0 && (
+              <Card className="col-span-full">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  No custom price tiers created yet. Click "Create Price Tier" to get started.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Products with Tier Prices */}
+          {selectedTier && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Products in {customTiers?.find(t => t.id === selectedTier)?.name}</CardTitle>
+                <CardDescription>
+                  Products with custom prices for this tier
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Standard Price</TableHead>
+                      <TableHead className="text-right">Custom Price</TableHead>
+                      <TableHead className="text-right">Difference</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productsWithTierPrices?.filter(p => p.tier_price).map((product) => {
+                      const diff = product.tier_price && product.price 
+                        ? ((product.tier_price - product.price) / product.price * 100).toFixed(1)
+                        : null;
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {product.image_url ? (
+                                <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                              ) : (
+                                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                                  <Package className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <span className="font-medium">{product.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {product.categories?.name || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {product.price ? formatCurrency(product.price) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-primary">
+                            {product.tier_price ? formatCurrency(product.tier_price) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {diff ? (
+                              <Badge variant={parseFloat(diff) < 0 ? 'destructive' : 'default'}>
+                                {diff}%
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {productsWithTierPrices?.filter(p => p.tier_price).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No products assigned to this tier yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs */}
+      {/* Create Tier Dialog */}
+      <Dialog open={showNewTierDialog} onOpenChange={setShowNewTierDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Custom Price Tier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="tier-name">Tier Name *</Label>
+              <Input
+                id="tier-name"
+                value={newTierData.name}
+                onChange={(e) => setNewTierData({ ...newTierData, name: e.target.value })}
+                placeholder="e.g., Premium Partners, Schools, Hotels"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tier-description">Description</Label>
+              <Textarea
+                id="tier-description"
+                value={newTierData.description}
+                onChange={(e) => setNewTierData({ ...newTierData, description: e.target.value })}
+                placeholder="Optional description"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewTierDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateTier}>
+                Create Tier
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Products Dialog */}
+      <Dialog open={showAssignProductsDialog} onOpenChange={setShowAssignProductsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Assign Products - {customTiers?.find(t => t.id === selectedTier)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-right">Standard Price</TableHead>
+                  <TableHead className="text-right">Custom Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts?.map((product) => {
+                  const existingPrice = tierPrices?.find(tp => tp.product_id === product.id);
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                          ) : (
+                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">{product.categories?.name}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.price ? formatCurrency(product.price) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter price"
+                          value={tierProductPrices[product.id] || existingPrice?.price || ''}
+                          onChange={(e) => setTierProductPrices({
+                            ...tierProductPrices,
+                            [product.id]: e.target.value,
+                          })}
+                          className="w-32 ml-auto"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAssignProductsDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveTierPrices}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Prices
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Standard Price Dialog */}
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -425,117 +721,48 @@ export default function Pricing() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="cost">Cost Price</Label>
+              <Label>Cost Price</Label>
               <Input
-                id="cost"
                 type="number"
                 step="0.01"
                 value={editPrices.cost}
                 onChange={(e) => setEditPrices({ ...editPrices, cost: e.target.value })}
-                placeholder="0.00"
               />
             </div>
             <div>
-              <Label htmlFor="retail">Retail Price (Standard)</Label>
+              <Label>Retail Price</Label>
               <Input
-                id="retail"
                 type="number"
                 step="0.01"
                 value={editPrices.retail}
                 onChange={(e) => setEditPrices({ ...editPrices, retail: e.target.value })}
-                placeholder="0.00"
               />
-              {editPrices.retail && editPrices.cost && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Margin: {calculateMargin(parseFloat(editPrices.retail), parseFloat(editPrices.cost))}%
-                </p>
-              )}
             </div>
             <div>
-              <Label htmlFor="wholesale">Wholesale Price (Discounted)</Label>
+              <Label>Wholesale Price</Label>
               <Input
-                id="wholesale"
                 type="number"
                 step="0.01"
                 value={editPrices.wholesale}
                 onChange={(e) => setEditPrices({ ...editPrices, wholesale: e.target.value })}
-                placeholder="0.00"
               />
             </div>
             <div>
-              <Label htmlFor="vip">VIP Price (Special)</Label>
+              <Label>VIP Price</Label>
               <Input
-                id="vip"
                 type="number"
                 step="0.01"
                 value={editPrices.vip}
                 onChange={(e) => setEditPrices({ ...editPrices, vip: e.target.value })}
-                placeholder="0.00"
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditingProduct(null)}>
-                <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSaveStandardPrices}>
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Edit Dialog */}
-      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Bulk Edit Prices ({selectedProducts.length} products)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Leave fields empty to keep existing prices unchanged
-            </p>
-            <div>
-              <Label htmlFor="bulk-retail">Retail Price</Label>
-              <Input
-                id="bulk-retail"
-                type="number"
-                step="0.01"
-                value={bulkPrices.retail}
-                onChange={(e) => setBulkPrices({ ...bulkPrices, retail: e.target.value })}
-                placeholder="Leave empty to skip"
-              />
-            </div>
-            <div>
-              <Label htmlFor="bulk-wholesale">Wholesale Price</Label>
-              <Input
-                id="bulk-wholesale"
-                type="number"
-                step="0.01"
-                value={bulkPrices.wholesale}
-                onChange={(e) => setBulkPrices({ ...bulkPrices, wholesale: e.target.value })}
-                placeholder="Leave empty to skip"
-              />
-            </div>
-            <div>
-              <Label htmlFor="bulk-vip">VIP Price</Label>
-              <Input
-                id="bulk-vip"
-                type="number"
-                step="0.01"
-                value={bulkPrices.vip}
-                onChange={(e) => setBulkPrices({ ...bulkPrices, vip: e.target.value })}
-                placeholder="Leave empty to skip"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setBulkEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleBulkUpdate}>
-                Update {selectedProducts.length} Products
+                Save
               </Button>
             </div>
           </div>

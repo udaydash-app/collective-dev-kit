@@ -363,6 +363,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           credit_limit: number | null
+          custom_price_tier_id: string | null
           customer_ledger_account_id: string | null
           email: string | null
           id: string
@@ -388,6 +389,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
+          custom_price_tier_id?: string | null
           customer_ledger_account_id?: string | null
           email?: string | null
           id?: string
@@ -413,6 +415,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
+          custom_price_tier_id?: string | null
           customer_ledger_account_id?: string | null
           email?: string | null
           id?: string
@@ -431,6 +434,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "contacts_custom_price_tier_id_fkey"
+            columns: ["custom_price_tier_id"]
+            isOneToOne: false
+            referencedRelation: "custom_price_tiers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contacts_customer_ledger_account_id_fkey"
             columns: ["customer_ledger_account_id"]
             isOneToOne: false
@@ -442,6 +452,75 @@ export type Database = {
             columns: ["supplier_ledger_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_price_tiers: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      custom_tier_prices: {
+        Row: {
+          created_at: string | null
+          id: string
+          price: number
+          product_id: string
+          tier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          price: number
+          product_id: string
+          tier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          price?: number
+          product_id?: string
+          tier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_tier_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_tier_prices_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "custom_price_tiers"
             referencedColumns: ["id"]
           },
         ]

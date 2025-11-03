@@ -47,6 +47,7 @@ interface Contact {
   is_customer: boolean;
   is_supplier: boolean;
   price_tier?: 'retail' | 'wholesale' | 'vip';
+  custom_price_tier_id?: string;
   credit_limit?: number;
   opening_balance?: number;
   notes?: string;
@@ -77,9 +78,24 @@ export default function Contacts() {
     is_customer: false,
     is_supplier: false,
     price_tier: 'retail' as 'retail' | 'wholesale' | 'vip',
+    custom_price_tier_id: '' as string,
     credit_limit: '',
     opening_balance: '',
     notes: '',
+  });
+
+  // Fetch custom price tiers
+  const { data: customTiers } = useQuery({
+    queryKey: ['custom-price-tiers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('custom_price_tiers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
   const { data: contacts, isLoading } = useQuery({
@@ -184,6 +200,7 @@ export default function Contacts() {
       is_customer: contact.is_customer,
       is_supplier: contact.is_supplier,
       price_tier: contact.price_tier || 'retail',
+      custom_price_tier_id: contact.custom_price_tier_id || '',
       credit_limit: contact.credit_limit?.toString() || '',
       opening_balance: contact.opening_balance?.toString() || '',
       notes: contact.notes || '',
@@ -209,6 +226,7 @@ export default function Contacts() {
       is_customer: false,
       is_supplier: false,
       price_tier: 'retail',
+      custom_price_tier_id: '',
       credit_limit: '',
       opening_balance: '',
       notes: '',
@@ -366,6 +384,33 @@ export default function Contacts() {
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
                       Price tier determines which product price will be applied for this customer
+                    </p>
+                  </div>
+                )}
+
+                {formData.is_customer && customTiers && customTiers.length > 0 && (
+                  <div className="col-span-2">
+                    <Label htmlFor="custom_tier">Custom Price Tier (Optional)</Label>
+                    <Select
+                      value={formData.custom_price_tier_id || 'none'}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, custom_price_tier_id: value === 'none' ? '' : value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No custom tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No custom tier</SelectItem>
+                        {customTiers.map((tier: any) => (
+                          <SelectItem key={tier.id} value={tier.id}>
+                            {tier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Custom tiers override standard pricing with specific product prices
                     </p>
                   </div>
                 )}
