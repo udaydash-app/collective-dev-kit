@@ -182,6 +182,28 @@ export default function POS() {
     processTransaction,
   } = usePOSTransaction();
 
+  // Auto-hold cart when navigating away from POS
+  React.useEffect(() => {
+    return () => {
+      // On unmount, if cart has items, auto-hold them
+      if (cart.length > 0) {
+        const autoHoldTicket = {
+          id: Date.now().toString(),
+          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+          items: cart,
+          total: calculateTotal(),
+          timestamp: new Date(),
+        };
+        
+        // Save directly to localStorage since component is unmounting
+        const stored = localStorage.getItem('pos-held-tickets');
+        const existing = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('pos-held-tickets', JSON.stringify([...existing, autoHoldTicket]));
+        console.log('Auto-held cart on navigation');
+      }
+    };
+  }, [cart, calculateTotal]);
+
   // Load order into POS if orderId is in URL params
   const loadedOrderRef = useRef<string | null>(null);
   const editedOrderRef = useRef<string | null>(null);
