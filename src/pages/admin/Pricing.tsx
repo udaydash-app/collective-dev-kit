@@ -267,12 +267,22 @@ export default function Pricing() {
   };
 
   const handleSaveTierPrices = () => {
-    const prices = Object.entries(tierProductPrices)
-      .filter(([_, price]) => price && parseFloat(price) > 0)
-      .map(([product_id, price]) => ({
-        product_id,
-        price: parseFloat(price),
-      }));
+    // Collect all products with prices (either newly entered or existing)
+    const prices = filteredProducts
+      ?.map(product => {
+        const currentPrice = tierProductPrices[product.id];
+        const existingPrice = tierPrices?.find(tp => tp.product_id === product.id);
+        const price = currentPrice || existingPrice?.price?.toString();
+        
+        if (price && parseFloat(price) > 0) {
+          return {
+            product_id: product.id,
+            price: parseFloat(price),
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as Array<{ product_id: string; price: number }>;
 
     if (prices.length === 0) {
       toast.error('Add at least one product with a price');
