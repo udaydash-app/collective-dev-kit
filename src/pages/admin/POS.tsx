@@ -2053,14 +2053,12 @@ export default function POS() {
 
       <CashInDialog
         isOpen={showCashIn}
-        onClose={() => {
-          if (!currentCashSession) {
-            toast.error('Cash in is required to use the POS');
-            return;
-          }
-          setShowCashIn(false);
-        }}
+        onClose={() => setShowCashIn(false)}
         onConfirm={handleCashIn}
+        onSkip={() => {
+          setShowCashIn(false);
+          toast.info('Starting POS without cash session. You can open a cash session later.');
+        }}
       />
 
       {currentCashSession && (

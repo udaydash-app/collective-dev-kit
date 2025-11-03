@@ -10,9 +10,10 @@ interface CashInDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (openingCash: number) => Promise<void>;
+  onSkip?: () => void;
 }
 
-export const CashInDialog = ({ isOpen, onClose, onConfirm }: CashInDialogProps) => {
+export const CashInDialog = ({ isOpen, onClose, onConfirm, onSkip }: CashInDialogProps) => {
   const [openingCash, setOpeningCash] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -69,15 +70,20 @@ export const CashInDialog = ({ isOpen, onClose, onConfirm }: CashInDialogProps) 
           </div>
 
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={onClose}
-              disabled={isProcessing}
-              className="flex-1 h-14 text-base"
-            >
-              Cancel
-            </Button>
+            {onSkip && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  onSkip();
+                  onClose();
+                }}
+                disabled={isProcessing}
+                className="flex-1 h-14 text-base"
+              >
+                Skip
+              </Button>
+            )}
             <Button
               size="lg"
               onClick={handleConfirm}
