@@ -120,12 +120,42 @@ export default function Pricing() {
       if (!selectedCustomer) return [];
       const { data, error } = await supabase
         .from('customer_product_prices')
-        .select('*')
+        .select('*, products(name, price, categories(name))')
         .eq('customer_id', selectedCustomer);
       if (error) throw error;
-      return data as CustomerProductPrice[];
+      return data;
     },
     enabled: !!selectedCustomer,
+  });
+
+  // Fetch all customers with custom prices
+  const { data: customersWithPrices } = useQuery({
+    queryKey: ['customers-with-prices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_product_prices')
+        .select('customer_id, contacts(name, email, phone)')
+        .order('customer_id');
+      
+      if (error) throw error;
+      
+      // Group by customer and count products
+      const customerMap = new Map();
+      data?.forEach((item: any) => {
+        if (!customerMap.has(item.customer_id)) {
+          customerMap.set(item.customer_id, {
+            id: item.customer_id,
+            name: item.contacts?.name,
+            email: item.contacts?.email,
+            phone: item.contacts?.phone,
+            productCount: 0
+          });
+        }
+        customerMap.get(item.customer_id).productCount++;
+      });
+      
+      return Array.from(customerMap.values());
+    },
   });
 
   // Update customer discount percentage
@@ -481,51 +511,6 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Selected Customer Info */}
-          {selectedCustomer && selectedCustomerData && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <UserCircle className="h-8 w-8 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>{selectedCustomerData.name}</CardTitle>
-                    <CardDescription>
-                      {selectedCustomerData.email || selectedCustomerData.phone || 'No contact info'}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary" className="ml-auto">
-                    {customerPrices?.length || 0} custom prices
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label>Cart-Wide Discount (%)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={customerDiscountPercentage}
-                      onChange={(e) => setCustomerDiscountPercentage(e.target.value)}
-                      className="w-32"
-                    />
-                    <Button onClick={handleSaveCartDiscount} size="sm">
-                      Save Discount
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    This discount will be applied to the entire cart when this customer is selected in POS
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Products with Customer Prices */}
           {selectedCustomer && (
             <Card>
@@ -591,11 +576,67 @@ export default function Pricing() {
             </Card>
           )}
 
+          {/* Customers with Custom Prices */}
           {!selectedCustomer && (
             <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <UserCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Select a customer to manage their custom pricing</p>
+              <CardHeader>
+                <CardTitle>Customers with Custom Pricing</CardTitle>
+                <CardDescription>
+                  Overview of all customers who have custom prices assigned
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {customersWithPrices && customersWithPrices.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead className="text-right">Products with Custom Prices</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customersWithPrices.map((customer: any) => (
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <UserCircle className="h-5 w-5 text-muted-foreground" />
+                              {customer.name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {customer.email || customer.phone || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary">
+                              {customer.productCount} {customer.productCount === 1 ? 'product' : 'products'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCustomer(customer.id);
+                                const customerData = customers?.find(c => c.id === customer.id);
+                                setCustomerDiscountPercentage(customerData?.discount_percentage?.toString() || '0');
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No customers with custom pricing yet</p>
+                    <p className="text-sm mt-2">Select a customer above to assign custom prices</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
