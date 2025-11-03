@@ -28,6 +28,7 @@ interface PaymentModalProps {
   onClose: () => void;
   total: number;
   onConfirm: (payments: Payment[], totalPaid: number) => Promise<void>;
+  selectedCustomer?: any;
   transactionData?: {
     transactionNumber: string;
     items: Array<{
@@ -47,7 +48,7 @@ interface PaymentModalProps {
   };
 }
 
-export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionData }: PaymentModalProps) => {
+export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustomer: propSelectedCustomer, transactionData }: PaymentModalProps) => {
   const [payments, setPayments] = useState<Payment[]>([
     { id: '1', method: 'cash', amount: total }
   ]);
@@ -57,6 +58,14 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, transactionDat
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Pre-fill customer if passed from POS
+  useEffect(() => {
+    if (propSelectedCustomer?.id && isOpen) {
+      setSelectedCustomer(propSelectedCustomer.id);
+      setCustomerSearch(propSelectedCustomer.name || '');
+    }
+  }, [propSelectedCustomer, isOpen]);
 
   const { data: customers } = useQuery({
     queryKey: ['customers', customerSearch],

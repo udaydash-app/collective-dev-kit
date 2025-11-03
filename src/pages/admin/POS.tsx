@@ -2004,6 +2004,7 @@ export default function POS() {
         }}
         total={total}
         onConfirm={handlePaymentConfirm}
+        selectedCustomer={selectedCustomer}
         transactionData={lastTransactionData}
       />
 
