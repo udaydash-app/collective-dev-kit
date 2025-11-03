@@ -320,6 +320,54 @@ export default function GeneralLedger() {
 
   const netChange = totalDebit - totalCredit;
 
+  const handleExport = () => {
+    if (!ledgerData?.account || !ledgerEntries.length) {
+      return;
+    }
+
+    // Prepare CSV content
+    const accountInfo = ledgerData.account as any;
+    const accountName = accountInfo.isUnified ? 'UNIFIED' : accountInfo.account_code;
+    const csvRows = [
+      ['General Ledger Report'],
+      ['Account:', `${accountName} - ${accountInfo.account_name}`],
+      ['Period:', `${startDate} to ${endDate}`],
+      [''],
+      ['Date', 'Entry #', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'],
+    ];
+
+    ledgerEntries.forEach((entry: any) => {
+      csvRows.push([
+        new Date(entry.journal_entries.entry_date).toLocaleDateString(),
+        entry.journal_entries.entry_number,
+        `${entry.journal_entries.description}${entry.description ? ' - ' + entry.description : ''}`,
+        entry.journal_entries.reference || '',
+        entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
+        entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
+        Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
+      ]);
+    });
+
+    // Add totals
+    csvRows.push(['']);
+    csvRows.push(['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), '']);
+    csvRows.push(['', '', '', accountInfo.isUnified ? 'Net Position:' : 'Net Change:', '', '', Math.abs(netChange).toFixed(2) + (netChange < 0 ? ' CR' : '')]);
+
+    // Convert to CSV string
+    const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `general-ledger-${accountName}-${startDate}-${endDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -334,7 +382,11 @@ export default function GeneralLedger() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
-          <Button variant="outline">
+          <Button 
+            variant="outline" 
+            onClick={handleExport}
+            disabled={!selectedAccount || !ledgerEntries.length}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
