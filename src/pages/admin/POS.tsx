@@ -65,6 +65,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { NumericKeypad } from '@/components/pos/NumericKeypad';
+import { ProductSearch } from '@/components/pos/ProductSearch';
+import { Label } from '@/components/ui/label';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -93,9 +95,11 @@ export default function POS() {
     total: number;
     timestamp: Date;
   }>>([]);
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [lastTransactionData, setLastTransactionData] = useState<any>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
+  const productSearchInputRef = useRef<HTMLInputElement>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
@@ -1650,47 +1654,11 @@ export default function POS() {
             </div>
           </div>
           
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder="Search customer..."
-              value={customerSearch}
-              onChange={(e) => {
-                setCustomerSearch(e.target.value);
-                setShowCustomerResults(true);
-              }}
-              onFocus={() => setShowCustomerResults(true)}
-              className="pl-7 h-7 text-xs"
+          <div>
+            <Label className="text-xs">Search Products</Label>
+            <ProductSearch 
+              onProductSelect={handleProductClick}
             />
-            
-            {/* Customer Search Results Dropdown */}
-            {showCustomerResults && customerSearch.length >= 2 && customers && customers.length > 0 && (
-              <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-40 overflow-y-auto">
-                <div className="p-1 space-y-0.5">
-                  {customers.map((customer) => (
-                    <Button
-                      key={customer.id}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-left h-auto py-1.5"
-                      onClick={() => {
-                        setSelectedCustomer(customer);
-                        setCustomerSearch('');
-                        setShowCustomerResults(false);
-                      }}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium text-xs">{customer.name}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {customer.phone && `${customer.phone}`}
-                          {customer.email && ` • ${customer.email}`}
-                        </span>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </Card>
-            )}
           </div>
 
           <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
@@ -1710,17 +1678,21 @@ export default function POS() {
         {/* Customer Info */}
         <div className="p-2 border-b">
           <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              className="flex items-center gap-1.5 p-0 h-auto hover:bg-transparent"
+              onClick={() => setShowCustomerDialog(true)}
+            >
               <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <div>
+              <div className="text-left">
                 <p className="font-semibold text-xs">{selectedCustomer ? selectedCustomer.name : 'Guest'}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'No info') : 'Walk-in'}
+                  {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'No info') : 'Click to select customer'}
                 </p>
               </div>
-            </div>
+            </Button>
             {selectedCustomer && (
               <Button
                 variant="ghost"
@@ -2208,6 +2180,72 @@ export default function POS() {
         onDeleteTicket={handleDeleteTicket}
         heldTickets={heldTickets}
       />
+
+      {/* Customer Selection Dialog */}
+      <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select Customer</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customer by name, phone or email..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerResults(true);
+                  }}
+                  onFocus={() => setShowCustomerResults(true)}
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+              
+              {/* Customer Results */}
+              {showCustomerResults && customerSearch.length >= 2 && customers && customers.length > 0 && (
+                <div className="space-y-2">
+                  {customers.map((customer) => (
+                    <Button
+                      key={customer.id}
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setCustomerSearch('');
+                        setShowCustomerResults(false);
+                        setShowCustomerDialog(false);
+                      }}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{customer.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {customer.phone && customer.phone}
+                          {customer.email && ` • ${customer.email}`}
+                        </span>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
+              {customerSearch.length >= 2 && (!customers || customers.length === 0) && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No customers found
+                </div>
+              )}
+              
+              {customerSearch.length < 2 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Enter at least 2 characters to search
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
 
       {/* Last Receipt Options Dialog */}
