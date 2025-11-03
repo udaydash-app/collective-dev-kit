@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface AssignBarcodeDialogProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const AssignBarcodeDialog = ({
   barcode, 
   onBarcodeAssigned 
 }: AssignBarcodeDialogProps) => {
+  const navigate = useNavigate();
   const [productSearch, setProductSearch] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -94,9 +96,30 @@ export const AssignBarcodeDialog = ({
               </div>
             )}
 
-            {products && products.length === 0 && (
+            {products && products.length === 0 && productSearch && (
+              <Card className="p-6 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  No products found for "{productSearch}"
+                </p>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Would you like to add a new product?</p>
+                  <Button
+                    onClick={() => {
+                      onClose();
+                      navigate('/admin/products');
+                    }}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Product
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {products && products.length === 0 && !productSearch && (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No products found
+                Search for a product to assign this barcode
               </p>
             )}
 
