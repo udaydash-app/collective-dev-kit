@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 type ReportType = 
   | 'daily-summary'
@@ -835,7 +836,10 @@ export default function CloseDayReport() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">Reports</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Reports</h1>
+          <ReturnToPOSButton />
+        </div>
         {showReport && (
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
