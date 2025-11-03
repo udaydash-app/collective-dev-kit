@@ -1576,6 +1576,16 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    // Remove recalled ticket from held tickets list FIRST
+    setHeldTickets(prev => {
+      const updatedTickets = prev.filter(t => t.id !== ticket.id);
+      // Close dialog if no tickets remain
+      if (updatedTickets.length === 0) {
+        setShowHoldTicket(false);
+      }
+      return updatedTickets;
+    });
+
     // Auto-hold current cart if not empty
     if (cart.length > 0) {
       const autoHoldTicket = {
@@ -1592,9 +1602,8 @@ export default function POS() {
     // Clear cart first
     clearCart();
 
-    // Restore ticket items to cart directly (preserves quantities, custom prices, and discounts)
+    // Restore ticket items to cart
     setTimeout(() => {
-      // Add each item with its full properties including quantity
       ticket.items.forEach((item: any) => {
         // Add item multiple times based on quantity to properly restore cart state
         for (let i = 0; i < item.quantity; i++) {
@@ -1613,16 +1622,6 @@ export default function POS() {
         if (item.itemDiscount && item.itemDiscount > 0) {
           updateItemDiscount(item.id, item.itemDiscount);
         }
-      });
-
-      // Remove recalled ticket from held tickets list
-      setHeldTickets(prev => {
-        const updatedTickets = prev.filter(t => t.id !== ticket.id);
-        // Close dialog if no tickets remain
-        if (updatedTickets.length === 0) {
-          setShowHoldTicket(false);
-        }
-        return updatedTickets;
       });
       toast.success(`Ticket "${ticket.name}" recalled`);
     }, 50);
