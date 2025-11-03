@@ -2221,7 +2221,7 @@ export default function POS() {
                 <Button 
                   onClick={() => {
                     setShowCustomerDialog(false);
-                    navigate('/admin/contacts');
+                    navigate('/admin/contacts', { state: { openAddDialog: true } });
                   }}
                   variant="default"
                 >
@@ -2263,7 +2263,7 @@ export default function POS() {
                     <Button 
                       onClick={() => {
                         setShowCustomerDialog(false);
-                        navigate('/admin/contacts');
+                        navigate('/admin/contacts', { state: { openAddDialog: true } });
                       }}
                       variant="outline"
                     >
