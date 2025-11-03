@@ -1580,10 +1580,14 @@ export default function POS() {
     
     // Remove recalled ticket and auto-hold current cart in ONE state update
     setHeldTickets(prev => {
-      console.log('Before filter - tickets:', prev.length);
+      console.log('Before filter - tickets:', prev.map(t => t.id));
       // Filter out the recalled ticket
-      let updatedTickets = prev.filter(t => t.id !== ticket.id);
-      console.log('After filter - tickets:', updatedTickets.length);
+      let updatedTickets = prev.filter(t => {
+        const keep = t.id !== ticket.id;
+        console.log(`Ticket ${t.id}: ${keep ? 'keeping' : 'removing'}`);
+        return keep;
+      });
+      console.log('After filter - tickets:', updatedTickets.map(t => t.id));
       
       // Auto-hold current cart if not empty
       if (cart.length > 0) {
@@ -1600,10 +1604,10 @@ export default function POS() {
       
       // Close dialog if no tickets remain
       if (updatedTickets.length === 0) {
-        setShowHoldTicket(false);
+        setTimeout(() => setShowHoldTicket(false), 100);
       }
       
-    console.log('Final tickets:', updatedTickets.length);
+      console.log('Final tickets:', updatedTickets.map(t => t.id));
       return updatedTickets;
     });
 
