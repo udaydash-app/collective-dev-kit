@@ -175,6 +175,25 @@ export default function POS() {
     processTransaction,
   } = usePOSTransaction();
 
+  // Auto-hold cart when navigating away from POS
+  React.useEffect(() => {
+    return () => {
+      if (cart.length > 0) {
+        const newTicket = {
+          id: Date.now().toString(),
+          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+          items: cart,
+          total: calculateTotal(),
+          timestamp: new Date(),
+        };
+        
+        const stored = localStorage.getItem('pos-held-tickets');
+        const existing = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('pos-held-tickets', JSON.stringify([...existing, newTicket]));
+      }
+    };
+  }, [cart, calculateTotal]);
+
   // Save held tickets to localStorage whenever they change
 
   // Load order into POS if orderId is in URL params
@@ -1557,11 +1576,28 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
-    // Close dialog immediately
-    setShowHoldTicket(false);
+    // Auto-hold current cart if not empty, then recall ticket
+    setHeldTickets(prev => {
+      let updatedTickets = prev.filter(t => t.id !== ticket.id);
+      
+      // If there's a current cart, auto-hold it
+      if (cart.length > 0) {
+        const autoHoldTicket = {
+          id: Date.now().toString(),
+          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+          items: [...cart],
+          total: calculateTotal(),
+          timestamp: new Date(),
+        };
+        updatedTickets = [...updatedTickets, autoHoldTicket];
+        toast.info('Current cart auto-held');
+      }
+      
+      return updatedTickets;
+    });
     
-    // Remove recalled ticket from state
-    setHeldTickets(prev => prev.filter(t => t.id !== ticket.id));
+    // Close dialog
+    setShowHoldTicket(false);
 
     // Clear cart
     clearCart();
