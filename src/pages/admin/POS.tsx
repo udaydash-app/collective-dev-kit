@@ -74,6 +74,7 @@ export default function POS() {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [customerPrices, setCustomerPrices] = useState<Record<string, number>>({});
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -784,11 +785,12 @@ export default function POS() {
     if (variantData && variantData.products) {
       // Found a variant with this barcode
       console.log('Adding variant to cart:', variantData);
-      addToCart({
+      const productToAdd = {
         ...variantData.products,
         price: variantData.price,
         selectedVariant: variantData,
-      });
+      };
+      addToCartWithCustomPrice(productToAdd);
       return;
     }
 
@@ -823,15 +825,16 @@ export default function POS() {
         // Prioritize default variant, otherwise use first available
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
         console.log('Adding variant to cart:', variantToAdd);
-        addToCart({
+        const productToAdd = {
           ...data,
           price: variantToAdd.price,
           selectedVariant: variantToAdd,
-        });
+        };
+        addToCartWithCustomPrice(productToAdd);
       } else {
         // No variants, use product price
         console.log('Adding product without variants to cart');
-        addToCart(data);
+        addToCartWithCustomPrice(data);
       }
     } else {
       console.error('Product not found for barcode:', barcode);
@@ -848,26 +851,85 @@ export default function POS() {
       setVariantSelectorOpen(true);
     } else if (availableVariants.length === 1) {
       // Auto-select single variant
-      addToCart({
+      const productToAdd = {
         ...product,
         price: availableVariants[0].price,
         selectedVariant: availableVariants[0],
-      });
+      };
+      addToCartWithCustomPrice(productToAdd);
     } else {
       // No variants, use product price
-      addToCart(product);
+      addToCartWithCustomPrice(product);
     }
   };
 
   const handleVariantSelect = (variant: any) => {
     if (selectedProduct) {
-      addToCart({
+      const productToAdd = {
         ...selectedProduct,
         price: variant.price,
         selectedVariant: variant,
-      });
+      };
+      addToCartWithCustomPrice(productToAdd);
     }
   };
+
+  // Helper function to add to cart with custom pricing logic
+  const addToCartWithCustomPrice = (product: any) => {
+    // Check if customer has custom price for this product
+    const customPrice = customerPrices[product.id];
+    
+    if (customPrice && customPrice < product.price) {
+      // Calculate discount as difference between retail and custom price
+      const discount = product.price - customPrice;
+      
+      // Add product with original price
+      addToCart(product);
+      
+      // Apply discount immediately
+      setTimeout(() => {
+        updateItemDiscount(product.selectedVariant?.id || product.id, discount);
+      }, 50);
+    } else {
+      // No custom price, add normally
+      addToCart(product);
+    }
+  };
+
+  // Fetch customer prices when customer is selected
+  useEffect(() => {
+    const fetchCustomerPrices = async () => {
+      if (!selectedCustomer) {
+        setCustomerPrices({});
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('customer_product_prices')
+          .select('product_id, price')
+          .eq('customer_id', selectedCustomer.id);
+
+        if (error) throw error;
+
+        // Convert to map for easy lookup
+        const pricesMap: Record<string, number> = {};
+        data?.forEach((item) => {
+          pricesMap[item.product_id] = item.price;
+        });
+
+        setCustomerPrices(pricesMap);
+        
+        if (Object.keys(pricesMap).length > 0) {
+          toast.success(`Custom prices loaded for ${selectedCustomer.name}`);
+        }
+      } catch (error) {
+        console.error('Error fetching customer prices:', error);
+      }
+    };
+
+    fetchCustomerPrices();
+  }, [selectedCustomer]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
