@@ -926,8 +926,29 @@ export default function POS() {
 
         setCustomerPrices(pricesMap);
         
+        // Apply custom prices to existing cart items
         if (Object.keys(pricesMap).length > 0) {
-          toast.success(`Custom prices loaded for ${selectedCustomer.name}`);
+          let appliedCount = 0;
+          cart.forEach((cartItem) => {
+            // Extract product ID (remove variant suffix if present)
+            const productId = cartItem.id.includes('-') 
+              ? cartItem.id.split('-')[0] 
+              : cartItem.id;
+            
+            const customPrice = pricesMap[productId];
+            
+            if (customPrice && customPrice < cartItem.price) {
+              const discount = cartItem.price - customPrice;
+              updateItemDiscount(cartItem.id, discount);
+              appliedCount++;
+            }
+          });
+          
+          if (appliedCount > 0) {
+            toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
+          } else {
+            toast.info(`No custom prices available for current cart items`);
+          }
         }
       } catch (error) {
         console.error('Error fetching customer prices:', error);
