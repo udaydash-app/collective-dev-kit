@@ -466,52 +466,57 @@ export default function POS() {
     setCurrentCashSession(activeCashSession);
   }, [activeCashSession, selectedStoreId, isLoadingCashSession]);
 
-  // Get session transactions for expected cash calculation
+  // Get all transactions for today from all users
   const { data: sessionTransactions } = useQuery({
-    queryKey: ['session-transactions', currentCashSession?.id],
+    queryKey: ['today-all-transactions', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('pos_transactions')
         .select('total, payment_method')
-        .eq('cashier_id', currentCashSession.cashier_id)
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', startOfToday.toISOString());
 
       return data || [];
     },
     enabled: !!currentCashSession,
   });
 
-  // Get day's purchases
+  // Get day's purchases from all users
   const { data: dayPurchases } = useQuery({
-    queryKey: ['day-purchases', currentCashSession?.id],
+    queryKey: ['today-all-purchases', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('purchases')
         .select('total_amount, payment_method, payment_status')
         .eq('store_id', currentCashSession.store_id)
-        .gte('purchased_at', currentCashSession.opened_at);
+        .gte('purchased_at', startOfToday.toISOString());
 
       return data || [];
     },
     enabled: !!currentCashSession,
   });
 
-  // Get day's expenses
+  // Get day's expenses from all users
   const { data: dayExpenses } = useQuery({
-    queryKey: ['day-expenses', currentCashSession?.id],
+    queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('expenses')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', startOfToday.toISOString());
 
       return data || [];
     },
