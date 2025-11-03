@@ -24,6 +24,8 @@ interface ProductVariant {
   label?: string;
   price: number;
   cost_price?: number;
+  wholesale_price?: number;
+  vip_price?: number;
   barcode?: string;
   stock_quantity: number;
   is_available: boolean;
@@ -36,6 +38,8 @@ interface Product {
   description: string | null;
   price: number;
   cost_price?: number;
+  wholesale_price?: number;
+  vip_price?: number;
   unit: string;
   image_url: string | null;
   category_id: string | null;
@@ -951,9 +955,9 @@ export default function Products() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div>
-                        <Label htmlFor="price">Selling Price (FCFA) *</Label>
+                        <Label htmlFor="price">Retail Price (FCFA) *</Label>
                         <Input
                           id="price"
                           name="price"
@@ -961,6 +965,28 @@ export default function Products() {
                           step="0.01"
                           defaultValue={editingProduct.price}
                           required={variants.length === 0}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="wholesale_price">Wholesale Price (FCFA)</Label>
+                        <Input
+                          id="wholesale_price"
+                          name="wholesale_price"
+                          type="number"
+                          step="0.01"
+                          defaultValue={editingProduct.wholesale_price}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="vip_price">VIP Price (FCFA)</Label>
+                        <Input
+                          id="vip_price"
+                          name="vip_price"
+                          type="number"
+                          step="0.01"
+                          defaultValue={editingProduct.vip_price}
                           placeholder="0.00"
                         />
                       </div>
@@ -1055,12 +1081,34 @@ export default function Products() {
                                 </Select>
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Selling Price</Label>
+                                <Label className="text-xs font-medium">Retail Price</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.price}
                                   onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">Wholesale Price</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={variant.wholesale_price || ''}
+                                  onChange={(e) => updateVariant(index, 'wholesale_price', parseFloat(e.target.value) || 0)}
+                                  className="h-9"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-span-6 md:col-span-2">
+                                <Label className="text-xs font-medium">VIP Price</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={variant.vip_price || ''}
+                                  onChange={(e) => updateVariant(index, 'vip_price', parseFloat(e.target.value) || 0)}
                                   className="h-9"
                                   placeholder="0.00"
                                 />
