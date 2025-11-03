@@ -328,16 +328,7 @@ export default function Pricing() {
                   filteredProducts?.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
-                          ) : (
-                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                              <Package className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <span className="font-medium">{product.name}</span>
-                        </div>
+                        <span className="font-medium">{product.name}</span>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {product.categories?.name || '-'}
@@ -454,16 +445,7 @@ export default function Pricing() {
                       return (
                         <TableRow key={product.id}>
                           <TableCell>
-                            <div className="flex items-center gap-3">
-                              {product.image_url ? (
-                                <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
-                              ) : (
-                                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                                  <Package className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                              )}
-                              <span className="font-medium">{product.name}</span>
-                            </div>
+                            <span className="font-medium">{product.name}</span>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {product.categories?.name || '-'}
@@ -540,18 +522,9 @@ export default function Pricing() {
                   return (
                     <TableRow key={product.id}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
-                          ) : (
-                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                              <Package className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">{product.categories?.name}</p>
-                          </div>
+                        <div>
+                          <p className="font-medium">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">{product.categories?.name}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
