@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Package, Edit, Save, UserCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -38,6 +39,7 @@ interface Customer {
   name: string;
   email?: string;
   phone?: string;
+  discount_percentage?: number;
 }
 
 interface CustomerProductPrice {
@@ -66,6 +68,9 @@ export default function Pricing() {
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [showAssignProductsDialog, setShowAssignProductsDialog] = useState(false);
   const [customerProductPrices, setCustomerProductPrices] = useState<Record<string, string>>({});
+  const [selectAll, setSelectAll] = useState(false);
+  const [discountPercentage, setDiscountPercentage] = useState<string>('');
+  const [customerDiscountPercentage, setCustomerDiscountPercentage] = useState<string>('');
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -100,7 +105,7 @@ export default function Pricing() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, email, phone')
+        .select('id, name, email, phone, discount_percentage')
         .eq('is_customer', true)
         .order('name');
       if (error) throw error;
@@ -121,6 +126,27 @@ export default function Pricing() {
       return data as CustomerProductPrice[];
     },
     enabled: !!selectedCustomer,
+  });
+
+  // Update customer discount percentage
+  const updateCustomerDiscountMutation = useMutation({
+    mutationFn: async (discount: number) => {
+      if (!selectedCustomer) return;
+      
+      const { error } = await supabase
+        .from('contacts')
+        .update({ discount_percentage: discount })
+        .eq('id', selectedCustomer);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success('Cart discount updated');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update discount: ' + error.message);
+    },
   });
 
   // Update customer product prices
@@ -152,6 +178,8 @@ export default function Pricing() {
       toast.success('Customer prices updated');
       setShowAssignProductsDialog(false);
       setCustomerProductPrices({});
+      setSelectAll(false);
+      setDiscountPercentage('');
     },
     onError: (error: any) => {
       toast.error('Failed to update prices: ' + error.message);
@@ -247,6 +275,48 @@ export default function Pricing() {
   };
 
   const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectAll(checked);
+    if (!checked) {
+      setCustomerProductPrices({});
+    }
+  };
+
+  const handleApplyDiscount = () => {
+    if (!discountPercentage || parseFloat(discountPercentage) === 0) {
+      toast.error('Enter a discount percentage');
+      return;
+    }
+
+    const discount = parseFloat(discountPercentage);
+    const newPrices: Record<string, string> = {};
+
+    filteredProducts?.forEach(product => {
+      if (product.price) {
+        const discountedPrice = product.price * (1 - discount / 100);
+        newPrices[product.id] = discountedPrice.toFixed(2);
+      }
+    });
+
+    setCustomerProductPrices(newPrices);
+    toast.success(`Applied ${discount}% discount to all products`);
+  };
+
+  const handleSaveCartDiscount = () => {
+    if (!customerDiscountPercentage) {
+      toast.error('Enter a discount percentage');
+      return;
+    }
+    updateCustomerDiscountMutation.mutate(parseFloat(customerDiscountPercentage));
+  };
+
+  // Update customer discount when customer changes
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomer(customerId);
+    const customer = customers?.find(c => c.id === customerId);
+    setCustomerDiscountPercentage(customer?.discount_percentage?.toString() || '0');
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -369,7 +439,7 @@ export default function Pricing() {
         <TabsContent value="customer" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex gap-4 flex-1">
-              <Select value={selectedCustomer || ''} onValueChange={setSelectedCustomer}>
+              <Select value={selectedCustomer || ''} onValueChange={handleCustomerChange}>
                 <SelectTrigger className="w-[300px]">
                   <SelectValue placeholder="Select a customer" />
                 </SelectTrigger>
@@ -414,6 +484,29 @@ export default function Pricing() {
                   </Badge>
                 </div>
               </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label>Cart-Wide Discount (%)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={customerDiscountPercentage}
+                      onChange={(e) => setCustomerDiscountPercentage(e.target.value)}
+                      className="w-32"
+                    />
+                    <Button onClick={handleSaveCartDiscount} size="sm">
+                      Save Discount
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This discount will be applied to the entire cart when this customer is selected in POS
+                  </p>
+                </div>
+              </CardContent>
             </Card>
           )}
 
@@ -499,15 +592,48 @@ export default function Pricing() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2 border rounded-lg px-4">
+                <Checkbox
+                  id="select-all"
+                  checked={selectAll}
+                  onCheckedChange={handleSelectAll}
+                />
+                <Label htmlFor="select-all" className="cursor-pointer">Select All</Label>
+              </div>
             </div>
+
+            {selectAll && (
+              <Card className="p-4 bg-muted/50">
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Label>Apply Discount to All Products (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="e.g., 10 for 10% off"
+                      value={discountPercentage}
+                      onChange={(e) => setDiscountPercentage(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button onClick={handleApplyDiscount}>
+                    Apply Discount
+                  </Button>
+                </div>
+              </Card>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>

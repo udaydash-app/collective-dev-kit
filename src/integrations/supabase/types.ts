@@ -365,6 +365,7 @@ export type Database = {
           credit_limit: number | null
           custom_price_tier_id: string | null
           customer_ledger_account_id: string | null
+          discount_percentage: number | null
           email: string | null
           id: string
           is_customer: boolean
@@ -391,6 +392,7 @@ export type Database = {
           credit_limit?: number | null
           custom_price_tier_id?: string | null
           customer_ledger_account_id?: string | null
+          discount_percentage?: number | null
           email?: string | null
           id?: string
           is_customer?: boolean
@@ -417,6 +419,7 @@ export type Database = {
           credit_limit?: number | null
           custom_price_tier_id?: string | null
           customer_ledger_account_id?: string | null
+          discount_percentage?: number | null
           email?: string | null
           id?: string
           is_customer?: boolean
