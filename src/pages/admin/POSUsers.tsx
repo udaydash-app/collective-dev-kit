@@ -12,6 +12,8 @@ import { Plus, Pencil, Trash2, Users, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Shield, UserCircle } from 'lucide-react';
 
 interface POSUser {
   id: string;
@@ -19,6 +21,7 @@ interface POSUser {
   full_name: string;
   is_active: boolean;
   created_at: string;
+  role?: 'admin' | 'cashier' | 'user';
 }
 
 export default function POSUsers() {
@@ -29,6 +32,7 @@ export default function POSUsers() {
     full_name: '',
     pin: '',
     confirmPin: '',
+    role: 'cashier' as 'admin' | 'cashier' | 'user',
   });
 
   const { data: posUsers, isLoading } = useQuery({
@@ -36,10 +40,16 @@ export default function POSUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pos_users')
-        .select('*')
+        .select(`
+          *,
+          user_roles(role)
+        `)
         .order('full_name');
       if (error) throw error;
-      return data as POSUser[];
+      return data.map((user: any) => ({
+        ...user,
+        role: user.user_roles?.[0]?.role || 'cashier'
+      })) as POSUser[];
     },
   });
 
@@ -50,6 +60,7 @@ export default function POSUsers() {
           action: 'create',
           full_name: data.full_name,
           pin: data.pin,
+          role: data.role,
         }
       });
 
@@ -76,6 +87,7 @@ export default function POSUsers() {
           full_name: data.full_name,
           pin: data.pin || null,
           is_active: data.is_active ?? true,
+          role: data.role,
         }
       });
 
@@ -154,6 +166,7 @@ export default function POSUsers() {
       full_name: user.full_name,
       pin: '',
       confirmPin: '',
+      role: user.role || 'cashier',
     });
     setOpen(true);
   };
@@ -165,6 +178,7 @@ export default function POSUsers() {
       full_name: '',
       pin: '',
       confirmPin: '',
+      role: 'cashier',
     });
   };
 
@@ -229,6 +243,44 @@ export default function POSUsers() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="role">Role & Access Level *</Label>
+                <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
+                  <SelectTrigger id="role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-red-500" />
+                        <div>
+                          <div className="font-medium">Admin</div>
+                          <div className="text-xs text-muted-foreground">Full access to all features</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cashier">
+                      <div className="flex items-center gap-2">
+                        <UserCircle className="h-4 w-4 text-blue-500" />
+                        <div>
+                          <div className="font-medium">Cashier</div>
+                          <div className="text-xs text-muted-foreground">POS access only</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="user">
+                      <div className="flex items-center gap-2">
+                        <UserCircle className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <div className="font-medium">User</div>
+                          <div className="text-xs text-muted-foreground">Limited access</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
@@ -252,6 +304,7 @@ export default function POSUsers() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -265,6 +318,17 @@ export default function POSUsers() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                         {user.full_name}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={user.role === 'admin' ? 'destructive' : user.role === 'cashier' ? 'default' : 'secondary'}
+                        className="gap-1"
+                      >
+                        {user.role === 'admin' && <Shield className="h-3 w-3" />}
+                        {user.role === 'cashier' && <UserCircle className="h-3 w-3" />}
+                        {user.role === 'user' && <UserCircle className="h-3 w-3" />}
+                        {user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || 'Cashier'}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

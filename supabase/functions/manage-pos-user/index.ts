@@ -18,9 +18,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { action, full_name, pin, user_id, is_active } = await req.json()
+    const { action, full_name, pin, user_id, is_active, role } = await req.json()
 
-    console.log('Managing POS user:', action, full_name)
+    console.log('Managing POS user:', action, full_name, 'role:', role)
 
     if (action === 'create') {
       // Hash the PIN using pgcrypto
@@ -29,14 +29,52 @@ serve(async (req) => {
 
       if (hashError) throw hashError
 
-      const { error } = await supabaseClient
+      const { data: newUser, error } = await supabaseClient
         .from('pos_users')
         .insert([{
           full_name,
           pin_hash: hashedPin,
         }])
+        .select()
+        .single()
 
       if (error) throw error
+
+      // Create auth user and assign role
+      const authEmail = `pos-${newUser.id}@pos.globalmarket.app`
+      const authPassword = `PIN${pin.padStart(6, '0')}`
+      
+      const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+        email: authEmail,
+        password: authPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: full_name,
+        }
+      })
+
+      if (authError) {
+        console.error('Auth user creation failed:', authError)
+        throw authError
+      }
+
+      // Update pos_users with user_id
+      const { error: updateError } = await supabaseClient
+        .from('pos_users')
+        .update({ user_id: authData.user.id })
+        .eq('id', newUser.id)
+
+      if (updateError) throw updateError
+
+      // Assign role
+      const { error: roleError } = await supabaseClient
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: role || 'cashier'
+        })
+
+      if (roleError) throw roleError
 
       return new Response(
         JSON.stringify({ success: true, message: 'User created successfully' }),
@@ -54,12 +92,41 @@ serve(async (req) => {
         updateData.pin_hash = hashedPin
       }
 
-      const { error } = await supabaseClient
+      const { data: posUser, error } = await supabaseClient
         .from('pos_users')
         .update(updateData)
         .eq('id', user_id)
+        .select()
+        .single()
 
       if (error) throw error
+
+      // Update role if user_id exists and role is provided
+      if (posUser.user_id && role) {
+        // Check if role exists
+        const { data: existingRole } = await supabaseClient
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', posUser.user_id)
+          .maybeSingle()
+
+        if (existingRole) {
+          // Update existing role
+          const { error: roleError } = await supabaseClient
+            .from('user_roles')
+            .update({ role })
+            .eq('user_id', posUser.user_id)
+
+          if (roleError) throw roleError
+        } else {
+          // Insert new role
+          const { error: roleError } = await supabaseClient
+            .from('user_roles')
+            .insert({ user_id: posUser.user_id, role })
+
+          if (roleError) throw roleError
+        }
+      }
 
       return new Response(
         JSON.stringify({ success: true, message: 'User updated successfully' }),
