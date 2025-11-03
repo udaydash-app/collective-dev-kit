@@ -948,6 +948,65 @@ export default function CloseDayReport() {
             </Card>
           ) : (
             <>
+              {/* Overall Period Summary */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>Period Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Total Opening Cash */}
+                    <div className="p-4 bg-primary/10 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Total Opening Cash</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.totalOpeningCash || 0), 0))}
+                      </p>
+                    </div>
+
+                    {/* Total Sales */}
+                    <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Total Sales</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.total, 0))}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cash: {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.cash, 0))}
+                      </p>
+                    </div>
+
+                    {/* Total Purchases */}
+                    <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Total Purchases</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.total, 0))}
+                      </p>
+                    </div>
+
+                    {/* Total Expenses */}
+                    <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Total Expenses</p>
+                      <p className="text-2xl font-bold text-red-600">
+                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.total, 0))}
+                      </p>
+                    </div>
+
+                    {/* Net Cash Flow */}
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg col-span-2 md:col-span-4">
+                      <p className="text-sm text-muted-foreground mb-1">Net Cash Flow</p>
+                      <p className={`text-3xl font-bold ${
+                        dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0) >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0))}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Separator className="my-6" />
+
               {/* Daily Breakdown */}
               {dailyBreakdown.map((dayData, index) => {
             const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total;
