@@ -115,16 +115,22 @@ export default function POS() {
     });
   }, []);
 
-  // Load held tickets from localStorage
+  // Load held tickets from localStorage and show dialog if tickets exist
   React.useEffect(() => {
     const stored = localStorage.getItem('pos-held-tickets');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setHeldTickets(parsed.map((t: any) => ({
+        const tickets = parsed.map((t: any) => ({
           ...t,
           timestamp: new Date(t.timestamp),
-        })));
+        }));
+        setHeldTickets(tickets);
+        
+        // Auto-open hold ticket dialog if there are held tickets
+        if (tickets.length > 0) {
+          setTimeout(() => setShowHoldTicket(true), 500);
+        }
       } catch (e) {
         console.error('Failed to load held tickets:', e);
       }
@@ -152,6 +158,27 @@ export default function POS() {
     calculateTotal,
     processTransaction,
   } = usePOSTransaction();
+
+  // Auto-hold cart when navigating away
+  React.useEffect(() => {
+    return () => {
+      // On unmount, if cart has items, save as held ticket
+      if (cart.length > 0) {
+        const newTicket = {
+          id: Date.now().toString(),
+          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
+          items: cart,
+          total: calculateTotal(),
+          timestamp: new Date(),
+        };
+        
+        // Save to localStorage immediately
+        const stored = localStorage.getItem('pos-held-tickets');
+        const existing = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('pos-held-tickets', JSON.stringify([...existing, newTicket]));
+      }
+    };
+  }, [cart, calculateTotal]);
 
   // Load order into POS if orderId is in URL params
   const loadedOrderRef = useRef<string | null>(null);
