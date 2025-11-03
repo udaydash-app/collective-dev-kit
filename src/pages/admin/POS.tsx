@@ -1170,6 +1170,7 @@ export default function POS() {
     inventory: [
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
+      { icon: DollarSign, label: 'Pricing Management', path: '/admin/pricing' },
       { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },

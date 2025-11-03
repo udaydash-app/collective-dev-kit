@@ -40,6 +40,7 @@ import AdminCashFlow from "./pages/admin/CashFlow";
 import AdminPOSUsers from "./pages/admin/POSUsers";
 import AdminExpenses from "./pages/admin/Expenses";
 import AdminOpenCashRegister from "./pages/admin/OpenCashRegister";
+import AdminPricing from "./pages/admin/Pricing";
 import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
@@ -110,6 +111,7 @@ const AppContent = () => {
           <Route path="/admin/import-contacts" element={<AdminRoute><AdminContactImport /></AdminRoute>} />
           <Route path="/admin/pos-users" element={<AdminRoute><AdminPOSUsers /></AdminRoute>} />
           <Route path="/admin/expenses" element={<AdminRoute><AdminExpenses /></AdminRoute>} />
+          <Route path="/admin/pricing" element={<AdminRoute><AdminPricing /></AdminRoute>} />
           <Route path="/admin/close-day-report" element={<AdminRoute><AdminCloseDayReport /></AdminRoute>} />
           <Route path="/admin/inventory-reports" element={<AdminRoute><AdminInventoryReports /></AdminRoute>} />
           <Route path="/admin/stock-adjustment" element={<AdminRoute><AdminStockAdjustment /></AdminRoute>} />

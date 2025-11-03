@@ -18,7 +18,8 @@ import {
   Tag,
   Megaphone,
   CreditCard,
-  Wallet
+  Wallet,
+  BadgeDollarSign
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -317,6 +318,12 @@ export default function AdminDashboard() {
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Manage Products
+                  </Button>
+                </Link>
+                <Link to="/admin/pricing">
+                  <Button variant="outline" className="w-full">
+                    <BadgeDollarSign className="mr-2 h-4 w-4" />
+                    Pricing Management
                   </Button>
                 </Link>
                 <Link to="/admin/import-products">
