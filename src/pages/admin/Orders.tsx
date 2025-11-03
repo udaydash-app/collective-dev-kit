@@ -331,17 +331,19 @@ export default function AdminOrders() {
             </div>
 
             <div class="border-t border-b py-2 mb-2">
-              ${order.items.map((item: any) => `
+              ${order.items.map((item: any) => {
+                const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                return `
                 <div class="mb-2">
                   <div class="flex justify-between">
                     <span class="flex-1">${item.products?.name || item.name}</span>
                   </div>
                   <div class="flex justify-between text-xs">
-                    <span>${item.quantity} x ${(item.products?.price || item.unit_price || item.price).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
-                    <span>${((item.products?.price || item.unit_price || item.price) * item.quantity).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                    <span>${item.quantity} x ${effectivePrice.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                    <span>${(effectivePrice * item.quantity).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                   </div>
                 </div>
-              `).join('')}
+              `}).join('')}
             </div>
 
             <div class="space-y-1 mb-2">
@@ -437,8 +439,8 @@ export default function AdminOrders() {
         items: order.items.map((item: any) => ({
           name: item.products?.name || item.name,
           quantity: item.quantity,
-          price: item.products?.price || item.unit_price || item.price,
-          itemDiscount: item.item_discount || 0
+          price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+          itemDiscount: item.itemDiscount || item.item_discount || 0
         })),
         subtotal: Number(order.subtotal),
         tax: Number(order.tax || 0),
@@ -517,9 +519,10 @@ export default function AdminOrders() {
     if (!selectedReceiptOrder) return;
 
     const order = selectedReceiptOrder;
-    const itemsList = order.items.map((item: any) => 
-      `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(item.products?.price || item.unit_price || item.price)} = ${formatCurrency((item.products?.price || item.unit_price || item.price) * item.quantity)}`
-    ).join('\n');
+    const itemsList = order.items.map((item: any) => {
+      const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+      return `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(effectivePrice)} = ${formatCurrency(effectivePrice * item.quantity)}`;
+    }).join('\n');
 
     const message = `
 *${order.stores?.name || settings?.company_name || 'Global Market'}*
@@ -1646,8 +1649,9 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
             items={selectedReceiptOrder.items.map((item: any) => ({
               name: item.products?.name || item.name,
               quantity: item.quantity,
-              price: item.products?.price || item.unit_price || item.price,
-              itemDiscount: 0,
+              price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+              customPrice: item.customPrice,
+              itemDiscount: item.itemDiscount || 0,
             }))}
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
