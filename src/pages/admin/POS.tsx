@@ -631,7 +631,7 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Fetch journal entries affecting cash account for today
+  // Fetch journal entries affecting cash account for today (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
   const { data: cashJournalEntries } = useQuery({
     queryKey: ['today-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
@@ -649,16 +649,22 @@ export default function POS() {
       if (!cashAccount) return [];
       
       // Get journal entry lines for cash account from posted entries today
+      // Exclude POS transactions, purchases, expenses, and payment receipts as they're already counted separately
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
           credit_amount,
-          journal_entries!inner(status, entry_date, created_at)
+          journal_entries!inner(status, entry_date, created_at, reference, description)
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.created_at', startOfToday.toISOString());
+        .gte('journal_entries.created_at', startOfToday.toISOString())
+        .not('journal_entries.reference', 'like', 'POS-%')
+        .not('journal_entries.reference', 'like', 'PMT-%')
+        .not('journal_entries.description', 'like', 'Purchase -%')
+        .not('journal_entries.description', 'like', 'Expense -%')
+        .not('journal_entries.description', 'like', 'Supplier Payment -%');
       
       return data || [];
     },
