@@ -155,16 +155,31 @@ export default function POS() {
     }
   }, []);
 
-  // Save held tickets to localStorage
+  // Save held tickets to localStorage (with debounce to prevent interference)
+  const saveTimeoutRef = useRef<number | null>(null);
   React.useEffect(() => {
     if (!loadedTicketsRef.current) return; // Don't save before initial load
     
-    console.log('Syncing heldTickets to localStorage, count:', heldTickets.length);
-    if (heldTickets.length > 0) {
-      localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
-    } else {
-      localStorage.removeItem('pos-held-tickets');
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+    
+    // Debounce the save to prevent rapid updates
+    saveTimeoutRef.current = window.setTimeout(() => {
+      console.log('Syncing heldTickets to localStorage, count:', heldTickets.length);
+      if (heldTickets.length > 0) {
+        localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
+      } else {
+        localStorage.removeItem('pos-held-tickets');
+      }
+    }, 100);
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [heldTickets]);
   
   const {
@@ -1590,13 +1605,10 @@ export default function POS() {
   const handleRecallTicket = (ticket: any) => {
     console.log('=== RECALL TICKET START ===');
     console.log('Recalling ticket ID:', ticket.id);
-    console.log('Current heldTickets:', heldTickets.map(t => ({ id: t.id, name: t.name })));
     
     // Capture current cart state before any modifications
     const currentCartSnapshot = cart.length > 0 ? [...cart] : null;
     const currentTotal = calculateTotal();
-    
-    console.log('Current cart has items:', currentCartSnapshot ? 'YES' : 'NO');
     
     // Close dialog
     setShowHoldTicket(false);
@@ -1604,19 +1616,11 @@ export default function POS() {
     // Clear cart first
     clearCart();
     
-    // Update tickets: remove recalled ticket and add auto-hold if needed
+    // Update tickets immediately (don't wait for localStorage sync)
+    const ticketIdToRemove = ticket.id;
     setHeldTickets(prev => {
-      console.log('Setting held tickets, prev count:', prev.length);
-      console.log('Prev ticket IDs:', prev.map(t => t.id));
-      console.log('Filtering out ticket ID:', ticket.id);
-      
-      let updatedTickets = prev.filter(t => {
-        const shouldKeep = t.id !== ticket.id;
-        console.log(`Ticket ${t.id} === ${ticket.id}? ${t.id === ticket.id}, keeping: ${shouldKeep}`);
-        return shouldKeep;
-      });
-      
-      console.log('After filter, ticket count:', updatedTickets.length);
+      console.log('Removing ticket from state, prev count:', prev.length);
+      let updatedTickets = prev.filter(t => t.id !== ticketIdToRemove);
       
       // If there was a current cart, auto-hold it
       if (currentCartSnapshot) {
@@ -1628,31 +1632,27 @@ export default function POS() {
           timestamp: new Date(),
         };
         updatedTickets = [...updatedTickets, autoHoldTicket];
-        console.log('Added auto-hold ticket, new count:', updatedTickets.length);
         toast.info('Current cart auto-held');
       }
       
-      console.log('Final ticket IDs:', updatedTickets.map(t => t.id));
+      console.log('New ticket count:', updatedTickets.length);
       return updatedTickets;
     });
 
     // Restore ticket items to cart
     setTimeout(() => {
       ticket.items.forEach((item: any) => {
-        // Add item multiple times based on quantity to properly restore cart state
         for (let i = 0; i < item.quantity; i++) {
           addToCart({
             ...item,
-            quantity: 1 // addToCart will handle quantity internally
+            quantity: 1
           });
         }
         
-        // Restore custom price if it exists
         if (item.customPrice) {
           updateItemPrice(item.id, item.customPrice);
         }
         
-        // Restore item discount if it exists
         if (item.itemDiscount && item.itemDiscount > 0) {
           updateItemDiscount(item.id, item.itemDiscount);
         }
