@@ -17,6 +17,7 @@ type ReportType =
   | 'daily-summary'
   | 'sales-by-category' 
   | 'sales-by-product'
+  | 'sales-by-customer'
   | 'purchases-by-category'
   | 'purchases-by-supplier'
   | 'purchases-by-product';
@@ -106,6 +107,44 @@ export default function CloseDayReport() {
         return {
           type: 'sales-by-product',
           data: Array.from(productMap.values()).sort((a, b) => b.revenue - a.revenue),
+        };
+      }
+
+      // Sales by Customer Report
+      if (reportType === 'sales-by-customer') {
+        const { data: transactions } = await supabase
+          .from('pos_transactions')
+          .select('total, notes, created_at')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`);
+
+        const customerMap = new Map<string, { name: string; totalSpent: number; orderCount: number }>();
+        
+        transactions?.forEach((t: any) => {
+          // Extract customer info from notes field
+          let customerName = 'Walk-in Customer';
+          let customerId = 'walk-in';
+          
+          if (t.notes?.includes('customer:')) {
+            const customerMatch = t.notes.match(/customer:([^,]+),([^)]+)/);
+            if (customerMatch) {
+              customerId = customerMatch[1];
+              customerName = customerMatch[2];
+            }
+          }
+          
+          const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0 };
+          customerMap.set(customerId, {
+            name: customerName,
+            totalSpent: current.totalSpent + parseFloat(t.total?.toString() || '0'),
+            orderCount: current.orderCount + 1,
+          });
+        });
+
+        return {
+          type: 'sales-by-customer',
+          data: Array.from(customerMap.values()).sort((a, b) => b.totalSpent - a.totalSpent),
         };
       }
 
@@ -546,6 +585,57 @@ export default function CloseDayReport() {
       );
     }
 
+    // Sales by Customer Report
+    if (reportData.type === 'sales-by-customer') {
+      const data = reportData.data as Array<{ name: string; totalSpent: number; orderCount: number }>;
+      const totalRevenue = data.reduce((sum, item) => sum + item.totalSpent, 0);
+      const totalOrders = data.reduce((sum, item) => sum + item.orderCount, 0);
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sales by Customer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 p-4 bg-primary/10 rounded-lg">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold">{totalOrders}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Customers</p>
+                  <p className="text-2xl font-bold">{data.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-5 gap-4 font-semibold text-sm border-b pb-2">
+                <div className="col-span-2">Customer Name</div>
+                <div className="text-right">Orders</div>
+                <div className="text-right">Total Spent</div>
+                <div className="text-right">% of Total</div>
+              </div>
+              {data.map((item, index) => (
+                <div key={index} className="grid grid-cols-5 gap-4 py-2 border-b">
+                  <div className="col-span-2 font-medium">{item.name}</div>
+                  <div className="text-right">{item.orderCount}</div>
+                  <div className="text-right font-semibold">{formatCurrency(item.totalSpent)}</div>
+                  <div className="text-right text-muted-foreground">
+                    {((item.totalSpent / totalRevenue) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     // Purchases by Category Report
     if (reportData.type === 'purchases-by-category') {
       const data = reportData.data as Array<{ category: string; quantity: number; cost: number; items: number }>;
@@ -697,7 +787,7 @@ export default function CloseDayReport() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">Sales & Purchase Reports</h1>
+        <h1 className="text-3xl font-bold">Reports</h1>
         {showReport && (
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
@@ -739,6 +829,7 @@ export default function CloseDayReport() {
                   <SelectItem value="daily-summary">Daily Summary</SelectItem>
                   <SelectItem value="sales-by-category">Sales by Category</SelectItem>
                   <SelectItem value="sales-by-product">Sales by Product</SelectItem>
+                  <SelectItem value="sales-by-customer">Sales by Customer</SelectItem>
                   <SelectItem value="purchases-by-category">Purchases by Category</SelectItem>
                   <SelectItem value="purchases-by-supplier">Purchases by Supplier</SelectItem>
                   <SelectItem value="purchases-by-product">Purchases by Product</SelectItem>

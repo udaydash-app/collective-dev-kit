@@ -1451,7 +1451,7 @@ export default function POS() {
     ],
     reports: [
       { icon: BarChart3, label: 'Analytics Dashboard', path: '/admin/analytics' },
-      { icon: FileText, label: 'Sales & Purchase Reports', path: '/admin/close-day-report' },
+      { icon: FileText, label: 'Reports', path: '/admin/close-day-report' },
       { icon: Package, label: 'Inventory Reports', path: '/admin/inventory-reports' },
     ],
     settings: [
