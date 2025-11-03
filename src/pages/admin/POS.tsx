@@ -709,6 +709,10 @@ export default function POS() {
         .filter(t => t.payment_method === 'credit')
         .reduce((sum, t) => sum + Number(t.total), 0);
 
+      const mobileMoneySales = transactions
+        .filter(t => t.payment_method === 'mobile_money')
+        .reduce((sum, t) => sum + Number(t.total), 0);
+
       // Calculate top selling item
       const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
       
@@ -764,12 +768,13 @@ export default function POS() {
       const paymentMethodData = [
         { name: 'Cash', value: cashSales },
         { name: 'Credit', value: creditSales },
-        { name: 'Mobile Money', value: transactions.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + Number(t.total), 0) }
+        { name: 'Mobile Money', value: mobileMoneySales }
       ].filter(item => item.value > 0);
 
       return {
         cashSales,
         creditSales,
+        mobileMoneySales,
         topItem,
         topCustomer,
         totalTransactions: transactions.length,
@@ -2137,11 +2142,14 @@ export default function POS() {
                         <span className="text-[10px] font-semibold text-emerald-900 dark:text-emerald-100">Sales</span>
                       </div>
                       <p className="text-base font-bold text-emerald-900 dark:text-emerald-100 mb-0.5 truncate">
-                        {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0))}
+                        {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
                       </p>
                       <div className="flex gap-2 text-[8px]">
                         <span className="text-emerald-700 dark:text-emerald-300">💵 {formatCurrency(analyticsData?.cashSales || 0)}</span>
                         <span className="text-emerald-700 dark:text-emerald-300">💳 {formatCurrency(analyticsData?.creditSales || 0)}</span>
+                        {(analyticsData?.mobileMoneySales || 0) > 0 && (
+                          <span className="text-emerald-700 dark:text-emerald-300">📱 {formatCurrency(analyticsData?.mobileMoneySales || 0)}</span>
+                        )}
                       </div>
                     </div>
                     {analyticsData?.paymentMethodData && analyticsData.paymentMethodData.length > 0 && (
@@ -2257,7 +2265,7 @@ export default function POS() {
                     </div>
                     <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 truncate">
                       {analyticsData?.totalTransactions 
-                        ? formatCurrency(((analyticsData.cashSales || 0) + (analyticsData.creditSales || 0)) / analyticsData.totalTransactions)
+                        ? formatCurrency(((analyticsData.cashSales || 0) + (analyticsData.creditSales || 0) + (analyticsData.mobileMoneySales || 0)) / analyticsData.totalTransactions)
                         : formatCurrency(0)
                       }
                     </p>
