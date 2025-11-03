@@ -930,17 +930,21 @@ export default function POS() {
         if (Object.keys(pricesMap).length > 0) {
           let appliedCount = 0;
           cart.forEach((cartItem) => {
-            // Extract product ID (remove variant suffix if present)
-            const productId = cartItem.id.includes('-') 
-              ? cartItem.id.split('-')[0] 
-              : cartItem.id;
+            // Use the base productId stored in cart item
+            const customPrice = pricesMap[cartItem.productId];
             
-            const customPrice = pricesMap[productId];
+            console.log('Checking custom price for cart item:', {
+              cartItemId: cartItem.id,
+              productId: cartItem.productId,
+              retailPrice: cartItem.price,
+              customPrice: customPrice
+            });
             
             if (customPrice && customPrice < cartItem.price) {
               const discount = cartItem.price - customPrice;
               updateItemDiscount(cartItem.id, discount);
               appliedCount++;
+              console.log('Applied discount:', discount, 'to item:', cartItem.id);
             }
           });
           

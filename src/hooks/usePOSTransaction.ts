@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface CartItem {
   id: string;
+  productId: string; // Base product ID (for looking up custom prices)
   name: string;
   price: number;
   quantity: number;
@@ -30,11 +31,12 @@ export const usePOSTransaction = () => {
     setCart(prev => {
       // Use variant ID if available, otherwise use product ID
       const cartItemId = product.selectedVariant?.id || product.id;
+      const baseProductId = product.id; // Always use base product ID
       const displayName = product.selectedVariant?.label 
         ? `${product.name} (${product.selectedVariant.label})`
         : product.name;
       
-      console.log('Cart item ID:', cartItemId, 'Display name:', displayName);
+      console.log('Cart item ID:', cartItemId, 'Base product ID:', baseProductId, 'Display name:', displayName);
       console.log('Current cart:', prev);
       
       const existing = prev.find(item => item.id === cartItemId);
@@ -49,6 +51,7 @@ export const usePOSTransaction = () => {
       
       const newItem = {
         id: cartItemId,
+        productId: baseProductId,
         name: displayName,
         price: Number(product.price),
         quantity: 1,

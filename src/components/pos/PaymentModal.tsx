@@ -32,6 +32,8 @@ interface PaymentModalProps {
   transactionData?: {
     transactionNumber: string;
     items: Array<{
+      id?: string;
+      productId?: string;
       name: string;
       quantity: number;
       price: number;
@@ -496,6 +498,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               items={transactionData.items.map(item => ({
                 ...item,
                 id: item.name,
+                productId: item.id || item.name, // Use stored ID or fallback to name
                 subtotal: item.quantity * item.price,
               }))}
               subtotal={transactionData.subtotal}
