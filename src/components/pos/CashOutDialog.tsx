@@ -25,6 +25,13 @@ interface DayActivity {
   mobileMoneyExpenses: number;
 }
 
+interface PaymentReceipts {
+  cashPayments: number;
+  mobileMoneyPayments: number;
+  bankPayments: number;
+  totalPayments: number;
+}
+
 interface CashOutDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -33,9 +40,10 @@ interface CashOutDialogProps {
   expectedCash: number;
   dayActivity: DayActivity;
   totalOpeningCash?: number;
+  paymentReceipts?: PaymentReceipts;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, dayActivity, totalOpeningCash }: CashOutDialogProps) => {
+export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, dayActivity, totalOpeningCash, paymentReceipts }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -172,6 +180,49 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
             </div>
 
             <Separator />
+
+            {/* Payment Received Section */}
+            {paymentReceipts && paymentReceipts.totalPayments > 0 && (
+              <>
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm">Customer Payments Received (Not from Today's Sales)</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                        <p className="text-xs text-muted-foreground">Cash</p>
+                      </div>
+                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.cashPayments)}</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Smartphone className="h-4 w-4 text-purple-600" />
+                        <p className="text-xs text-muted-foreground">Mobile Money</p>
+                      </div>
+                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.mobileMoneyPayments)}</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CreditCard className="h-4 w-4 text-blue-600" />
+                        <p className="text-xs text-muted-foreground">Bank</p>
+                      </div>
+                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.bankPayments)}</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-blue-600" />
+                        <p className="text-sm font-medium">Total Payments Received</p>
+                      </div>
+                      <p className="text-lg font-bold text-blue-600">{formatCurrency(paymentReceipts.totalPayments)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+              </>
+            )}
 
             {/* Cash Management */}
             <div className="space-y-4">

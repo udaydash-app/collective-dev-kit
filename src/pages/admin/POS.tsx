@@ -561,17 +561,19 @@ export default function POS() {
       .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
   };
 
-  // Fetch payment receipts for this session
+  // Fetch payment receipts for today from all users
   const { data: paymentReceipts } = useQuery({
-    queryKey: ['session-payment-receipts', currentCashSession?.id],
+    queryKey: ['today-payment-receipts', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
+      
+      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
       
       const { data, error } = await supabase
         .from('payment_receipts')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', startOfToday.toISOString());
       
       if (error) throw error;
       return data || [];
@@ -604,6 +606,18 @@ export default function POS() {
   const mobileMoneyPayments = paymentReceipts
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+  
+  const bankPayments = paymentReceipts
+    ?.filter(p => p.payment_method === 'bank_transfer' || p.payment_method === 'cheque')
+    .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
+
+  // Create payment receipts data object
+  const paymentReceiptsData = {
+    cashPayments,
+    mobileMoneyPayments,
+    bankPayments,
+    totalPayments: cashPayments + mobileMoneyPayments + bankPayments
+  };
 
   const cashSupplierPayments = supplierPayments
     ?.filter(p => p.payment_method === 'cash')
@@ -2556,6 +2570,7 @@ export default function POS() {
           expectedCash={expectedCashAtClose}
           dayActivity={dayActivity}
           totalOpeningCash={totalOpeningCash}
+          paymentReceipts={paymentReceiptsData}
         />
       )}
 
