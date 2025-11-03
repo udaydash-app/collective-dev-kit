@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Barcode } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { BarcodeScanner } from './BarcodeScanner';
 import { VariantSelector } from './VariantSelector';
 import { formatCurrency } from '@/lib/utils';
 
@@ -15,7 +13,6 @@ interface ProductSearchProps {
 
 export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [barcodeInput, setBarcodeInput] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -184,100 +181,19 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     }
   };
 
-  const handleBarcodeSearch = async () => {
-    if (!barcodeInput.trim()) return;
-
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        product_variants (
-          id,
-          label,
-          quantity,
-          unit,
-          price,
-          is_available,
-          is_default
-        )
-      `)
-      .eq('barcode', barcodeInput.trim())
-      .eq('is_available', true)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Barcode search error:', error);
-      return;
-    }
-
-    if (data) {
-      handleProductSelect(data);
-      setBarcodeInput('');
-      // Refocus search after barcode search
-      setTimeout(() => searchInputRef.current?.focus(), 200);
-    }
-  };
-
-  const handleBarcodeScan = async (barcode: string) => {
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        product_variants (
-          id,
-          label,
-          quantity,
-          unit,
-          price,
-          is_available,
-          is_default
-        )
-      `)
-      .eq('barcode', barcode)
-      .eq('is_available', true)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Barcode scan error:', error);
-      return;
-    }
-
-    if (data) {
-      handleProductSelect(data);
-      // Refocus search after barcode scan
-      setTimeout(() => searchInputRef.current?.focus(), 200);
-    }
-  };
 
   return (
     <div ref={containerRef} className="space-y-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Scan barcode or search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            className="pl-10"
-          />
-        </div>
-        <BarcodeScanner onScan={handleBarcodeScan} />
-      </div>
-
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Barcode className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Enter barcode manually..."
-            value={barcodeInput}
-            onChange={(e) => setBarcodeInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleBarcodeSearch()}
-            className="pl-10"
-          />
-        </div>
-        <Button onClick={handleBarcodeSearch}>Search</Button>
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          ref={searchInputRef}
+          placeholder="Search by name or scan barcode..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          className="pl-10"
+        />
       </div>
 
       {isLoading && (
