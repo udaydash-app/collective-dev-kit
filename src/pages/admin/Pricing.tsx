@@ -496,12 +496,6 @@ export default function Pricing() {
                 </SelectContent>
               </Select>
               
-              {selectedCustomer && parseFloat(customerDiscountPercentage) > 0 && (
-                <Badge variant="default" className="text-lg px-4 py-2">
-                  {customerDiscountPercentage}% Discount Applied
-                </Badge>
-              )}
-              
               {selectedCustomer && (
                 <Button onClick={() => setShowAssignProductsDialog(true)}>
                   <Edit className="h-4 w-4 mr-2" />
@@ -511,13 +505,13 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Products with Customer Prices */}
+          {/* Products with Custom Prices */}
           {selectedCustomer && (
             <Card>
               <CardHeader>
                 <CardTitle>Products with Custom Pricing</CardTitle>
                 <CardDescription>
-                  All products with discount applied for {selectedCustomerData?.name}
+                  Custom prices assigned to {selectedCustomerData?.name}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -532,38 +526,38 @@ export default function Pricing() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productsWithCustomerPrices?.filter(p => p.customer_price).map((product) => {
-                      const savings = product.customer_price && product.price 
-                        ? product.price - product.customer_price
-                        : 0;
-                      const savingsPercent = product.customer_price && product.price 
-                        ? ((savings / product.price) * 100).toFixed(1)
-                        : null;
-                      return (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <span className="font-medium">{product.name}</span>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {product.categories?.name || '-'}
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground line-through">
-                            {product.price ? formatCurrency(product.price) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-primary text-lg">
-                            {product.customer_price ? formatCurrency(product.customer_price) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {savingsPercent ? (
+                    {customerPrices && customerPrices.length > 0 ? (
+                      customerPrices.map((item: any) => {
+                        const standardPrice = item.products?.price || 0;
+                        const customPrice = item.price;
+                        const savings = standardPrice > 0 ? standardPrice - customPrice : 0;
+                        const savingsPercent = standardPrice > 0 
+                          ? ((savings / standardPrice) * 100).toFixed(1)
+                          : '0';
+                        
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <span className="font-medium">{item.products?.name}</span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.products?.categories?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground line-through">
+                              {formatCurrency(standardPrice)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-primary text-lg">
+                              {formatCurrency(customPrice)}
+                            </TableCell>
+                            <TableCell className="text-right">
                               <Badge variant="default" className="bg-green-600">
                                 {savingsPercent}% off
                               </Badge>
-                            ) : '-'}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {productsWithCustomerPrices?.filter(p => p.customer_price).length === 0 && (
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                           No custom prices set for this customer yet. Click "Manage Prices" to apply discounts.
