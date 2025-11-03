@@ -145,6 +145,9 @@ export default function POS() {
   React.useEffect(() => {
     if (heldTickets.length > 0) {
       localStorage.setItem('pos-held-tickets', JSON.stringify(heldTickets));
+    } else {
+      // Clear localStorage when no tickets remain
+      localStorage.removeItem('pos-held-tickets');
     }
   }, [heldTickets]);
   
@@ -1458,14 +1461,27 @@ export default function POS() {
       });
 
       // Remove recalled ticket from held tickets list
-      setHeldTickets(prev => prev.filter(t => t.id !== ticket.id));
+      setHeldTickets(prev => {
+        const updatedTickets = prev.filter(t => t.id !== ticket.id);
+        // Close dialog if no tickets remain
+        if (updatedTickets.length === 0) {
+          setShowHoldTicket(false);
+        }
+        return updatedTickets;
+      });
       toast.success(`Ticket "${ticket.name}" recalled`);
-      setShowHoldTicket(false);
     }, 50);
   };
 
   const handleDeleteTicket = (ticketId: string) => {
-    setHeldTickets(heldTickets.filter(t => t.id !== ticketId));
+    setHeldTickets(prev => {
+      const updatedTickets = prev.filter(t => t.id !== ticketId);
+      // Close dialog if no tickets remain
+      if (updatedTickets.length === 0) {
+        setShowHoldTicket(false);
+      }
+      return updatedTickets;
+    });
     toast.success('Ticket deleted');
   };
 
