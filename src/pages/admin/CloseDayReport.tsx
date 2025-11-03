@@ -29,6 +29,7 @@ export default function CloseDayReport() {
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [reportType, setReportType] = useState<ReportType>('daily-summary');
   const [showReport, setShowReport] = useState(false);
+  const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -592,7 +593,6 @@ export default function CloseDayReport() {
       const data = reportData.data as Array<{ name: string; totalSpent: number; orderCount: number; orders: any[] }>;
       const totalRevenue = data.reduce((sum, item) => sum + item.totalSpent, 0);
       const totalOrders = data.reduce((sum, item) => sum + item.orderCount, 0);
-      const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
 
       const toggleCustomer = (index: number) => {
         const newExpanded = new Set(expandedCustomers);
