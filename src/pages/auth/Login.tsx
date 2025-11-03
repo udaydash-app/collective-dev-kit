@@ -86,7 +86,7 @@ export default function Login() {
       <main className="flex-1 flex items-center justify-center px-4 pb-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex items-center justify-center mx-auto mb-4">
+            <div className="flex items-center justify-center mx-auto">
               <img src={logo} alt="Global Market" className="h-64 w-64 object-contain" />
             </div>
             <CardTitle className="text-2xl">Welcome back</CardTitle>
