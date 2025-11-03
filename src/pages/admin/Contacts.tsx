@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,7 @@ interface Contact {
   tax_id?: string;
   is_customer: boolean;
   is_supplier: boolean;
+  price_tier?: 'retail' | 'wholesale' | 'vip';
   credit_limit?: number;
   opening_balance?: number;
   notes?: string;
@@ -74,6 +76,7 @@ export default function Contacts() {
     tax_id: '',
     is_customer: false,
     is_supplier: false,
+    price_tier: 'retail' as 'retail' | 'wholesale' | 'vip',
     credit_limit: '',
     opening_balance: '',
     notes: '',
@@ -180,6 +183,7 @@ export default function Contacts() {
       tax_id: contact.tax_id || '',
       is_customer: contact.is_customer,
       is_supplier: contact.is_supplier,
+      price_tier: contact.price_tier || 'retail',
       credit_limit: contact.credit_limit?.toString() || '',
       opening_balance: contact.opening_balance?.toString() || '',
       notes: contact.notes || '',
@@ -204,6 +208,7 @@ export default function Contacts() {
       tax_id: '',
       is_customer: false,
       is_supplier: false,
+      price_tier: 'retail',
       credit_limit: '',
       opening_balance: '',
       notes: '',
@@ -340,6 +345,30 @@ export default function Contacts() {
                     </div>
                   </div>
                 </div>
+
+                {formData.is_customer && (
+                  <div className="col-span-2">
+                    <Label htmlFor="price_tier">Price Tier</Label>
+                    <Select
+                      value={formData.price_tier}
+                      onValueChange={(value: 'retail' | 'wholesale' | 'vip') =>
+                        setFormData({ ...formData, price_tier: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select price tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="retail">Retail (Standard Price)</SelectItem>
+                        <SelectItem value="wholesale">Wholesale (Discounted Price)</SelectItem>
+                        <SelectItem value="vip">VIP (Special Price)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Price tier determines which product price will be applied for this customer
+                    </p>
+                  </div>
+                )}
 
                 <div className="col-span-2">
                   <Label htmlFor="address_line1">Address Line 1</Label>
@@ -542,6 +571,7 @@ export default function Contacts() {
                   <TableHead>Name</TableHead>
                   <TableHead>Contact Info</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Price Tier</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Tax ID</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -550,13 +580,13 @@ export default function Contacts() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredContacts?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       No contacts found
                     </TableCell>
                   </TableRow>
@@ -588,6 +618,28 @@ export default function Contacts() {
                             <Badge variant="secondary">Supplier</Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {contact.is_customer ? (
+                          <Badge 
+                            variant="outline"
+                            className={
+                              contact.price_tier === 'vip' 
+                                ? 'bg-purple-100 text-purple-700 border-purple-300'
+                                : contact.price_tier === 'wholesale'
+                                ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                : 'bg-gray-100 text-gray-700 border-gray-300'
+                            }
+                          >
+                            {contact.price_tier === 'vip' 
+                              ? 'VIP' 
+                              : contact.price_tier === 'wholesale' 
+                              ? 'Wholesale' 
+                              : 'Retail'}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground">
