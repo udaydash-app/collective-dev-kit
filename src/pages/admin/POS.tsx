@@ -2174,34 +2174,6 @@ export default function POS() {
                   </div>
                 </Card>
               </div>
-
-              {/* Category Grid for Quick Access */}
-              <div className="mt-2 pt-2 border-t border-border">
-                <h3 className="text-[10px] font-medium mb-1.5 text-muted-foreground">Quick Access - Categories</h3>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {categories?.slice(0, 6).map((category: any) => (
-                    <Button
-                      key={category.id}
-                      variant="outline"
-                      className="h-14 flex flex-col items-center justify-center p-1 hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => handleCategorySelect(category.id)}
-                    >
-                      {category.image_url ? (
-                        <img
-                          src={category.image_url}
-                          alt={category.name}
-                          className="h-6 w-6 object-cover rounded mb-0.5"
-                        />
-                      ) : (
-                        <Package className="h-5 w-5 mb-0.5 opacity-50" />
-                      )}
-                      <p className="text-[9px] font-medium text-center line-clamp-1">
-                        {category.name}
-                      </p>
-                    </Button>
-                  ))}
-                </div>
-              </div>
             </>
           ) : (
             <>
