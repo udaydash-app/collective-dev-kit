@@ -79,7 +79,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           </div>
           {items.map((item, index) => {
             const isCartDiscount = item.id === 'cart-discount';
-            const itemTotal = item.price * item.quantity;
+            const effectivePrice = item.customPrice ?? item.price;
+            const itemTotal = effectivePrice * item.quantity;
             const discountAmount = (item.itemDiscount || 0) * item.quantity;
             const finalAmount = itemTotal - discountAmount;
             
@@ -87,7 +88,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
                 <div className="col-span-5 break-words leading-tight">{item.name}</div>
                 <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
-                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(item.price) : ''}</div>
+                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(effectivePrice) : ''}</div>
                 <div className="col-span-1 text-right">
                   {!isCartDiscount && discountAmount > 0 ? formatCurrencyCompact(discountAmount) : ''}
                 </div>

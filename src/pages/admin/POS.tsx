@@ -1363,11 +1363,12 @@ export default function POS() {
         return `${item.name}: ${formatCurrency(item.price * item.quantity)}`;
       }
       
-      const itemTotal = item.price * item.quantity;
+      const effectivePrice = item.customPrice ?? item.price;
+      const itemTotal = effectivePrice * item.quantity;
       const itemDiscount = item.itemDiscount || 0;
       const finalAmount = itemTotal - itemDiscount;
       
-      let line = `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)}`;
+      let line = `${item.name}\n  ${item.quantity} x ${formatCurrency(effectivePrice)}`;
       if (itemDiscount > 0) {
         line += ` - ${formatCurrency(itemDiscount)} disc`;
       }
@@ -1420,7 +1421,7 @@ export default function POS() {
         items: lastTransactionData.items.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price,
+          price: item.customPrice ?? item.price,
           itemDiscount: item.itemDiscount || 0
         })),
         subtotal: lastTransactionData.subtotal,
