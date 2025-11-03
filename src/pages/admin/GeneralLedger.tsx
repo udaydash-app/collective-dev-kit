@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   Table,
   TableBody,
@@ -325,47 +327,54 @@ export default function GeneralLedger() {
       return;
     }
 
-    // Prepare CSV content
     const accountInfo = ledgerData.account as any;
     const accountName = accountInfo.isUnified ? 'UNIFIED' : accountInfo.account_code;
-    const csvRows = [
-      ['General Ledger Report'],
-      ['Account:', `${accountName} - ${accountInfo.account_name}`],
-      ['Period:', `${startDate} to ${endDate}`],
-      [''],
-      ['Date', 'Entry #', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'],
-    ];
-
-    ledgerEntries.forEach((entry: any) => {
-      csvRows.push([
-        new Date(entry.journal_entries.entry_date).toLocaleDateString(),
-        entry.journal_entries.entry_number,
-        `${entry.journal_entries.description}${entry.description ? ' - ' + entry.description : ''}`,
-        entry.journal_entries.reference || '',
-        entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
-        entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
-        Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
-      ]);
+    
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('General Ledger Report', 14, 20);
+    
+    // Account info
+    doc.setFontSize(11);
+    doc.text(`Account: ${accountName} - ${accountInfo.account_name}`, 14, 30);
+    doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, 37);
+    doc.text(`Period: ${startDate} to ${endDate}`, 14, 44);
+    
+    // Prepare table data
+    const tableData = ledgerEntries.map((entry: any) => [
+      new Date(entry.journal_entries.entry_date).toLocaleDateString(),
+      entry.journal_entries.entry_number,
+      `${entry.journal_entries.description}${entry.description ? '\n' + entry.description : ''}`,
+      entry.journal_entries.reference || '-',
+      entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-',
+      entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-',
+      formatCurrency(Math.abs(entry.running_balance)) + (entry.running_balance < 0 ? ' CR' : ''),
+    ]);
+    
+    // Add table
+    autoTable(doc, {
+      startY: 50,
+      head: [['Date', 'Entry #', 'Description', 'Ref', 'Debit', 'Credit', 'Balance']],
+      body: tableData,
+      foot: [
+        ['', '', '', 'Total:', formatCurrency(totalDebit), formatCurrency(totalCredit), ''],
+        ['', '', '', accountInfo.isUnified ? 'Net Position:' : 'Net Change:', '', '', 
+         formatCurrency(Math.abs(netChange)) + (netChange < 0 ? ' CR' : '')]
+      ],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 197, 94] },
+      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+      columnStyles: {
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right', fontStyle: 'bold' },
+      },
     });
-
-    // Add totals
-    csvRows.push(['']);
-    csvRows.push(['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), '']);
-    csvRows.push(['', '', '', accountInfo.isUnified ? 'Net Position:' : 'Net Change:', '', '', Math.abs(netChange).toFixed(2) + (netChange < 0 ? ' CR' : '')]);
-
-    // Convert to CSV string
-    const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-
-    // Create and download file
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `general-ledger-${accountName}-${startDate}-${endDate}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    // Save PDF
+    doc.save(`general-ledger-${accountName}-${startDate}-${endDate}.pdf`);
   };
 
   return (
