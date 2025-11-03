@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, Trash2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -51,6 +51,14 @@ export const HoldTicketDialog = ({
   const [ticketName, setTicketName] = useState('');
   const [showHoldForm, setShowHoldForm] = useState(false);
 
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setTicketName('');
+      setShowHoldForm(false);
+    }
+  }, [isOpen]);
+
   const handleHold = () => {
     if (!ticketName.trim()) {
       return;
@@ -62,7 +70,6 @@ export const HoldTicketDialog = ({
 
   const handleRecall = (ticket: HeldTicket) => {
     onRecallTicket(ticket);
-    // Let parent handle dialog close
   };
 
   return (
