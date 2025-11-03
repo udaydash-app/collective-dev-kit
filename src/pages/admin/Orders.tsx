@@ -1064,7 +1064,24 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                             {order.order_number}
                           </TableCell>
                           <TableCell>
-                            {order.customer_name || 'Unknown'}
+                            <div className="space-y-0.5">
+                              {order.type === 'pos' ? (
+                                <>
+                                  <div className="font-medium">
+                                    {order.customer_name && order.customer_name !== 'Walk-in Customer' 
+                                      ? order.customer_name 
+                                      : 'Walk-in'}
+                                  </div>
+                                  {order.cashier_name && (
+                                    <div className="text-xs text-muted-foreground">
+                                      Cashier: {order.cashier_name}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="font-medium">{order.customer_name || 'Guest'}</div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {order.stores?.name || 'Unknown'}
