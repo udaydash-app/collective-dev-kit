@@ -2514,6 +2514,7 @@ export default function POS() {
       )}
 
       <HoldTicketDialog
+        key={heldTickets.length} // Force re-render when tickets change
         isOpen={showHoldTicket}
         onClose={() => setShowHoldTicket(false)}
         currentCart={cart}
