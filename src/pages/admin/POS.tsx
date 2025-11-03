@@ -175,26 +175,7 @@ export default function POS() {
     processTransaction,
   } = usePOSTransaction();
 
-  // Auto-hold cart when navigating away
-  React.useEffect(() => {
-    return () => {
-      // On unmount, if cart has items, save as held ticket
-      if (cart.length > 0) {
-        const newTicket = {
-          id: Date.now().toString(),
-          name: `Auto-hold ${new Date().toLocaleTimeString()}`,
-          items: cart,
-          total: calculateTotal(),
-          timestamp: new Date(),
-        };
-        
-        // Save to localStorage immediately
-        const stored = localStorage.getItem('pos-held-tickets');
-        const existing = stored ? JSON.parse(stored) : [];
-        localStorage.setItem('pos-held-tickets', JSON.stringify([...existing, newTicket]));
-      }
-    };
-  }, [cart, calculateTotal]);
+  // Save held tickets to localStorage whenever they change
 
   // Load order into POS if orderId is in URL params
   const loadedOrderRef = useRef<string | null>(null);
@@ -1569,7 +1550,7 @@ export default function POS() {
       timestamp: new Date(),
     };
 
-    setHeldTickets([...heldTickets, newTicket]);
+    setHeldTickets(prev => [...prev, newTicket]);
     clearCart();
     toast.success(`Ticket "${ticketName}" held successfully`);
     setShowHoldTicket(false);
@@ -2489,7 +2470,6 @@ export default function POS() {
       )}
 
       <HoldTicketDialog
-        key={heldTickets.length} // Force re-render when tickets change
         isOpen={showHoldTicket}
         onClose={() => setShowHoldTicket(false)}
         currentCart={cart}
