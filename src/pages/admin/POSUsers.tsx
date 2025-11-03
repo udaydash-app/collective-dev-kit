@@ -40,16 +40,34 @@ export default function POSUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pos_users')
-        .select(`
-          *,
-          user_roles(role)
-        `)
+        .select('*')
         .order('full_name');
+      
       if (error) throw error;
-      return data.map((user: any) => ({
-        ...user,
-        role: user.user_roles?.[0]?.role || 'cashier'
-      })) as POSUser[];
+      
+      // Fetch roles separately for users that have user_id
+      const usersWithRoles = await Promise.all(
+        data.map(async (user: any) => {
+          if (user.user_id) {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', user.user_id)
+              .maybeSingle();
+            
+            return {
+              ...user,
+              role: roleData?.role || 'cashier'
+            };
+          }
+          return {
+            ...user,
+            role: 'cashier'
+          };
+        })
+      );
+      
+      return usersWithRoles as POSUser[];
     },
   });
 
