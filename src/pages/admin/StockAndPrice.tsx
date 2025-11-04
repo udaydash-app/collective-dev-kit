@@ -176,14 +176,17 @@ export default function StockAndPrice() {
                     <TableCell className="text-right">
                       <Badge 
                         variant={
-                          product.stock_quantity === 0 
+                          (product.stock_quantity || 0) < 0
+                            ? 'destructive'
+                            : product.stock_quantity === 0 
                             ? 'destructive' 
                             : product.stock_quantity < 10 
                             ? 'secondary' 
                             : 'default'
                         }
+                        className={(product.stock_quantity || 0) < 0 ? 'bg-red-600 text-white' : ''}
                       >
-                        {product.stock_quantity || 0}
+                        {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -240,14 +243,17 @@ export default function StockAndPrice() {
                     <span className="text-muted-foreground">Stock:</span>
                     <Badge 
                       variant={
-                        product.stock_quantity === 0 
+                        (product.stock_quantity || 0) < 0
+                          ? 'destructive'
+                          : product.stock_quantity === 0 
                           ? 'destructive' 
                           : product.stock_quantity < 10 
                           ? 'secondary' 
                           : 'default'
                       }
+                      className={(product.stock_quantity || 0) < 0 ? 'bg-red-600 text-white' : ''}
                     >
-                      {product.stock_quantity || 0}
+                      {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
