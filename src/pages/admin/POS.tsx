@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -95,6 +96,7 @@ export default function POS() {
   const [showCashIn, setShowCashIn] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
   const [showHoldTicket, setShowHoldTicket] = useState(false);
+  const [showCustomPriceConfirm, setShowCustomPriceConfirm] = useState(false);
   const [heldTickets, setHeldTickets] = useState<Array<{
     id: string;
     name: string;
@@ -1278,6 +1280,72 @@ export default function POS() {
       toast.error('Please open the cash register first');
       return;
     }
+    
+    // Check if customer is selected and has custom prices
+    if (selectedCustomer) {
+      const itemsWithCustomPrices = cart.filter(item => 
+        item.customPrice !== undefined && item.customPrice !== item.price
+      );
+      
+      if (itemsWithCustomPrices.length > 0) {
+        setShowCustomPriceConfirm(true);
+        return;
+      }
+    }
+    
+    setShowPayment(true);
+  };
+
+  const handleSaveCustomerPrices = async () => {
+    if (!selectedCustomer) return;
+    
+    try {
+      const itemsWithCustomPrices = cart.filter(item => 
+        item.customPrice !== undefined && item.customPrice !== item.price
+      );
+      
+      if (itemsWithCustomPrices.length === 0) {
+        setShowCustomPriceConfirm(false);
+        setShowPayment(true);
+        return;
+      }
+
+      // Fetch existing customer prices
+      const { data: existingPrices } = await supabase
+        .from('customer_product_prices')
+        .select('product_id')
+        .eq('customer_id', selectedCustomer.id);
+
+      const existingProductIds = new Set(existingPrices?.map(p => p.product_id) || []);
+      
+      // Prepare prices to insert/update
+      const pricesToUpsert = itemsWithCustomPrices.map(item => ({
+        customer_id: selectedCustomer.id,
+        product_id: item.id,
+        price: item.customPrice!,
+      }));
+
+      // Upsert prices
+      const { error } = await supabase
+        .from('customer_product_prices')
+        .upsert(pricesToUpsert, {
+          onConflict: 'customer_id,product_id'
+        });
+
+      if (error) throw error;
+      
+      toast.success(`Custom prices saved for ${itemsWithCustomPrices.length} product(s)`);
+    } catch (error: any) {
+      console.error('Error saving customer prices:', error);
+      toast.error('Failed to save custom prices');
+    } finally {
+      setShowCustomPriceConfirm(false);
+      setShowPayment(true);
+    }
+  };
+
+  const handleSkipCustomerPrices = () => {
+    setShowCustomPriceConfirm(false);
     setShowPayment(true);
   };
 
@@ -2736,6 +2804,40 @@ export default function POS() {
         </DialogContent>
       </Dialog>
 
+
+      {/* Custom Price Confirmation Dialog */}
+      <AlertDialog open={showCustomPriceConfirm} onOpenChange={setShowCustomPriceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Custom Prices?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have changed prices for some items in this cart. Would you like to save these custom prices to {selectedCustomer?.name}'s profile for future orders?
+              {cart.filter(item => item.customPrice !== undefined && item.customPrice !== item.price).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="font-semibold text-sm">Items with custom prices:</p>
+                  <ul className="list-disc list-inside text-sm">
+                    {cart
+                      .filter(item => item.customPrice !== undefined && item.customPrice !== item.price)
+                      .map(item => (
+                        <li key={item.id}>
+                          {item.name}: {formatCurrency(item.price)} → {formatCurrency(item.customPrice!)}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleSkipCustomerPrices}>
+              No, Continue Without Saving
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveCustomerPrices}>
+              Yes, Save Prices
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Last Receipt Options Dialog */}
       <Dialog open={showLastReceiptOptions} onOpenChange={setShowLastReceiptOptions}>
