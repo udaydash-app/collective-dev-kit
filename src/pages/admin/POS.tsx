@@ -1726,7 +1726,7 @@ export default function POS() {
       icon: ShoppingCart, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/products')
+      action: () => navigate('/admin/stock-and-price')
     },
     { 
       icon: Clock, 
