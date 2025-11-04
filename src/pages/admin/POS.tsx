@@ -1781,10 +1781,13 @@ export default function POS() {
       return;
     }
 
+    // Include cart discount item if present
+    const itemsToHold = cartDiscountItem ? [...cart, cartDiscountItem] : [...cart];
+    
     const newTicket = {
       id: Date.now().toString(),
       name: ticketName,
-      items: [...cart],
+      items: itemsToHold,
       total: calculateTotal(),
       timestamp: new Date(),
     };
@@ -1795,6 +1798,9 @@ export default function POS() {
     // Update state
     setHeldTickets(prev => [...prev, newTicket]);
     clearCart();
+    
+    // Clear cart discount
+    setCartDiscountItem(null);
     
     toast.success(`Ticket "${ticketName}" held successfully`);
   };
@@ -1830,26 +1836,52 @@ export default function POS() {
       return updatedTickets;
     });
 
-    // Restore ticket items to cart
+    // Restore ticket items to cart with proper sequencing
     setTimeout(() => {
       ticket.items.forEach((item: any) => {
-        for (let i = 0; i < item.quantity; i++) {
-          addToCart({
-            ...item,
-            quantity: 1
-          });
+        // Skip cart-discount items as they'll be recalculated
+        if (item.id === 'cart-discount') {
+          if (item.price < 0) {
+            setCartDiscountItem({
+              id: 'cart-discount',
+              name: 'Cart Discount',
+              price: item.price,
+              quantity: 1,
+              itemDiscount: 0,
+            });
+          }
+          return;
+        }
+
+        // Add item once with correct quantity
+        addToCart({
+          id: item.id,
+          productId: item.productId || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: 1,
+          barcode: item.barcode,
+          image_url: item.image_url,
+        });
+        
+        // Update quantity if greater than 1
+        if (item.quantity > 1) {
+          setTimeout(() => updateQuantity(item.id, item.quantity), 10);
         }
         
+        // Apply custom price if present
         if (item.customPrice) {
-          updateItemPrice(item.id, item.customPrice);
+          setTimeout(() => updateItemPrice(item.id, item.customPrice), 20);
         }
         
+        // Apply item discount if present
         if (item.itemDiscount && item.itemDiscount > 0) {
-          updateItemDiscount(item.id, item.itemDiscount);
+          setTimeout(() => updateItemDiscount(item.id, item.itemDiscount), 30);
         }
       });
+      
       toast.success(`Ticket "${ticket.name}" recalled`);
-    }, 50);
+    }, 100);
   };
 
   const handleDeleteTicket = (ticketId: string) => {
