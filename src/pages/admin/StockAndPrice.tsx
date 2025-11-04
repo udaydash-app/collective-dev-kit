@@ -174,26 +174,28 @@ export default function StockAndPrice() {
                       {product.stores?.name || '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {(() => {
-                        const stock = product.stock_quantity ?? 0;
-                        const isNegative = stock < 0;
-                        return (
-                          <Badge 
-                            variant={
-                              isNegative
-                                ? 'destructive'
-                                : stock === 0 
-                                ? 'destructive' 
-                                : stock < 10 
-                                ? 'secondary' 
-                                : 'default'
-                            }
-                            className={isNegative ? 'bg-red-600 text-white hover:bg-red-700' : ''}
-                          >
-                            {isNegative ? '-' : ''}{Math.abs(stock)}
-                          </Badge>
-                        );
-                      })()}
+                      {product.stock_quantity !== null && product.stock_quantity !== undefined ? (
+                        (() => {
+                          const stock = product.stock_quantity;
+                          const isNegative = stock < 0;
+                          return (
+                            <Badge 
+                              variant={
+                                isNegative
+                                  ? 'destructive'
+                                  : stock === 0 
+                                  ? 'destructive' 
+                                  : stock < 10 
+                                  ? 'secondary' 
+                                  : 'default'
+                              }
+                              className={isNegative ? 'bg-red-600 text-white hover:bg-red-700' : ''}
+                            >
+                              {isNegative ? '-' : ''}{Math.abs(stock)}
+                            </Badge>
+                          );
+                        })()
+                      ) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       {product.cost_price ? formatCurrency(product.cost_price) : '-'}
@@ -247,26 +249,28 @@ export default function StockAndPrice() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stock:</span>
-                    {(() => {
-                      const stock = product.stock_quantity ?? 0;
-                      const isNegative = stock < 0;
-                      return (
-                        <Badge 
-                          variant={
-                            isNegative
-                              ? 'destructive'
-                              : stock === 0 
-                              ? 'destructive' 
-                              : stock < 10 
-                              ? 'secondary' 
-                              : 'default'
-                          }
-                          className={isNegative ? 'bg-red-600 text-white hover:bg-red-700' : ''}
-                        >
-                          {isNegative ? '-' : ''}{Math.abs(stock)}
-                        </Badge>
-                      );
-                    })()}
+                    {product.stock_quantity !== null && product.stock_quantity !== undefined ? (
+                      (() => {
+                        const stock = product.stock_quantity;
+                        const isNegative = stock < 0;
+                        return (
+                          <Badge 
+                            variant={
+                              isNegative
+                                ? 'destructive'
+                                : stock === 0 
+                                ? 'destructive' 
+                                : stock < 10 
+                                ? 'secondary' 
+                                : 'default'
+                            }
+                            className={isNegative ? 'bg-red-600 text-white hover:bg-red-700' : ''}
+                          >
+                            {isNegative ? '-' : ''}{Math.abs(stock)}
+                          </Badge>
+                        );
+                      })()
+                    ) : '-'}
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Cost:</span>
