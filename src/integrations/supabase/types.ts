@@ -353,6 +353,88 @@ export type Database = {
           },
         ]
       }
+      combo_offer_items: {
+        Row: {
+          combo_offer_id: string
+          created_at: string | null
+          id: string
+          product_id: string
+          quantity: number
+          variant_id: string | null
+        }
+        Insert: {
+          combo_offer_id: string
+          created_at?: string | null
+          id?: string
+          product_id: string
+          quantity?: number
+          variant_id?: string | null
+        }
+        Update: {
+          combo_offer_id?: string
+          created_at?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combo_offer_items_combo_offer_id_fkey"
+            columns: ["combo_offer_id"]
+            isOneToOne: false
+            referencedRelation: "combo_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_offer_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_offer_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      combo_offers: {
+        Row: {
+          combo_price: number
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          combo_price: number
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          combo_price?: number
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           address_line1: string | null

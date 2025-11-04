@@ -14,6 +14,14 @@ export interface CartItem {
   image_url?: string;
   itemDiscount?: number;
   customPrice?: number;
+  isCombo?: boolean;
+  comboId?: string;
+  comboItems?: Array<{
+    product_id: string;
+    variant_id?: string;
+    quantity: number;
+    product_name: string;
+  }>;
 }
 
 export interface PaymentDetail {
@@ -99,6 +107,30 @@ export const usePOSTransaction = () => {
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+  };
+
+  const addComboToCart = (combo: any) => {
+    const comboCartItem: CartItem = {
+      id: `combo-${combo.id}-${Date.now()}`,
+      productId: combo.id,
+      comboId: combo.id,
+      name: `🎁 ${combo.name}`,
+      price: combo.combo_price,
+      quantity: 1,
+      itemDiscount: 0,
+      isCombo: true,
+      comboItems: combo.combo_offer_items?.map((item: any) => ({
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        product_name: item.variant_id 
+          ? `${item.products?.name} (${item.product_variants?.label})`
+          : item.products?.name,
+      })) || [],
+    };
+    
+    setCart(prev => [...prev, comboCartItem]);
+    toast.success(`Added ${combo.name} to cart`);
   };
 
   const calculateSubtotal = () => {
@@ -335,6 +367,7 @@ export const usePOSTransaction = () => {
     discount,
     setDiscount,
     addToCart,
+    addComboToCart,
     removeFromCart,
     updateQuantity,
     updateItemPrice,
