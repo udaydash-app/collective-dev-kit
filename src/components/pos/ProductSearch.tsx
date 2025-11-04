@@ -142,8 +142,9 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchTerm.trim()) {
       e.preventDefault();
+      const barcode = searchTerm.trim();
       
-      // Try to find exact barcode match first
+      // First, try to find exact barcode match in main products
       const { data: exactMatch } = await supabase
         .from('products')
         .select(`
@@ -155,21 +156,61 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             unit,
             price,
             is_available,
-            is_default
+            is_default,
+            barcode
           )
         `)
-        .eq('barcode', searchTerm.trim())
+        .eq('barcode', barcode)
         .eq('is_available', true)
         .maybeSingle();
 
       if (exactMatch) {
-        // Found exact barcode match - add directly to cart
+        // Found exact barcode match in main products - add directly to cart
         handleProductSelect(exactMatch);
-      } else {
-        // No exact match found - open assign barcode dialog
-        setScannedBarcode(searchTerm.trim());
-        setAssignBarcodeOpen(true);
+        return;
       }
+
+      // Second, check if barcode matches any product variant
+      const { data: variantMatch } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          label,
+          quantity,
+          unit,
+          price,
+          is_available,
+          is_default,
+          barcode,
+          product:products!inner (
+            *,
+            product_variants (
+              id,
+              label,
+              quantity,
+              unit,
+              price,
+              is_available,
+              is_default,
+              barcode
+            )
+          )
+        `)
+        .eq('barcode', barcode)
+        .eq('is_available', true)
+        .eq('products.is_available', true)
+        .maybeSingle();
+
+      if (variantMatch?.product) {
+        // Found variant with this barcode - select the parent product
+        // The variant selector will open automatically if there are multiple variants
+        handleProductSelect(variantMatch.product);
+        return;
+      }
+
+      // No match found in products or variants - open assign barcode dialog
+      setScannedBarcode(barcode);
+      setAssignBarcodeOpen(true);
     }
   };
 
