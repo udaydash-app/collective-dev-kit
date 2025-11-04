@@ -852,7 +852,9 @@ export default function Products() {
                             {formatCurrency(product.price)}
                           </span>
                           <span>Unit: {product.unit}</span>
-                          <span>Stock: {product.stock_quantity}</span>
+                          <span className={(product.stock_quantity || 0) < 0 ? 'text-red-600 font-semibold' : ''}>
+                            Stock: {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
+                          </span>
                         </>
                       )}
                       <span className={product.is_available ? "text-green-600" : "text-red-600"}>

@@ -352,7 +352,9 @@ export default function InventoryReports() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Stock</p>
-                  <p className="text-2xl font-bold">{totalStock}</p>
+                  <p className={`text-2xl font-bold ${totalStock < 0 ? 'text-red-600' : ''}`}>
+                    {totalStock < 0 ? '-' : ''}{Math.abs(totalStock)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Products</p>
@@ -372,7 +374,9 @@ export default function InventoryReports() {
                 <div key={index} className="grid grid-cols-6 gap-4 py-2 border-b">
                   <div className="col-span-2 font-medium">{item.name}</div>
                   <div className="text-sm text-muted-foreground">{item.category}</div>
-                  <div className="text-right">{item.totalStock}</div>
+                  <div className={`text-right font-semibold ${item.totalStock < 0 ? 'text-red-600' : ''}`}>
+                    {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
+                  </div>
                   <div className="text-right">{formatCurrency(item.price)}</div>
                   <div className="text-right font-semibold">{formatCurrency(item.value)}</div>
                 </div>
@@ -417,7 +421,9 @@ export default function InventoryReports() {
                       <div className="col-span-2 font-medium">{item.name}</div>
                       <div className="text-sm text-muted-foreground">{item.category}</div>
                       <div className="text-right">
-                        <span className="font-semibold text-orange-600">{item.totalStock}</span>
+                        <span className={`font-semibold ${item.totalStock < 0 ? 'text-red-600' : 'text-orange-600'}`}>
+                          {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -489,7 +495,9 @@ export default function InventoryReports() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Stock Units</p>
-                  <p className="text-3xl font-bold">{grandTotalStock}</p>
+                  <p className={`text-3xl font-bold ${grandTotalStock < 0 ? 'text-red-600' : ''}`}>
+                    {grandTotalStock < 0 ? '-' : ''}{Math.abs(grandTotalStock)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Products</p>
@@ -509,7 +517,9 @@ export default function InventoryReports() {
                 <div key={item.category} className="grid grid-cols-5 gap-4 py-2 border-b">
                   <div className="font-medium">{item.category}</div>
                   <div className="text-right">{item.productCount}</div>
-                  <div className="text-right">{item.totalStock}</div>
+                  <div className={`text-right font-semibold ${item.totalStock < 0 ? 'text-red-600' : ''}`}>
+                    {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
+                  </div>
                   <div className="text-right font-semibold">{formatCurrency(item.totalValue)}</div>
                   <div className="text-right text-muted-foreground">
                     {((item.totalValue / grandTotalValue) * 100).toFixed(1)}%
