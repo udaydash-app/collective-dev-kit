@@ -17,7 +17,6 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 type ReportType = 
   | 'daily-summary'
-  | 'end-of-day-summary'
   | 'sales-by-category' 
   | 'sales-by-product'
   | 'sales-by-customer'
@@ -247,100 +246,6 @@ export default function CloseDayReport() {
         return {
           type: 'purchases-by-product',
           data: Array.from(productMap.values()).sort((a, b) => b.cost - a.cost),
-        };
-      }
-
-      // End of Day Summary Report
-      if (reportType === 'end-of-day-summary') {
-        // Fetch cash sessions with cashier details
-        const { data: cashSessions } = await supabase
-          .from('cash_sessions')
-          .select(`
-            *,
-            profiles:cashier_id (
-              full_name
-            )
-          `)
-          .eq('store_id', selectedStoreId)
-          .gte('opened_at', `${startDate}T00:00:00`)
-          .lte('opened_at', `${endDate}T23:59:59`)
-          .order('opened_at', { ascending: false });
-
-        // Calculate expected cash for each session
-        const sessionsWithCalculations = await Promise.all(
-          (cashSessions || []).map(async (session) => {
-            const sessionStart = session.opened_at;
-            const sessionEnd = session.closed_at || `${endDate}T23:59:59`;
-
-            // Get cash sales during this period
-            const { data: sessionTransactions } = await supabase
-              .from('pos_transactions')
-              .select('total, payment_method')
-              .eq('store_id', session.store_id)
-              .gte('created_at', sessionStart)
-              .lte('created_at', sessionEnd);
-
-            const cashSales = sessionTransactions
-              ?.filter(t => t.payment_method === 'cash')
-              .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
-
-            // Get cash payment receipts
-            const { data: sessionReceipts } = await supabase
-              .from('payment_receipts')
-              .select('amount, payment_method, payment_date')
-              .eq('store_id', session.store_id)
-              .gte('payment_date', sessionStart.split('T')[0])
-              .lte('payment_date', sessionEnd.split('T')[0]);
-
-            const cashPaymentsReceived = sessionReceipts
-              ?.filter(r => r.payment_method === 'cash')
-              .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0) || 0;
-
-            // Get cash purchases
-            const { data: sessionPurchases } = await supabase
-              .from('purchases')
-              .select('total_amount, payment_method')
-              .eq('store_id', session.store_id)
-              .gte('purchased_at', sessionStart)
-              .lte('purchased_at', sessionEnd);
-
-            const cashPurchases = sessionPurchases
-              ?.filter(p => p.payment_method === 'cash')
-              .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
-
-            // Get cash expenses
-            const { data: sessionExpenses } = await supabase
-              .from('expenses')
-              .select('amount, payment_method, expense_date')
-              .eq('store_id', session.store_id)
-              .gte('expense_date', sessionStart.split('T')[0])
-              .lte('expense_date', sessionEnd.split('T')[0]);
-
-            const cashExpenses = sessionExpenses
-              ?.filter(e => e.payment_method === 'cash')
-              .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
-
-            const openingCash = parseFloat(session.opening_cash?.toString() || '0');
-            const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses;
-            const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
-            const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
-
-            return {
-              ...session,
-              calculated_expected_cash: calculatedExpectedCash,
-              calculated_difference: calculatedDifference,
-              cash_sales: cashSales,
-              cash_payments_received: cashPaymentsReceived,
-              cash_purchases: cashPurchases,
-              cash_expenses: cashExpenses,
-              transaction_count: sessionTransactions?.length || 0,
-            };
-          })
-        );
-
-        return {
-          type: 'end-of-day-summary',
-          cashSessions: sessionsWithCalculations || [],
         };
       }
 
@@ -927,185 +832,6 @@ export default function CloseDayReport() {
       );
     }
 
-    // End of Day Summary Report
-    if (reportData.type === 'end-of-day-summary') {
-      const sessions = reportData.cashSessions as Array<any>;
-      const totalSessions = sessions.length;
-      const closedSessions = sessions.filter(s => s.status === 'closed').length;
-      const totalOpeningCash = sessions.reduce((sum, s) => sum + parseFloat(s.opening_cash?.toString() || '0'), 0);
-      const totalExpectedCash = sessions.reduce((sum, s) => sum + (s.calculated_expected_cash || 0), 0);
-      const totalClosingCash = sessions.reduce((sum, s) => sum + parseFloat(s.closing_cash?.toString() || '0'), 0);
-      const totalDifference = sessions.reduce((sum, s) => sum + (s.calculated_difference || 0), 0);
-
-      return (
-        <div className="space-y-6">
-          {/* Summary Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>End of Day Summary - Period Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total Sessions</p>
-                  <p className="text-2xl font-bold">{totalSessions}</p>
-                </div>
-                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Closed Sessions</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{closedSessions}</p>
-                </div>
-                <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total Opening Cash</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalOpeningCash)}</p>
-                </div>
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total Closing Cash</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalClosingCash)}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Expected Cash Total</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalExpectedCash)}</p>
-                </div>
-                <div className={`p-4 rounded-lg ${totalDifference >= 0 ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'}`}>
-                  <p className="text-sm text-muted-foreground">Total Difference</p>
-                  <p className={`text-2xl font-bold ${totalDifference >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {formatCurrency(Math.abs(totalDifference))} {totalDifference >= 0 ? 'Over' : 'Short'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Individual Sessions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cash Session Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4">
-                  {sessions.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No cash sessions found for this period</p>
-                  ) : (
-                    sessions.map((session, index) => (
-                      <Card key={session.id} className="border-2">
-                        <CardHeader className="pb-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-lg">
-                                {session.profiles?.full_name || 'Unknown Cashier'}
-                              </CardTitle>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {format(new Date(session.opened_at), 'MMM dd, yyyy hh:mm a')}
-                                {session.closed_at && ` - ${format(new Date(session.closed_at), 'hh:mm a')}`}
-                              </p>
-                            </div>
-                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              session.status === 'closed' 
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                            }`}>
-                              {session.status === 'closed' ? 'Closed' : 'Open'}
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {/* Cash Flow Summary */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="p-3 bg-muted rounded-lg">
-                              <p className="text-xs text-muted-foreground">Opening Cash</p>
-                              <p className="text-lg font-semibold">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</p>
-                            </div>
-                            <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Cash Sales</p>
-                              <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                                +{formatCurrency(session.cash_sales || 0)}
-                              </p>
-                            </div>
-                            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Payments Received</p>
-                              <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                                +{formatCurrency(session.cash_payments_received || 0)}
-                              </p>
-                            </div>
-                            <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Purchases</p>
-                              <p className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                                -{formatCurrency(session.cash_purchases || 0)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Expenses</p>
-                              <p className="text-lg font-semibold text-red-600 dark:text-red-400">
-                                -{formatCurrency(session.cash_expenses || 0)}
-                              </p>
-                            </div>
-                            <div className="p-3 bg-primary/10 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Expected Cash</p>
-                              <p className="text-lg font-semibold">{formatCurrency(session.calculated_expected_cash || 0)}</p>
-                            </div>
-                            <div className="p-3 bg-muted rounded-lg">
-                              <p className="text-xs text-muted-foreground">Actual Closing</p>
-                              <p className="text-lg font-semibold">
-                                {session.closing_cash ? formatCurrency(parseFloat(session.closing_cash.toString())) : 'Not closed'}
-                              </p>
-                            </div>
-                            <div className={`p-3 rounded-lg ${
-                              !session.calculated_difference 
-                                ? 'bg-muted' 
-                                : session.calculated_difference >= 0 
-                                  ? 'bg-green-50 dark:bg-green-950/20' 
-                                  : 'bg-red-50 dark:bg-red-950/20'
-                            }`}>
-                              <p className="text-xs text-muted-foreground">Difference</p>
-                              <p className={`text-lg font-semibold ${
-                                !session.calculated_difference 
-                                  ? '' 
-                                  : session.calculated_difference >= 0 
-                                    ? 'text-green-600 dark:text-green-400' 
-                                    : 'text-red-600 dark:text-red-400'
-                              }`}>
-                                {session.calculated_difference 
-                                  ? `${formatCurrency(Math.abs(session.calculated_difference))} ${session.calculated_difference >= 0 ? 'Over' : 'Short'}`
-                                  : '-'
-                                }
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Transaction Count */}
-                          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">Total Transactions</span>
-                            </div>
-                            <span className="text-lg font-bold">{session.transaction_count || 0}</span>
-                          </div>
-
-                          {/* Notes */}
-                          {session.notes && (
-                            <div className="p-3 bg-muted rounded-lg">
-                              <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                              <p className="text-sm">{session.notes}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
     return null;
   };
 
@@ -1155,7 +881,6 @@ export default function CloseDayReport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="daily-summary">Daily Summary</SelectItem>
-                  <SelectItem value="end-of-day-summary">End of Day Summary</SelectItem>
                   <SelectItem value="sales-by-category">Sales by Category</SelectItem>
                   <SelectItem value="sales-by-product">Sales by Product</SelectItem>
                   <SelectItem value="sales-by-customer">Sales by Customer</SelectItem>
@@ -1203,14 +928,7 @@ export default function CloseDayReport() {
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
             <h2 className="text-3xl font-bold">{storeName}</h2>
-            <h3 className="text-2xl">
-              {reportType === 'daily-summary' 
-                ? 'End Of Day Report' 
-                : reportType === 'end-of-day-summary'
-                  ? 'End of Day Cash Session Summary'
-                  : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-              }
-            </h3>
+            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
               {format(new Date(startDate), 'MMMM dd, yyyy')} {startDate !== endDate && `- ${format(new Date(endDate), 'MMMM dd, yyyy')}`}
             </p>
