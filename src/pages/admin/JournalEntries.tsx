@@ -29,7 +29,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Check, Eye } from 'lucide-react';
+import { Plus, Trash2, Check, Eye, Edit, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
@@ -50,6 +60,9 @@ export default function JournalEntries() {
   const [open, setOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any>(null);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     entry_date: new Date().toISOString().split('T')[0],
@@ -103,48 +116,111 @@ export default function JournalEntries() {
         throw new Error('Journal entry must balance (total debits = total credits)');
       }
 
-      // Create journal entry
-      const { data: entry, error: entryError } = await supabase
-        .from('journal_entries')
-        .insert({
-          entry_date: formData.entry_date,
-          reference: formData.reference,
-          description: formData.description,
-          notes: formData.notes,
-          total_debit: totalDebit,
-          total_credit: totalCredit,
-          status: 'draft',
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      if (editingEntry) {
+        // Update existing entry
+        const { error: entryError } = await supabase
+          .from('journal_entries')
+          .update({
+            entry_date: formData.entry_date,
+            reference: formData.reference,
+            description: formData.description,
+            notes: formData.notes,
+            total_debit: totalDebit,
+            total_credit: totalCredit,
+          })
+          .eq('id', editingEntry.id);
 
-      if (entryError) throw entryError;
+        if (entryError) throw entryError;
 
-      // Create journal entry lines
-      const { error: linesError } = await supabase
-        .from('journal_entry_lines')
-        .insert(
-          lines.map((line) => ({
-            journal_entry_id: entry.id,
-            account_id: line.account_id,
-            description: line.description,
-            debit_amount: line.debit_amount,
-            credit_amount: line.credit_amount,
-          }))
-        );
+        // Delete existing lines
+        const { error: deleteLinesError } = await supabase
+          .from('journal_entry_lines')
+          .delete()
+          .eq('journal_entry_id', editingEntry.id);
 
-      if (linesError) throw linesError;
+        if (deleteLinesError) throw deleteLinesError;
 
-      return entry;
+        // Insert new lines
+        const { error: linesError } = await supabase
+          .from('journal_entry_lines')
+          .insert(
+            lines.map((line) => ({
+              journal_entry_id: editingEntry.id,
+              account_id: line.account_id,
+              description: line.description,
+              debit_amount: line.debit_amount,
+              credit_amount: line.credit_amount,
+            }))
+          );
+
+        if (linesError) throw linesError;
+
+        return editingEntry;
+      } else {
+        // Create new journal entry
+        const { data: entry, error: entryError } = await supabase
+          .from('journal_entries')
+          .insert({
+            entry_date: formData.entry_date,
+            reference: formData.reference,
+            description: formData.description,
+            notes: formData.notes,
+            total_debit: totalDebit,
+            total_credit: totalCredit,
+            status: 'draft',
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (entryError) throw entryError;
+
+        // Create journal entry lines
+        const { error: linesError } = await supabase
+          .from('journal_entry_lines')
+          .insert(
+            lines.map((line) => ({
+              journal_entry_id: entry.id,
+              account_id: line.account_id,
+              description: line.description,
+              debit_amount: line.debit_amount,
+              credit_amount: line.credit_amount,
+            }))
+          );
+
+        if (linesError) throw linesError;
+
+        return entry;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
-      toast.success('Journal entry created successfully');
+      toast.success(editingEntry ? 'Journal entry updated successfully' : 'Journal entry created successfully');
       handleClose();
     },
     onError: (error) => {
-      toast.error('Failed to create journal entry: ' + error.message);
+      toast.error(`Failed to ${editingEntry ? 'update' : 'create'} journal entry: ` + error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success('Journal entry deleted successfully');
+      setDeleteDialogOpen(false);
+      setEntryToDelete(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to delete journal entry: ' + error.message);
     },
   });
 
@@ -176,6 +252,7 @@ export default function JournalEntries() {
 
   const handleClose = () => {
     setOpen(false);
+    setEditingEntry(null);
     setFormData({
       entry_date: new Date().toISOString().split('T')[0],
       reference: '',
@@ -183,6 +260,34 @@ export default function JournalEntries() {
       notes: '',
     });
     setLines([]);
+  };
+
+  const handleEdit = (entry: any) => {
+    setEditingEntry(entry);
+    setFormData({
+      entry_date: entry.entry_date.split('T')[0],
+      reference: entry.reference || '',
+      description: entry.description,
+      notes: entry.notes || '',
+    });
+    
+    // Map the entry lines to the form structure
+    const mappedLines = entry.journal_entry_lines?.map((line: any) => ({
+      account_id: line.account_id,
+      description: line.description,
+      debit_amount: line.debit_amount,
+      credit_amount: line.credit_amount,
+      account_code: line.accounts?.account_code,
+      account_name: line.accounts?.account_name,
+    })) || [];
+    
+    setLines(mappedLines);
+    setOpen(true);
+  };
+
+  const handleDelete = (entry: any) => {
+    setEntryToDelete(entry);
+    setDeleteDialogOpen(true);
   };
 
   const addLine = () => {
@@ -229,7 +334,7 @@ export default function JournalEntries() {
             </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Journal Entry</DialogTitle>
+              <DialogTitle>{editingEntry ? 'Edit Journal Entry' : 'Create Journal Entry'}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -423,7 +528,9 @@ export default function JournalEntries() {
                   }
                   className="flex-1"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Save as Draft'}
+                  {createMutation.isPending 
+                    ? (editingEntry ? 'Updating...' : 'Creating...') 
+                    : (editingEntry ? 'Update Entry' : 'Save as Draft')}
                 </Button>
               </div>
             </div>
@@ -485,14 +592,32 @@ export default function JournalEntries() {
                           setSelectedEntry(entry);
                           setViewDialogOpen(true);
                         }}
+                        title="View details"
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(entry)}
+                        title="Edit entry"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(entry)}
+                        title="Delete entry"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                       {entry.status === 'draft' && (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => postMutation.mutate(entry.id)}
+                          title="Post entry"
                         >
                           <Check className="h-4 w-4 text-green-600" />
                         </Button>
@@ -586,6 +711,42 @@ export default function JournalEntries() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Journal Entry
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this journal entry?
+              {entryToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  <p><strong>Entry #:</strong> {entryToDelete.entry_number}</p>
+                  <p><strong>Description:</strong> {entryToDelete.description}</p>
+                  <p><strong>Amount:</strong> {formatCurrency(entryToDelete.total_debit)}</p>
+                </div>
+              )}
+              <p className="mt-2 text-destructive font-semibold">
+                This action cannot be undone and will affect your account balances.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEntryToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => entryToDelete && deleteMutation.mutate(entryToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
