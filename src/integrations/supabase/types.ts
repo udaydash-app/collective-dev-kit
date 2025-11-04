@@ -1759,6 +1759,14 @@ export type Database = {
         }[]
       }
       crypt_pin: { Args: { input_pin: string }; Returns: string }
+      decrement_product_stock: {
+        Args: { product_id: string; quantity: number }
+        Returns: undefined
+      }
+      decrement_variant_stock: {
+        Args: { quantity: number; variant_id: string }
+        Returns: undefined
+      }
       find_similar_products: {
         Args: {
           p_search_name: string

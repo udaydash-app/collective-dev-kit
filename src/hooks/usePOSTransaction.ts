@@ -218,6 +218,36 @@ export const usePOSTransaction = () => {
           return { ...transactionData, offline: true };
         }
 
+        // Update stock quantities for sold items
+        for (const item of itemsToSave) {
+          if (item.id === 'cart-discount') continue; // Skip cart discount items
+          
+          // Check if this is a variant or base product
+          const isVariant = item.id !== item.productId;
+          
+          if (isVariant) {
+            // Update variant stock
+            const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
+              variant_id: item.id,
+              quantity: item.quantity
+            });
+            
+            if (variantError) {
+              console.error('Error updating variant stock:', variantError);
+            }
+          } else {
+            // Update base product stock
+            const { error: stockError } = await supabase.rpc('decrement_product_stock', {
+              product_id: item.id,
+              quantity: item.quantity
+            });
+            
+            if (stockError) {
+              console.error('Error updating product stock:', stockError);
+            }
+          }
+        }
+
         toast.success('Transaction completed successfully!');
         clearCart();
         return data;
