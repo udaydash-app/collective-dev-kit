@@ -228,8 +228,8 @@ export const usePOSTransaction = () => {
           if (isVariant) {
             // Update variant stock
             const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-              variant_id: item.id,
-              quantity: item.quantity
+              p_variant_id: item.id,
+              p_quantity: item.quantity
             });
             
             if (variantError) {
@@ -238,8 +238,8 @@ export const usePOSTransaction = () => {
           } else {
             // Update base product stock
             const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-              product_id: item.id,
-              quantity: item.quantity
+              p_product_id: item.id,
+              p_quantity: item.quantity
             });
             
             if (stockError) {

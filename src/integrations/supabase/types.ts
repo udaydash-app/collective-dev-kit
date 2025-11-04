@@ -1760,11 +1760,11 @@ export type Database = {
       }
       crypt_pin: { Args: { input_pin: string }; Returns: string }
       decrement_product_stock: {
-        Args: { product_id: string; quantity: number }
+        Args: { p_product_id: string; p_quantity: number }
         Returns: undefined
       }
       decrement_variant_stock: {
-        Args: { quantity: number; variant_id: string }
+        Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
       }
       find_similar_products: {
