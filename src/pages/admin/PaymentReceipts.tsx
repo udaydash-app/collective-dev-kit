@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import PendingBillsDialog from '@/components/admin/PendingBillsDialog';
 
 interface PaymentReceipt {
   id: string;
@@ -38,6 +39,8 @@ interface PaymentReceipt {
 
 export default function PaymentReceipts() {
   const [open, setOpen] = useState(false);
+  const [pendingBillsOpen, setPendingBillsOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     contact_id: '',
@@ -274,7 +277,14 @@ export default function PaymentReceipts() {
                 <Label htmlFor="contact_id">Customer *</Label>
                 <Select
                   value={formData.contact_id}
-                  onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, contact_id: value });
+                    const customer = customers?.find(c => c.id === value);
+                    if (customer) {
+                      setSelectedCustomer({ id: customer.id, name: customer.name });
+                      setPendingBillsOpen(true);
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select customer" />
@@ -364,6 +374,18 @@ export default function PaymentReceipts() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {selectedCustomer && (
+        <PendingBillsDialog
+          open={pendingBillsOpen}
+          onOpenChange={setPendingBillsOpen}
+          contactId={selectedCustomer.id}
+          customerName={selectedCustomer.name}
+          onAmountSelect={(amount) => {
+            setFormData({ ...formData, amount: amount.toString() });
+          }}
+        />
+      )}
     </div>
   );
 }
