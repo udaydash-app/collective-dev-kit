@@ -337,6 +337,12 @@ export default function AdminDashboard() {
                     Pricing Management
                   </Button>
                 </Link>
+                <Link to="/admin/stock-and-price">
+                  <Button variant="outline" className="w-full">
+                    <Package className="mr-2 h-4 w-4" />
+                    Stock & Price List
+                  </Button>
+                </Link>
                 <Link to="/admin/import-products">
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />

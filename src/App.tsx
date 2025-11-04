@@ -44,6 +44,7 @@ import AdminPricing from "./pages/admin/Pricing";
 import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
+import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -112,6 +113,7 @@ const AppContent = () => {
           <Route path="/admin/pos-users" element={<AdminRoute><AdminPOSUsers /></AdminRoute>} />
           <Route path="/admin/expenses" element={<AdminRoute><AdminExpenses /></AdminRoute>} />
           <Route path="/admin/pricing" element={<AdminRoute><AdminPricing /></AdminRoute>} />
+          <Route path="/admin/stock-and-price" element={<AdminRoute><AdminStockAndPrice /></AdminRoute>} />
           <Route path="/admin/close-day-report" element={<AdminRoute><AdminCloseDayReport /></AdminRoute>} />
           <Route path="/admin/inventory-reports" element={<AdminRoute><AdminInventoryReports /></AdminRoute>} />
           <Route path="/admin/stock-adjustment" element={<AdminRoute><AdminStockAdjustment /></AdminRoute>} />
