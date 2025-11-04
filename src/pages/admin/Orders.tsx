@@ -41,10 +41,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import {
   Collapsible,
@@ -60,6 +61,7 @@ import { kioskPrintService } from "@/lib/kioskPrint";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -106,9 +108,29 @@ export default function AdminOrders() {
     enabled: addProductDialogOpen
   });
 
+  // Get date range based on period filter
+  const getDateRange = () => {
+    const now = new Date();
+    switch (periodFilter) {
+      case 'today':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'yesterday':
+        const yesterday = subDays(now, 1);
+        return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
+      case 'this_week':
+        return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+      case 'this_month':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      default:
+        return null;
+    }
+  };
+
   const { data: orders, isLoading, error: queryError } = useQuery({
-    queryKey: ['admin-orders', statusFilter],
+    queryKey: ['admin-orders', statusFilter, periodFilter],
     queryFn: async () => {
+      const dateRange = getDateRange();
+      
       // Fetch online orders
       let ordersQuery = supabase
         .from('orders')
@@ -123,6 +145,12 @@ export default function AdminOrders() {
         ordersQuery = ordersQuery.eq('status', statusFilter);
       }
 
+      if (dateRange) {
+        ordersQuery = ordersQuery
+          .gte('created_at', dateRange.start.toISOString())
+          .lte('created_at', dateRange.end.toISOString());
+      }
+
       const { data: onlineOrders, error: ordersError } = await ordersQuery;
       if (ordersError) {
         console.error('Error fetching orders:', ordersError);
@@ -130,13 +158,21 @@ export default function AdminOrders() {
       }
       
       // Fetch POS transactions
-      const { data: posTransactions, error: posError } = await supabase
+      let posQuery = supabase
         .from('pos_transactions')
         .select(`
           *,
           stores(name)
         `)
         .order('created_at', { ascending: false });
+
+      if (dateRange) {
+        posQuery = posQuery
+          .gte('created_at', dateRange.start.toISOString())
+          .lte('created_at', dateRange.end.toISOString());
+      }
+
+      const { data: posTransactions, error: posError } = await posQuery;
 
       if (posError) {
         console.error('Error fetching POS transactions:', posError);
@@ -988,6 +1024,18 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
               All Orders
             </CardTitle>
             <div className="flex gap-2">
+              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
