@@ -385,14 +385,16 @@ export default function Pricing() {
     }
 
     try {
-      const items = JSON.parse(JSON.stringify(bill.items));
+      // Items are already an array, no need to parse
+      const items = bill.items as any[];
       const prices: Array<{ product_id: string; price: number }> = [];
 
       items.forEach((item: any) => {
-        if (item.product_id && item.price) {
+        // Use item.id as product_id and customPrice if available, otherwise price
+        if (item.id && (item.customPrice || item.price)) {
           prices.push({
-            product_id: item.product_id,
-            price: item.price
+            product_id: item.id,
+            price: item.customPrice ?? item.price
           });
         }
       });
