@@ -2770,6 +2770,8 @@ export default function POS() {
           dayActivity={dayActivity}
           totalOpeningCash={totalOpeningCash}
           paymentReceipts={paymentReceiptsData}
+          journalEntries={cashJournalEntries || []}
+          journalCashEffect={journalCashEffect}
         />
       )}
 

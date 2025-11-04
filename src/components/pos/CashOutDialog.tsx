@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen } from 'lucide-react';
+import { formatCurrency, cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -32,6 +32,16 @@ interface PaymentReceipts {
   totalPayments: number;
 }
 
+interface JournalEntry {
+  debit_amount: number;
+  credit_amount: number;
+  journal_entries: {
+    reference: string;
+    description: string;
+    entry_date: string;
+  };
+}
+
 interface CashOutDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,9 +52,11 @@ interface CashOutDialogProps {
   dayActivity: DayActivity;
   totalOpeningCash?: number;
   paymentReceipts?: PaymentReceipts;
+  journalEntries?: JournalEntry[];
+  journalCashEffect?: number;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts }: CashOutDialogProps) => {
+export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts, journalEntries = [], journalCashEffect = 0 }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -181,6 +193,55 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
             </div>
 
             <Separator />
+
+            {/* Manual Journal Entries Section */}
+            {journalEntries.length > 0 && (
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                      <h3 className="font-semibold text-sm">Manual Journal Entries</h3>
+                    </div>
+                    <p className={cn(
+                      "text-lg font-bold",
+                      journalCashEffect >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {formatCurrency(Math.abs(journalCashEffect))}
+                      {journalCashEffect >= 0 ? ' (In)' : ' (Out)'}
+                    </p>
+                  </div>
+                  <ScrollArea className="h-[120px]">
+                    <div className="space-y-2 pr-4">
+                      {journalEntries.map((entry, index) => {
+                        const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
+                        return (
+                          <div key={index} className="flex items-start justify-between text-sm border-l-2 border-indigo-200 pl-3 py-1">
+                            <div className="flex-1">
+                              <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
+                              <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
+                            </div>
+                            <div className="flex flex-col items-end ml-2">
+                              <p className={cn(
+                                "font-semibold",
+                                netEffect >= 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                {formatCurrency(Math.abs(netEffect))}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {netEffect >= 0 ? 'Cash In' : 'Cash Out'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <Separator />
+              </>
+            )}
 
             {/* Payment Received Section */}
             {paymentReceipts && paymentReceipts.totalPayments > 0 && (
