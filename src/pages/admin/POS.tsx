@@ -539,13 +539,13 @@ export default function POS() {
     purchases: dayPurchases
       ?.reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
     cashPurchases: dayPurchases
-      ?.filter(p => p.payment_method === 'cash')
+      ?.filter(p => p.payment_status === 'paid' && p.payment_method === 'cash')
       .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
     creditPurchases: dayPurchases
-      ?.filter(p => p.payment_method === 'credit')
+      ?.filter(p => p.payment_status === 'pending' || p.payment_status === 'partial' || p.payment_method === 'credit')
       .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
     mobileMoneyPurchases: dayPurchases
-      ?.filter(p => p.payment_method === 'mobile_money')
+      ?.filter(p => p.payment_status === 'paid' && p.payment_method === 'mobile_money')
       .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0,
     expenses: dayExpenses
       ?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
