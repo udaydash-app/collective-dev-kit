@@ -75,11 +75,13 @@ export default function Purchases() {
           stores (name),
           purchase_items (
             id,
+            product_id,
+            variant_id,
             quantity,
             unit_cost,
             total_cost,
-            products (name),
-            product_variants (label, quantity, unit)
+            products (id, name),
+            product_variants (id, label, quantity, unit)
           )
         `)
         .order('created_at', { ascending: false });
@@ -332,8 +334,8 @@ export default function Purchases() {
     
     // Load items
     const purchaseItems = purchase.purchase_items.map((item: any) => ({
-      product_id: item.products?.id || '',
-      variant_id: item.product_variants?.id,
+      product_id: item.product_id,
+      variant_id: item.variant_id || undefined,
       quantity: item.quantity,
       unit_cost: item.unit_cost,
       total_cost: item.total_cost,
