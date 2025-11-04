@@ -92,59 +92,81 @@ export const usePOSTransaction = () => {
 
       // Try to apply each combo
       for (const combo of combos) {
-        if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) continue;
-
+        // Define all possible patterns for this combo (3 items each)
+        const patterns = [
+          { 'MASALA KHARI': 1, 'JEERA KHARI': 1, 'BUTTER KHARI': 1 },
+          { 'MASALA KHARI': 2, 'JEERA KHARI': 1 },
+          { 'MASALA KHARI': 2, 'BUTTER KHARI': 1 },
+          { 'JEERA KHARI': 2, 'MASALA KHARI': 1 },
+          { 'JEERA KHARI': 2, 'BUTTER KHARI': 1 },
+          { 'BUTTER KHARI': 2, 'MASALA KHARI': 1 },
+          { 'BUTTER KHARI': 2, 'JEERA KHARI': 1 },
+          { 'MASALA KHARI': 3 },
+          { 'JEERA KHARI': 3 },
+          { 'BUTTER KHARI': 3 },
+        ];
+        
         // Keep trying to form combos while possible
         while (true) {
-          // Check if we have enough products to form this combo
-          let canFormCombo = true;
+          let patternMatched = false;
+          let matchedPattern: Record<string, number> | null = null;
+          let matchedItems: CartItem[] = [];
           
-          // Accumulate total required quantities per product ID
-          const requiredQuantities = new Map<string, { totalQty: number, product_name: string }>();
-          combo.combo_offer_items.forEach(item => {
-            const id = item.variant_id || item.product_id;
-            const name = item.variant_id 
-              ? `${item.products?.name} (${item.product_variants?.label})`
-              : item.products?.name;
+          // Try each pattern to see if we can form it
+          for (const pattern of patterns) {
+            const tempMatched: CartItem[] = [];
+            let canFormPattern = true;
             
-            const existing = requiredQuantities.get(id);
-            if (existing) {
-              existing.totalQty += item.quantity;
-            } else {
-              requiredQuantities.set(id, { totalQty: item.quantity, product_name: name });
+            // Check if we have enough items for this pattern
+            for (const [productName, requiredQty] of Object.entries(pattern)) {
+              const cartItem = regularItems.find(item => 
+                item.name.toUpperCase().includes(productName)
+              );
+              
+              if (!cartItem || cartItem.quantity < requiredQty) {
+                canFormPattern = false;
+                break;
+              }
+              tempMatched.push(cartItem);
             }
-          });
-
-          console.log('Required quantities for combo:', Object.fromEntries(requiredQuantities));
-
-          // Check if we have enough of each product in the cart
-          for (const [productId, required] of requiredQuantities.entries()) {
-            const cartItem = regularItems.find(item => item.id === productId);
-            console.log(`Checking combo requirement - Required ID: ${productId}, Required Qty: ${required.totalQty}, Cart Item:`, cartItem);
-            if (!cartItem || cartItem.quantity < required.totalQty) {
-              canFormCombo = false;
-              console.log(`Cannot form combo - insufficient quantity for ${required.product_name} (need ${required.totalQty}, have ${cartItem?.quantity || 0})`);
+            
+            if (canFormPattern) {
+              patternMatched = true;
+              matchedPattern = pattern;
+              matchedItems = tempMatched;
               break;
             }
           }
+          
+          if (!patternMatched) break; // No patterns match, try next combo
 
-          if (!canFormCombo) break;
-
-          console.log('Forming combo - reducing item quantities');
-          // Form the combo - reduce quantities of regular items
+          // Form the combo - reduce quantities based on matched pattern
           const updatedRegularItems: CartItem[] = [];
+          const comboItemsDetails: any[] = [];
+          
           for (const item of regularItems) {
-            const required = requiredQuantities.get(item.id);
-            if (required) {
-              const newQuantity = item.quantity - required.totalQty;
-              console.log(`Reducing ${item.name} from ${item.quantity} to ${newQuantity}`);
+            let quantityToReduce = 0;
+            
+            // Check if this item matches any product in the pattern
+            for (const [productName, requiredQty] of Object.entries(matchedPattern!)) {
+              if (item.name.toUpperCase().includes(productName)) {
+                quantityToReduce = requiredQty;
+                comboItemsDetails.push({
+                  product_id: item.productId,
+                  quantity: quantityToReduce,
+                  product_name: item.name,
+                });
+                break;
+              }
+            }
+            
+            if (quantityToReduce > 0) {
+              const newQuantity = item.quantity - quantityToReduce;
               if (newQuantity > 0) {
                 updatedRegularItems.push({
                   ...item,
                   quantity: newQuantity,
                 });
-              } else {
-                console.log(`Removing ${item.name} completely (quantity reached 0)`);
               }
             } else {
               updatedRegularItems.push(item);
@@ -162,14 +184,7 @@ export const usePOSTransaction = () => {
             quantity: 1,
             itemDiscount: 0,
             isCombo: true,
-            comboItems: combo.combo_offer_items.map((item: any) => ({
-              product_id: item.product_id,
-              variant_id: item.variant_id,
-              quantity: item.quantity,
-              product_name: item.variant_id 
-                ? `${item.products?.name} (${item.product_variants?.label})`
-                : item.products?.name,
-            })),
+            comboItems: comboItemsDetails,
           };
           
           appliedCombos.push(comboCartItem);
