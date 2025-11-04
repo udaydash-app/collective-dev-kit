@@ -29,7 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Package, Edit, Save, UserCircle } from 'lucide-react';
+import { Search, Package, Edit, Save, UserCircle, FileText, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -71,6 +71,8 @@ export default function Pricing() {
   const [selectAll, setSelectAll] = useState(false);
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [customerDiscountPercentage, setCustomerDiscountPercentage] = useState<string>('');
+  const [showImportBillsDialog, setShowImportBillsDialog] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<string | null>(null);
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -156,6 +158,22 @@ export default function Pricing() {
       
       return Array.from(customerMap.values());
     },
+  });
+
+  // Fetch customer bills/transactions
+  const { data: customerBills } = useQuery({
+    queryKey: ['customer-bills', selectedCustomer],
+    queryFn: async () => {
+      if (!selectedCustomer) return [];
+      const { data, error } = await supabase
+        .from('pos_transactions')
+        .select('*')
+        .eq('customer_id', selectedCustomer)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedCustomer && showImportBillsDialog,
   });
 
   // Update customer discount percentage
@@ -357,6 +375,42 @@ export default function Pricing() {
     setCustomerDiscountPercentage(customer?.discount_percentage?.toString() || '0');
   };
 
+  const handleImportFromBill = async () => {
+    if (!selectedBill || !selectedCustomer) return;
+
+    const bill = customerBills?.find(b => b.id === selectedBill);
+    if (!bill || !bill.items) {
+      toast.error('Invalid bill selected');
+      return;
+    }
+
+    try {
+      const items = JSON.parse(JSON.stringify(bill.items));
+      const prices: Array<{ product_id: string; price: number }> = [];
+
+      items.forEach((item: any) => {
+        if (item.product_id && item.price) {
+          prices.push({
+            product_id: item.product_id,
+            price: item.price
+          });
+        }
+      });
+
+      if (prices.length === 0) {
+        toast.error('No valid products found in this bill');
+        return;
+      }
+
+      await updateCustomerPricesMutation.mutateAsync(prices);
+      toast.success(`Imported ${prices.length} products from bill`);
+      setShowImportBillsDialog(false);
+      setSelectedBill(null);
+    } catch (error: any) {
+      toast.error('Failed to import bill: ' + error.message);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -497,10 +551,16 @@ export default function Pricing() {
               </Select>
               
               {selectedCustomer && (
-                <Button onClick={() => setShowAssignProductsDialog(true)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Manage Prices
-                </Button>
+                <>
+                  <Button onClick={() => setShowAssignProductsDialog(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Manage Prices
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowImportBillsDialog(true)}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Import from Bills
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -787,6 +847,96 @@ export default function Pricing() {
                 Save
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import from Bills Dialog */}
+      <Dialog open={showImportBillsDialog} onOpenChange={setShowImportBillsDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Import Prices from Bills - {selectedCustomerData?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {customerBills && customerBills.length > 0 ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Select a previous bill to import all product prices from that transaction
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Select</TableHead>
+                      <TableHead>Bill Number</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Items</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerBills.map((bill) => {
+                      const items = bill.items ? JSON.parse(JSON.stringify(bill.items)) : [];
+                      return (
+                        <TableRow 
+                          key={bill.id}
+                          className={selectedBill === bill.id ? 'bg-muted' : ''}
+                        >
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedBill === bill.id}
+                              onCheckedChange={(checked) => {
+                                setSelectedBill(checked ? bill.id : null);
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              {bill.transaction_number}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(bill.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(bill.total)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary">{items.length} items</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <div className="flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowImportBillsDialog(false);
+                      setSelectedBill(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleImportFromBill}
+                    disabled={!selectedBill}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Import Selected Bill
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No previous bills found for this customer</p>
+                <p className="text-sm mt-2">Create a transaction first to import prices</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
