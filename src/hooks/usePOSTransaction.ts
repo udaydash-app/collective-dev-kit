@@ -78,8 +78,11 @@ export const usePOSTransaction = () => {
   // Automatic combo detection and application
   const detectAndApplyCombos = async (currentCart: CartItem[]): Promise<CartItem[]> => {
     try {
+      console.log('🔍 detectAndApplyCombos START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
       const combos = await fetchActiveCombos();
+      console.log('📦 Fetched combos:', combos);
       if (!combos || combos.length === 0) {
+        console.log('❌ No active combos found');
         return currentCart;
       }
 
@@ -89,16 +92,22 @@ export const usePOSTransaction = () => {
 
       // Try to apply each combo
       for (const combo of combos) {
-        if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) continue;
+        console.log('🎁 Processing combo:', combo.name);
+        if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) {
+          console.log('⚠️ Combo has no items defined');
+          continue;
+        }
 
         // Extract unique product names from combo definition
         const comboProducts: string[] = combo.combo_offer_items.map((item: any) => {
           const productName = item.products?.name || '';
           return productName.toUpperCase();
         });
+        console.log('📋 Combo products from DB:', comboProducts);
 
         // Generate all possible 3-item patterns from combo products
         const uniqueProducts: string[] = [...new Set(comboProducts)];
+        console.log('🎯 Unique products:', uniqueProducts);
         const patterns: Record<string, number>[] = [];
 
         // Generate patterns: all combinations that sum to 3 items
@@ -141,6 +150,8 @@ export const usePOSTransaction = () => {
           }
         }
         
+        console.log('🔢 Generated patterns:', patterns);
+        
         // Keep trying to form combos while possible
         while (true) {
           let patternMatched = false;
@@ -149,27 +160,36 @@ export const usePOSTransaction = () => {
           // Try each pattern to see if we can form it
           for (const pattern of patterns) {
             let canFormPattern = true;
+            console.log('🧩 Trying pattern:', pattern);
             
             // Check if we have enough items for this pattern
             for (const [productName, requiredQty] of Object.entries(pattern)) {
-              const cartItem = regularItems.find(item => 
-                item.name.toUpperCase().includes(productName)
-              );
+              const cartItem = regularItems.find(item => {
+                const itemNameUpper = item.name.toUpperCase();
+                const matches = itemNameUpper.includes(productName);
+                console.log(`  Checking ${productName} (need ${requiredQty}): ${item.name} - ${matches ? 'MATCH' : 'NO MATCH'} (qty: ${item.quantity})`);
+                return matches;
+              });
               
               if (!cartItem || cartItem.quantity < requiredQty) {
+                console.log(`  ❌ Cannot form pattern - ${productName}: ${!cartItem ? 'not found' : `only ${cartItem.quantity} available`}`);
                 canFormPattern = false;
                 break;
               }
             }
             
             if (canFormPattern) {
+              console.log('✅ Pattern matched!', pattern);
               patternMatched = true;
               matchedPattern = pattern;
               break;
             }
           }
           
-          if (!patternMatched) break; // No patterns match, try next combo
+          if (!patternMatched) {
+            console.log('❌ No patterns matched, stopping combo formation');
+            break; // No patterns match, try next combo
+          }
 
           // Form the combo - reduce quantities based on matched pattern
           const updatedRegularItems: CartItem[] = [];
