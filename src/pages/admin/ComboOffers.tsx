@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ComboOfferDialog } from '@/components/admin/ComboOfferDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,10 +132,13 @@ export default function ComboOffers() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Combo Offers</CardTitle>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Combo
-          </Button>
+          <div className="flex gap-2">
+            <ReturnToPOSButton inline />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Combo
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
