@@ -89,49 +89,82 @@ export const usePOSTransaction = () => {
 
       // Try to apply each combo
       for (const combo of combos) {
-        // Define all possible patterns for this combo (3 items each)
-        const patterns = [
-          { 'MASALA': 1, 'JEERA': 1, 'BUTTER': 1 },
-          { 'MASALA': 2, 'JEERA': 1 },
-          { 'MASALA': 2, 'BUTTER': 1 },
-          { 'JEERA': 2, 'MASALA': 1 },
-          { 'JEERA': 2, 'BUTTER': 1 },
-          { 'BUTTER': 2, 'MASALA': 1 },
-          { 'BUTTER': 2, 'JEERA': 1 },
-          { 'MASALA': 3 },
-          { 'JEERA': 3 },
-          { 'BUTTER': 3 },
-        ];
+        if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) continue;
+
+        // Extract unique product names from combo definition
+        const comboProducts: string[] = combo.combo_offer_items.map((item: any) => {
+          const productName = item.products?.name || '';
+          return productName.toUpperCase();
+        });
+
+        // Generate all possible 3-item patterns from combo products
+        const uniqueProducts: string[] = [...new Set(comboProducts)];
+        const patterns: Record<string, number>[] = [];
+
+        // Generate patterns: all combinations that sum to 3 items
+        if (uniqueProducts.length === 1) {
+          // Only one product type: 3 of same
+          patterns.push({ [uniqueProducts[0]]: 3 });
+        } else if (uniqueProducts.length === 2) {
+          // Two product types: 1+2, 2+1, 3+0, 0+3
+          patterns.push({ [uniqueProducts[0]]: 3 });
+          patterns.push({ [uniqueProducts[1]]: 3 });
+          patterns.push({ [uniqueProducts[0]]: 2, [uniqueProducts[1]]: 1 });
+          patterns.push({ [uniqueProducts[0]]: 1, [uniqueProducts[1]]: 2 });
+        } else if (uniqueProducts.length >= 3) {
+          // Three or more product types
+          // All same (3 of each type)
+          for (const prod of uniqueProducts) {
+            patterns.push({ [prod]: 3 });
+          }
+          // Mix of two types (2+1 combinations)
+          for (let i = 0; i < uniqueProducts.length; i++) {
+            for (let j = 0; j < uniqueProducts.length; j++) {
+              if (i !== j) {
+                patterns.push({ [uniqueProducts[i]]: 2, [uniqueProducts[j]]: 1 });
+              }
+            }
+          }
+          // Mix of three types (1+1+1)
+          if (uniqueProducts.length >= 3) {
+            for (let i = 0; i < uniqueProducts.length; i++) {
+              for (let j = i + 1; j < uniqueProducts.length; j++) {
+                for (let k = j + 1; k < uniqueProducts.length; k++) {
+                  patterns.push({ 
+                    [uniqueProducts[i]]: 1, 
+                    [uniqueProducts[j]]: 1, 
+                    [uniqueProducts[k]]: 1 
+                  });
+                }
+              }
+            }
+          }
+        }
         
         // Keep trying to form combos while possible
         while (true) {
           let patternMatched = false;
           let matchedPattern: Record<string, number> | null = null;
-          let matchedItems: CartItem[] = [];
           
           // Try each pattern to see if we can form it
           for (const pattern of patterns) {
-            const tempMatched: CartItem[] = [];
             let canFormPattern = true;
             
             // Check if we have enough items for this pattern
             for (const [productName, requiredQty] of Object.entries(pattern)) {
               const cartItem = regularItems.find(item => 
-                item.name.toUpperCase().includes(productName) && 
-                item.name.toUpperCase().includes('KHARI')
+                item.name.toUpperCase().includes(productName)
               );
               
               if (!cartItem || cartItem.quantity < requiredQty) {
                 canFormPattern = false;
                 break;
               }
-              tempMatched.push(cartItem);
             }
             
             if (canFormPattern) {
               patternMatched = true;
               matchedPattern = pattern;
-              matchedItems = tempMatched;
               break;
             }
           }
@@ -147,8 +180,7 @@ export const usePOSTransaction = () => {
             
             // Check if this item matches any product in the pattern
             for (const [productName, requiredQty] of Object.entries(matchedPattern!)) {
-              if (item.name.toUpperCase().includes(productName) && 
-                  item.name.toUpperCase().includes('KHARI')) {
+              if (item.name.toUpperCase().includes(productName)) {
                 quantityToReduce = requiredQty;
                 comboItemsDetails.push({
                   product_id: item.productId,
