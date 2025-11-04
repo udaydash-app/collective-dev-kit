@@ -98,23 +98,32 @@ export const usePOSTransaction = () => {
         while (true) {
           // Check if we have enough products to form this combo
           let canFormCombo = true;
-          const requiredProducts = combo.combo_offer_items.map(item => ({
-            id: item.variant_id || item.product_id,
-            requiredQty: item.quantity,
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-            product_name: item.variant_id 
+          
+          // Accumulate total required quantities per product ID
+          const requiredQuantities = new Map<string, { totalQty: number, product_name: string }>();
+          combo.combo_offer_items.forEach(item => {
+            const id = item.variant_id || item.product_id;
+            const name = item.variant_id 
               ? `${item.products?.name} (${item.product_variants?.label})`
-              : item.products?.name,
-          }));
+              : item.products?.name;
+            
+            const existing = requiredQuantities.get(id);
+            if (existing) {
+              existing.totalQty += item.quantity;
+            } else {
+              requiredQuantities.set(id, { totalQty: item.quantity, product_name: name });
+            }
+          });
 
-          // Calculate available quantities for each required product
-          for (const required of requiredProducts) {
-            const cartItem = regularItems.find(item => item.id === required.id);
-            console.log(`Checking combo requirement - Required ID: ${required.id}, Required Qty: ${required.requiredQty}, Cart Item:`, cartItem);
-            if (!cartItem || cartItem.quantity < required.requiredQty) {
+          console.log('Required quantities for combo:', Object.fromEntries(requiredQuantities));
+
+          // Check if we have enough of each product in the cart
+          for (const [productId, required] of requiredQuantities.entries()) {
+            const cartItem = regularItems.find(item => item.id === productId);
+            console.log(`Checking combo requirement - Required ID: ${productId}, Required Qty: ${required.totalQty}, Cart Item:`, cartItem);
+            if (!cartItem || cartItem.quantity < required.totalQty) {
               canFormCombo = false;
-              console.log(`Cannot form combo - insufficient quantity for ${required.product_name}`);
+              console.log(`Cannot form combo - insufficient quantity for ${required.product_name} (need ${required.totalQty}, have ${cartItem?.quantity || 0})`);
               break;
             }
           }
@@ -125,9 +134,9 @@ export const usePOSTransaction = () => {
           // Form the combo - reduce quantities of regular items
           const updatedRegularItems: CartItem[] = [];
           for (const item of regularItems) {
-            const required = requiredProducts.find(req => req.id === item.id);
+            const required = requiredQuantities.get(item.id);
             if (required) {
-              const newQuantity = item.quantity - required.requiredQty;
+              const newQuantity = item.quantity - required.totalQty;
               console.log(`Reducing ${item.name} from ${item.quantity} to ${newQuantity}`);
               if (newQuantity > 0) {
                 updatedRegularItems.push({
