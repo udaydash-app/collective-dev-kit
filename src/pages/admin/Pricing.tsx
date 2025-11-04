@@ -387,15 +387,42 @@ export default function Pricing() {
     try {
       // Items are already an array, no need to parse
       const items = bill.items as any[];
-      const prices: Array<{ product_id: string; price: number }> = [];
+      const potentialIds: string[] = [];
 
       items.forEach((item: any) => {
         // Use productId (base product ID) if available, otherwise use id
-        // This handles both variant products and regular products
+        const productId = item.productId || item.id;
+        if (productId) {
+          potentialIds.push(productId);
+        }
+      });
+
+      if (potentialIds.length === 0) {
+        toast.error('No products found in this bill');
+        return;
+      }
+
+      // Validate which IDs actually exist in products table
+      const { data: existingProducts, error: validateError } = await supabase
+        .from('products')
+        .select('id')
+        .in('id', potentialIds);
+
+      if (validateError) {
+        console.error('Validation error:', validateError);
+        toast.error('Failed to validate products');
+        return;
+      }
+
+      const validProductIds = new Set(existingProducts?.map(p => p.id) || []);
+      const prices: Array<{ product_id: string; price: number }> = [];
+
+      items.forEach((item: any) => {
         const productId = item.productId || item.id;
         const finalPrice = item.customPrice ?? item.price;
         
-        if (productId && finalPrice) {
+        // Only add if product exists and has a valid price
+        if (productId && validProductIds.has(productId) && finalPrice) {
           prices.push({
             product_id: productId,
             price: finalPrice
@@ -404,12 +431,19 @@ export default function Pricing() {
       });
 
       if (prices.length === 0) {
-        toast.error('No valid products found in this bill');
+        toast.error('No valid products found in this bill (products may have been deleted)');
         return;
       }
 
+      const skippedCount = items.length - prices.length;
       await updateCustomerPricesMutation.mutateAsync(prices);
-      toast.success(`Imported ${prices.length} products from bill`);
+      
+      let message = `Imported ${prices.length} product${prices.length === 1 ? '' : 's'} from bill`;
+      if (skippedCount > 0) {
+        message += ` (${skippedCount} skipped - product no longer exists)`;
+      }
+      toast.success(message);
+      
       setShowImportBillsDialog(false);
       setSelectedBill(null);
     } catch (error: any) {
