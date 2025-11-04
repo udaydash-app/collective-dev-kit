@@ -78,11 +78,8 @@ export const usePOSTransaction = () => {
   // Automatic combo detection and application
   const detectAndApplyCombos = async (currentCart: CartItem[]): Promise<CartItem[]> => {
     try {
-      console.log('detectAndApplyCombos called with cart:', currentCart);
       const combos = await fetchActiveCombos();
-      console.log('Active combos fetched:', combos);
       if (!combos || combos.length === 0) {
-        console.log('No active combos found, returning original cart');
         return currentCart;
       }
 
@@ -94,16 +91,16 @@ export const usePOSTransaction = () => {
       for (const combo of combos) {
         // Define all possible patterns for this combo (3 items each)
         const patterns = [
-          { 'MASALA KHARI': 1, 'JEERA KHARI': 1, 'BUTTER KHARI': 1 },
-          { 'MASALA KHARI': 2, 'JEERA KHARI': 1 },
-          { 'MASALA KHARI': 2, 'BUTTER KHARI': 1 },
-          { 'JEERA KHARI': 2, 'MASALA KHARI': 1 },
-          { 'JEERA KHARI': 2, 'BUTTER KHARI': 1 },
-          { 'BUTTER KHARI': 2, 'MASALA KHARI': 1 },
-          { 'BUTTER KHARI': 2, 'JEERA KHARI': 1 },
-          { 'MASALA KHARI': 3 },
-          { 'JEERA KHARI': 3 },
-          { 'BUTTER KHARI': 3 },
+          { 'MASALA': 1, 'JEERA': 1, 'BUTTER': 1 },
+          { 'MASALA': 2, 'JEERA': 1 },
+          { 'MASALA': 2, 'BUTTER': 1 },
+          { 'JEERA': 2, 'MASALA': 1 },
+          { 'JEERA': 2, 'BUTTER': 1 },
+          { 'BUTTER': 2, 'MASALA': 1 },
+          { 'BUTTER': 2, 'JEERA': 1 },
+          { 'MASALA': 3 },
+          { 'JEERA': 3 },
+          { 'BUTTER': 3 },
         ];
         
         // Keep trying to form combos while possible
@@ -120,7 +117,8 @@ export const usePOSTransaction = () => {
             // Check if we have enough items for this pattern
             for (const [productName, requiredQty] of Object.entries(pattern)) {
               const cartItem = regularItems.find(item => 
-                item.name.toUpperCase().includes(productName)
+                item.name.toUpperCase().includes(productName) && 
+                item.name.toUpperCase().includes('KHARI')
               );
               
               if (!cartItem || cartItem.quantity < requiredQty) {
@@ -149,7 +147,8 @@ export const usePOSTransaction = () => {
             
             // Check if this item matches any product in the pattern
             for (const [productName, requiredQty] of Object.entries(matchedPattern!)) {
-              if (item.name.toUpperCase().includes(productName)) {
+              if (item.name.toUpperCase().includes(productName) && 
+                  item.name.toUpperCase().includes('KHARI')) {
                 quantityToReduce = requiredQty;
                 comboItemsDetails.push({
                   product_id: item.productId,
@@ -199,9 +198,7 @@ export const usePOSTransaction = () => {
       }
 
       // Return combined cart: regular items + applied combos
-      const finalCart = [...regularItems, ...appliedCombos];
-      console.log('Final cart after combo detection:', finalCart);
-      return finalCart;
+      return [...regularItems, ...appliedCombos];
     } catch (error) {
       console.error('Error in detectAndApplyCombos:', error);
       return currentCart;
