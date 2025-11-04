@@ -390,11 +390,15 @@ export default function Pricing() {
       const prices: Array<{ product_id: string; price: number }> = [];
 
       items.forEach((item: any) => {
-        // Use item.id as product_id and customPrice if available, otherwise price
-        if (item.id && (item.customPrice || item.price)) {
+        // Use productId (base product ID) if available, otherwise use id
+        // This handles both variant products and regular products
+        const productId = item.productId || item.id;
+        const finalPrice = item.customPrice ?? item.price;
+        
+        if (productId && finalPrice) {
           prices.push({
-            product_id: item.id,
-            price: item.customPrice ?? item.price
+            product_id: productId,
+            price: finalPrice
           });
         }
       });
@@ -409,6 +413,7 @@ export default function Pricing() {
       setShowImportBillsDialog(false);
       setSelectedBill(null);
     } catch (error: any) {
+      console.error('Import bill error:', error);
       toast.error('Failed to import bill: ' + error.message);
     }
   };

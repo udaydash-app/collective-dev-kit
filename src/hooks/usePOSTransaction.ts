@@ -158,6 +158,7 @@ export const usePOSTransaction = () => {
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
       const itemsToSave = allItems.map(item => ({
         id: item.id,
+        productId: item.productId, // Base product ID for custom pricing
         name: item.name,
         quantity: item.quantity,
         price: item.price, // Original price
@@ -258,6 +259,7 @@ export const usePOSTransaction = () => {
           const allItemsForOffline = additionalItems ? [...cart, ...additionalItems] : cart;
           const itemsForOffline = allItemsForOffline.map(item => ({
             id: item.id,
+            productId: item.productId, // Base product ID for custom pricing
             name: item.name,
             quantity: item.quantity,
             price: item.price, // Original price
