@@ -34,30 +34,158 @@ export const usePOSTransaction = () => {
   const [discount, setDiscount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const addToCart = (product: any) => {
-    console.log('addToCart called with:', product);
-    setCart(prev => {
-      // Use variant ID if available, otherwise use product ID
-      const cartItemId = product.selectedVariant?.id || product.id;
-      const baseProductId = product.id; // Always use base product ID
-      const displayName = product.selectedVariant?.label 
-        ? `${product.name} (${product.selectedVariant.label})`
-        : product.name;
+  // Helper function to fetch active combos
+  const fetchActiveCombos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('combo_offers')
+        .select(`
+          id,
+          name,
+          combo_price,
+          combo_offer_items (
+            product_id,
+            variant_id,
+            quantity,
+            products (
+              id,
+              name,
+              price
+            ),
+            product_variants (
+              id,
+              label,
+              price
+            )
+          )
+        `)
+        .eq('is_active', true);
       
-      console.log('Cart item ID:', cartItemId, 'Base product ID:', baseProductId, 'Display name:', displayName);
-      console.log('Current cart:', prev);
-      
-      const existing = prev.find(item => item.id === cartItemId);
-      if (existing) {
-        console.log('Existing item found, incrementing quantity');
-        return prev.map(item =>
-          item.id === cartItemId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      // Fallback to offline DB
+      try {
+        return await offlineDB.getComboOffers();
+      } catch (offlineError) {
+        console.error('Error fetching offline combos:', offlineError);
+        return [];
       }
-      
-      const newItem = {
+    }
+  };
+
+  // Automatic combo detection and application
+  const detectAndApplyCombos = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+    try {
+      const combos = await fetchActiveCombos();
+      if (!combos || combos.length === 0) return currentCart;
+
+      // Filter out existing combo items and cart-discount items
+      let regularItems = currentCart.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      const appliedCombos: CartItem[] = [];
+
+      // Try to apply each combo
+      for (const combo of combos) {
+        if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) continue;
+
+        // Keep trying to form combos while possible
+        while (true) {
+          // Check if we have enough products to form this combo
+          let canFormCombo = true;
+          const requiredProducts = combo.combo_offer_items.map(item => ({
+            id: item.variant_id || item.product_id,
+            requiredQty: item.quantity,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            product_name: item.variant_id 
+              ? `${item.products?.name} (${item.product_variants?.label})`
+              : item.products?.name,
+          }));
+
+          // Calculate available quantities for each required product
+          for (const required of requiredProducts) {
+            const cartItem = regularItems.find(item => item.id === required.id);
+            if (!cartItem || cartItem.quantity < required.requiredQty) {
+              canFormCombo = false;
+              break;
+            }
+          }
+
+          if (!canFormCombo) break;
+
+          // Form the combo - reduce quantities of regular items
+          regularItems = regularItems.map(item => {
+            const required = requiredProducts.find(req => req.id === item.id);
+            if (required) {
+              return {
+                ...item,
+                quantity: item.quantity - required.requiredQty,
+              };
+            }
+            return item;
+          }).filter(item => item.quantity > 0); // Remove items with 0 quantity
+
+          // Add combo to cart
+          const comboCartItem: CartItem = {
+            id: `combo-${combo.id}-${Date.now()}-${Math.random()}`,
+            productId: combo.id,
+            comboId: combo.id,
+            name: combo.name,
+            price: combo.combo_price,
+            quantity: 1,
+            itemDiscount: 0,
+            isCombo: true,
+            comboItems: combo.combo_offer_items.map((item: any) => ({
+              product_id: item.product_id,
+              variant_id: item.variant_id,
+              quantity: item.quantity,
+              product_name: item.variant_id 
+                ? `${item.products?.name} (${item.product_variants?.label})`
+                : item.products?.name,
+            })),
+          };
+          
+          appliedCombos.push(comboCartItem);
+        }
+      }
+
+      // Show toast if combos were applied
+      if (appliedCombos.length > 0) {
+        const comboCount = appliedCombos.length;
+        const comboNames = [...new Set(appliedCombos.map(c => c.name))].join(', ');
+        toast.success(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
+      }
+
+      // Return combined cart: regular items + applied combos
+      return [...regularItems, ...appliedCombos];
+    } catch (error) {
+      console.error('Error in detectAndApplyCombos:', error);
+      return currentCart;
+    }
+  };
+
+  const addToCart = async (product: any) => {
+    console.log('addToCart called with:', product);
+    
+    // Create updated cart with new product
+    const cartItemId = product.selectedVariant?.id || product.id;
+    const baseProductId = product.id;
+    const displayName = product.selectedVariant?.label 
+      ? `${product.name} (${product.selectedVariant.label})`
+      : product.name;
+    
+    let updatedCart: CartItem[];
+    const existing = cart.find(item => item.id === cartItemId);
+    
+    if (existing) {
+      updatedCart = cart.map(item =>
+        item.id === cartItemId
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      );
+    } else {
+      const newItem: CartItem = {
         id: cartItemId,
         productId: baseProductId,
         name: displayName,
@@ -66,26 +194,37 @@ export const usePOSTransaction = () => {
         barcode: product.barcode,
         image_url: product.image_url,
       };
-      console.log('Adding new item to cart:', newItem);
-      return [newItem, ...prev];
-    });
+      updatedCart = [newItem, ...cart];
+    }
+    
+    // Apply combo detection
+    const cartWithCombos = await detectAndApplyCombos(updatedCart);
+    setCart(cartWithCombos);
+    
     toast.success(`${product.name} added to cart`);
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
+  const removeFromCart = async (productId: string) => {
+    const updatedCart = cart.filter(item => item.id !== productId);
+    
+    // Reapply combo detection after removal
+    const cartWithCombos = await detectAndApplyCombos(updatedCart);
+    setCart(cartWithCombos);
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = async (productId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      await removeFromCart(productId);
       return;
     }
-    setCart(prev =>
-      prev.map(item =>
-        item.id === productId ? { ...item, quantity } : item
-      )
+    
+    const updatedCart = cart.map(item =>
+      item.id === productId ? { ...item, quantity } : item
     );
+    
+    // Reapply combo detection after quantity update
+    const cartWithCombos = await detectAndApplyCombos(updatedCart);
+    setCart(cartWithCombos);
   };
 
   const updateItemPrice = (productId: string, price: number) => {
@@ -395,7 +534,6 @@ export const usePOSTransaction = () => {
     discount,
     setDiscount,
     addToCart,
-    addComboToCart,
     removeFromCart,
     updateQuantity,
     updateItemPrice,

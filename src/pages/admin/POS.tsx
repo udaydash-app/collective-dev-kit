@@ -55,7 +55,6 @@ import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
-import { ComboOffersDialog } from '@/components/pos/ComboOffersDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -124,7 +123,7 @@ export default function POS() {
   const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
-  const [showComboOffers, setShowComboOffers] = useState(false);
+  
   
   const ITEMS_PER_PAGE = 12;
 
@@ -195,7 +194,6 @@ export default function POS() {
     discount,
     setDiscount,
     addToCart,
-    addComboToCart,
     removeFromCart,
     updateQuantity,
     updateItemPrice,
@@ -1747,12 +1745,6 @@ export default function POS() {
       action: () => alert('Gift card - Coming soon')
     },
     { 
-      icon: Package, 
-      label: 'Combo Offers', 
-      color: 'bg-[#E74C3C]', 
-      action: () => setShowComboOffers(true)
-    },
-    { 
       icon: Tag, 
       label: 'Discount', 
       color: 'bg-[#F39C12]', 
@@ -2718,12 +2710,6 @@ export default function POS() {
           setScannedBarcode('');
           queryClient.invalidateQueries({ queryKey: ['pos-products'] });
         }}
-      />
-
-      <ComboOffersDialog
-        open={showComboOffers}
-        onOpenChange={setShowComboOffers}
-        onSelectCombo={addComboToCart}
       />
 
       {/* Notes Dialog */}
