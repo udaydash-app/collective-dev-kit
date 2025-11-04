@@ -22,9 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { useNavigate } from "react-router-dom";
 
 interface Offer {
   id: string;
@@ -46,6 +47,7 @@ export default function AdminOffers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -216,6 +218,13 @@ export default function AdminOffers() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/admin/combo-offers')}
+          >
+            <Package className="mr-2 h-4 w-4" />
+            Combo Offers
+          </Button>
           <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
             Add Offer
