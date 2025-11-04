@@ -1,13 +1,15 @@
 // Updated: 2025-11-02 - Editable price and final amount
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 const priceSchema = z.number().positive().max(1000000);
 const amountSchema = z.number().nonnegative().max(10000000);
@@ -33,6 +35,20 @@ export const TransactionCart = ({
   onSelectItem,
   onUpdatePrice,
 }: TransactionCartProps) => {
+  const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
+
+  const toggleComboExpansion = (itemId: string) => {
+    setExpandedCombos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -103,20 +119,46 @@ export const TransactionCart = ({
             <TableBody>
               {items.map((item) => {
                 const isCartDiscount = item.id === 'cart-discount';
+                const isCombo = item.isCombo;
+                const isExpanded = expandedCombos.has(item.id);
                 return (
-                  <TableRow 
-                    key={item.id} 
-                    className={cn(
-                      "text-xs transition-colors",
-                      !isCartDiscount && "cursor-pointer",
-                      selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15",
-                      isCartDiscount && "bg-orange-50 dark:bg-orange-950/20"
-                    )}
-                    onClick={() => !isCartDiscount && onSelectItem?.(item.id)}
-                  >
-                    <TableCell className="py-1 px-1">
-                      <span className={cn("text-[10px] font-medium line-clamp-2", isCartDiscount && "text-orange-600 dark:text-orange-400")}>{item.name}</span>
-                    </TableCell>
+                  <>
+                    <TableRow 
+                      key={item.id} 
+                      className={cn(
+                        "text-xs transition-colors",
+                        !isCartDiscount && "cursor-pointer",
+                        selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15",
+                        isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
+                        isCombo && "bg-green-50 dark:bg-green-950/20"
+                      )}
+                      onClick={() => !isCartDiscount && onSelectItem?.(item.id)}
+                    >
+                      <TableCell className="py-1 px-1">
+                        <div className="flex items-center gap-1">
+                          {isCombo && item.comboItems && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleComboExpansion(item.id);
+                              }}
+                            >
+                              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                            </Button>
+                          )}
+                          <span className={cn("text-[10px] font-medium line-clamp-2", isCartDiscount && "text-orange-600 dark:text-orange-400")}>
+                            {item.name}
+                          </span>
+                          {isCombo && (
+                            <Badge variant="secondary" className="text-[8px] px-1 h-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              COMBO
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                     <TableCell className="py-1 px-1">
                       {!isCartDiscount ? (
                         <div className="flex items-center justify-center gap-0.5">
@@ -240,6 +282,22 @@ export const TransactionCart = ({
                       </Button>
                     </TableCell>
                   </TableRow>
+                  {isCombo && isExpanded && item.comboItems && (
+                    <TableRow key={`${item.id}-details`}>
+                      <TableCell colSpan={6} className="py-1 px-1 bg-muted/30">
+                        <div className="text-[9px] text-muted-foreground ml-6">
+                          <span className="font-semibold">Includes: </span>
+                          {item.comboItems.map((ci, idx) => (
+                            <span key={idx}>
+                              {ci.quantity}x {ci.product_name}
+                              {idx < item.comboItems!.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
                 );
               })}
             </TableBody>

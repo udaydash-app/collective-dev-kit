@@ -82,21 +82,33 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           </div>
           {items.map((item, index) => {
             const isCartDiscount = item.id === 'cart-discount';
+            const isCombo = item.isCombo;
             const effectivePrice = item.customPrice ?? item.price;
             const itemTotal = effectivePrice * item.quantity;
             const discountAmount = (item.itemDiscount || 0) * item.quantity;
             const finalAmount = itemTotal - discountAmount;
             
             return (
-              <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
-                <div className="col-span-5 break-words leading-tight">{item.name}</div>
-                <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
-                <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(effectivePrice) : ''}</div>
-                <div className="col-span-1 text-right">
-                  {!isCartDiscount && discountAmount > 0 ? formatCurrencyCompact(discountAmount) : ''}
+              <>
+                <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
+                  <div className="col-span-5 break-words leading-tight">
+                    {isCombo && '🎁 '}{item.name}
+                  </div>
+                  <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
+                  <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(effectivePrice) : ''}</div>
+                  <div className="col-span-1 text-right">
+                    {!isCartDiscount && discountAmount > 0 ? formatCurrencyCompact(discountAmount) : ''}
+                  </div>
+                  <div className="col-span-2 text-right font-semibold">{formatCurrencyCompact(finalAmount)}</div>
                 </div>
-                <div className="col-span-2 text-right font-semibold">{formatCurrencyCompact(finalAmount)}</div>
-              </div>
+                {isCombo && item.comboItems && (
+                  <div key={`${index}-combo-items`} className="text-[8px] text-muted-foreground ml-2 mb-1">
+                    ({item.comboItems.map((ci, idx) => 
+                      `${ci.quantity}x ${ci.product_name}`
+                    ).join(', ')})
+                  </div>
+                )}
+              </>
             );
           })}
         </div>

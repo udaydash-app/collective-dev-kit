@@ -251,31 +251,59 @@ export const usePOSTransaction = () => {
         }
 
         // Update stock quantities for sold items
-        for (const item of itemsToSave) {
+        for (const item of cart) {
           if (item.id === 'cart-discount') continue; // Skip cart discount items
           
-          // Check if this is a variant or base product
-          const isVariant = item.id !== item.productId;
-          
-          if (isVariant) {
-            // Update variant stock
-            const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-              p_variant_id: item.id,
-              p_quantity: item.quantity
-            });
-            
-            if (variantError) {
-              console.error('Error updating variant stock:', variantError);
+          // Handle combo items - deduct stock from each product in the combo
+          if (item.isCombo && item.comboItems) {
+            for (const comboProduct of item.comboItems) {
+              const stockToDeduct = comboProduct.quantity * item.quantity;
+              
+              if (comboProduct.variant_id) {
+                const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
+                  p_variant_id: comboProduct.variant_id,
+                  p_quantity: stockToDeduct
+                });
+                
+                if (variantError) {
+                  console.error('Error updating combo variant stock:', variantError);
+                }
+              } else {
+                const { error: stockError } = await supabase.rpc('decrement_product_stock', {
+                  p_product_id: comboProduct.product_id,
+                  p_quantity: stockToDeduct
+                });
+                
+                if (stockError) {
+                  console.error('Error updating combo product stock:', stockError);
+                }
+              }
             }
           } else {
-            // Update base product stock
-            const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-              p_product_id: item.id,
-              p_quantity: item.quantity
-            });
+            // Regular product stock deduction
+            // Check if this is a variant or base product
+            const isVariant = item.id !== item.productId;
             
-            if (stockError) {
-              console.error('Error updating product stock:', stockError);
+            if (isVariant) {
+              // Update variant stock
+              const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
+                p_variant_id: item.id,
+                p_quantity: item.quantity
+              });
+              
+              if (variantError) {
+                console.error('Error updating variant stock:', variantError);
+              }
+            } else {
+              // Update base product stock
+              const { error: stockError } = await supabase.rpc('decrement_product_stock', {
+                p_product_id: item.id,
+                p_quantity: item.quantity
+              });
+              
+              if (stockError) {
+                console.error('Error updating product stock:', stockError);
+              }
             }
           }
         }

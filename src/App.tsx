@@ -45,6 +45,7 @@ import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
 import AdminStockAndPrice from "./pages/admin/StockAndPrice";
+import AdminComboOffers from "./pages/admin/ComboOffers";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -104,6 +105,7 @@ const AppContent = () => {
           <Route path="/admin/products" element={<AdminRoute><Products /></AdminRoute>} />
           <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
           <Route path="/admin/offers" element={<AdminRoute><AdminOffers /></AdminRoute>} />
+          <Route path="/admin/combo-offers" element={<AdminRoute><AdminComboOffers /></AdminRoute>} />
           <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
           <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />

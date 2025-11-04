@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 2; // Bumped to add pos_users store
+const DB_VERSION = 3; // Bumped to add combo_offers and combo_offer_items stores
 
 export interface OfflineTransaction {
   id: string;
@@ -99,6 +99,17 @@ class OfflineDB {
       if (!db.objectStoreNames.contains('pos_users')) {
         const posUserStore = db.createObjectStore('pos_users', { keyPath: 'id' });
         posUserStore.createIndex('pin_hash', 'pin_hash', { unique: false });
+      }
+
+      // Combo offers cache
+      if (!db.objectStoreNames.contains('combo_offers')) {
+        db.createObjectStore('combo_offers', { keyPath: 'id' });
+      }
+
+      // Combo offer items cache
+      if (!db.objectStoreNames.contains('combo_offer_items')) {
+        const comboItemsStore = db.createObjectStore('combo_offer_items', { keyPath: 'id' });
+        comboItemsStore.createIndex('combo_offer_id', 'combo_offer_id', { unique: false });
       }
     };
   });
@@ -277,7 +288,7 @@ class OfflineDB {
   // Clear all data
   async clearAll(): Promise<void> {
     if (!this.db) await this.init();
-    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users'];
+    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 'combo_offers', 'combo_offer_items'];
     
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(storeNames, 'readwrite');
@@ -328,6 +339,59 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('pos_users', 'readonly');
       const store = tx.objectStore('pos_users');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Combo Offers methods
+  async saveComboOffers(combos: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('combo_offers', 'readwrite');
+      const store = tx.objectStore('combo_offers');
+      
+      combos.forEach(combo => {
+        store.put({ ...combo, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getComboOffers(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('combo_offers', 'readonly');
+      const store = tx.objectStore('combo_offers');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveComboOfferItems(items: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('combo_offer_items', 'readwrite');
+      const store = tx.objectStore('combo_offer_items');
+      
+      items.forEach(item => {
+        store.put({ ...item, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getComboOfferItems(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('combo_offer_items', 'readonly');
+      const store = tx.objectStore('combo_offer_items');
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
