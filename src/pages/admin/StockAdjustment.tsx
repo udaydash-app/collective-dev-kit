@@ -534,7 +534,13 @@ export default function StockAdjustment() {
                               className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                             />
                           </TableCell>
-                          <TableCell className={`text-right py-2 font-semibold ${systemStock < 0 ? 'text-red-600' : ''}`}>
+                          <TableCell className={`text-right py-2 font-semibold ${
+                            systemStock < 0 
+                              ? 'text-red-600' 
+                              : systemStock > 0 
+                              ? 'text-green-600' 
+                              : 'text-muted-foreground'
+                          }`}>
                             {systemStock < 0 ? '-' : ''}{Math.abs(systemStock)}
                           </TableCell>
                           <TableCell className="text-right py-2">
@@ -643,7 +649,13 @@ export default function StockAdjustment() {
                                 className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
                               />
                             </TableCell>
-                            <TableCell className={`text-right py-2 font-semibold ${systemStock < 0 ? 'text-red-600' : ''}`}>
+                            <TableCell className={`text-right py-2 font-semibold ${
+                              systemStock < 0 
+                                ? 'text-red-600' 
+                                : systemStock > 0 
+                                ? 'text-green-600' 
+                                : 'text-muted-foreground'
+                            }`}>
                               {systemStock < 0 ? '-' : ''}{Math.abs(systemStock)}
                             </TableCell>
                             <TableCell className="text-right py-2">
