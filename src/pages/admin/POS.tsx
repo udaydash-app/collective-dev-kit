@@ -444,13 +444,11 @@ export default function POS() {
     queryFn: async () => {
       if (!selectedStoreId || !currentCashSession) return [];
       
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
-      
       const { data } = await supabase
         .from('cash_sessions')
         .select('opening_cash')
         .eq('store_id', selectedStoreId)
-        .gte('opened_at', startOfToday.toISOString());
+        .gte('opened_at', currentCashSession.opened_at);
       
       return data || [];
     },
@@ -475,14 +473,12 @@ export default function POS() {
     queryKey: ['today-all-transactions', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
-      
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('pos_transactions')
         .select('total, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', startOfToday.toISOString());
+        .gte('created_at', currentCashSession.opened_at);
 
       return data || [];
     },
@@ -494,14 +490,12 @@ export default function POS() {
     queryKey: ['today-all-purchases', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
-      
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('purchases')
         .select('total_amount, payment_method, payment_status')
         .eq('store_id', currentCashSession.store_id)
-        .gte('purchased_at', startOfToday.toISOString());
+        .gte('purchased_at', currentCashSession.opened_at);
 
       return data || [];
     },
@@ -513,14 +507,12 @@ export default function POS() {
     queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
-      
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
 
       const { data } = await supabase
         .from('expenses')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', startOfToday.toISOString());
+        .gte('created_at', currentCashSession.opened_at);
 
       return data || [];
     },
@@ -571,13 +563,11 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
       
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
-      
       const { data, error } = await supabase
         .from('payment_receipts')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', startOfToday.toISOString());
+        .gte('created_at', currentCashSession.opened_at);
       
       if (error) throw error;
       return data || [];
@@ -637,8 +627,6 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
       
-      const startOfToday = startOfDay(new Date(currentCashSession.opened_at));
-      
       // Get cash account ID
       const { data: cashAccount } = await supabase
         .from('accounts')
@@ -659,7 +647,7 @@ export default function POS() {
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.created_at', startOfToday.toISOString())
+        .gte('journal_entries.created_at', currentCashSession.opened_at)
         .not('journal_entries.reference', 'like', 'POS-%')
         .not('journal_entries.reference', 'like', 'PMT-%')
         .not('journal_entries.description', 'like', 'Purchase -%')
