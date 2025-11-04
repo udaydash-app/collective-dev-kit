@@ -102,6 +102,7 @@ export default function JournalEntries() {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
   });
 
   const createMutation = useMutation({
