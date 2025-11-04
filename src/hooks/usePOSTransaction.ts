@@ -78,8 +78,13 @@ export const usePOSTransaction = () => {
   // Automatic combo detection and application
   const detectAndApplyCombos = async (currentCart: CartItem[]): Promise<CartItem[]> => {
     try {
+      console.log('detectAndApplyCombos called with cart:', currentCart);
       const combos = await fetchActiveCombos();
-      if (!combos || combos.length === 0) return currentCart;
+      console.log('Active combos fetched:', combos);
+      if (!combos || combos.length === 0) {
+        console.log('No active combos found, returning original cart');
+        return currentCart;
+      }
 
       // Filter out existing combo items and cart-discount items
       let regularItems = currentCart.filter(item => !item.isCombo && item.id !== 'cart-discount');
@@ -158,7 +163,9 @@ export const usePOSTransaction = () => {
       }
 
       // Return combined cart: regular items + applied combos
-      return [...regularItems, ...appliedCombos];
+      const finalCart = [...regularItems, ...appliedCombos];
+      console.log('Final cart after combo detection:', finalCart);
+      return finalCart;
     } catch (error) {
       console.error('Error in detectAndApplyCombos:', error);
       return currentCart;

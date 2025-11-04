@@ -269,7 +269,7 @@ export default function POS() {
           if (item.products) {
             // Add product to cart with the correct quantity directly
             for (let i = 0; i < item.quantity; i++) {
-              addToCart({
+              await addToCart({
                 id: item.products.id,
                 name: item.products.name,
                 price: item.products.price,
@@ -346,7 +346,7 @@ export default function POS() {
           }
 
           // Add each item with quantity of 1, then update quantity
-          addToCart({
+          await addToCart({
             id: item.id,
             name: item.name,
             price: item.price,
@@ -355,7 +355,7 @@ export default function POS() {
           
           // Update quantity if greater than 1
           if (item.quantity > 1) {
-            updateQuantity(item.id, item.quantity);
+            await updateQuantity(item.id, item.quantity);
           }
           
           // Apply custom price if present
@@ -1158,7 +1158,7 @@ export default function POS() {
   };
 
   // Helper function to add to cart with custom pricing logic
-  const addToCartWithCustomPrice = (product: any) => {
+  const addToCartWithCustomPrice = async (product: any) => {
     // Check if customer has custom price for this product
     const customPrice = customerPrices[product.id];
     
@@ -1167,7 +1167,7 @@ export default function POS() {
       const discount = product.price - customPrice;
       
       // Add product with original price
-      addToCart(product);
+      await addToCart(product);
       
       // Apply discount immediately
       setTimeout(() => {
@@ -1175,7 +1175,7 @@ export default function POS() {
       }, 50);
     } else {
       // No custom price, add normally
-      addToCart(product);
+      await addToCart(product);
     }
   };
 
@@ -1829,8 +1829,8 @@ export default function POS() {
     });
 
     // Restore ticket items to cart with proper sequencing
-    setTimeout(() => {
-      ticket.items.forEach((item: any) => {
+    setTimeout(async () => {
+      for (const item of ticket.items) {
         // Skip cart-discount items as they'll be recalculated
         if (item.id === 'cart-discount') {
           if (item.price < 0) {
@@ -1842,11 +1842,11 @@ export default function POS() {
               itemDiscount: 0,
             });
           }
-          return;
+          continue;
         }
 
         // Add item once with correct quantity
-        addToCart({
+        await addToCart({
           id: item.id,
           productId: item.productId || item.id,
           name: item.name,
@@ -1858,19 +1858,19 @@ export default function POS() {
         
         // Update quantity if greater than 1
         if (item.quantity > 1) {
-          setTimeout(() => updateQuantity(item.id, item.quantity), 10);
+          await updateQuantity(item.id, item.quantity);
         }
         
         // Apply custom price if present
         if (item.customPrice) {
-          setTimeout(() => updateItemPrice(item.id, item.customPrice), 20);
+          updateItemPrice(item.id, item.customPrice);
         }
         
         // Apply item discount if present
         if (item.itemDiscount && item.itemDiscount > 0) {
-          setTimeout(() => updateItemDiscount(item.id, item.itemDiscount), 30);
+          updateItemDiscount(item.id, item.itemDiscount);
         }
-      });
+      }
       
       toast.success(`Ticket "${ticket.name}" recalled`);
     }, 100);
