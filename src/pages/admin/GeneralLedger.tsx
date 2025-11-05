@@ -542,29 +542,33 @@ export default function GeneralLedger() {
                     </div>
                   ) : (
                     <CommandGroup className="max-h-[300px] overflow-auto">
-                      {filteredAccounts.map((account) => (
-                        <CommandItem
-                          key={account.id}
-                          value={account.id}
-                          onSelect={(value) => {
-                            setSelectedAccount(value);
-                            setOpen(false);
-                          }}
-                          className={cn(account.isChild && 'pl-8')}
-                        >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4',
-                              selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
-                            )}
-                          />
-                          {account.isChild && '└─ '}
-                          {account.account_code} - {account.account_name}
-                          {account.contactName && ` (${account.contactName})`}
-                          {account.isCustomer && ' 👤'}
-                          {account.isSupplier && ' 🏢'}
-                        </CommandItem>
-                      ))}
+                      {(() => {
+                        console.log('Rendering filteredAccounts count:', filteredAccounts.length);
+                        console.log('Sudha in filtered:', filteredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha')));
+                        return filteredAccounts.map((account, index) => (
+                          <CommandItem
+                            key={`${account.id}-${index}`}
+                            value={account.id}
+                            onSelect={(value) => {
+                              setSelectedAccount(value);
+                              setOpen(false);
+                            }}
+                            className={cn(account.isChild && 'pl-8')}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            {account.isChild && '└─ '}
+                            {account.account_code} - {account.account_name}
+                            {account.contactName && ` (${account.contactName})`}
+                            {account.isCustomer && ' 👤'}
+                            {account.isSupplier && ' 🏢'}
+                          </CommandItem>
+                        ));
+                      })()}
                     </CommandGroup>
                   )}
                 </Command>
