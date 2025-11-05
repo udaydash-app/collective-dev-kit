@@ -16,7 +16,7 @@ interface PendingBillsDialogProps {
   onOpenChange: (open: boolean) => void;
   contactId: string;
   customerName: string;
-  onAmountSelect?: (amount: number) => void;
+  onAmountSelect?: (amount: number, billId: string, billType: "pos_transaction" | "order") => void;
 }
 
 interface POSTransaction {
@@ -98,9 +98,9 @@ export default function PendingBillsDialog({
   const totalOrdersAmount = orders?.reduce((sum, o) => sum + Number(o.total), 0) || 0;
   const totalAmount = totalPOSAmount + totalOrdersAmount;
 
-  const handleBillClick = (amount: number) => {
+  const handleBillClick = (amount: number, billId: string, billType: "pos_transaction" | "order") => {
     if (onAmountSelect) {
-      onAmountSelect(amount);
+      onAmountSelect(amount, billId, billType);
       onOpenChange(false);
     }
   };
@@ -143,7 +143,7 @@ export default function PendingBillsDialog({
                   >
                     <Card 
                       className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => handleBillClick(Number(transaction.total))}
+                      onClick={() => handleBillClick(Number(transaction.total), transaction.id, "pos_transaction")}
                     >
                       <CollapsibleTrigger className="w-full" onClick={(e) => e.stopPropagation()}>
                         <CardHeader className="pb-3">
@@ -210,7 +210,7 @@ export default function PendingBillsDialog({
                   >
                     <Card 
                       className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => handleBillClick(Number(order.total))}
+                      onClick={() => handleBillClick(Number(order.total), order.id, "order")}
                     >
                       <CollapsibleTrigger className="w-full" onClick={(e) => e.stopPropagation()}>
                         <CardHeader className="pb-3">

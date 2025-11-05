@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, Receipt, Search } from 'lucide-react';
@@ -42,6 +43,9 @@ export default function PaymentReceipts() {
   const [pendingBillsOpen, setPendingBillsOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentType, setPaymentType] = useState<'on_account' | 'against_bill'>('on_account');
+  const [selectedBillId, setSelectedBillId] = useState('');
+  const [selectedBillType, setSelectedBillType] = useState<'pos_transaction' | 'order'>('pos_transaction');
   const [formData, setFormData] = useState({
     contact_id: '',
     amount: '',
@@ -125,16 +129,127 @@ export default function PaymentReceipts() {
     mutationFn: async (data: typeof formData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      
+      const amount = parseFloat(data.amount);
 
+      // Insert payment receipt
       const { error } = await supabase
         .from('payment_receipts')
         .insert({
           ...data,
-          amount: parseFloat(data.amount),
+          amount,
           received_by: user.id
         });
 
       if (error) throw error;
+
+      // Handle payment application
+      if (paymentType === 'against_bill' && selectedBillId) {
+        // Update specific bill
+        if (selectedBillType === 'pos_transaction') {
+          const { data: transaction } = await supabase
+            .from('pos_transactions')
+            .select('total, amount_paid')
+            .eq('id', selectedBillId)
+            .single();
+
+          if (transaction) {
+            const newAmountPaid = (transaction.amount_paid || 0) + amount;
+            const paymentStatus = newAmountPaid >= transaction.total ? 'paid' : 
+                                 newAmountPaid > 0 ? 'partial' : 'pending';
+
+            await supabase
+              .from('pos_transactions')
+              .update({ 
+                amount_paid: newAmountPaid,
+                payment_status: paymentStatus 
+              })
+              .eq('id', selectedBillId);
+          }
+        } else {
+          const { data: order } = await supabase
+            .from('orders')
+            .select('total')
+            .eq('id', selectedBillId)
+            .single();
+
+          if (order && amount >= order.total) {
+            await supabase
+              .from('orders')
+              .update({ payment_status: 'paid' })
+              .eq('id', selectedBillId);
+          }
+        }
+      } else {
+        // On account - adjust oldest bills first
+        let remainingAmount = amount;
+
+        // Get pending POS transactions
+        let posResult;
+        try {
+          posResult = await supabase
+            .from('pos_transactions')
+            .select('id, total, amount_paid')
+            .eq('customer_id', data.contact_id)
+            .eq('payment_method', 'credit')
+            .neq('payment_status', 'paid')
+            .order('created_at', { ascending: true });
+        } catch (e) {
+          posResult = { data: null };
+        }
+
+        if (posResult.data) {
+          for (const transaction of posResult.data) {
+            if (remainingAmount <= 0) break;
+
+            const outstanding = Number(transaction.total) - (Number((transaction as any).amount_paid) || 0);
+            const paymentToApply = Math.min(remainingAmount, outstanding);
+            const newAmountPaid = (Number((transaction as any).amount_paid) || 0) + paymentToApply;
+            const paymentStatus = newAmountPaid >= Number(transaction.total) ? 'paid' : 
+                                 newAmountPaid > 0 ? 'partial' : 'pending';
+
+            await supabase
+              .from('pos_transactions')
+              .update({ 
+                amount_paid: newAmountPaid,
+                payment_status: paymentStatus 
+              } as any)
+              .eq('id', (transaction as any).id);
+
+            remainingAmount -= paymentToApply;
+          }
+        }
+
+        // If still remaining, apply to oldest orders
+        if (remainingAmount > 0) {
+          let ordersResult;
+          try {
+            ordersResult = await supabase
+              .from('orders')
+              .select('id, total')
+              .eq('user_id', data.contact_id)
+              .eq('payment_status', 'pending')
+              .order('created_at', { ascending: true });
+          } catch (e) {
+            ordersResult = { data: null };
+          }
+
+          if (ordersResult.data) {
+            for (const order of ordersResult.data) {
+              if (remainingAmount <= 0) break;
+
+              if (remainingAmount >= Number(order.total)) {
+                await supabase
+                  .from('orders')
+                  .update({ payment_status: 'paid' })
+                  .eq('id', (order as any).id);
+
+                remainingAmount -= Number(order.total);
+              }
+            }
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
@@ -158,6 +273,10 @@ export default function PaymentReceipts() {
 
   const handleClose = () => {
     setOpen(false);
+    setPaymentType('on_account');
+    setSelectedBillId('');
+    setSelectedCustomer(null);
+    setPendingBillsOpen(false);
     setFormData({
       contact_id: '',
       amount: '',
@@ -278,12 +397,13 @@ export default function PaymentReceipts() {
                 <Select
                   value={formData.contact_id}
                   onValueChange={(value) => {
-                    setFormData({ ...formData, contact_id: value });
+                    setFormData({ ...formData, contact_id: value, amount: '' });
                     const customer = customers?.find(c => c.id === value);
                     if (customer) {
                       setSelectedCustomer({ id: customer.id, name: customer.name });
-                      setPendingBillsOpen(true);
                     }
+                    setPaymentType('on_account');
+                    setSelectedBillId('');
                   }}
                 >
                   <SelectTrigger>
@@ -299,6 +419,46 @@ export default function PaymentReceipts() {
                 </Select>
               </div>
 
+              {formData.contact_id && (
+                <div className="col-span-2 space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <Label>Payment Type *</Label>
+                  <RadioGroup 
+                    value={paymentType} 
+                    onValueChange={(value: 'on_account' | 'against_bill') => {
+                      setPaymentType(value);
+                      if (value === 'on_account') {
+                        setSelectedBillId('');
+                        setFormData(prev => ({ ...prev, amount: '' }));
+                      }
+                    }}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="on_account" id="on_account" />
+                      <Label htmlFor="on_account" className="font-normal cursor-pointer">
+                        On Account (Auto-adjust from oldest bills)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="against_bill" id="against_bill" />
+                      <Label htmlFor="against_bill" className="font-normal cursor-pointer">
+                        Against Specific Bill
+                      </Label>
+                    </div>
+                  </RadioGroup>
+
+                  {paymentType === 'against_bill' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPendingBillsOpen(true)}
+                      className="w-full"
+                    >
+                      {selectedBillId ? '✓ Bill Selected - Click to Change' : 'Select Bill to Pay'}
+                    </Button>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount *</Label>
                 <Input
@@ -309,7 +469,11 @@ export default function PaymentReceipts() {
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   required
+                  disabled={paymentType === 'against_bill' && !selectedBillId}
                 />
+                {paymentType === 'against_bill' && !selectedBillId && (
+                  <p className="text-sm text-muted-foreground">Select a bill first</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -381,8 +545,11 @@ export default function PaymentReceipts() {
           onOpenChange={setPendingBillsOpen}
           contactId={selectedCustomer.id}
           customerName={selectedCustomer.name}
-          onAmountSelect={(amount) => {
+          onAmountSelect={(amount, billId, billType) => {
             setFormData({ ...formData, amount: amount.toString() });
+            setSelectedBillId(billId);
+            setSelectedBillType(billType);
+            setPendingBillsOpen(false);
           }}
         />
       )}

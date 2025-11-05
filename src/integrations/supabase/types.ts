@@ -1153,6 +1153,7 @@ export type Database = {
       }
       pos_transactions: {
         Row: {
+          amount_paid: number | null
           cashier_id: string
           created_at: string
           customer_id: string | null
@@ -1170,6 +1171,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
           cashier_id: string
           created_at?: string
           customer_id?: string | null
@@ -1187,6 +1189,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
           cashier_id?: string
           created_at?: string
           customer_id?: string | null
