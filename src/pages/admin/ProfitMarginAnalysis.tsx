@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, TrendingUp, TrendingDown, DollarSign, Package, Percent } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface ProfitMarginData {
   product_id: string;
@@ -195,11 +196,14 @@ export default function ProfitMarginAnalysis() {
     <div className="min-h-screen bg-background pb-20">
       <Header />
       <main className="container mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Profit Margin Analysis</h1>
-          <p className="text-muted-foreground">
-            Analyze gross profit margins using actual FIFO costs
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Profit Margin Analysis</h1>
+            <p className="text-muted-foreground">
+              Analyze gross profit margins using actual FIFO costs
+            </p>
+          </div>
+          <ReturnToPOSButton />
         </div>
 
         {/* Summary Cards */}

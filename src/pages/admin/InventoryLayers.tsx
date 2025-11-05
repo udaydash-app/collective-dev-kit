@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface InventoryLayer {
   id: string;
@@ -117,6 +118,7 @@ export default function InventoryLayers() {
             View detailed cost tracking for each product batch
           </p>
         </div>
+        <ReturnToPOSButton />
       </div>
 
       <Card>
