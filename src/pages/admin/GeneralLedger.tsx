@@ -123,12 +123,20 @@ export default function GeneralLedger() {
       });
     }
     
+    // Track which child accounts have been added to prevent duplicates
+    const addedChildIds = new Set<string>();
+    
     parentAccounts.forEach(parent => {
       structuredAccounts.push({ ...parent, isParent: true, contactName: '' });
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
       children.forEach(child => {
         // Skip if this account belongs to a dual-role contact (already in unified section)
         if (dualRoleAccountIds.has(child.id)) {
+          return;
+        }
+        
+        // Skip if this child account was already added under another parent
+        if (addedChildIds.has(child.id)) {
           return;
         }
         
@@ -159,6 +167,9 @@ export default function GeneralLedger() {
           isCustomer: contact?.is_customer || false,
           isSupplier: contact?.is_supplier || false
         });
+        
+        // Mark this child account as added
+        addedChildIds.add(child.id);
       });
     });
     
