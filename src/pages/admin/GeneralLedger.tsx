@@ -188,25 +188,20 @@ export default function GeneralLedger() {
       return nameMatch || codeMatch || contactMatch;
     });
     
-    // Deduplicate by contact name - if a contact appears in both unified and regular sections,
-    // only show the unified version
-    const seenContactNames = new Set<string>();
+    // Deduplicate by account ID - each unique account should appear only once
+    const seenAccountIds = new Set<string>();
     const deduplicated = filtered.filter((account) => {
-      // Always keep headers and non-contact accounts
-      if (account.isHeader || !account.contactName) return true;
+      // Always keep headers (they don't have real account IDs)
+      if (account.isHeader) return true;
       
-      // For unified accounts, always keep them and mark contact as seen
-      if (account.isUnified) {
-        seenContactNames.add(account.contactName.toLowerCase());
-        return true;
-      }
+      // For unified accounts, use a special key
+      const accountKey = account.isUnified ? account.id : account.id;
       
-      // For regular accounts, only keep if we haven't seen this contact in unified
-      const contactKey = account.contactName.toLowerCase();
-      if (seenContactNames.has(contactKey)) {
+      if (seenAccountIds.has(accountKey)) {
         return false; // Skip duplicate
       }
       
+      seenAccountIds.add(accountKey);
       return true;
     });
     
