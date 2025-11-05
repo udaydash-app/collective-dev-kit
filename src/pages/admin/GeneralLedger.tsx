@@ -132,11 +132,13 @@ export default function GeneralLedger() {
       children.forEach(child => {
         // Skip if this account belongs to a dual-role contact (already in unified section)
         if (dualRoleAccountIds.has(child.id)) {
+          console.log('Skipping dual-role account:', child.account_name, child.id);
           return;
         }
         
         // Skip if this child account was already added under another parent
         if (addedChildIds.has(child.id)) {
+          console.log('Skipping already added child:', child.account_name, child.id);
           return;
         }
         
@@ -160,6 +162,15 @@ export default function GeneralLedger() {
           );
         }
         
+        if (contact?.name.toLowerCase().includes('sudha')) {
+          console.log('Adding Sudha account:', {
+            childId: child.id,
+            accountName: child.account_name,
+            contactName: contact.name,
+            parentName: parent.account_name
+          });
+        }
+        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
@@ -172,6 +183,10 @@ export default function GeneralLedger() {
         addedChildIds.add(child.id);
       });
     });
+    
+    // Log final structured accounts for Sudha
+    const sudhaAccounts = structuredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha'));
+    console.log('Final Sudha accounts in structuredAccounts:', sudhaAccounts.length, sudhaAccounts);
     
     return structuredAccounts;
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
