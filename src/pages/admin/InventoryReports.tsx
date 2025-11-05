@@ -623,6 +623,13 @@ export default function InventoryReports() {
                 <span className="text-sm">Stock Aging</span>
               </Button>
             </Link>
+
+            <Link to="/admin/profit-margin-analysis">
+              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
+                <TrendingUp className="h-5 w-5" />
+                <span className="text-sm">Profit Margin</span>
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
