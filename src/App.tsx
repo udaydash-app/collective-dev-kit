@@ -46,6 +46,10 @@ import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
 import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import InventoryLayers from "./pages/admin/InventoryLayers";
+import StockReconciliation from "./pages/admin/StockReconciliation";
+import COGSAnalysis from "./pages/admin/COGSAnalysis";
+import InventoryValuation from "./pages/admin/InventoryValuation";
+import StockAging from "./pages/admin/StockAging";
 import AdminComboOffers from "./pages/admin/ComboOffers";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
@@ -127,6 +131,10 @@ const AppContent = () => {
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
           <Route path="/admin/inventory-layers" element={<AdminRoute><InventoryLayers /></AdminRoute>} />
+          <Route path="/admin/stock-reconciliation" element={<AdminRoute><StockReconciliation /></AdminRoute>} />
+          <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
+          <Route path="/admin/inventory-valuation" element={<AdminRoute><InventoryValuation /></AdminRoute>} />
+          <Route path="/admin/stock-aging" element={<AdminRoute><StockAging /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
           <Route path="/admin/supplier-payments" element={<AdminRoute><AdminSupplierPayments /></AdminRoute>} />
           <Route path="/admin/trial-balance" element={<AdminRoute><AdminTrialBalance /></AdminRoute>} />
