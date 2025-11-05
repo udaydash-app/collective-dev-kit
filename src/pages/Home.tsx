@@ -198,9 +198,9 @@ export default function Home() {
       
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {/* Welcome Section */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
-          <p className="text-muted-foreground">What would you like to order today?</p>
+          <p className="text-sm text-muted-foreground">Discover fresh deals and quality products</p>
         </div>
 
         {/* Offers Section - Auto-playing Carousel on Mobile, Stacked on Desktop */}
@@ -462,13 +462,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                <p>No featured deals available</p>
-              </CardContent>
-            </Card>
-          )}
+          ) : null}
         </section>
 
         {/* Categories Grid */}
@@ -523,22 +517,24 @@ export default function Home() {
           )}
         </section>
 
-        {/* Recent Orders */}
+        {/* Quick Actions */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Recent Orders</h2>
+          <div className="grid grid-cols-2 gap-3">
             <Link to="/orders">
-              <Button variant="ghost" size="sm">View All</Button>
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <h3 className="font-semibold">My Orders</h3>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/categories">
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <h3 className="font-semibold">Start Shopping</h3>
+                </CardContent>
+              </Card>
             </Link>
           </div>
-          <Card>
-            <CardContent className="p-4 text-center text-muted-foreground">
-              <p>No recent orders</p>
-              <Link to="/categories">
-                <Button className="mt-3">Start Shopping</Button>
-              </Link>
-            </CardContent>
-          </Card>
         </section>
       </main>
 
