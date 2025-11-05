@@ -360,7 +360,7 @@ export default function GeneralLedger() {
       body: tableData,
       foot: [
         ['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
-        ['', '', '', accountInfo.isUnified ? 'Net Position:' : 'Net Change:', '', '', 
+        ['', '', '', 'Balance:', '', '', 
          Math.abs(netChange).toFixed(2) + (netChange < 0 ? ' CR' : '')]
       ],
       styles: { 
@@ -556,7 +556,7 @@ export default function GeneralLedger() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{(ledgerData.account as any).isUnified ? 'Net Position' : 'Net Change'}</p>
+              <p className="text-sm text-muted-foreground">Balance</p>
               <p
                 className={`text-lg font-bold font-mono ${
                   netChange >= 0 ? 'text-green-600' : 'text-red-600'
