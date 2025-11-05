@@ -14,6 +14,7 @@ import { Plus, Trash2, Package, Search, Eye, Edit, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface PurchaseItem {
   product_id: string;
@@ -438,157 +439,194 @@ export default function Purchases() {
 
       {/* New Purchase Dialog */}
       <Dialog open={showNewPurchase} onOpenChange={setShowNewPurchase}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Create New Purchase</DialogTitle>
+            <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Supplier Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="supplier">Supplier *</Label>
-                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                  <SelectTrigger id="supplier">
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers?.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                        {(supplier.phone || supplier.email) && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {supplier.phone || supplier.email}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Don't see your supplier?{' '}
-                  <a href="/admin/contacts" className="text-primary hover:underline">
-                    Add one in Contacts
-                  </a>
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="store">Store *</Label>
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
-                  <SelectTrigger id="store">
-                    <SelectValue placeholder="Select store" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stores?.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="payment-status">Payment Status</Label>
-                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                  <SelectTrigger id="payment-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="partial">Partial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Products */}
-            <div>
-              <Label>Products</Label>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowProductSearch(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-
-              {/* Items List */}
-              <div className="mt-4 space-y-2">
-                {items.map((item, index) => (
-                  <div key={index} className="border rounded p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.product_name}</p>
-                        {item.variant_label && (
-                          <p className="text-sm text-muted-foreground">{item.variant_label}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs">Quantity</Label>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
-                          min="1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Unit Cost</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.unit_cost}
-                          onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Total</Label>
-                        <Input
-                          value={formatCurrency(item.total_cost)}
-                          disabled
-                        />
-                      </div>
-                    </div>
+          <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            {/* Header Info Card */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="supplier" className="text-sm font-semibold">Supplier *</Label>
+                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                      <SelectTrigger id="supplier" className="mt-1">
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers?.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                            {(supplier.phone || supplier.email) && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {supplier.phone || supplier.email}
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Don't see your supplier?{' '}
+                      <a href="/admin/contacts" className="text-primary hover:underline">
+                        Add in Contacts
+                      </a>
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  <div>
+                    <Label htmlFor="store" className="text-sm font-semibold">Store *</Label>
+                    <Select value={selectedStore} onValueChange={setSelectedStore}>
+                      <SelectTrigger id="store" className="mt-1">
+                        <SelectValue placeholder="Select store" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores?.map((store) => (
+                          <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="payment-status" className="text-sm font-semibold">Payment Status</Label>
+                    <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                      <SelectTrigger id="payment-status" className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="partial">Partial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <Label htmlFor="payment-method" className="text-sm font-semibold">Payment Method</Label>
+                  <Input
+                    id="payment-method"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    placeholder="Cash, Card, Bank Transfer..."
+                    className="mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Products Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Purchase Items</CardTitle>
+                  <Button
+                    onClick={() => setShowProductSearch(true)}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Product
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {items.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No items added yet. Click "Add Product" to begin.</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-[40%]">Product</TableHead>
+                          <TableHead className="w-[15%] text-center">Quantity</TableHead>
+                          <TableHead className="w-[15%] text-right">Unit Cost</TableHead>
+                          <TableHead className="w-[20%] text-right">Total</TableHead>
+                          <TableHead className="w-[10%] text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item, index) => (
+                          <TableRow key={index} className="hover:bg-muted/30">
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{item.product_name}</p>
+                                {item.variant_label && (
+                                  <p className="text-xs text-muted-foreground">{item.variant_label}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
+                                min="1"
+                                className="w-20 mx-auto text-center"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.unit_cost}
+                                onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
+                                className="w-28 ml-auto text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="font-semibold">{formatCurrency(item.total_cost)}</span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeItem(index)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Notes */}
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
-              />
+            <Card>
+              <CardContent className="pt-6">
+                <Label htmlFor="notes" className="text-sm font-semibold">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Additional notes or remarks..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Footer - Fixed at bottom */}
+          <div className="border-t pt-4 mt-4 bg-background space-y-4">
+            <div className="flex justify-between items-center px-2">
+              <span className="text-lg font-semibold">Total Amount:</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
             </div>
 
-            {/* Total */}
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center text-lg font-bold">
-                <span>Total Amount:</span>
-                <span>{formatCurrency(totalAmount)}</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => setShowNewPurchase(false)}
@@ -616,122 +654,150 @@ export default function Purchases() {
           setSelectedPurchase(null);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Edit Purchase</DialogTitle>
+            <DialogTitle className="text-2xl">Edit Purchase</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Payment Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-payment-status">Payment Status</Label>
-                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                  <SelectTrigger id="edit-payment-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="partial">Partial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-payment-method">Payment Method</Label>
-                <Input
-                  id="edit-payment-method"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  placeholder="Cash, Card, Bank Transfer..."
-                />
-              </div>
-            </div>
-
-            {/* Products */}
-            <div>
-              <Label>Products</Label>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowProductSearch(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-
-              {/* Items List */}
-              <div className="mt-4 space-y-2">
-                {items.map((item, index) => (
-                  <div key={index} className="border rounded p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.product_name}</p>
-                        {item.variant_label && (
-                          <p className="text-sm text-muted-foreground">{item.variant_label}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs">Quantity</Label>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
-                          min="1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Unit Cost</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.unit_cost}
-                          onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Total</Label>
-                        <Input
-                          value={formatCurrency(item.total_cost)}
-                          disabled
-                        />
-                      </div>
-                    </div>
+          <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            {/* Payment Info Card */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-payment-status" className="text-sm font-semibold">Payment Status</Label>
+                    <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                      <SelectTrigger id="edit-payment-status" className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="partial">Partial</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div>
+                    <Label htmlFor="edit-payment-method" className="text-sm font-semibold">Payment Method</Label>
+                    <Input
+                      id="edit-payment-method"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      placeholder="Cash, Card, Bank Transfer..."
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Products Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Purchase Items</CardTitle>
+                  <Button
+                    onClick={() => setShowProductSearch(true)}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Product
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {items.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No items added yet. Click "Add Product" to begin.</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-[40%]">Product</TableHead>
+                          <TableHead className="w-[15%] text-center">Quantity</TableHead>
+                          <TableHead className="w-[15%] text-right">Unit Cost</TableHead>
+                          <TableHead className="w-[20%] text-right">Total</TableHead>
+                          <TableHead className="w-[10%] text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item, index) => (
+                          <TableRow key={index} className="hover:bg-muted/30">
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{item.product_name}</p>
+                                {item.variant_label && (
+                                  <p className="text-xs text-muted-foreground">{item.variant_label}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
+                                min="1"
+                                className="w-20 mx-auto text-center"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.unit_cost}
+                                onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
+                                className="w-28 ml-auto text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="font-semibold">{formatCurrency(item.total_cost)}</span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeItem(index)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Notes */}
-            <div>
-              <Label htmlFor="edit-notes">Notes</Label>
-              <Textarea
-                id="edit-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
-              />
+            <Card>
+              <CardContent className="pt-6">
+                <Label htmlFor="edit-notes" className="text-sm font-semibold">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Additional notes or remarks..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Footer - Fixed at bottom */}
+          <div className="border-t pt-4 mt-4 bg-background space-y-4">
+            <div className="flex justify-between items-center px-2">
+              <span className="text-lg font-semibold">Total Amount:</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
             </div>
 
-            {/* Total */}
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center text-lg font-bold">
-                <span>Total Amount:</span>
-                <span>{formatCurrency(totalAmount)}</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
