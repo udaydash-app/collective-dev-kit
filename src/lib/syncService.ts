@@ -66,7 +66,74 @@ class SyncService {
   }
 
   private async syncSingleTransaction(transaction: OfflineTransaction): Promise<void> {
-    // Insert the transaction into the database
+    // Calculate COGS for the transaction using FIFO
+    let totalCogs = 0;
+    const cogsDetails: any[] = [];
+
+    for (const item of transaction.items) {
+      try {
+        const variantId = item.variantId || item.id; // Handle both field names
+        const productId = item.productId;
+        
+        // Use FIFO to deduct stock and calculate COGS
+        const { data: cogsLayers, error: cogsError } = await supabase
+          .rpc('deduct_stock_fifo', {
+            p_product_id: productId,
+            p_variant_id: variantId || null,
+            p_quantity: item.quantity
+          });
+
+        if (cogsError) {
+          console.warn(`COGS calculation failed for item ${productId}:`, cogsError);
+          // Continue without COGS if calculation fails
+        } else if (cogsLayers && cogsLayers.length > 0) {
+          const itemCogs = cogsLayers.reduce((sum: number, layer: any) => sum + parseFloat(layer.total_cogs || 0), 0);
+          totalCogs += itemCogs;
+          cogsDetails.push({
+            productId,
+            variantId,
+            quantity: item.quantity,
+            cogs: itemCogs,
+            layers: cogsLayers
+          });
+        }
+
+        // Update stock for variant or product
+        if (variantId) {
+          const { data: variant } = await supabase
+            .from('product_variants')
+            .select('stock_quantity')
+            .eq('id', variantId)
+            .single();
+
+          if (variant) {
+            const newStock = Math.max(0, (variant.stock_quantity || 0) - item.quantity);
+            await supabase
+              .from('product_variants')
+              .update({ stock_quantity: newStock })
+              .eq('id', variantId);
+          }
+        } else {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', productId)
+            .single();
+
+          if (product) {
+            const newStock = Math.max(0, (product.stock_quantity || 0) - item.quantity);
+            await supabase
+              .from('products')
+              .update({ stock_quantity: newStock })
+              .eq('id', productId);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing item:`, error);
+      }
+    }
+
+    // Insert the transaction with COGS metadata
     const { error } = await supabase
       .from('pos_transactions')
       .insert({
@@ -75,46 +142,22 @@ class SyncService {
         cashier_id: transaction.cashierId,
         customer_id: transaction.customerId,
         subtotal: transaction.subtotal,
+        tax: 0, // Default tax to 0 if not provided
         discount: transaction.discount,
         total: transaction.total,
         payment_method: transaction.paymentMethod,
         notes: transaction.notes,
         items: transaction.items,
         created_at: transaction.timestamp,
+        metadata: {
+          total_cogs: totalCogs,
+          cogs_details: cogsDetails,
+          synced_from_offline: true
+        }
       });
 
     if (error) {
       throw error;
-    }
-
-    // Update product stock for each item
-    for (const item of transaction.items) {
-      try {
-        // Get current stock
-        const { data: product, error: fetchError } = await supabase
-          .from('products')
-          .select('stock_quantity')
-          .eq('id', item.productId)
-          .single();
-
-        if (fetchError) {
-          console.error(`Error fetching product ${item.productId}:`, fetchError);
-          continue;
-        }
-
-        // Update stock
-        const newStock = (product.stock_quantity || 0) - item.quantity;
-        const { error: updateError } = await supabase
-          .from('products')
-          .update({ stock_quantity: Math.max(0, newStock) })
-          .eq('id', item.productId);
-
-        if (updateError) {
-          console.error(`Error updating stock for product ${item.productId}:`, updateError);
-        }
-      } catch (error) {
-        console.error(`Error processing item ${item.productId}:`, error);
-      }
     }
   }
 
