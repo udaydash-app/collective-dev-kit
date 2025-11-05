@@ -543,8 +543,10 @@ export default function GeneralLedger() {
                   ) : (
                     <CommandGroup className="max-h-[300px] overflow-auto">
                       {(() => {
+                        const sudhaAccounts = filteredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha'));
                         console.log('Rendering filteredAccounts count:', filteredAccounts.length);
-                        console.log('Sudha in filtered:', filteredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha')));
+                        console.log('All filtered accounts:', filteredAccounts.map(a => ({ id: a.id, name: a.account_name, contact: a.contactName, isParent: a.isParent, isChild: a.isChild })));
+                        console.log('Sudha in filtered:', sudhaAccounts);
                         return filteredAccounts.map((account, index) => (
                           <CommandItem
                             key={`${account.id}-${index}`}
