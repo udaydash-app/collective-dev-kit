@@ -949,223 +949,249 @@ export default function CloseDayReport() {
           ) : (
             <>
               {/* Overall Period Summary */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Period Summary</CardTitle>
+              <Card className="mb-6 border-2">
+                <CardHeader className="bg-muted/30">
+                  <CardTitle className="text-2xl">Period Summary</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* Total Opening Cash */}
-                    <div className="p-4 bg-primary/10 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">Total Opening Cash</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.totalOpeningCash || 0), 0))}
-                      </p>
-                    </div>
-
-                    {/* Total Sales */}
-                    <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">Total Sales</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.total, 0))}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Cash: {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.cash, 0))}
-                      </p>
-                    </div>
-
-                    {/* Total Purchases */}
-                    <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">Total Purchases</p>
-                      <p className="text-2xl font-bold text-orange-600">
-                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.total, 0))}
-                      </p>
-                    </div>
-
-                    {/* Total Expenses */}
-                    <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">Total Expenses</p>
-                      <p className="text-2xl font-bold text-red-600">
-                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.total, 0))}
-                      </p>
-                    </div>
-
-                    {/* Net Cash Flow */}
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg col-span-2 md:col-span-4">
-                      <p className="text-sm text-muted-foreground mb-1">Net Cash Flow</p>
-                      <p className={`text-3xl font-bold ${
-                        dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0) >= 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }`}>
-                        {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0))}
-                      </p>
+                <CardContent className="p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-border">
+                          <th className="text-left p-3 font-semibold bg-muted/20">Metric</th>
+                          <th className="text-right p-3 font-semibold bg-muted/20">Cash</th>
+                          <th className="text-right p-3 font-semibold bg-muted/20">Credit</th>
+                          <th className="text-right p-3 font-semibold bg-muted/20">Mobile Money</th>
+                          <th className="text-right p-3 font-semibold bg-primary/10">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-border hover:bg-muted/10">
+                          <td className="p-3 font-medium">Opening Cash</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.totalOpeningCash || 0), 0))}</td>
+                          <td className="text-right p-3 text-muted-foreground">—</td>
+                          <td className="text-right p-3 text-muted-foreground">—</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg bg-primary/5">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.totalOpeningCash || 0), 0))}</td>
+                        </tr>
+                        <tr className="border-b border-border hover:bg-muted/10 bg-green-50/50 dark:bg-green-950/10">
+                          <td className="p-3 font-medium flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            Sales Revenue
+                          </td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.cash, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.credit, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.mobileMoney, 0))}</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg text-green-600 bg-green-50/50 dark:bg-green-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.total, 0))}</td>
+                        </tr>
+                        <tr className="border-b border-border hover:bg-muted/10 bg-orange-50/50 dark:bg-orange-950/10">
+                          <td className="p-3 font-medium flex items-center gap-2">
+                            <ShoppingBag className="h-4 w-4 text-orange-600" />
+                            Purchases
+                          </td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.cash, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.credit, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.mobileMoney, 0))}</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg text-orange-600 bg-orange-50/50 dark:bg-orange-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.purchases.total, 0))}</td>
+                        </tr>
+                        <tr className="border-b border-border hover:bg-muted/10 bg-red-50/50 dark:bg-red-950/10">
+                          <td className="p-3 font-medium flex items-center gap-2">
+                            <TrendingDown className="h-4 w-4 text-red-600" />
+                            Expenses
+                          </td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.cash, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.credit, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.mobileMoney, 0))}</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg text-red-600 bg-red-50/50 dark:bg-red-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.total, 0))}</td>
+                        </tr>
+                        <tr className="border-t-2 border-border bg-muted/30">
+                          <td className="p-4 font-bold text-lg">Net Cash Flow</td>
+                          <td className="text-right p-4 font-mono font-semibold" colSpan={3}></td>
+                          <td className={`text-right p-4 font-bold font-mono text-2xl ${
+                            dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0) >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}>
+                            {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Transaction Count Summary */}
+                  <div className="mt-6 p-4 bg-muted/20 rounded-lg border">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Total Transactions</p>
+                        <p className="text-2xl font-bold">{dailyBreakdown.reduce((sum, day) => sum + day.sales.count, 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Days in Period</p>
+                        <p className="text-2xl font-bold">{dailyBreakdown.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Avg. Daily Sales</p>
+                        <p className="text-2xl font-bold">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.sales.total, 0) / dailyBreakdown.length)}</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Separator className="my-6" />
+              <Separator className="my-8" />
 
               {/* Daily Breakdown */}
               {dailyBreakdown.map((dayData, index) => {
             const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total;
             
             return (
-              <div key={dayData.date} className="space-y-4 print-page-break">
+              <Card key={dayData.date} className="print-page-break border-2">
                 {/* Date Header */}
-                <div className="bg-primary/10 p-4 rounded-lg print-date-header">
-                  <h3 className="text-2xl font-bold">{format(new Date(dayData.date), 'EEEE, MMMM dd, yyyy')}</h3>
-                </div>
+                <CardHeader className="bg-primary/10 print-date-header">
+                  <CardTitle className="text-2xl">{format(new Date(dayData.date), 'EEEE, MMMM dd, yyyy')}</CardTitle>
+                </CardHeader>
 
-                {/* Daily Sales */}
-                <div className="space-y-3">
-                  <h4 className="text-lg font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    Sales
-                  </h4>
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg print-cell">
-                      <p className="text-xs text-muted-foreground mb-1">Cash</p>
-                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.cash)}</p>
-                    </div>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg print-cell">
-                      <p className="text-xs text-muted-foreground mb-1">Credit</p>
-                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.credit)}</p>
-                    </div>
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg print-cell">
-                      <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
-                      <p className="text-lg font-bold">{formatCurrency(dayData.sales.mobileMoney)}</p>
-                    </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg print-cell">
-                      <p className="text-xs text-muted-foreground mb-1">Total</p>
-                      <p className="text-xl font-bold text-green-600">{formatCurrency(dayData.sales.total)}</p>
-                      <p className="text-xs text-muted-foreground">{dayData.sales.count} trans.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Daily Purchases */}
-                {dayData.purchases.total > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-semibold flex items-center gap-2">
-                      <ShoppingBag className="h-5 w-5 text-orange-600" />
-                      Purchases
-                    </h4>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Cash</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.cash)}</p>
-                      </div>
-                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Credit</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.credit)}</p>
-                      </div>
-                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.purchases.mobileMoney)}</p>
-                      </div>
-                      <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Total</p>
-                        <p className="text-xl font-bold text-orange-600">{formatCurrency(dayData.purchases.total)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily Expenses */}
-                {dayData.expenses.total > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-semibold flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5 text-red-600" />
-                      Expenses
-                    </h4>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Cash</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.cash)}</p>
-                      </div>
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Credit</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.credit)}</p>
-                      </div>
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Mobile Money</p>
-                        <p className="text-lg font-bold">{formatCurrency(dayData.expenses.mobileMoney)}</p>
-                      </div>
-                      <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg print-cell">
-                        <p className="text-xs text-muted-foreground mb-1">Total</p>
-                        <p className="text-xl font-bold text-red-600">{formatCurrency(dayData.expenses.total)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily Net */}
-                <div className={`p-4 rounded-lg ${netDaily >= 0 ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'} print-cell`}>
-                  <div className="flex justify-between items-center">
-                    <p className="font-semibold">Daily Net Cash Flow</p>
-                    <p className={`text-2xl font-bold ${netDaily >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(netDaily)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Cash Sessions for this day */}
-                {dayData.cashSessions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold">Cash Sessions</h4>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Total Opening Cash (All Users)</p>
-                        <p className="text-xl font-bold text-primary">{formatCurrency(dayData.totalOpeningCash || 0)}</p>
-                      </div>
-                    </div>
-                    {dayData.cashSessions.map((session: any) => {
-                      const isOpen = session.status === 'open';
-                      const expectedCash = session.calculated_expected_cash;
-                      const closingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
-                      const difference = session.calculated_difference;
-                      const cashierName = session.profiles?.full_name || 'Unknown';
-
-                      return (
-                        <div key={session.id} className="p-3 border rounded-lg print-cell">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="font-medium">Cashier: {cashierName}</p>
-                            <span className={`px-2 py-1 text-xs rounded ${isOpen ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                              {isOpen ? 'Open' : 'Closed'}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <p className="text-muted-foreground text-xs">Opening</p>
-                              <p className="font-semibold">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</p>
+                <CardContent className="p-6 space-y-6">
+                  {/* Daily Summary Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-border">
+                      <thead>
+                        <tr className="bg-muted/30">
+                          <th className="text-left p-3 font-semibold border border-border">Category</th>
+                          <th className="text-right p-3 font-semibold border border-border">Cash</th>
+                          <th className="text-right p-3 font-semibold border border-border">Credit</th>
+                          <th className="text-right p-3 font-semibold border border-border">Mobile Money</th>
+                          <th className="text-right p-3 font-semibold border border-border bg-muted/40">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Sales Row */}
+                        <tr className="hover:bg-muted/10 bg-green-50/30 dark:bg-green-950/10">
+                          <td className="p-3 font-medium border border-border">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              Sales
+                              <span className="text-xs text-muted-foreground">({dayData.sales.count} trans.)</span>
                             </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Cash Sales</p>
-                              <p className="font-semibold text-green-600">{formatCurrency(session.cash_sales || 0)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Expected</p>
-                              <p className="font-semibold text-blue-600">{formatCurrency(expectedCash || 0)}</p>
-                            </div>
-                            {closingCash !== null && (
-                              <div>
-                                <p className="text-muted-foreground text-xs">Difference</p>
-                                <p className={`font-bold ${difference !== null && difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {difference !== null ? `${difference >= 0 ? '+' : ''}${formatCurrency(Math.abs(difference))}` : '—'}
-                                </p>
+                          </td>
+                          <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.sales.cash)}</td>
+                          <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.sales.credit)}</td>
+                          <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.sales.mobileMoney)}</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg border border-border bg-green-50 dark:bg-green-950/20 text-green-600">
+                            {formatCurrency(dayData.sales.total)}
+                          </td>
+                        </tr>
+
+                        {/* Purchases Row */}
+                        {dayData.purchases.total > 0 && (
+                          <tr className="hover:bg-muted/10 bg-orange-50/30 dark:bg-orange-950/10">
+                            <td className="p-3 font-medium border border-border">
+                              <div className="flex items-center gap-2">
+                                <ShoppingBag className="h-4 w-4 text-orange-600" />
+                                Purchases
                               </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                            </td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.purchases.cash)}</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.purchases.credit)}</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.purchases.mobileMoney)}</td>
+                            <td className="text-right p-3 font-bold font-mono text-lg border border-border bg-orange-50 dark:bg-orange-950/20 text-orange-600">
+                              {formatCurrency(dayData.purchases.total)}
+                            </td>
+                          </tr>
+                        )}
 
-                {index < dailyBreakdown.length - 1 && <Separator className="my-6 print-separator" />}
-              </div>
+                        {/* Expenses Row */}
+                        {dayData.expenses.total > 0 && (
+                          <tr className="hover:bg-muted/10 bg-red-50/30 dark:bg-red-950/10">
+                            <td className="p-3 font-medium border border-border">
+                              <div className="flex items-center gap-2">
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                                Expenses
+                              </div>
+                            </td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.expenses.cash)}</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.expenses.credit)}</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.expenses.mobileMoney)}</td>
+                            <td className="text-right p-3 font-bold font-mono text-lg border border-border bg-red-50 dark:bg-red-950/20 text-red-600">
+                              {formatCurrency(dayData.expenses.total)}
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Net Row */}
+                        <tr className="border-t-2 border-border bg-muted/30">
+                          <td className="p-4 font-bold text-lg border border-border">Daily Net Cash Flow</td>
+                          <td className="text-right p-4 font-mono border border-border" colSpan={3}></td>
+                          <td className={`text-right p-4 font-bold font-mono text-2xl border-2 border-border ${netDaily >= 0 ? 'bg-green-50 dark:bg-green-950/20 text-green-600' : 'bg-red-50 dark:bg-red-950/20 text-red-600'}`}>
+                            {formatCurrency(netDaily)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Cash Sessions for this day */}
+                  {dayData.cashSessions.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border">
+                        <h4 className="text-lg font-semibold flex items-center gap-2">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                          Cash Sessions
+                        </h4>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Total Opening Cash</p>
+                          <p className="text-xl font-bold text-primary">{formatCurrency(dayData.totalOpeningCash || 0)}</p>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-border">
+                          <thead>
+                            <tr className="bg-muted/30">
+                              <th className="text-left p-3 font-semibold border border-border">Cashier</th>
+                              <th className="text-center p-3 font-semibold border border-border">Status</th>
+                              <th className="text-right p-3 font-semibold border border-border">Opening</th>
+                              <th className="text-right p-3 font-semibold border border-border">Cash Sales</th>
+                              <th className="text-right p-3 font-semibold border border-border">Expected</th>
+                              <th className="text-right p-3 font-semibold border border-border">Closing</th>
+                              <th className="text-right p-3 font-semibold border border-border bg-muted/40">Difference</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dayData.cashSessions.map((session: any) => {
+                              const isOpen = session.status === 'open';
+                              const expectedCash = session.calculated_expected_cash;
+                              const closingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
+                              const difference = session.calculated_difference;
+                              const cashierName = session.profiles?.full_name || 'Unknown';
+
+                              return (
+                                <tr key={session.id} className="hover:bg-muted/10">
+                                  <td className="p-3 font-medium border border-border">{cashierName}</td>
+                                  <td className="text-center p-3 border border-border">
+                                    <span className={`px-2 py-1 text-xs rounded font-medium ${isOpen ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/30' : 'bg-green-100 text-green-700 dark:bg-green-950/30'}`}>
+                                      {isOpen ? 'Open' : 'Closed'}
+                                    </span>
+                                  </td>
+                                  <td className="text-right p-3 font-mono border border-border">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</td>
+                                  <td className="text-right p-3 font-mono border border-border text-green-600">{formatCurrency(session.cash_sales || 0)}</td>
+                                  <td className="text-right p-3 font-mono border border-border font-semibold">{formatCurrency(expectedCash || 0)}</td>
+                                  <td className="text-right p-3 font-mono border border-border">
+                                    {closingCash !== null ? formatCurrency(closingCash) : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className={`text-right p-3 font-bold font-mono border border-border ${difference !== null && difference >= 0 ? 'text-green-600 bg-green-50 dark:bg-green-950/20' : 'text-red-600 bg-red-50 dark:bg-red-950/20'}`}>
+                                    {difference !== null ? `${difference >= 0 ? '+' : ''}${formatCurrency(Math.abs(difference))}` : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
             </>
@@ -1200,19 +1226,39 @@ export default function CloseDayReport() {
             border-top: 2px solid #000;
             margin: 20px 0;
           }
-          .print-cell {
-            background-color: #f9fafb !important;
-            border: 1px solid #e5e7eb !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
           }
+          table {
+            border-collapse: collapse !important;
+            width: 100%;
+          }
+          th, td {
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          th {
+            background-color: #f3f4f6 !important;
+            font-weight: bold !important;
+          }
+          .bg-green-50, .bg-green-100 {
+            background-color: #f0fdf4 !important;
+          }
+          .bg-orange-50, .bg-orange-100 {
+            background-color: #fff7ed !important;
+          }
+          .bg-red-50, .bg-red-100 {
+            background-color: #fef2f2 !important;
+          }
+          .bg-muted\/30, .bg-muted\/20 {
+            background-color: #f9fafb !important;
+          }
         }
         @page {
-          size: A4;
+          size: A4 landscape;
           margin: 15mm;
         }
       `}</style>
