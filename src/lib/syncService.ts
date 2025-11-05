@@ -104,11 +104,7 @@ class SyncService {
         notes: transaction.notes || '',
         items: transaction.items,
         amount_paid: transaction.total,
-        created_at: transaction.timestamp,
-        metadata: {
-          synced_from_offline: true,
-          offline_sync_timestamp: new Date().toISOString()
-        }
+        created_at: transaction.timestamp
       });
 
     if (error) {
