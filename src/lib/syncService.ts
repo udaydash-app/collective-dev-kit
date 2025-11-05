@@ -40,10 +40,22 @@ class SyncService {
           await this.syncSingleTransaction(transaction);
           await offlineDB.markTransactionSynced(transaction.id);
           successCount++;
-          console.log(`Synced transaction ${transaction.id}`);
-        } catch (error) {
-          console.error(`Failed to sync transaction ${transaction.id}:`, error);
+          console.log(`✅ Synced transaction ${transaction.id}`);
+        } catch (error: any) {
+          console.error(`❌ Failed to sync transaction ${transaction.id}:`, error);
+          console.error('Error details:', {
+            message: error?.message,
+            details: error?.details,
+            hint: error?.hint,
+            code: error?.code,
+            transaction: transaction
+          });
           failedCount++;
+          
+          // Show detailed error to user
+          toast.error(`Sync failed: ${error?.message || 'Unknown error'}`, {
+            description: error?.details || error?.hint
+          });
         }
       }
 
@@ -66,99 +78,45 @@ class SyncService {
   }
 
   private async syncSingleTransaction(transaction: OfflineTransaction): Promise<void> {
-    // Calculate COGS for the transaction using FIFO
-    let totalCogs = 0;
-    const cogsDetails: any[] = [];
+    console.log('🔄 Syncing transaction:', {
+      id: transaction.id,
+      storeId: transaction.storeId,
+      cashierId: transaction.cashierId,
+      itemCount: transaction.items.length,
+      total: transaction.total
+    });
 
-    for (const item of transaction.items) {
-      try {
-        const variantId = item.variantId || item.id; // Handle both field names
-        const productId = item.productId;
-        
-        // Use FIFO to deduct stock and calculate COGS
-        const { data: cogsLayers, error: cogsError } = await supabase
-          .rpc('deduct_stock_fifo', {
-            p_product_id: productId,
-            p_variant_id: variantId || null,
-            p_quantity: item.quantity
-          });
-
-        if (cogsError) {
-          console.warn(`COGS calculation failed for item ${productId}:`, cogsError);
-          // Continue without COGS if calculation fails
-        } else if (cogsLayers && cogsLayers.length > 0) {
-          const itemCogs = cogsLayers.reduce((sum: number, layer: any) => sum + parseFloat(layer.total_cogs || 0), 0);
-          totalCogs += itemCogs;
-          cogsDetails.push({
-            productId,
-            variantId,
-            quantity: item.quantity,
-            cogs: itemCogs,
-            layers: cogsLayers
-          });
-        }
-
-        // Update stock for variant or product
-        if (variantId) {
-          const { data: variant } = await supabase
-            .from('product_variants')
-            .select('stock_quantity')
-            .eq('id', variantId)
-            .single();
-
-          if (variant) {
-            const newStock = Math.max(0, (variant.stock_quantity || 0) - item.quantity);
-            await supabase
-              .from('product_variants')
-              .update({ stock_quantity: newStock })
-              .eq('id', variantId);
-          }
-        } else {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock_quantity')
-            .eq('id', productId)
-            .single();
-
-          if (product) {
-            const newStock = Math.max(0, (product.stock_quantity || 0) - item.quantity);
-            await supabase
-              .from('products')
-              .update({ stock_quantity: newStock })
-              .eq('id', productId);
-          }
-        }
-      } catch (error) {
-        console.error(`Error processing item:`, error);
-      }
-    }
-
-    // Insert the transaction with COGS metadata
+    // Just insert the transaction - stock was already deducted during POS sale
+    // The backend trigger will handle COGS calculation
     const { error } = await supabase
       .from('pos_transactions')
       .insert({
         id: transaction.id,
         store_id: transaction.storeId,
         cashier_id: transaction.cashierId,
-        customer_id: transaction.customerId,
+        customer_id: transaction.customerId || null,
         subtotal: transaction.subtotal,
-        tax: 0, // Default tax to 0 if not provided
-        discount: transaction.discount,
+        tax: 0,
+        discount: transaction.discount || 0,
         total: transaction.total,
         payment_method: transaction.paymentMethod,
-        notes: transaction.notes,
+        payment_details: [{ method: transaction.paymentMethod, amount: transaction.total }],
+        notes: transaction.notes || '',
         items: transaction.items,
+        amount_paid: transaction.total,
         created_at: transaction.timestamp,
         metadata: {
-          total_cogs: totalCogs,
-          cogs_details: cogsDetails,
-          synced_from_offline: true
+          synced_from_offline: true,
+          offline_sync_timestamp: new Date().toISOString()
         }
       });
 
     if (error) {
+      console.error('❌ Database insert error:', error);
       throw error;
     }
+    
+    console.log('✅ Transaction synced successfully');
   }
 
   startAutoSync(intervalMs: number = 30000): void {
