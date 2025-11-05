@@ -139,6 +139,11 @@ export default function GeneralLedger() {
           );
         }
         
+        // Skip if this contact is dual role (already shown in unified section)
+        if (contact && contact.is_customer && contact.is_supplier) {
+          return;
+        }
+        
         structuredAccounts.push({ 
           ...child, 
           isChild: true,
