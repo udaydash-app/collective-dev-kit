@@ -184,27 +184,25 @@ export default function PaymentReceipts() {
         // On account - adjust oldest bills first
         let remainingAmount = amount;
 
-        // Get pending POS transactions
-        let posResult;
-        try {
-          posResult = await supabase
-            .from('pos_transactions')
-            .select('id, total, amount_paid')
-            .eq('customer_id', data.contact_id)
-            .eq('payment_method', 'credit')
-            .neq('payment_status', 'paid')
-            .order('created_at', { ascending: true });
-        } catch (e) {
-          posResult = { data: null };
-        }
+        // Get pending POS transactions - cast supabase to avoid deep type inference
+        const posResult = await ((supabase as any)
+          .from('pos_transactions')
+          .select('id, total, amount_paid')
+          .eq('customer_id', data.contact_id)
+          .eq('payment_method', 'credit')
+          .neq('payment_status', 'paid')
+          .order('created_at', { ascending: true })) as { 
+            data: Array<{ id: string; total: number; amount_paid: number | null }> | null; 
+            error: any 
+          };
 
         if (posResult.data) {
           for (const transaction of posResult.data) {
             if (remainingAmount <= 0) break;
 
-            const outstanding = Number(transaction.total) - (Number((transaction as any).amount_paid) || 0);
+            const outstanding = Number(transaction.total) - (Number(transaction.amount_paid) || 0);
             const paymentToApply = Math.min(remainingAmount, outstanding);
-            const newAmountPaid = (Number((transaction as any).amount_paid) || 0) + paymentToApply;
+            const newAmountPaid = (Number(transaction.amount_paid) || 0) + paymentToApply;
             const paymentStatus = newAmountPaid >= Number(transaction.total) ? 'paid' : 
                                  newAmountPaid > 0 ? 'partial' : 'pending';
 
@@ -214,7 +212,7 @@ export default function PaymentReceipts() {
                 amount_paid: newAmountPaid,
                 payment_status: paymentStatus 
               } as any)
-              .eq('id', (transaction as any).id);
+              .eq('id', transaction.id);
 
             remainingAmount -= paymentToApply;
           }
@@ -222,17 +220,15 @@ export default function PaymentReceipts() {
 
         // If still remaining, apply to oldest orders
         if (remainingAmount > 0) {
-          let ordersResult;
-          try {
-            ordersResult = await supabase
-              .from('orders')
-              .select('id, total')
-              .eq('user_id', data.contact_id)
-              .eq('payment_status', 'pending')
-              .order('created_at', { ascending: true });
-          } catch (e) {
-            ordersResult = { data: null };
-          }
+          const ordersResult = await ((supabase as any)
+            .from('orders')
+            .select('id, total')
+            .eq('user_id', data.contact_id)
+            .eq('payment_status', 'pending')
+            .order('created_at', { ascending: true })) as {
+              data: Array<{ id: string; total: number }> | null;
+              error: any
+            };
 
           if (ordersResult.data) {
             for (const order of ordersResult.data) {
@@ -242,7 +238,7 @@ export default function PaymentReceipts() {
                 await supabase
                   .from('orders')
                   .update({ payment_status: 'paid' })
-                  .eq('id', (order as any).id);
+                  .eq('id', order.id);
 
                 remainingAmount -= Number(order.total);
               }
