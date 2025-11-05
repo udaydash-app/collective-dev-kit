@@ -278,8 +278,10 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch closed sessions (based on closed_at) and open sessions (based on opened_at)
-      const { data: closedSessions } = await supabase
+      // Fetch sessions that were active during the selected period
+      // This includes sessions opened before but closed during the period,
+      // and sessions opened during the period (even if still open)
+      const { data: cashSessions } = await supabase
         .from('cash_sessions')
         .select(`
           *,
@@ -288,30 +290,8 @@ export default function CloseDayReport() {
           )
         `)
         .eq('store_id', selectedStoreId)
-        .eq('status', 'closed')
-        .gte('closed_at', `${startDate}T00:00:00`)
-        .lte('closed_at', `${endDate}T23:59:59`);
-
-      const { data: openSessions } = await supabase
-        .from('cash_sessions')
-        .select(`
-          *,
-          profiles:cashier_id (
-            full_name
-          )
-        `)
-        .eq('store_id', selectedStoreId)
-        .eq('status', 'open')
-        .gte('opened_at', `${startDate}T00:00:00`)
-        .lte('opened_at', `${endDate}T23:59:59`);
-
-      // Combine both closed and open sessions
-      const cashSessions = [...(closedSessions || []), ...(openSessions || [])]
-        .sort((a, b) => {
-          const dateA = a.closed_at || a.opened_at;
-          const dateB = b.closed_at || b.opened_at;
-          return new Date(dateB).getTime() - new Date(dateA).getTime();
-        });
+        .or(`and(opened_at.lte.${endDate}T23:59:59,or(closed_at.gte.${startDate}T00:00:00,closed_at.is.null))`)
+        .order('opened_at', { ascending: false });
 
       // Calculate expected cash for each session
       const sessionsWithCalculations = await Promise.all(
@@ -487,22 +467,40 @@ export default function CloseDayReport() {
       else if (e.payment_method === 'mobile_money') dayData.expenses.mobileMoney += amount;
     });
 
-    // Group cash sessions by date (based on when they were closed, or opened if still open)
+    // Group cash sessions by the days they were active
     reportData.cashSessions?.forEach((session: any) => {
-      const date = format(new Date(session.closed_at || session.opened_at), 'yyyy-MM-dd');
-      if (!dateMap.has(date)) {
-        dateMap.set(date, {
-          date,
+      // A session is active for a day if it was opened before/during that day
+      // and closed during/after that day (or still open)
+      const sessionStart = new Date(session.opened_at);
+      const sessionEnd = session.closed_at ? new Date(session.closed_at) : new Date(endDate);
+      
+      // Add this session to every day it was active
+      Array.from(dateMap.keys()).forEach(dateStr => {
+        const dayStart = new Date(`${dateStr}T00:00:00`);
+        const dayEnd = new Date(`${dateStr}T23:59:59`);
+        
+        // Check if session overlaps with this day
+        if (sessionStart <= dayEnd && sessionEnd >= dayStart) {
+          const dayData = dateMap.get(dateStr);
+          if (dayData && !dayData.cashSessions.find((s: any) => s.id === session.id)) {
+            dayData.cashSessions.push(session);
+            dayData.totalOpeningCash += parseFloat(session.opening_cash?.toString() || '0');
+          }
+        }
+      });
+      
+      // Also ensure the session appears even if no transactions on that day
+      const sessionDate = format(sessionStart, 'yyyy-MM-dd');
+      if (!dateMap.has(sessionDate)) {
+        dateMap.set(sessionDate, {
+          date: sessionDate,
           sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
           purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
           expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          cashSessions: [],
-          totalOpeningCash: 0,
+          cashSessions: [session],
+          totalOpeningCash: parseFloat(session.opening_cash?.toString() || '0'),
         });
       }
-      const dayData = dateMap.get(date);
-      dayData.cashSessions.push(session);
-      dayData.totalOpeningCash += parseFloat(session.opening_cash?.toString() || '0');
     });
 
     return Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
