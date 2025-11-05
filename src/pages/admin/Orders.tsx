@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -1018,6 +1018,12 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
             <h1 className="text-3xl font-bold">Order Management</h1>
             <p className="text-muted-foreground">View and fulfill customer orders</p>
           </div>
+          <Link to="/admin/offline-sync">
+            <Button variant="outline">
+              <Database className="h-4 w-4 mr-2" />
+              Offline Sync
+            </Button>
+          </Link>
           <ReturnToPOSButton inline />
         </div>
 

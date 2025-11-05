@@ -48,6 +48,7 @@ import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import AdminComboOffers from "./pages/admin/ComboOffers";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
+import AdminOfflineSync from "./pages/admin/OfflineSync";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -133,6 +134,7 @@ const AppContent = () => {
           <Route path="/admin/open-cash-register" element={<AdminRoute><AdminOpenCashRegister /></AdminRoute>} />
           <Route path="/admin/accounts-receivable" element={<AdminRoute><AdminAccountsReceivable /></AdminRoute>} />
           <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
+          <Route path="/admin/offline-sync" element={<AdminRoute><AdminOfflineSync /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
