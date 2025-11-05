@@ -1393,20 +1393,51 @@ export default function POS() {
       // If editing an existing order/transaction, delete the old one
       if (editingOrderId) {
         try {
-          if (editingOrderType === 'pos') {
-            await supabase
-              .from('pos_transactions')
-              .delete()
-              .eq('id', editingOrderId);
-          } else if (editingOrderType === 'online') {
-            await supabase
-              .from('orders')
-              .delete()
-              .eq('id', editingOrderId);
+          // Verify the new transaction was created before deleting the old one
+          if ('id' in result && result.id) {
+            if (editingOrderType === 'pos') {
+              const { error: deleteError } = await supabase
+                .from('pos_transactions')
+                .delete()
+                .eq('id', editingOrderId);
+              
+              if (deleteError) {
+                console.error('Error deleting old POS transaction:', deleteError);
+                toast.error('Failed to remove old transaction. Please contact support.');
+              } else {
+                toast.success('Transaction updated successfully');
+              }
+            } else if (editingOrderType === 'online') {
+              // First delete order items
+              const { error: itemsDeleteError } = await supabase
+                .from('order_items')
+                .delete()
+                .eq('order_id', editingOrderId);
+              
+              if (itemsDeleteError) {
+                console.error('Error deleting old order items:', itemsDeleteError);
+              }
+              
+              // Then delete the order
+              const { error: deleteError } = await supabase
+                .from('orders')
+                .delete()
+                .eq('id', editingOrderId);
+              
+              if (deleteError) {
+                console.error('Error deleting old order:', deleteError);
+                toast.error('Failed to remove old order. Please contact support.');
+              } else {
+                toast.success('Order updated successfully');
+              }
+            }
+          } else {
+            // New transaction was saved offline, don't delete old one yet
+            toast.warning('Transaction saved offline. Old transaction will be replaced when synced.');
           }
-          toast.info('Previous transaction replaced with updated version');
         } catch (error) {
-          console.error('Error deleting old transaction:', error);
+          console.error('Error during edit cleanup:', error);
+          toast.error('Transaction saved but cleanup failed. You may see duplicate entries.');
         }
         
         // Clear editing state

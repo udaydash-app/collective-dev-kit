@@ -58,6 +58,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -77,6 +78,9 @@ export default function AdminOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const receiptRef = useRef<HTMLDivElement>(null);
+  
+  // Enable real-time sync for automatic updates
+  useRealtimeSync();
 
   const toggleOrderExpanded = (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
