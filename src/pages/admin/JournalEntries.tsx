@@ -21,15 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Check, Eye, Edit, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Check, Eye, Edit, AlertTriangle, ChevronsUpDown } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,9 +33,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface JournalLine {
@@ -72,6 +78,7 @@ export default function JournalEntries() {
   });
 
   const [lines, setLines] = useState<JournalLine[]>([]);
+  const [openAccountPopovers, setOpenAccountPopovers] = useState<{ [key: number]: boolean }>({});
 
   const { data: accounts } = useQuery({
     queryKey: ['accounts-active'],
@@ -406,23 +413,56 @@ export default function JournalEntries() {
                     <div className="grid grid-cols-12 gap-2">
                       <div className="col-span-4">
                         <Label className="text-xs">Account</Label>
-                        <Select
-                          value={line.account_id}
-                          onValueChange={(value) =>
-                            updateLine(index, 'account_id', value)
+                        <Popover 
+                          open={openAccountPopovers[index]} 
+                          onOpenChange={(open) => 
+                            setOpenAccountPopovers(prev => ({ ...prev, [index]: open }))
                           }
                         >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Select account" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {accounts?.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.account_code} - {account.account_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={openAccountPopovers[index]}
+                              className="h-8 w-full justify-between text-xs"
+                            >
+                              {line.account_id
+                                ? accounts?.find((account) => account.id === line.account_id)
+                                  ? `${accounts.find((account) => account.id === line.account_id)?.account_code} - ${accounts.find((account) => account.id === line.account_id)?.account_name}`
+                                  : "Select account"
+                                : "Select account"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search account by name or code..." />
+                              <CommandList>
+                                <CommandEmpty>No account found.</CommandEmpty>
+                                <CommandGroup>
+                                  {accounts?.map((account) => (
+                                    <CommandItem
+                                      key={account.id}
+                                      value={`${account.account_code} ${account.account_name}`}
+                                      onSelect={() => {
+                                        updateLine(index, 'account_id', account.id);
+                                        setOpenAccountPopovers(prev => ({ ...prev, [index]: false }));
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          line.account_id === account.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {account.account_code} - {account.account_name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
 
                       <div className="col-span-3">
