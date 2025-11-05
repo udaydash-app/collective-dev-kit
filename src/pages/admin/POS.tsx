@@ -1761,13 +1761,10 @@ export default function POS() {
       action: () => alert('Gift card - Coming soon')
     },
     { 
-      icon: Tag, 
-      label: 'Discount', 
-      color: 'bg-[#F39C12]', 
-      action: () => {
-        const amount = prompt('Enter discount amount:');
-        if (amount) setDiscount(parseFloat(amount) || 0);
-      }
+      icon: Gift, 
+      label: 'Notes', 
+      color: 'bg-[#5DADE2]', 
+      action: () => setShowNotesDialog(true)
     },
     { 
       icon: Printer, 
@@ -1776,10 +1773,13 @@ export default function POS() {
       action: handleLastReceiptClick
     },
     { 
-      icon: Gift, 
-      label: 'Notes', 
-      color: 'bg-[#5DADE2]', 
-      action: () => setShowNotesDialog(true)
+      icon: LogOut, 
+      label: 'Logout', 
+      color: 'bg-[#EF4444]', 
+      action: async () => {
+        await supabase.auth.signOut();
+        navigate('/auth/pos-login');
+      }
     },
   ];
 
