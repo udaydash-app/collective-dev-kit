@@ -403,20 +403,27 @@ export default function CloseDayReport() {
 
     const dateMap = new Map();
 
+    // Initialize all dates in the range first
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = format(d, 'yyyy-MM-dd');
+      dateMap.set(dateStr, {
+        date: dateStr,
+        sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
+        purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+        expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+        cashSessions: [],
+        totalOpeningCash: 0,
+      });
+    }
+
     // Group transactions by date
     reportData.transactions?.forEach((t: any) => {
       const date = format(new Date(t.created_at), 'yyyy-MM-dd');
-      if (!dateMap.has(date)) {
-        dateMap.set(date, {
-          date,
-          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
-          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          cashSessions: [],
-          totalOpeningCash: 0,
-        });
-      }
       const dayData = dateMap.get(date);
+      if (!dayData) return;
+      
       const amount = parseFloat(t.total.toString());
       dayData.sales.total += amount;
       dayData.sales.count += 1;
@@ -428,17 +435,9 @@ export default function CloseDayReport() {
     // Group purchases by date
     reportData.purchases?.forEach((p: any) => {
       const date = format(new Date(p.purchased_at), 'yyyy-MM-dd');
-      if (!dateMap.has(date)) {
-        dateMap.set(date, {
-          date,
-          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
-          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          cashSessions: [],
-          totalOpeningCash: 0,
-        });
-      }
       const dayData = dateMap.get(date);
+      if (!dayData) return;
+      
       const amount = parseFloat(p.total_amount.toString());
       dayData.purchases.total += amount;
       if (p.payment_method === 'cash') dayData.purchases.cash += amount;
@@ -449,17 +448,9 @@ export default function CloseDayReport() {
     // Group expenses by date
     reportData.expenses?.forEach((e: any) => {
       const date = e.expense_date;
-      if (!dateMap.has(date)) {
-        dateMap.set(date, {
-          date,
-          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
-          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          cashSessions: [],
-          totalOpeningCash: 0,
-        });
-      }
       const dayData = dateMap.get(date);
+      if (!dayData) return;
+      
       const amount = parseFloat(e.amount.toString());
       dayData.expenses.total += amount;
       if (e.payment_method === 'cash') dayData.expenses.cash += amount;
@@ -469,12 +460,10 @@ export default function CloseDayReport() {
 
     // Group cash sessions by the days they were active
     reportData.cashSessions?.forEach((session: any) => {
-      // A session is active for a day if it was opened before/during that day
-      // and closed during/after that day (or still open)
       const sessionStart = new Date(session.opened_at);
-      const sessionEnd = session.closed_at ? new Date(session.closed_at) : new Date(endDate);
+      const sessionEnd = session.closed_at ? new Date(session.closed_at) : new Date(`${endDate}T23:59:59`);
       
-      // Add this session to every day it was active
+      // Add this session to every day it was active in the selected range
       Array.from(dateMap.keys()).forEach(dateStr => {
         const dayStart = new Date(`${dateStr}T00:00:00`);
         const dayEnd = new Date(`${dateStr}T23:59:59`);
@@ -488,19 +477,6 @@ export default function CloseDayReport() {
           }
         }
       });
-      
-      // Also ensure the session appears even if no transactions on that day
-      const sessionDate = format(sessionStart, 'yyyy-MM-dd');
-      if (!dateMap.has(sessionDate)) {
-        dateMap.set(sessionDate, {
-          date: sessionDate,
-          sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
-          purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-          cashSessions: [session],
-          totalOpeningCash: parseFloat(session.opening_cash?.toString() || '0'),
-        });
-      }
     });
 
     return Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
