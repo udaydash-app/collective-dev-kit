@@ -943,6 +943,59 @@ export default function CloseDayReport() {
             </Card>
           ) : (
             <>
+              {/* Active Sessions Summary */}
+              {reportData.cashSessions && reportData.cashSessions.filter((s: any) => s.status === 'open').length > 0 && (
+                <Card className="mb-6 border-2 border-primary/30 bg-primary/5">
+                  <CardHeader className="bg-primary/10">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+                      Currently Open Cash Sessions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {reportData.cashSessions
+                        .filter((s: any) => s.status === 'open')
+                        .map((session: any) => (
+                          <div key={session.id} className="p-4 bg-background rounded-lg border-2 border-primary/20">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Cashier</p>
+                                <p className="font-semibold">{session.profiles?.full_name || 'Unknown'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Opening Cash</p>
+                                <p className="text-xl font-bold text-green-600">
+                                  {formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Opened At</p>
+                                <p className="font-medium">
+                                  {format(new Date(session.opened_at), 'MMM dd, yyyy HH:mm')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-sm text-muted-foreground">
+                                This session has been active for{' '}
+                                <span className="font-semibold text-foreground">
+                                  {Math.floor((new Date().getTime() - new Date(session.opened_at).getTime()) / (1000 * 60 * 60))} hours
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                          ⚠️ Note: Report data for open sessions is partial and will be finalized when the session is closed.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Overall Period Summary */}
               <Card className="mb-6 border-2">
                 <CardHeader className="bg-muted/30">
