@@ -1678,37 +1678,69 @@ export type Database = {
         Row: {
           adjusted_by: string | null
           adjustment_type: string
+          cogs_amount: number | null
+          cost_source: string | null
           created_at: string
           id: string
+          inventory_layer_id: string | null
+          journal_entry_id: string | null
           product_id: string
           quantity_change: number
           reason: string | null
           store_id: string
+          total_value: number | null
+          unit_cost: number | null
           variant_id: string | null
         }
         Insert: {
           adjusted_by?: string | null
           adjustment_type: string
+          cogs_amount?: number | null
+          cost_source?: string | null
           created_at?: string
           id?: string
+          inventory_layer_id?: string | null
+          journal_entry_id?: string | null
           product_id: string
           quantity_change: number
           reason?: string | null
           store_id: string
+          total_value?: number | null
+          unit_cost?: number | null
           variant_id?: string | null
         }
         Update: {
           adjusted_by?: string | null
           adjustment_type?: string
+          cogs_amount?: number | null
+          cost_source?: string | null
           created_at?: string
           id?: string
+          inventory_layer_id?: string | null
+          journal_entry_id?: string | null
           product_id?: string
           quantity_change?: number
           reason?: string | null
           store_id?: string
+          total_value?: number | null
+          unit_cost?: number | null
           variant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_inventory_layer_id_fkey"
+            columns: ["inventory_layer_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_layers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_adjustments_product_id_fkey"
             columns: ["product_id"]
@@ -1914,6 +1946,16 @@ export type Database = {
           total: number
         }[]
       }
+      create_adjustment_layer: {
+        Args: {
+          p_adjustment_id?: string
+          p_product_id: string
+          p_quantity: number
+          p_unit_cost: number
+          p_variant_id: string
+        }
+        Returns: string
+      }
       crypt_pin: { Args: { input_pin: string }; Returns: string }
       decrement_product_stock: {
         Args: { p_product_id: string; p_quantity: number }
@@ -1945,6 +1987,14 @@ export type Database = {
         }[]
       }
       generate_order_number: { Args: never; Returns: string }
+      get_suggested_adjustment_cost: {
+        Args: { p_product_id: string; p_variant_id?: string }
+        Returns: {
+          last_purchase_cost: number
+          next_fifo_cost: number
+          weighted_avg_cost: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

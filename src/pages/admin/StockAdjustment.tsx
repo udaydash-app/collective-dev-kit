@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Package, Search, Filter } from 'lucide-react';
+import { Package, Search, Filter, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
@@ -16,9 +16,12 @@ export default function StockAdjustment() {
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
+  const [costInputs, setCostInputs] = useState<Record<string, string>>({});
+  const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [barcodeInputs, setBarcodeInputs] = useState<Record<string, string>>({});
   const [variantInputs, setVariantInputs] = useState<Record<string, string>>({});
   const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
+  const [suggestedCosts, setSuggestedCosts] = useState<Record<string, any>>({});
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -71,10 +74,12 @@ export default function StockAdjustment() {
   });
 
   const updateStockMutation = useMutation({
-    mutationFn: async ({ productId, variantId, systemStock, currentStock }: any) => {
+    mutationFn: async ({ productId, variantId, systemStock, currentStock, unitCost, reason, key }: any) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const difference = currentStock - systemStock;
+      const adjustmentQuantity = currentStock - systemStock;
       
+      if (adjustmentQuantity === 0) return;
+
       if (variantId) {
         // Update variant stock
         const { error } = await supabase
@@ -93,27 +98,35 @@ export default function StockAdjustment() {
         if (error) throw error;
       }
 
-      // Log the adjustment
+      // Log the adjustment with FIFO tracking
       const { error: logError } = await supabase
         .from('stock_adjustments')
         .insert({
           product_id: productId,
           variant_id: variantId,
           adjustment_type: 'manual',
-          quantity_change: difference,
-          reason: 'Physical stock count adjustment',
+          adjustment_quantity: adjustmentQuantity,
+          quantity_change: adjustmentQuantity,
+          unit_cost: unitCost || 0,
+          cost_source: unitCost ? 'manual' : 'system',
+          reason: reason || 'Physical stock count adjustment',
           adjusted_by: user?.id,
           store_id: selectedStoreId,
         });
 
-      if (logError) console.error('Error logging adjustment:', logError);
+      if (logError) throw logError;
+
+      // Clear inputs
+      setStockInputs(prev => ({ ...prev, [key]: '' }));
+      setCostInputs(prev => ({ ...prev, [key]: '' }));
+      setReasonInputs(prev => ({ ...prev, [key]: 'count' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
-      toast.success('Stock updated successfully');
+      toast.success('Stock adjusted successfully with FIFO tracking');
     },
     onError: (error: any) => {
-      toast.error('Failed to update stock: ' + error.message);
+      toast.error('Failed to adjust stock: ' + error.message);
     },
   });
 
@@ -207,6 +220,26 @@ export default function StockAdjustment() {
     },
   });
 
+  const fetchSuggestedCost = async (productId: string, variantId?: string) => {
+    const key = variantId ? `variant-${variantId}` : `product-${productId}`;
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('get_suggested_adjustment_cost', {
+          p_product_id: productId,
+          p_variant_id: variantId || null,
+        });
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setSuggestedCosts(prev => ({ ...prev, [key]: data[0] }));
+      }
+    } catch (error) {
+      console.error('Error fetching suggested cost:', error);
+    }
+  };
+
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return;
@@ -218,7 +251,16 @@ export default function StockAdjustment() {
     }
 
     if (currentStock === systemStock) {
-      // No change needed
+      return;
+    }
+
+    const difference = currentStock - systemStock;
+    const unitCost = parseFloat(costInputs[key] || '0');
+    const reason = reasonInputs[key] || 'count';
+
+    // For stock increases, require cost input
+    if (difference > 0 && (!costInputs[key] || unitCost <= 0)) {
+      toast.error('Please enter unit cost for stock increases');
       return;
     }
 
@@ -227,6 +269,9 @@ export default function StockAdjustment() {
       variantId,
       systemStock,
       currentStock,
+      unitCost,
+      reason,
+      key,
     });
   };
 
@@ -470,6 +515,8 @@ export default function StockAdjustment() {
                     <TableHead className="text-right h-10">System Stock</TableHead>
                     <TableHead className="text-right h-10">Current Stock</TableHead>
                     <TableHead className="text-right h-10">Difference</TableHead>
+                    <TableHead className="text-right h-10">Unit Cost</TableHead>
+                    <TableHead className="h-10 text-left">Reason</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -480,6 +527,7 @@ export default function StockAdjustment() {
                       const systemStock = product.stock_quantity || 0;
                       const key = `product-${product.id}`;
                       const difference = calculateDifference(key, systemStock);
+                      const suggested = suggestedCosts[key];
 
                       return (
                         <TableRow key={product.id} className="h-12">
@@ -567,6 +615,44 @@ export default function StockAdjustment() {
                           }`}>
                             {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
                           </TableCell>
+                          <TableCell className="text-right py-2">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder={suggested?.weighted_avg_cost?.toFixed(2) || '0.00'}
+                                value={costInputs[key] || ''}
+                                onChange={(e) => setCostInputs({ ...costInputs, [key]: e.target.value })}
+                                onFocus={() => !suggested && fetchSuggestedCost(product.id)}
+                                className="w-24 text-right border-0 focus-visible:ring-1 bg-transparent h-8 px-2"
+                                disabled={difference !== null && difference <= 0}
+                              />
+                              {suggested && (
+                                <span title={`Last: ${suggested.last_purchase_cost?.toFixed(2) || 'N/A'} | Avg: ${suggested.weighted_avg_cost?.toFixed(2) || 'N/A'} | FIFO: ${suggested.next_fifo_cost?.toFixed(2) || 'N/A'}`}>
+                                  <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Select
+                              value={reasonInputs[key] || 'count'}
+                              onValueChange={(value) => setReasonInputs({ ...reasonInputs, [key]: value })}
+                            >
+                              <SelectTrigger className="w-32 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="count">Physical Count</SelectItem>
+                                <SelectItem value="damage">Damage</SelectItem>
+                                <SelectItem value="loss">Loss/Theft</SelectItem>
+                                <SelectItem value="found">Found</SelectItem>
+                                <SelectItem value="correction">Correction</SelectItem>
+                                <SelectItem value="return">Return</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                         </TableRow>
                       );
                     } else {
@@ -574,6 +660,7 @@ export default function StockAdjustment() {
                         const systemStock = variant.stock_quantity || 0;
                         const key = `variant-${variant.id}`;
                         const difference = calculateDifference(key, systemStock);
+                        const suggested = suggestedCosts[key];
 
                         return (
                           <TableRow key={variant.id} className="h-12">
@@ -681,6 +768,44 @@ export default function StockAdjustment() {
                               'text-muted-foreground'
                             }`}>
                               {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder={suggested?.weighted_avg_cost?.toFixed(2) || '0.00'}
+                                  value={costInputs[key] || ''}
+                                  onChange={(e) => setCostInputs({ ...costInputs, [key]: e.target.value })}
+                                  onFocus={() => !suggested && fetchSuggestedCost(product.id, variant.id)}
+                                  className="w-24 text-right border-0 focus-visible:ring-1 bg-transparent h-8 px-2"
+                                  disabled={difference !== null && difference <= 0}
+                                />
+                                {suggested && (
+                                  <span title={`Last: ${suggested.last_purchase_cost?.toFixed(2) || 'N/A'} | Avg: ${suggested.weighted_avg_cost?.toFixed(2) || 'N/A'} | FIFO: ${suggested.next_fifo_cost?.toFixed(2) || 'N/A'}`}>
+                                    <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <Select
+                                value={reasonInputs[key] || 'count'}
+                                onValueChange={(value) => setReasonInputs({ ...reasonInputs, [key]: value })}
+                              >
+                                <SelectTrigger className="w-32 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="count">Physical Count</SelectItem>
+                                  <SelectItem value="damage">Damage</SelectItem>
+                                  <SelectItem value="loss">Loss/Theft</SelectItem>
+                                  <SelectItem value="found">Found</SelectItem>
+                                  <SelectItem value="correction">Correction</SelectItem>
+                                  <SelectItem value="return">Return</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                           </TableRow>
                         );
