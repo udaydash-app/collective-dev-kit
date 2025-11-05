@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,8 +39,17 @@ export default function Purchases() {
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-
+  
+  const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  // Auto-focus on newly added product
+  useEffect(() => {
+    if (items.length > 0 && lastItemRef.current) {
+      lastItemRef.current.focus();
+      lastItemRef.current.select();
+    }
+  }, [items.length]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -523,18 +532,9 @@ export default function Purchases() {
             {/* Products Section */}
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle>Purchase Items</CardTitle>
-                  <Button
-                    onClick={() => setShowProductSearch(true)}
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Product
-                  </Button>
-                </div>
+                <CardTitle>Purchase Items</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {items.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -565,6 +565,7 @@ export default function Purchases() {
                             </TableCell>
                             <TableCell className="text-center">
                               <Input
+                                ref={index === items.length - 1 ? lastItemRef : null}
                                 type="number"
                                 value={item.quantity}
                                 onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
@@ -600,6 +601,16 @@ export default function Purchases() {
                     </Table>
                   </div>
                 )}
+
+                {/* Add Product Button at Bottom */}
+                <Button
+                  onClick={() => setShowProductSearch(true)}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
               </CardContent>
             </Card>
 
@@ -694,18 +705,9 @@ export default function Purchases() {
             {/* Products Section */}
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle>Purchase Items</CardTitle>
-                  <Button
-                    onClick={() => setShowProductSearch(true)}
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Product
-                  </Button>
-                </div>
+                <CardTitle>Purchase Items</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {items.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -736,6 +738,7 @@ export default function Purchases() {
                             </TableCell>
                             <TableCell className="text-center">
                               <Input
+                                ref={index === items.length - 1 ? lastItemRef : null}
                                 type="number"
                                 value={item.quantity}
                                 onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
@@ -771,6 +774,16 @@ export default function Purchases() {
                     </Table>
                   </div>
                 )}
+
+                {/* Add Product Button at Bottom */}
+                <Button
+                  onClick={() => setShowProductSearch(true)}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
               </CardContent>
             </Card>
 
