@@ -10,11 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Search, DollarSign } from 'lucide-react';
+import { Plus, Search, DollarSign, Pencil, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SupplierPayment {
   id: string;
@@ -39,6 +49,9 @@ interface SupplierPayment {
 export default function SupplierPayments() {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingPayment, setEditingPayment] = useState<SupplierPayment | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     contact_id: '',
     amount: '',
@@ -117,30 +130,71 @@ export default function SupplierPayments() {
     }
   });
 
-  // Create supplier payment mutation
+  // Create/Update supplier payment mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      if (editingPayment) {
+        // Update existing payment
+        const { error } = await supabase
+          .from('supplier_payments')
+          .update({
+            contact_id: data.contact_id,
+            amount: parseFloat(data.amount),
+            payment_method: data.payment_method,
+            payment_date: data.payment_date,
+            reference: data.reference,
+            notes: data.notes,
+            store_id: data.store_id
+          })
+          .eq('id', editingPayment.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new payment
+        const { error } = await supabase
+          .from('supplier_payments')
+          .insert({
+            ...data,
+            amount: parseFloat(data.amount),
+            paid_by: user.id
+          });
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(editingPayment ? 'Supplier payment updated successfully' : 'Supplier payment recorded successfully');
+      handleClose();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || `Failed to ${editingPayment ? 'update' : 'record'} supplier payment`);
+    }
+  });
+
+  // Delete supplier payment mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('supplier_payments')
-        .insert({
-          ...data,
-          amount: parseFloat(data.amount),
-          paid_by: user.id
-        });
+        .delete()
+        .eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success('Supplier payment recorded successfully');
-      handleClose();
+      toast.success('Supplier payment deleted successfully');
+      setDeleteDialogOpen(false);
+      setPaymentToDelete(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to record supplier payment');
+      toast.error(error.message || 'Failed to delete supplier payment');
     }
   });
 
@@ -155,6 +209,7 @@ export default function SupplierPayments() {
 
   const handleClose = () => {
     setOpen(false);
+    setEditingPayment(null);
     setFormData({
       contact_id: '',
       amount: '',
@@ -164,6 +219,31 @@ export default function SupplierPayments() {
       notes: '',
       store_id: ''
     });
+  };
+
+  const handleEdit = (payment: SupplierPayment) => {
+    setEditingPayment(payment);
+    setFormData({
+      contact_id: payment.contact_id,
+      amount: payment.amount.toString(),
+      payment_method: payment.payment_method,
+      payment_date: payment.payment_date,
+      reference: payment.reference || '',
+      notes: payment.notes || '',
+      store_id: payment.store_id
+    });
+    setOpen(true);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setPaymentToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (paymentToDelete) {
+      deleteMutation.mutate(paymentToDelete);
+    }
   };
 
   const paymentMethodColors: Record<string, string> = {
@@ -211,16 +291,17 @@ export default function SupplierPayments() {
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Reference</TableHead>
                 <TableHead>Paid By</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={8} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : payments?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No supplier payments found</TableCell>
+                  <TableCell colSpan={8} className="text-center">No supplier payments found</TableCell>
                 </TableRow>
               ) : (
                 payments?.map((payment) => (
@@ -236,6 +317,24 @@ export default function SupplierPayments() {
                     </TableCell>
                     <TableCell>{payment.reference || '-'}</TableCell>
                     <TableCell>{payment.profiles?.full_name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(payment)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(payment.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -247,7 +346,7 @@ export default function SupplierPayments() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>New Supplier Payment</DialogTitle>
+            <DialogTitle>{editingPayment ? 'Edit Supplier Payment' : 'New Supplier Payment'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -358,12 +457,32 @@ export default function SupplierPayments() {
                 Cancel
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Recording...' : 'Record Payment'}
+                {createMutation.isPending ? (editingPayment ? 'Updating...' : 'Recording...') : (editingPayment ? 'Update Payment' : 'Record Payment')}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Supplier Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this supplier payment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
