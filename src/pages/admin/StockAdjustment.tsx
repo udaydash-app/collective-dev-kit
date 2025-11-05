@@ -58,7 +58,7 @@ export default function StockAdjustment() {
         .select(`
           *,
           categories(name),
-          product_variants(id, label, stock_quantity, is_available, barcode)
+          product_variants(id, label, stock_quantity, is_available, barcode, cost_price)
         `)
         .eq('store_id', selectedStoreId)
         .order('name');
@@ -515,6 +515,7 @@ export default function StockAdjustment() {
                     <TableHead className="text-right h-10">System Stock</TableHead>
                     <TableHead className="text-right h-10">Current Stock</TableHead>
                     <TableHead className="text-right h-10">Difference</TableHead>
+                    <TableHead className="text-right h-10">Cost Price</TableHead>
                     <TableHead className="text-right h-10">Unit Cost</TableHead>
                     <TableHead className="h-10 text-left">Reason</TableHead>
                   </TableRow>
@@ -614,6 +615,9 @@ export default function StockAdjustment() {
                             'text-muted-foreground'
                           }`}>
                             {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right py-2 text-muted-foreground">
+                            {product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-'}
                           </TableCell>
                           <TableCell className="text-right py-2">
                             <div className="flex items-center gap-1">
@@ -768,6 +772,9 @@ export default function StockAdjustment() {
                               'text-muted-foreground'
                             }`}>
                               {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right py-2 text-muted-foreground">
+                              {variant.cost_price ? `$${variant.cost_price.toFixed(2)}` : (product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-')}
                             </TableCell>
                             <TableCell className="text-right py-2">
                               <div className="flex items-center gap-1">
