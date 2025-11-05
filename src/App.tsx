@@ -45,6 +45,7 @@ import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
 import AdminStockAndPrice from "./pages/admin/StockAndPrice";
+import InventoryLayers from "./pages/admin/InventoryLayers";
 import AdminComboOffers from "./pages/admin/ComboOffers";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
@@ -125,6 +126,7 @@ const AppContent = () => {
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
+          <Route path="/admin/inventory-layers" element={<AdminRoute><InventoryLayers /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
           <Route path="/admin/supplier-payments" element={<AdminRoute><AdminSupplierPayments /></AdminRoute>} />
           <Route path="/admin/trial-balance" element={<AdminRoute><AdminTrialBalance /></AdminRoute>} />

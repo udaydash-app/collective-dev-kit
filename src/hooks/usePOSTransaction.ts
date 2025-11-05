@@ -416,6 +416,83 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
+      // Calculate COGS using FIFO method before saving transaction
+      let totalCOGS = 0;
+      const cogsDetails: any[] = [];
+
+      // Check if online for FIFO calculation
+      if (navigator.onLine) {
+        for (const item of cart) {
+          if (item.id === 'cart-discount') continue;
+          
+          // Handle combo items
+          if (item.isCombo && item.comboItems) {
+            for (const comboProduct of item.comboItems) {
+              const stockToDeduct = comboProduct.quantity * item.quantity;
+              
+              try {
+                const { data: fifoData, error: fifoError } = await supabase.rpc('deduct_stock_fifo', {
+                  p_product_id: comboProduct.product_id,
+                  p_variant_id: comboProduct.variant_id || null,
+                  p_quantity: stockToDeduct
+                });
+
+                if (fifoError) {
+                  console.error('FIFO deduction error:', fifoError);
+                  throw new Error(`Insufficient stock for ${comboProduct.product_name}`);
+                }
+
+                if (fifoData && Array.isArray(fifoData)) {
+                  const itemCOGS = fifoData.reduce((sum: number, layer: any) => sum + Number(layer.total_cogs), 0);
+                  totalCOGS += itemCOGS;
+                  cogsDetails.push({
+                    product_id: comboProduct.product_id,
+                    variant_id: comboProduct.variant_id,
+                    name: comboProduct.product_name,
+                    quantity: stockToDeduct,
+                    cogs: itemCOGS,
+                    layers: fifoData
+                  });
+                }
+              } catch (error) {
+                console.error('Error processing FIFO for combo item:', error);
+              }
+            }
+          } else {
+            // Regular product
+            const isVariant = item.id !== item.productId;
+            
+            try {
+              const { data: fifoData, error: fifoError } = await supabase.rpc('deduct_stock_fifo', {
+                p_product_id: item.productId,
+                p_variant_id: isVariant ? item.id : null,
+                p_quantity: item.quantity
+              });
+
+              if (fifoError) {
+                console.error('FIFO deduction error:', fifoError);
+                throw new Error(`Insufficient stock for ${item.name}`);
+              }
+
+              if (fifoData && Array.isArray(fifoData)) {
+                const itemCOGS = fifoData.reduce((sum: number, layer: any) => sum + Number(layer.total_cogs), 0);
+                totalCOGS += itemCOGS;
+                cogsDetails.push({
+                  product_id: item.productId,
+                  variant_id: isVariant ? item.id : null,
+                  name: item.name,
+                  quantity: item.quantity,
+                  cogs: itemCOGS,
+                  layers: fifoData
+                });
+              }
+            } catch (error) {
+              console.error('Error processing FIFO for item:', error);
+            }
+          }
+        }
+      }
+
       // Combine cart items with any additional items (like cart discount)
       // Map items to include all necessary fields
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
@@ -446,9 +523,14 @@ export const usePOSTransaction = () => {
           amount: parseFloat(p.amount.toFixed(2)),
         })),
         notes,
+        metadata: {
+          total_cogs: totalCOGS,
+          cogs_details: cogsDetails,
+          gross_profit: (subtotal - finalDiscount) - totalCOGS
+        }
       };
 
-      console.log('Processing transaction:', transactionData);
+      console.log('Processing transaction with COGS:', transactionData);
 
       // Check if online
       if (navigator.onLine) {

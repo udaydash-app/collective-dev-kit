@@ -775,6 +775,77 @@ export type Database = {
           },
         ]
       }
+      inventory_layers: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          purchase_id: string | null
+          purchase_item_id: string | null
+          purchased_at: string
+          quantity_purchased: number
+          quantity_remaining: number
+          unit_cost: number
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          purchase_id?: string | null
+          purchase_item_id?: string | null
+          purchased_at?: string
+          quantity_purchased: number
+          quantity_remaining: number
+          unit_cost: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          purchase_id?: string | null
+          purchase_item_id?: string | null
+          purchased_at?: string
+          quantity_purchased?: number
+          quantity_remaining?: number
+          unit_cost?: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_layers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_layers_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_layers_purchase_item_id_fkey"
+            columns: ["purchase_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_layers_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -1851,6 +1922,15 @@ export type Database = {
       decrement_variant_stock: {
         Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
+      }
+      deduct_stock_fifo: {
+        Args: { p_product_id: string; p_quantity: number; p_variant_id: string }
+        Returns: {
+          layer_id: string
+          quantity_used: number
+          total_cogs: number
+          unit_cost: number
+        }[]
       }
       find_similar_products: {
         Args: {
