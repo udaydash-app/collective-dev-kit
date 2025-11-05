@@ -107,7 +107,16 @@ export default function JournalEntries() {
         `)
         .order('entry_date', { ascending: false });
       if (error) throw error;
-      return data;
+      
+      // Deduplicate entries by ID to prevent duplicates
+      const uniqueEntries = data?.reduce((acc, entry) => {
+        if (!acc.find(e => e.id === entry.id)) {
+          acc.push(entry);
+        }
+        return acc;
+      }, [] as typeof data);
+      
+      return uniqueEntries;
     },
     staleTime: 0,
   });

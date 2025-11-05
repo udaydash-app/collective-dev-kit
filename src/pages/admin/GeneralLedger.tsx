@@ -79,17 +79,14 @@ export default function GeneralLedger() {
 
   // Map accounts with contact names after both queries complete
   const accounts = rawAccounts && contacts ? (() => {
-    // Organize accounts by parent-child relationship
-    const parentAccounts = rawAccounts.filter(a => !a.parent_account_id) || [];
-    const childAccounts = rawAccounts.filter(a => a.parent_account_id) || [];
-    
-    // Create a structured list with contact names
+    // Create a Set to track which accounts have been added
+    const addedAccountIds = new Set<string>();
     const structuredAccounts: any[] = [];
     
     // Add unified accounts for contacts who are both customers and suppliers
     const dualRoleContacts = contacts.filter(c => c.is_customer && c.is_supplier && c.customer_ledger_account_id && c.supplier_ledger_account_id);
     
-    // Create a Set of account IDs that belong to dual-role contacts for quick lookup
+    // Create a Set of account IDs that belong to dual-role contacts
     const dualRoleAccountIds = new Set<string>();
     dualRoleContacts.forEach(contact => {
       if (contact.customer_ledger_account_id) dualRoleAccountIds.add(contact.customer_ledger_account_id);
@@ -120,54 +117,34 @@ export default function GeneralLedger() {
           customerAccountId: contact.customer_ledger_account_id,
           supplierAccountId: contact.supplier_ledger_account_id
         });
+        
+        // Mark these account IDs as added so they won't show up again
+        if (contact.customer_ledger_account_id) addedAccountIds.add(contact.customer_ledger_account_id);
+        if (contact.supplier_ledger_account_id) addedAccountIds.add(contact.supplier_ledger_account_id);
       });
     }
     
-    // Track which child accounts have been added to prevent duplicates
-    const addedChildIds = new Set<string>();
-    
-    parentAccounts.forEach(parent => {
-      structuredAccounts.push({ ...parent, isParent: true, contactName: '' });
-      const children = childAccounts.filter(c => c.parent_account_id === parent.id);
-      children.forEach(child => {
-        // Skip if this account belongs to a dual-role contact (already in unified section)
-        if (dualRoleAccountIds.has(child.id)) return;
-        
-        // Skip if this child account was already added under another parent
-        if (addedChildIds.has(child.id)) return;
-        
-        // Find associated contact based on account type
-        let contact;
-        
-        // Check if this is under Accounts Receivable (customer ledger)
-        if (parent.account_name?.toLowerCase().includes('receivable') || 
-            parent.account_name?.toLowerCase().includes('debtors')) {
-          contact = contacts.find(c => c.is_customer && c.customer_ledger_account_id === child.id);
-        }
-        // Check if this is under Accounts Payable (supplier ledger)
-        else if (parent.account_name?.toLowerCase().includes('payable') || 
-                 parent.account_name?.toLowerCase().includes('creditors')) {
-          contact = contacts.find(c => c.is_supplier && c.supplier_ledger_account_id === child.id);
-        }
-        // Fallback to check both
-        else {
-          contact = contacts.find(
-            c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
-          );
-        }
-        
-        
-        structuredAccounts.push({ 
-          ...child, 
-          isChild: true,
-          contactName: contact?.name || '',
-          isCustomer: contact?.is_customer || false,
-          isSupplier: contact?.is_supplier || false
-        });
-        
-        // Mark this child account as added
-        addedChildIds.add(child.id);
+    // Now add all other accounts (parent and child) in order
+    rawAccounts.forEach(account => {
+      // Skip if already added (dual-role accounts)
+      if (addedAccountIds.has(account.id)) return;
+      
+      // Find associated contact
+      const contact = contacts.find(
+        c => c.customer_ledger_account_id === account.id || c.supplier_ledger_account_id === account.id
+      );
+      
+      structuredAccounts.push({ 
+        ...account, 
+        isParent: !account.parent_account_id,
+        isChild: !!account.parent_account_id,
+        contactName: contact?.name || '',
+        isCustomer: contact?.is_customer || false,
+        isSupplier: contact?.is_supplier || false
       });
+      
+      // Mark as added
+      addedAccountIds.add(account.id);
     });
     
     return structuredAccounts;
@@ -179,11 +156,12 @@ export default function GeneralLedger() {
   const filteredAccounts = (() => {
     if (!accounts) return [];
     
+    // If no search term, show nothing
+    if (!searchValue || searchValue.trim() === '') return [];
+    
+    const searchLower = searchValue.toLowerCase().trim();
+    
     const filtered = accounts.filter((account) => {
-      // If no search term, show nothing
-      if (!searchValue || searchValue.trim() === '') return false;
-      
-      const searchLower = searchValue.toLowerCase().trim();
       const accountName = (account.account_name || '').toLowerCase();
       const accountCode = (account.account_code || '').toLowerCase();
       const contactName = (account.contactName || '').toLowerCase();
@@ -196,25 +174,8 @@ export default function GeneralLedger() {
       return nameMatch || codeMatch || contactMatch;
     });
     
-    // Deduplicate by account ID - each unique account should appear only once
-    const seenAccountIds = new Set<string>();
-    const deduplicated = filtered.filter((account) => {
-      // Always keep headers (they don't have real account IDs)
-      if (account.isHeader) return true;
-      
-      // For unified accounts, use a special key
-      const accountKey = account.isUnified ? account.id : account.id;
-      
-      if (seenAccountIds.has(accountKey)) {
-        console.log('Filtering out duplicate account:', account.account_name, accountKey);
-        return false; // Skip duplicate
-      }
-      
-      seenAccountIds.add(accountKey);
-      return true;
-    });
-    
-    return deduplicated;
+    // No need to deduplicate since we already prevent duplicates in the accounts array
+    return filtered;
   })();
 
   const { data: ledgerData, isLoading } = useQuery({
