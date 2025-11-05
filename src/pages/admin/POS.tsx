@@ -1678,6 +1678,8 @@ export default function POS() {
       { icon: BarChart3, label: 'Analytics Dashboard', path: '/admin/analytics' },
       { icon: FileText, label: 'Reports', path: '/admin/close-day-report' },
       { icon: Package, label: 'Inventory Reports', path: '/admin/inventory-reports' },
+      { icon: Users, label: 'Accounts Receivable', path: '/admin/accounts-receivable' },
+      { icon: Building2, label: 'Accounts Payable', path: '/admin/accounts-payable' },
     ],
     settings: [
       { icon: Users, label: 'POS Users', path: '/admin/pos-users' },

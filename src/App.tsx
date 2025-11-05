@@ -46,6 +46,8 @@ import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
 import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import AdminComboOffers from "./pages/admin/ComboOffers";
+import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
+import AdminAccountsPayable from "./pages/admin/AccountsPayable";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -129,6 +131,8 @@ const AppContent = () => {
           <Route path="/admin/balance-sheet" element={<AdminRoute><AdminBalanceSheet /></AdminRoute>} />
           <Route path="/admin/cash-flow" element={<AdminRoute><AdminCashFlow /></AdminRoute>} />
           <Route path="/admin/open-cash-register" element={<AdminRoute><AdminOpenCashRegister /></AdminRoute>} />
+          <Route path="/admin/accounts-receivable" element={<AdminRoute><AdminAccountsReceivable /></AdminRoute>} />
+          <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
