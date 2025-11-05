@@ -131,16 +131,10 @@ export default function GeneralLedger() {
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
       children.forEach(child => {
         // Skip if this account belongs to a dual-role contact (already in unified section)
-        if (dualRoleAccountIds.has(child.id)) {
-          console.log('Skipping dual-role account:', child.account_name, child.id);
-          return;
-        }
+        if (dualRoleAccountIds.has(child.id)) return;
         
         // Skip if this child account was already added under another parent
-        if (addedChildIds.has(child.id)) {
-          console.log('Skipping already added child:', child.account_name, child.id);
-          return;
-        }
+        if (addedChildIds.has(child.id)) return;
         
         // Find associated contact based on account type
         let contact;
@@ -162,14 +156,6 @@ export default function GeneralLedger() {
           );
         }
         
-        if (contact?.name.toLowerCase().includes('sudha')) {
-          console.log('Adding Sudha account:', {
-            childId: child.id,
-            accountName: child.account_name,
-            contactName: contact.name,
-            parentName: parent.account_name
-          });
-        }
         
         structuredAccounts.push({ 
           ...child, 
@@ -183,10 +169,6 @@ export default function GeneralLedger() {
         addedChildIds.add(child.id);
       });
     });
-    
-    // Log final structured accounts for Sudha
-    const sudhaAccounts = structuredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha'));
-    console.log('Final Sudha accounts in structuredAccounts:', sudhaAccounts.length, sudhaAccounts);
     
     return structuredAccounts;
   })() : rawAccounts?.map(acc => ({ ...acc, isParent: !acc.parent_account_id, isChild: !!acc.parent_account_id, contactName: '' }));
@@ -214,8 +196,6 @@ export default function GeneralLedger() {
       return nameMatch || codeMatch || contactMatch;
     });
     
-    console.log('Filtered accounts before dedup:', filtered.filter(a => a.contactName?.toLowerCase().includes('sudha')).length);
-    
     // Deduplicate by account ID - each unique account should appear only once
     const seenAccountIds = new Set<string>();
     const deduplicated = filtered.filter((account) => {
@@ -233,8 +213,6 @@ export default function GeneralLedger() {
       seenAccountIds.add(accountKey);
       return true;
     });
-    
-    console.log('Filtered Sudha accounts after dedup:', deduplicated.filter(a => a.contactName?.toLowerCase().includes('sudha')).length);
     
     return deduplicated;
   })();
@@ -542,35 +520,29 @@ export default function GeneralLedger() {
                     </div>
                   ) : (
                     <CommandGroup className="max-h-[300px] overflow-auto">
-                      {(() => {
-                        const sudhaAccounts = filteredAccounts.filter(a => a.contactName?.toLowerCase().includes('sudha'));
-                        console.log('Rendering filteredAccounts count:', filteredAccounts.length);
-                        console.log('All filtered accounts:', filteredAccounts.map(a => ({ id: a.id, name: a.account_name, contact: a.contactName, isParent: a.isParent, isChild: a.isChild })));
-                        console.log('Sudha in filtered:', sudhaAccounts);
-                        return filteredAccounts.map((account, index) => (
-                          <CommandItem
-                            key={`${account.id}-${index}`}
-                            value={account.id}
-                            onSelect={(value) => {
-                              setSelectedAccount(value);
-                              setOpen(false);
-                            }}
-                            className={cn(account.isChild && 'pl-8')}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
-                              )}
-                            />
-                            {account.isChild && '└─ '}
-                            {account.account_code} - {account.account_name}
-                            {account.contactName && ` (${account.contactName})`}
-                            {account.isCustomer && ' 👤'}
-                            {account.isSupplier && ' 🏢'}
-                          </CommandItem>
-                        ));
-                      })()}
+                      {filteredAccounts.map((account, index) => (
+                        <CommandItem
+                          key={`${account.id}-${index}`}
+                          value={account.id}
+                          onSelect={(value) => {
+                            setSelectedAccount(value);
+                            setOpen(false);
+                          }}
+                          className={cn(account.isChild && 'pl-8')}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedAccount === account.id ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                          {account.isChild && '└─ '}
+                          {account.account_code} - {account.account_name}
+                          {account.contactName && ` (${account.contactName})`}
+                          {account.isCustomer && ' 👤'}
+                          {account.isSupplier && ' 🏢'}
+                        </CommandItem>
+                      ))}
                     </CommandGroup>
                   )}
                 </Command>
