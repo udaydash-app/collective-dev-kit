@@ -278,8 +278,8 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch cash sessions with cashier details (closed during this period)
-      const { data: cashSessions } = await supabase
+      // Fetch closed sessions (based on closed_at) and open sessions (based on opened_at)
+      const { data: closedSessions } = await supabase
         .from('cash_sessions')
         .select(`
           *,
@@ -290,8 +290,28 @@ export default function CloseDayReport() {
         .eq('store_id', selectedStoreId)
         .eq('status', 'closed')
         .gte('closed_at', `${startDate}T00:00:00`)
-        .lte('closed_at', `${endDate}T23:59:59`)
-        .order('closed_at', { ascending: false });
+        .lte('closed_at', `${endDate}T23:59:59`);
+
+      const { data: openSessions } = await supabase
+        .from('cash_sessions')
+        .select(`
+          *,
+          profiles:cashier_id (
+            full_name
+          )
+        `)
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .gte('opened_at', `${startDate}T00:00:00`)
+        .lte('opened_at', `${endDate}T23:59:59`);
+
+      // Combine both closed and open sessions
+      const cashSessions = [...(closedSessions || []), ...(openSessions || [])]
+        .sort((a, b) => {
+          const dateA = a.closed_at || a.opened_at;
+          const dateB = b.closed_at || b.opened_at;
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
 
       // Calculate expected cash for each session
       const sessionsWithCalculations = await Promise.all(
@@ -467,9 +487,9 @@ export default function CloseDayReport() {
       else if (e.payment_method === 'mobile_money') dayData.expenses.mobileMoney += amount;
     });
 
-    // Group cash sessions by date (based on when they were closed)
+    // Group cash sessions by date (based on when they were closed, or opened if still open)
     reportData.cashSessions?.forEach((session: any) => {
-      const date = format(new Date(session.closed_at), 'yyyy-MM-dd');
+      const date = format(new Date(session.closed_at || session.opened_at), 'yyyy-MM-dd');
       if (!dateMap.has(date)) {
         dateMap.set(date, {
           date,
