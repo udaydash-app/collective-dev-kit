@@ -11,12 +11,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Receipt, Search } from 'lucide-react';
+import { Plus, Receipt, Search, Pencil, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import PendingBillsDialog from '@/components/admin/PendingBillsDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PaymentReceipt {
   id: string;
@@ -46,6 +56,9 @@ export default function PaymentReceipts() {
   const [paymentType, setPaymentType] = useState<'on_account' | 'against_bill'>('on_account');
   const [selectedBillId, setSelectedBillId] = useState('');
   const [selectedBillType, setSelectedBillType] = useState<'pos_transaction' | 'order'>('pos_transaction');
+  const [editingReceipt, setEditingReceipt] = useState<PaymentReceipt | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [receiptToDelete, setReceiptToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     contact_id: '',
     amount: '',
@@ -124,7 +137,7 @@ export default function PaymentReceipts() {
     }
   });
 
-  // Create payment receipt mutation
+  // Create/Update payment receipt mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -132,16 +145,34 @@ export default function PaymentReceipts() {
       
       const amount = parseFloat(data.amount);
 
-      // Insert payment receipt
-      const { error } = await supabase
-        .from('payment_receipts')
-        .insert({
-          ...data,
-          amount,
-          received_by: user.id
-        });
+      if (editingReceipt) {
+        // Update existing receipt
+        const { error } = await supabase
+          .from('payment_receipts')
+          .update({
+            contact_id: data.contact_id,
+            amount,
+            payment_method: data.payment_method,
+            payment_date: data.payment_date,
+            reference: data.reference,
+            notes: data.notes,
+            store_id: data.store_id
+          })
+          .eq('id', editingReceipt.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Insert new receipt
+        const { error } = await supabase
+          .from('payment_receipts')
+          .insert({
+            ...data,
+            amount,
+            received_by: user.id
+          });
+
+        if (error) throw error;
+      }
 
       // Handle payment application
       if (paymentType === 'against_bill' && selectedBillId) {
@@ -250,11 +281,33 @@ export default function PaymentReceipts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success('Payment receipt created successfully');
+      toast.success(editingReceipt ? 'Payment receipt updated successfully' : 'Payment receipt created successfully');
       handleClose();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create payment receipt');
+      toast.error(error.message || `Failed to ${editingReceipt ? 'update' : 'create'} payment receipt`);
+    }
+  });
+
+  // Delete payment receipt mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('payment_receipts')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success('Payment receipt deleted successfully');
+      setDeleteDialogOpen(false);
+      setReceiptToDelete(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete payment receipt');
     }
   });
 
@@ -273,6 +326,7 @@ export default function PaymentReceipts() {
     setSelectedBillId('');
     setSelectedCustomer(null);
     setPendingBillsOpen(false);
+    setEditingReceipt(null);
     setFormData({
       contact_id: '',
       amount: '',
@@ -282,6 +336,35 @@ export default function PaymentReceipts() {
       notes: '',
       store_id: ''
     });
+  };
+
+  const handleEdit = (receipt: PaymentReceipt) => {
+    setEditingReceipt(receipt);
+    setFormData({
+      contact_id: receipt.contact_id,
+      amount: receipt.amount.toString(),
+      payment_method: receipt.payment_method,
+      payment_date: receipt.payment_date,
+      reference: receipt.reference || '',
+      notes: receipt.notes || '',
+      store_id: receipt.store_id
+    });
+    const customer = customers?.find(c => c.id === receipt.contact_id);
+    if (customer) {
+      setSelectedCustomer({ id: customer.id, name: customer.name });
+    }
+    setOpen(true);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setReceiptToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (receiptToDelete) {
+      deleteMutation.mutate(receiptToDelete);
+    }
   };
 
   const paymentMethodColors: Record<string, string> = {
@@ -329,16 +412,17 @@ export default function PaymentReceipts() {
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Reference</TableHead>
                 <TableHead>Received By</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={8} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : receipts?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No payment receipts found</TableCell>
+                  <TableCell colSpan={8} className="text-center">No payment receipts found</TableCell>
                 </TableRow>
               ) : (
                 receipts?.map((receipt) => (
@@ -354,6 +438,24 @@ export default function PaymentReceipts() {
                     </TableCell>
                     <TableCell>{receipt.reference || '-'}</TableCell>
                     <TableCell>{receipt.profiles?.full_name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(receipt)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(receipt.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -365,7 +467,7 @@ export default function PaymentReceipts() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>New Payment Receipt</DialogTitle>
+            <DialogTitle>{editingReceipt ? 'Edit Payment Receipt' : 'New Payment Receipt'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -415,7 +517,7 @@ export default function PaymentReceipts() {
                 </Select>
               </div>
 
-              {formData.contact_id && (
+              {formData.contact_id && !editingReceipt && (
                 <div className="col-span-2 space-y-3 p-4 border rounded-lg bg-muted/30">
                   <Label>Payment Type *</Label>
                   <RadioGroup 
@@ -528,12 +630,32 @@ export default function PaymentReceipts() {
                 Cancel
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Creating...' : 'Create Receipt'}
+                {createMutation.isPending ? (editingReceipt ? 'Updating...' : 'Creating...') : (editingReceipt ? 'Update Receipt' : 'Create Receipt')}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment Receipt</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this payment receipt? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {selectedCustomer && (
         <PendingBillsDialog
