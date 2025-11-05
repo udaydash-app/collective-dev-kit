@@ -160,22 +160,50 @@ export default function GeneralLedger() {
   // Filter accounts based on search term
   const selectedAccountData = accounts?.find(acc => acc.id === selectedAccount);
   
-  const filteredAccounts = accounts?.filter((account) => {
-    // If no search term, show nothing
-    if (!searchValue || searchValue.trim() === '') return false;
+  const filteredAccounts = (() => {
+    if (!accounts) return [];
     
-    const searchLower = searchValue.toLowerCase().trim();
-    const accountName = (account.account_name || '').toLowerCase();
-    const accountCode = (account.account_code || '').toLowerCase();
-    const contactName = (account.contactName || '').toLowerCase();
+    const filtered = accounts.filter((account) => {
+      // If no search term, show nothing
+      if (!searchValue || searchValue.trim() === '') return false;
+      
+      const searchLower = searchValue.toLowerCase().trim();
+      const accountName = (account.account_name || '').toLowerCase();
+      const accountCode = (account.account_code || '').toLowerCase();
+      const contactName = (account.contactName || '').toLowerCase();
+      
+      // Only match if the search term is actually found in a non-empty field
+      const nameMatch = accountName.length > 0 && accountName.includes(searchLower);
+      const codeMatch = accountCode.length > 0 && accountCode.includes(searchLower);
+      const contactMatch = contactName.length > 0 && contactName.includes(searchLower);
+      
+      return nameMatch || codeMatch || contactMatch;
+    });
     
-    // Only match if the search term is actually found in a non-empty field
-    const nameMatch = accountName.length > 0 && accountName.includes(searchLower);
-    const codeMatch = accountCode.length > 0 && accountCode.includes(searchLower);
-    const contactMatch = contactName.length > 0 && contactName.includes(searchLower);
+    // Deduplicate by contact name - if a contact appears in both unified and regular sections,
+    // only show the unified version
+    const seenContactNames = new Set<string>();
+    const deduplicated = filtered.filter((account) => {
+      // Always keep headers and non-contact accounts
+      if (account.isHeader || !account.contactName) return true;
+      
+      // For unified accounts, always keep them and mark contact as seen
+      if (account.isUnified) {
+        seenContactNames.add(account.contactName.toLowerCase());
+        return true;
+      }
+      
+      // For regular accounts, only keep if we haven't seen this contact in unified
+      const contactKey = account.contactName.toLowerCase();
+      if (seenContactNames.has(contactKey)) {
+        return false; // Skip duplicate
+      }
+      
+      return true;
+    });
     
-    return nameMatch || codeMatch || contactMatch;
-  }) || [];
+    return deduplicated;
+  })();
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
