@@ -278,7 +278,7 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch cash sessions with cashier details
+      // Fetch cash sessions with cashier details (closed during this period)
       const { data: cashSessions } = await supabase
         .from('cash_sessions')
         .select(`
@@ -288,9 +288,10 @@ export default function CloseDayReport() {
           )
         `)
         .eq('store_id', selectedStoreId)
-        .gte('opened_at', `${startDate}T00:00:00`)
-        .lte('opened_at', `${endDate}T23:59:59`)
-        .order('opened_at', { ascending: false });
+        .eq('status', 'closed')
+        .gte('closed_at', `${startDate}T00:00:00`)
+        .lte('closed_at', `${endDate}T23:59:59`)
+        .order('closed_at', { ascending: false });
 
       // Calculate expected cash for each session
       const sessionsWithCalculations = await Promise.all(
@@ -466,9 +467,9 @@ export default function CloseDayReport() {
       else if (e.payment_method === 'mobile_money') dayData.expenses.mobileMoney += amount;
     });
 
-    // Group cash sessions by date
+    // Group cash sessions by date (based on when they were closed)
     reportData.cashSessions?.forEach((session: any) => {
-      const date = format(new Date(session.opened_at), 'yyyy-MM-dd');
+      const date = format(new Date(session.closed_at), 'yyyy-MM-dd');
       if (!dateMap.has(date)) {
         dateMap.set(date, {
           date,
