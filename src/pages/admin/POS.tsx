@@ -55,6 +55,7 @@ import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
+import { RefundDialog } from '@/components/pos/RefundDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -123,6 +124,7 @@ export default function POS() {
   const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const [showRefund, setShowRefund] = useState(false);
   
   
   const ITEMS_PER_PAGE = 12;
@@ -1714,6 +1716,18 @@ export default function POS() {
       action: () => alert('No pickup orders')
     },
     { 
+      icon: Banknote, 
+      label: 'Refund', 
+      color: 'bg-[#EF4444]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Add items to cart to process refund');
+          return;
+        }
+        setShowRefund(true);
+      }
+    },
+    { 
       icon: BarChart3, 
       label: 'End Of Day', 
       color: 'bg-[#5DADE2]',
@@ -2786,6 +2800,18 @@ export default function POS() {
         onRecallTicket={handleRecallTicket}
         onDeleteTicket={handleDeleteTicket}
         heldTickets={heldTickets}
+      />
+
+      <RefundDialog
+        open={showRefund}
+        onClose={() => setShowRefund(false)}
+        cartItems={cart}
+        storeId={selectedStoreId}
+        onRefundComplete={() => {
+          clearCart();
+          setCartDiscountItem(null);
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+        }}
       />
 
       {/* Customer Selection Dialog */}
