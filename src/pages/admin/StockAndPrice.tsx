@@ -29,13 +29,13 @@ export default function StockAndPrice() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
-  // Fetch products with category and store info
+  // Fetch products with variants, category and store info
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ['products-stock-price'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, categories(name), stores(name)')
+        .select('*, categories(name), stores(name), product_variants(*)')
         .order('name');
       if (error) throw error;
       return data;
@@ -159,66 +159,144 @@ export default function StockAndPrice() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProducts?.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <span className="font-medium">{product.name}</span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {product.barcode || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {product.categories?.name || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {product.stores?.name || '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {(() => {
-                        const stock = product.stock_quantity ?? 0;
-                        const isNegative = stock < 0;
-                        const isPositive = stock > 0;
-                        return (
-                          <span 
-                            className={`font-semibold ${
-                              isNegative 
-                                ? 'text-red-600' 
-                                : isPositive 
-                                ? 'text-green-600' 
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {isNegative ? '-' : ''}{Math.abs(stock)}
-                          </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {product.cost_price ? formatCurrency(product.cost_price) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {product.price ? formatCurrency(product.price) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right text-blue-600">
-                      {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right text-purple-600">
-                      {product.vip_price ? formatCurrency(product.vip_price) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {product.price && product.cost_price ? (
-                        <Badge variant="outline">
-                          {calculateMargin(product.price, product.cost_price)}%
-                        </Badge>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_available ? 'default' : 'secondary'}>
-                        {product.is_available ? 'Available' : 'Unavailable'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredProducts?.flatMap((product) => {
+                  // If product has variants, show each variant as a separate row
+                  if (product.product_variants && product.product_variants.length > 0) {
+                    return product.product_variants.map((variant: any) => (
+                      <TableRow key={`${product.id}-${variant.id}`}>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">{product.name}</span>
+                            <span className="text-xs text-muted-foreground ml-2">({variant.label})</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {variant.barcode || product.barcode || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {product.categories?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {product.stores?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const stock = variant.stock_quantity ?? 0;
+                            const isNegative = stock < 0;
+                            const isPositive = stock > 0;
+                            return (
+                              <span 
+                                className={`font-semibold ${
+                                  isNegative 
+                                    ? 'text-red-600' 
+                                    : isPositive 
+                                    ? 'text-green-600' 
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {isNegative ? '-' : ''}{Math.abs(stock)}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {variant.cost_price ? formatCurrency(variant.cost_price) : 
+                           product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {variant.price ? formatCurrency(variant.price) : 
+                           product.price ? formatCurrency(product.price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-blue-600">
+                          {variant.wholesale_price ? formatCurrency(variant.wholesale_price) : 
+                           product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-purple-600">
+                          {variant.vip_price ? formatCurrency(variant.vip_price) : 
+                           product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const price = variant.price || product.price;
+                            const cost = variant.cost_price || product.cost_price;
+                            return price && cost ? (
+                              <Badge variant="outline">
+                                {calculateMargin(price, cost)}%
+                              </Badge>
+                            ) : '-';
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={product.is_available ? 'default' : 'secondary'}>
+                            {product.is_available ? 'Available' : 'Unavailable'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  } else {
+                    // Product has no variants, show product-level data
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell>
+                          <span className="font-medium">{product.name}</span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {product.barcode || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {product.categories?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {product.stores?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const stock = product.stock_quantity ?? 0;
+                            const isNegative = stock < 0;
+                            const isPositive = stock > 0;
+                            return (
+                              <span 
+                                className={`font-semibold ${
+                                  isNegative 
+                                    ? 'text-red-600' 
+                                    : isPositive 
+                                    ? 'text-green-600' 
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {isNegative ? '-' : ''}{Math.abs(stock)}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {product.price ? formatCurrency(product.price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-blue-600">
+                          {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-purple-600">
+                          {product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.price && product.cost_price ? (
+                            <Badge variant="outline">
+                              {calculateMargin(product.price, product.cost_price)}%
+                            </Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={product.is_available ? 'default' : 'secondary'}>
+                            {product.is_available ? 'Available' : 'Unavailable'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                })
               )}
             </TableBody>
           </Table>
