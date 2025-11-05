@@ -88,6 +88,14 @@ export default function GeneralLedger() {
     
     // Add unified accounts for contacts who are both customers and suppliers
     const dualRoleContacts = contacts.filter(c => c.is_customer && c.is_supplier && c.customer_ledger_account_id && c.supplier_ledger_account_id);
+    
+    // Create a Set of account IDs that belong to dual-role contacts for quick lookup
+    const dualRoleAccountIds = new Set<string>();
+    dualRoleContacts.forEach(contact => {
+      if (contact.customer_ledger_account_id) dualRoleAccountIds.add(contact.customer_ledger_account_id);
+      if (contact.supplier_ledger_account_id) dualRoleAccountIds.add(contact.supplier_ledger_account_id);
+    });
+    
     if (dualRoleContacts.length > 0) {
       structuredAccounts.push({
         id: 'unified-header',
@@ -119,6 +127,11 @@ export default function GeneralLedger() {
       structuredAccounts.push({ ...parent, isParent: true, contactName: '' });
       const children = childAccounts.filter(c => c.parent_account_id === parent.id);
       children.forEach(child => {
+        // Skip if this account belongs to a dual-role contact (already in unified section)
+        if (dualRoleAccountIds.has(child.id)) {
+          return;
+        }
+        
         // Find associated contact based on account type
         let contact;
         
@@ -137,11 +150,6 @@ export default function GeneralLedger() {
           contact = contacts.find(
             c => c.customer_ledger_account_id === child.id || c.supplier_ledger_account_id === child.id
           );
-        }
-        
-        // Skip if this contact is dual role (already shown in unified section)
-        if (contact && contact.is_customer && contact.is_supplier) {
-          return;
         }
         
         structuredAccounts.push({ 
