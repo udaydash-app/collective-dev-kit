@@ -214,6 +214,8 @@ export default function GeneralLedger() {
       return nameMatch || codeMatch || contactMatch;
     });
     
+    console.log('Filtered accounts before dedup:', filtered.filter(a => a.contactName?.toLowerCase().includes('sudha')).length);
+    
     // Deduplicate by account ID - each unique account should appear only once
     const seenAccountIds = new Set<string>();
     const deduplicated = filtered.filter((account) => {
@@ -224,12 +226,15 @@ export default function GeneralLedger() {
       const accountKey = account.isUnified ? account.id : account.id;
       
       if (seenAccountIds.has(accountKey)) {
+        console.log('Filtering out duplicate account:', account.account_name, accountKey);
         return false; // Skip duplicate
       }
       
       seenAccountIds.add(accountKey);
       return true;
     });
+    
+    console.log('Filtered Sudha accounts after dedup:', deduplicated.filter(a => a.contactName?.toLowerCase().includes('sudha')).length);
     
     return deduplicated;
   })();
