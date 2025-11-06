@@ -3,9 +3,8 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ShoppingBag, Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency } from "@/lib/utils";
@@ -25,33 +24,15 @@ export default function Cart() {
         <h1 className="text-2xl font-bold mb-6">Shopping Cart</h1>
 
         {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <Skeleton className="w-20 h-20 rounded-lg" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center justify-center py-12">
+            <div className="text-muted-foreground">Loading cart...</div>
           </div>
         ) : cartEmpty ? (
           <Card>
-            <CardContent className="p-12 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                <ShoppingBag className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
-              <p className="text-muted-foreground mb-6">
-                Add items to get started
-              </p>
+            <CardContent className="p-8 flex flex-col items-center text-center">
+              <h2 className="text-xl font-semibold mb-4">Your cart is empty</h2>
               <Link to="/categories">
-                <Button size="lg">Start Shopping</Button>
+                <Button>Start Shopping</Button>
               </Link>
             </CardContent>
           </Card>
@@ -73,19 +54,15 @@ export default function Cart() {
                   {cartItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden">
-                          {item.products.image_url ? (
+                        {item.products.image_url && (
+                          <div className="w-16 h-16 rounded-lg overflow-hidden">
                             <img 
                               src={item.products.image_url} 
                               alt={item.products.name}
                               className="w-full h-full object-cover"
                             />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl">
-                              🛒
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>
