@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 interface BarcodeScannerProps {
@@ -44,6 +44,7 @@ export const BarcodeScanner = ({ onScan }: BarcodeScannerProps) => {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Scan Product Barcode</DialogTitle>
+            <DialogDescription>Position the barcode within the camera view to scan</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,7 @@ export const CashInDialog = ({ isOpen, onClose, onConfirm, onSkip }: CashInDialo
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-xl">Cash In - Open Register</DialogTitle>
+          <DialogDescription>Enter the opening cash amount to start your shift</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

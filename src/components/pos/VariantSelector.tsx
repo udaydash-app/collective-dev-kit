@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
 import { Package } from 'lucide-react';
 
@@ -38,6 +38,7 @@ export const VariantSelector = ({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="text-xl">Select Variant</DialogTitle>
+          <DialogDescription>Choose the product variant you want to add to the cart</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">

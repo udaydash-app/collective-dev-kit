@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, Trash2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
@@ -76,6 +76,7 @@ export const HoldTicketDialog = ({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Hold & Fire Tickets</DialogTitle>
+          <DialogDescription>Hold current orders or recall previously held tickets</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
