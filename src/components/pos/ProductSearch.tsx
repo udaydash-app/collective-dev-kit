@@ -95,7 +95,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             unit,
             price,
             is_available,
-            is_default
+            is_default,
+            barcode
           )
         `)
         .eq('is_available', true)
@@ -107,6 +108,21 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
       const { data, error } = await query.limit(20);
       if (error) throw error;
+      
+      // If search term looks like a barcode, also check variant barcodes
+      if (searchTerm && data) {
+        const enhancedData = data.map(product => {
+          const matchingVariant = product.product_variants?.find((v: any) => 
+            v.barcode && v.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+          return {
+            ...product,
+            _matchingVariant: matchingVariant
+          };
+        });
+        return enhancedData;
+      }
+      
       return data;
     },
     enabled: searchTerm.length > 0,
@@ -114,6 +130,21 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+    
+    // Check if a specific variant matched the barcode search
+    const matchingVariant = product._matchingVariant;
+    
+    // If a specific variant matched the search (barcode match), auto-select it
+    if (matchingVariant) {
+      onProductSelect({
+        ...product,
+        price: matchingVariant.price,
+        selectedVariant: matchingVariant,
+      });
+      setSearchTerm('');
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+      return;
+    }
     
     // If clicked manually and has multiple variants, show selector
     if (fromClick && availableVariants.length > 1) {
