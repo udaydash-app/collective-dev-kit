@@ -126,6 +126,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       return data;
     },
     enabled: searchTerm.length > 0,
+    staleTime: 30000, // Cache for 30 seconds for faster repeated scans
+    gcTime: 60000, // Keep in memory for 1 minute
   });
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
