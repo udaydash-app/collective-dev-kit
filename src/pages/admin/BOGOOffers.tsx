@@ -117,7 +117,7 @@ export default function BOGOOffers() {
         .select(`
           id,
           name,
-          product_variants!product_variants_product_id_fkey (id, name)
+          product_variants (id, name)
         `)
         .eq("is_available", true)
         .order("name");
