@@ -175,7 +175,7 @@ export const TransactionCart = ({
                           </Button>
                           <Input
                             type="number"
-                            value={item.quantity || ''}
+                            value={item.quantity}
                             onChange={(e) => {
                               e.stopPropagation();
                               onUpdateQuantity(item.id, parseInt(e.target.value) || 1);
@@ -204,7 +204,7 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdatePrice ? (
                         <Input
                           type="number"
-                          value={(item.customPrice ?? item.price) || ''}
+                          value={item.customPrice ?? item.price}
                           onChange={(e) => {
                             e.stopPropagation();
                             const newPrice = parseFloat(e.target.value);
