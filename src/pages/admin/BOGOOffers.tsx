@@ -112,23 +112,30 @@ export default function BOGOOffers() {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch products
+      const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select(`
-          id,
-          name,
-          product_variants (id, name)
-        `)
+        .select("id, name")
         .eq("is_available", true)
         .order("name");
 
-      if (error) throw error;
-      
-      // Transform the data to match our Product interface
-      const transformedData = data?.map((product: any) => ({
+      if (productsError) throw productsError;
+
+      // Fetch all variants
+      const { data: variantsData, error: variantsError } = await supabase
+        .from("product_variants")
+        .select("id, label, product_id");
+
+      if (variantsError) throw variantsError;
+
+      // Combine products with their variants
+      const transformedData = productsData?.map((product: any) => ({
         id: product.id,
         name: product.name,
-        variants: product.product_variants || []
+        variants: variantsData?.filter((v: any) => v.product_id === product.id).map((v: any) => ({
+          id: v.id,
+          name: v.label || "Default"
+        })) || []
       }));
       
       setProducts(transformedData || []);
