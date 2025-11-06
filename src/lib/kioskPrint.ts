@@ -3,6 +3,8 @@
  * Works with Chrome --kiosk-printing flag for silent printing
  */
 
+import { formatDateTime } from './utils';
+
 export interface KioskReceiptData {
   storeName: string;
   transactionNumber: string;
@@ -187,7 +189,7 @@ class KioskPrintService {
             <div class="large bold">${data.storeName}</div>
             <div class="small">Fresh groceries delivered to your doorstep</div>
             <div class="small mt-2">Transaction: ${data.transactionNumber}</div>
-            <div class="small">${data.date.toLocaleString()}</div>
+            <div class="small">${formatDateTime(data.date)}</div>
             ${data.cashierName ? `<div class="small">Cashier: ${data.cashierName}</div>` : ''}
             ${data.customerName ? `<div class="small">Customer: ${data.customerName}</div>` : ''}
           </div>

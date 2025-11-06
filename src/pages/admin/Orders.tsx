@@ -43,7 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -366,7 +366,7 @@ export default function AdminOrders() {
               <h1 class="text-xl font-bold">${order.stores?.name || latestSettings?.company_name || 'Global Market'}</h1>
               <p class="text-xs">Fresh groceries delivered to your doorstep</p>
               <p class="text-xs mt-2">Transaction: ${order.order_number}</p>
-              <p class="text-xs">${new Date(order.created_at).toLocaleString()}</p>
+              <p class="text-xs">${formatDateTime(order.created_at)}</p>
               ${order.type === 'pos' ? `<p class="text-xs">Cashier: ${order.cashier_name}</p>` : ''}
               ${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `<p class="text-xs">Customer: ${order.customer_name}</p>` : ''}
             </div>
@@ -589,7 +589,7 @@ export default function AdminOrders() {
 Fresh groceries delivered to your doorstep
 
 *Transaction:* ${order.order_number}
-*Date:* ${new Date(order.created_at).toLocaleString()}
+*Date:* ${formatDateTime(order.created_at)}
 ${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `*Customer:* ${order.customer_name}\n` : ''}
 ----------------------------
 *ITEMS:*

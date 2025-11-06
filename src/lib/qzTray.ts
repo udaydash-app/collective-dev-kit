@@ -1,4 +1,5 @@
 import qz from 'qz-tray';
+import { formatDateTime } from './utils';
 
 export interface QZReceiptData {
   storeName: string;
@@ -120,7 +121,7 @@ class QZTrayService {
     
     // Transaction details
     commands += '\nTransaction: ' + data.transactionNumber + '\n';
-    commands += new Date(data.date).toLocaleString() + '\n';
+    commands += formatDateTime(data.date) + '\n';
     
     if (data.cashierName) {
       commands += 'Cashier: ' + data.cashierName + '\n';

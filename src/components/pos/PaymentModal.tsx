@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Receipt } from './Receipt';
@@ -133,7 +133,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     let message = `*${transactionData.storeName || 'Global Market'}*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Receipt #${transactionData.transactionNumber}\n`;
-    message += `Date: ${new Date().toLocaleString()}\n`;
+    message += `Date: ${formatDateTime(new Date())}\n`;
     if (transactionData.cashierName) {
       message += `Cashier: ${transactionData.cashierName}\n`;
     }

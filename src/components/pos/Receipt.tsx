@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { formatCurrency, formatCurrencyCompact } from '@/lib/utils';
+import { formatCurrency, formatCurrencyCompact, formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
 interface ReceiptProps {
@@ -66,7 +66,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
             <p className="text-xs">Fresh groceries delivered to your doorstep</p>
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
-            <p className="text-xs">{date.toLocaleString()}</p>
+            <p className="text-xs">{formatDateTime(date)}</p>
             <p className="text-xs font-semibold mt-1">Customer: {customerName || 'Walk-in Customer'}</p>
           </div>
         </div>

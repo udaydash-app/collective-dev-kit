@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -656,7 +656,7 @@ export default function CloseDayReport() {
                         <div key={orderIndex} className="border rounded-lg p-3 bg-muted/20">
                           <div className="flex justify-between items-center mb-2">
                             <span className="text-sm font-medium">
-                              Order #{orderIndex + 1} - {format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}
+                              Order #{orderIndex + 1} - {formatDateTime(order.created_at)}
                             </span>
                             <span className="text-sm font-bold">{formatCurrency(order.total)}</span>
                           </div>
@@ -925,9 +925,9 @@ export default function CloseDayReport() {
             <h2 className="text-3xl font-bold">{storeName}</h2>
             <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
-              {format(new Date(startDate), 'MMMM dd, yyyy')} {startDate !== endDate && `- ${format(new Date(endDate), 'MMMM dd, yyyy')}`}
+              {formatDate(startDate)} {startDate !== endDate && `- ${formatDate(endDate)}`}
             </p>
-            <p className="text-sm text-muted-foreground">Generated on {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+            <p className="text-sm text-muted-foreground">Generated on {formatDateTime(new Date())}</p>
           </div>
 
           <Separator className="print-separator" />
@@ -972,7 +972,7 @@ export default function CloseDayReport() {
                               <div>
                                 <p className="text-sm text-muted-foreground mb-1">Opened At</p>
                                 <p className="font-medium">
-                                  {format(new Date(session.opened_at), 'MMM dd, yyyy HH:mm')}
+                                  {formatDateTime(session.opened_at)}
                                 </p>
                               </div>
                             </div>
@@ -1096,7 +1096,7 @@ export default function CloseDayReport() {
               <Card key={dayData.date} className="print-page-break border-2">
                 {/* Date Header */}
                 <CardHeader className="bg-primary/10 print-date-header">
-                  <CardTitle className="text-2xl">{format(new Date(dayData.date), 'EEEE, MMMM dd, yyyy')}</CardTitle>
+                  <CardTitle className="text-2xl">{formatDate(dayData.date)}</CardTitle>
                 </CardHeader>
 
                 <CardContent className="p-6 space-y-6">

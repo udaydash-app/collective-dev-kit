@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 
@@ -160,7 +160,7 @@ export const HoldTicketDialog = ({
                         <div className="flex-1">
                           <h4 className="font-semibold">{ticket.name}</h4>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(ticket.timestamp), 'MMM dd, yyyy HH:mm')}
+                            {formatDateTime(ticket.timestamp)}
                           </p>
                         </div>
                         <div className="flex gap-1">
