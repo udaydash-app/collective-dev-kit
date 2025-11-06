@@ -498,6 +498,12 @@ export const usePOSTransaction = () => {
     setCart([]);
     setDiscount(0);
   };
+  
+  // Load multiple items directly into cart (for edit mode)
+  const loadCart = (items: CartItem[]) => {
+    console.log('🔧 loadCart: Setting cart with', items.length, 'items');
+    setCart(items);
+  };
 
   const addComboToCart = (combo: any) => {
     const comboCartItem: CartItem = {
@@ -872,6 +878,7 @@ export const usePOSTransaction = () => {
     updateItemPrice,
     updateItemDiscount,
     clearCart,
+    loadCart,
     calculateSubtotal,
     calculateTotal,
     processTransaction,

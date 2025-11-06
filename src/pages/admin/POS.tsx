@@ -201,6 +201,7 @@ export default function POS() {
     updateItemPrice,
     updateItemDiscount,
     clearCart,
+    loadCart,
     calculateSubtotal,
     calculateTotal,
     processTransaction,
@@ -336,10 +337,12 @@ export default function POS() {
       if (orderData.items && orderData.items.length > 0) {
         console.log('🔧 Loading items:', orderData.items);
         
+        // Build cart items array directly (avoid multiple addToCart calls with stale state)
+        const cartItems: any[] = [];
+        
         for (const item of orderData.items) {
           // Skip cart-discount items as they'll be recalculated
           if (item.id === 'cart-discount') {
-            // Recreate the cart discount
             setCartDiscountItem({
               id: 'cart-discount',
               name: 'Cart Discount',
@@ -354,32 +357,22 @@ export default function POS() {
           const productId = item.productId || item.id;
           console.log(`🔧 Loading item: ${item.name}, productId: ${productId}`);
           
-          // Add the item the correct number of times with proper sequencing
-          const quantity = item.quantity || 1;
-          for (let i = 0; i < quantity; i++) {
-            await addToCart({
-              id: productId,
-              name: item.name,
-              price: item.price,
-              barcode: item.barcode,
-            });
-          }
-          
-          // Small delay to ensure cart state is updated
-          await new Promise(resolve => setTimeout(resolve, 50));
-          
-          // Apply custom price if present
-          if (item.customPrice && item.customPrice !== item.price) {
-            console.log(`🔧 Applying custom price ${item.customPrice} to ${item.name}`);
-            updateItemPrice(productId, item.customPrice);
-          }
-          
-          // Apply item discount if present
-          if (item.itemDiscount && item.itemDiscount > 0) {
-            console.log(`🔧 Applying discount ${item.itemDiscount} to ${item.name}`);
-            updateItemDiscount(productId, item.itemDiscount);
-          }
+          // Create cart item
+          cartItems.push({
+            id: productId,
+            productId: productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity || 1,
+            barcode: item.barcode,
+            customPrice: item.customPrice,
+            itemDiscount: item.itemDiscount || 0,
+          });
         }
+        
+        // Load all items at once
+        console.log('🔧 Loading', cartItems.length, 'items into cart');
+        loadCart(cartItems);
         
         console.log('🔧 All items loaded. Setting edit mode metadata...');
         
