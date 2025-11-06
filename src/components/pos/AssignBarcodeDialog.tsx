@@ -213,9 +213,13 @@ export const AssignBarcodeDialog = ({
                     <div className="flex-1">
                       <p className="font-medium">{product.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {product.barcode ? `Current: ${product.barcode}` : 'No barcode'}
-                        {availableVariants.length > 0 && ` • ${availableVariants.length} variants`}
+                        {product.barcode ? `Barcode: ${product.barcode}` : 'No barcode'}
                       </p>
+                      {availableVariants.length > 0 && (
+                        <p className="text-xs font-semibold text-primary mt-1">
+                          📦 {availableVariants.length} variant{availableVariants.length > 1 ? 's' : ''} available - assign barcode to variant below
+                        </p>
+                      )}
                     </div>
                     <div className="text-right flex items-center gap-3">
                       <p className="font-bold text-primary">
@@ -225,49 +229,68 @@ export const AssignBarcodeDialog = ({
                         size="sm"
                         onClick={() => handleAssignBarcode(product.id, product.name)}
                         disabled={isAssigning || availableVariants.length > 0}
+                        variant={availableVariants.length > 0 ? "outline" : "default"}
                       >
                         {isAssigning ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : availableVariants.length > 0 ? (
+                          'Has Variants'
                         ) : (
-                          'Assign'
+                          'Assign to Product'
                         )}
                       </Button>
                     </div>
                   </Card>
 
-                  {/* Variants */}
+                  {/* Variants - Enhanced visibility */}
                   {availableVariants.length > 0 && (
-                    <div className="pl-6 space-y-2">
+                    <div className="pl-4 space-y-2 border-l-4 border-primary/20 ml-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        Select Variant to Assign Barcode:
+                      </p>
                       {availableVariants.map((variant: any) => (
                         <Card
                           key={variant.id}
-                          className="p-3 flex items-center gap-3 hover:bg-accent transition-colors border-l-2 border-primary/30"
+                          className="p-4 flex items-center gap-3 hover:bg-primary/5 transition-colors border-2 border-primary/20 cursor-pointer"
+                          onClick={() => handleAssignBarcode(
+                            product.id, 
+                            `${product.name} (${variant.label})`,
+                            variant.id
+                          )}
                         >
                           <div className="flex-1">
-                            <p className="font-medium text-sm">
-                              {variant.label || 'Default Variant'}
+                            <p className="font-semibold text-base">
+                              📦 {variant.label || 'Default Variant'}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {variant.barcode ? `Current: ${variant.barcode}` : 'No barcode'}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {variant.barcode ? (
+                                <>Current barcode: <span className="font-mono">{variant.barcode}</span></>
+                              ) : (
+                                <span className="text-orange-600 dark:text-orange-400 font-medium">⚠️ No barcode assigned</span>
+                              )}
                             </p>
                           </div>
                           <div className="text-right flex items-center gap-3">
-                            <p className="font-bold text-primary text-sm">
+                            <p className="font-bold text-primary">
                               {formatCurrency(Number(variant.price))}
                             </p>
                             <Button
-                              size="sm"
-                              onClick={() => handleAssignBarcode(
-                                product.id, 
-                                `${product.name} (${variant.label})`,
-                                variant.id
-                              )}
+                              size="default"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAssignBarcode(
+                                  product.id, 
+                                  `${product.name} (${variant.label})`,
+                                  variant.id
+                                );
+                              }}
                               disabled={isAssigning}
+                              className="min-w-[120px]"
                             >
                               {isAssigning ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                'Assign'
+                                'Assign to Variant'
                               )}
                             </Button>
                           </div>
