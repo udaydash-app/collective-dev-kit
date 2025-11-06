@@ -129,6 +129,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   });
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
+    console.log('📋 handleProductSelect called', { 
+      productName: product.name, 
+      fromClick, 
+      hasMatchingVariant: !!product._matchingVariant,
+      variantCount: product.product_variants?.length 
+    });
+    
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
     
     // Check if a specific variant matched the barcode search
@@ -136,6 +143,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     
     // If a specific variant matched the search (barcode match), auto-select it
     if (matchingVariant) {
+      console.log('✅ Auto-selecting matching variant from search');
       onProductSelect({
         ...product,
         price: matchingVariant.price,
@@ -148,6 +156,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     
     // If clicked manually and has multiple variants, show selector
     if (fromClick && availableVariants.length > 1) {
+      console.log('🎯 Opening variant selector (clicked with multiple variants)');
       setSelectedProduct(product);
       setVariantSelectorOpen(true);
     } else if (availableVariants.length > 0) {
@@ -213,7 +222,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       console.log('🎯 Variant match result:', { variantMatch, variantError });
 
       if (variantMatch?.product) {
-        console.log('✅ Found variant match, adding to cart');
+        console.log('✅ Found variant match, adding directly to cart');
+        console.log('Selected variant:', variantMatch.label, 'Price:', variantMatch.price);
         // Found variant with this barcode - add directly to cart with this variant selected
         onProductSelect({
           ...variantMatch.product,
