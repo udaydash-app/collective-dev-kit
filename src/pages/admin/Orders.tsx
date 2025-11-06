@@ -538,7 +538,8 @@ export default function AdminOrders() {
       id: order.id,
       type: order.type,
       items: order.items.map((item: any) => ({
-        id: item.id || (item.products?.id),
+        id: item.products?.id || item.productId || item.product_id,
+        productId: item.products?.id || item.productId || item.product_id,
         name: item.name || item.products?.name,
         price: item.price || item.unit_price || item.products?.price || 0,
         customPrice: item.customPrice,

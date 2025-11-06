@@ -347,11 +347,14 @@ export default function POS() {
             continue;
           }
 
+          // Get the correct product ID
+          const productId = item.productId || item.id;
+          
           // Add the item the correct number of times with proper sequencing
           const quantity = item.quantity || 1;
           for (let i = 0; i < quantity; i++) {
             await addToCart({
-              id: item.id || item.productId,
+              id: productId,
               name: item.name,
               price: item.price,
               barcode: item.barcode,
@@ -363,12 +366,12 @@ export default function POS() {
           
           // Apply custom price if present
           if (item.customPrice && item.customPrice !== item.price) {
-            updateItemPrice(item.id || item.productId, item.customPrice);
+            updateItemPrice(productId, item.customPrice);
           }
           
           // Apply item discount if present
           if (item.itemDiscount && item.itemDiscount > 0) {
-            updateItemDiscount(item.id || item.productId, item.itemDiscount);
+            updateItemDiscount(productId, item.itemDiscount);
           }
         }
         
