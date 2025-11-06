@@ -1160,6 +1160,13 @@ export default function POS() {
   };
 
   const handleProductClick = (product: any) => {
+    // If a specific variant was already selected (from barcode scan), use it directly
+    if (product.selectedVariant) {
+      console.log('🎯 Product has pre-selected variant, adding directly to cart');
+      addToCartWithCustomPrice(product);
+      return;
+    }
+    
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
     
     if (availableVariants.length > 1) {
