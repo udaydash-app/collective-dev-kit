@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -1118,8 +1118,8 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                   </TableHeader>
                   <TableBody>
                     {orders.map((order: any) => (
-                      <>
-                        <TableRow key={order.id}>
+                      <React.Fragment key={order.id}>
+                        <TableRow>
                           <TableCell>
                             <Checkbox
                               checked={selectedOrders.has(order.id)}
@@ -1480,7 +1480,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
