@@ -26,29 +26,62 @@ export const AssignBarcodeDialog = ({
   const navigate = useNavigate();
   const [productSearch, setProductSearch] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
-  // First check if barcode already exists
-  const { data: existingProduct } = useQuery({
+  // First check if barcode already exists in products or variants
+  const { data: existingBarcode } = useQuery({
     queryKey: ['existing-barcode', barcode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Check products
+      const { data: productData } = await supabase
         .from('products')
         .select('id, name, barcode')
         .eq('barcode', barcode)
         .maybeSingle();
       
-      if (error) throw error;
-      return data;
+      if (productData) {
+        return { type: 'product', name: productData.name };
+      }
+
+      // Check variants
+      const { data: variantData } = await supabase
+        .from('product_variants')
+        .select('id, label, barcode, product:products(name)')
+        .eq('barcode', barcode)
+        .maybeSingle();
+      
+      if (variantData) {
+        return { 
+          type: 'variant', 
+          name: `${variantData.product.name} (${variantData.label})` 
+        };
+      }
+
+      return null;
     },
     enabled: isOpen && !!barcode,
   });
 
-  const { data: products, isLoading } = useQuery({
+  const { data: productsWithVariants, isLoading } = useQuery({
     queryKey: ['products-for-barcode', productSearch],
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select('id, name, price, barcode, image_url, unit')
+        .select(`
+          id, 
+          name, 
+          price, 
+          barcode, 
+          image_url, 
+          unit,
+          product_variants (
+            id,
+            label,
+            barcode,
+            price,
+            is_available
+          )
+        `)
         .eq('is_available', true)
         .order('name');
 
@@ -63,15 +96,26 @@ export const AssignBarcodeDialog = ({
     enabled: isOpen,
   });
 
-  const handleAssignBarcode = async (productId: string, productName: string) => {
+  const handleAssignBarcode = async (productId: string, productName: string, variantId?: string) => {
     setIsAssigning(true);
     try {
-      const { error } = await supabase
-        .from('products')
-        .update({ barcode })
-        .eq('id', productId);
+      if (variantId) {
+        // Assign to variant
+        const { error } = await supabase
+          .from('product_variants')
+          .update({ barcode })
+          .eq('id', variantId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Assign to product
+        const { error } = await supabase
+          .from('products')
+          .update({ barcode })
+          .eq('id', productId);
+
+        if (error) throw error;
+      }
 
       toast.success(`Barcode ${barcode} assigned to ${productName}`);
       onBarcodeAssigned?.();
@@ -95,10 +139,10 @@ export const AssignBarcodeDialog = ({
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          {existingProduct && (
+          {existingBarcode && (
             <Card className="p-4 bg-destructive/10 border-destructive">
               <p className="text-sm font-medium text-destructive">
-                This barcode is already assigned to: <span className="font-bold">{existingProduct.name}</span>
+                This barcode is already assigned to: <span className="font-bold">{existingBarcode.name}</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Please use a different barcode or update the existing product.
@@ -123,7 +167,7 @@ export const AssignBarcodeDialog = ({
               </div>
             )}
 
-            {!existingProduct && products && products.length === 0 && productSearch && (
+            {!existingBarcode && productsWithVariants && productsWithVariants.length === 0 && productSearch && (
               <Card className="p-6 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
                   No products found for "{productSearch}"
@@ -144,48 +188,96 @@ export const AssignBarcodeDialog = ({
               </Card>
             )}
 
-            {products && products.length === 0 && !productSearch && (
+            {productsWithVariants && productsWithVariants.length === 0 && !productSearch && (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Search for a product to assign this barcode
               </p>
             )}
 
-            {products?.map((product) => (
-              <Card
-                key={product.id}
-                className="p-3 flex items-center gap-3 hover:bg-accent transition-colors"
-              >
-                {product.image_url && (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                )}
-                <div className="flex-1">
-                  <p className="font-medium">{product.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {product.barcode ? `Current: ${product.barcode}` : 'No barcode'}
-                  </p>
-                </div>
-                <div className="text-right flex items-center gap-3">
-                  <p className="font-bold text-primary">
-                    {formatCurrency(Number(product.price))}
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() => handleAssignBarcode(product.id, product.name)}
-                    disabled={isAssigning}
+            {productsWithVariants?.map((product) => {
+              const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+              
+              return (
+                <div key={product.id} className="space-y-2">
+                  {/* Main Product */}
+                  <Card
+                    className="p-3 flex items-center gap-3 hover:bg-accent transition-colors"
                   >
-                    {isAssigning ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Assign'
+                    {product.image_url && (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-12 h-12 object-cover rounded"
+                      />
                     )}
-                  </Button>
+                    <div className="flex-1">
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.barcode ? `Current: ${product.barcode}` : 'No barcode'}
+                        {availableVariants.length > 0 && ` • ${availableVariants.length} variants`}
+                      </p>
+                    </div>
+                    <div className="text-right flex items-center gap-3">
+                      <p className="font-bold text-primary">
+                        {formatCurrency(Number(product.price))}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAssignBarcode(product.id, product.name)}
+                        disabled={isAssigning || availableVariants.length > 0}
+                      >
+                        {isAssigning ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Assign'
+                        )}
+                      </Button>
+                    </div>
+                  </Card>
+
+                  {/* Variants */}
+                  {availableVariants.length > 0 && (
+                    <div className="pl-6 space-y-2">
+                      {availableVariants.map((variant: any) => (
+                        <Card
+                          key={variant.id}
+                          className="p-3 flex items-center gap-3 hover:bg-accent transition-colors border-l-2 border-primary/30"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">
+                              {variant.label || 'Default Variant'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {variant.barcode ? `Current: ${variant.barcode}` : 'No barcode'}
+                            </p>
+                          </div>
+                          <div className="text-right flex items-center gap-3">
+                            <p className="font-bold text-primary text-sm">
+                              {formatCurrency(Number(variant.price))}
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAssignBarcode(
+                                product.id, 
+                                `${product.name} (${variant.label})`,
+                                variant.id
+                              )}
+                              disabled={isAssigning}
+                            >
+                              {isAssigning ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Assign'
+                              )}
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
 

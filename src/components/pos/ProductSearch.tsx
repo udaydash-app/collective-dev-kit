@@ -202,9 +202,14 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         .maybeSingle();
 
       if (variantMatch?.product) {
-        // Found variant with this barcode - select the parent product
-        // The variant selector will open automatically if there are multiple variants
-        handleProductSelect(variantMatch.product);
+        // Found variant with this barcode - add directly to cart with this variant selected
+        onProductSelect({
+          ...variantMatch.product,
+          price: variantMatch.price,
+          selectedVariant: variantMatch,
+        });
+        setSearchTerm('');
+        setTimeout(() => searchInputRef.current?.focus(), 50);
         return;
       }
 
