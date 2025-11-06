@@ -176,33 +176,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       e.preventDefault();
       const barcode = searchTerm.trim();
       
-      // First, try to find exact barcode match in main products
-      const { data: exactMatch } = await supabase
-        .from('products')
-        .select(`
-          *,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode
-          )
-        `)
-        .eq('barcode', barcode)
-        .eq('is_available', true)
-        .maybeSingle();
-
-      if (exactMatch) {
-        // Found exact barcode match in main products - add directly to cart
-        handleProductSelect(exactMatch);
-        return;
-      }
-
-      // Second, check if barcode matches any product variant
+      // First priority: Check if barcode matches any product variant
+      // This ensures variant-specific barcodes are matched first
       const { data: variantMatch } = await supabase
         .from('product_variants')
         .select(`
@@ -242,6 +217,32 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         });
         setSearchTerm('');
         setTimeout(() => searchInputRef.current?.focus(), 50);
+        return;
+      }
+
+      // Second priority: Check if barcode matches product's main barcode
+      const { data: productMatch } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default,
+            barcode
+          )
+        `)
+        .eq('barcode', barcode)
+        .eq('is_available', true)
+        .maybeSingle();
+
+      if (productMatch) {
+        // Found product barcode match - add with default variant if available
+        handleProductSelect(productMatch);
         return;
       }
 
