@@ -1,4 +1,5 @@
 // Updated: 2025-11-02 - Editable price and final amount
+import { Fragment } from 'react';
 import { Minus, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -122,9 +123,8 @@ export const TransactionCart = ({
                 const isCombo = item.isCombo;
                 const isExpanded = expandedCombos.has(item.id);
                 return (
-                  <>
-                    <TableRow 
-                      key={item.id} 
+                  <Fragment key={item.id}>
+                    <TableRow
                       className={cn(
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer",
@@ -297,7 +297,7 @@ export const TransactionCart = ({
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
                 );
               })}
             </TableBody>
