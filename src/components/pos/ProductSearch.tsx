@@ -176,9 +176,11 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       e.preventDefault();
       const barcode = searchTerm.trim();
       
+      console.log('🔍 Scanning barcode:', barcode);
+      
       // First priority: Check if barcode matches any product variant
       // This ensures variant-specific barcodes are matched first
-      const { data: variantMatch } = await supabase
+      const { data: variantMatch, error: variantError } = await supabase
         .from('product_variants')
         .select(`
           id,
@@ -203,12 +205,15 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             )
           )
         `)
-        .eq('barcode', barcode)
+        .ilike('barcode', barcode)
         .eq('is_available', true)
         .eq('products.is_available', true)
         .maybeSingle();
+      
+      console.log('🎯 Variant match result:', { variantMatch, variantError });
 
       if (variantMatch?.product) {
+        console.log('✅ Found variant match, adding to cart');
         // Found variant with this barcode - add directly to cart with this variant selected
         onProductSelect({
           ...variantMatch.product,
@@ -221,7 +226,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       }
 
       // Second priority: Check if barcode matches product's main barcode
-      const { data: productMatch } = await supabase
+      const { data: productMatch, error: productError } = await supabase
         .from('products')
         .select(`
           *,
@@ -236,17 +241,21 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             barcode
           )
         `)
-        .eq('barcode', barcode)
+        .ilike('barcode', barcode)
         .eq('is_available', true)
         .maybeSingle();
+      
+      console.log('🎯 Product match result:', { productMatch, productError });
 
       if (productMatch) {
+        console.log('✅ Found product match, adding to cart');
         // Found product barcode match - add with default variant if available
         handleProductSelect(productMatch);
         return;
       }
 
       // No match found in products or variants - open assign barcode dialog
+      console.log('❌ No match found, opening assign dialog');
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
     }
