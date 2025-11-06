@@ -347,27 +347,28 @@ export default function POS() {
             continue;
           }
 
-          // Add each item with quantity of 1, then update quantity
-          await addToCart({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            barcode: item.barcode,
-          });
-          
-          // Update quantity if greater than 1
-          if (item.quantity > 1) {
-            await updateQuantity(item.id, item.quantity);
+          // Add the item the correct number of times with proper sequencing
+          const quantity = item.quantity || 1;
+          for (let i = 0; i < quantity; i++) {
+            await addToCart({
+              id: item.id || item.productId,
+              name: item.name,
+              price: item.price,
+              barcode: item.barcode,
+            });
           }
           
+          // Small delay to ensure cart state is updated
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
           // Apply custom price if present
-          if (item.customPrice) {
-            updateItemPrice(item.id, item.customPrice);
+          if (item.customPrice && item.customPrice !== item.price) {
+            updateItemPrice(item.id || item.productId, item.customPrice);
           }
           
           // Apply item discount if present
           if (item.itemDiscount && item.itemDiscount > 0) {
-            updateItemDiscount(item.id, item.itemDiscount);
+            updateItemDiscount(item.id || item.productId, item.itemDiscount);
           }
         }
         
