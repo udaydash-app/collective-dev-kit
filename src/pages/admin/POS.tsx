@@ -318,6 +318,7 @@ export default function POS() {
       }
 
       const orderData = JSON.parse(storedData);
+      console.log('🔧 Loading order for editing:', orderData);
       
       // Clear localStorage
       localStorage.removeItem('pos-edit-order');
@@ -333,6 +334,8 @@ export default function POS() {
 
       // Load items into cart
       if (orderData.items && orderData.items.length > 0) {
+        console.log('🔧 Loading items:', orderData.items);
+        
         for (const item of orderData.items) {
           // Skip cart-discount items as they'll be recalculated
           if (item.id === 'cart-discount') {
@@ -349,6 +352,7 @@ export default function POS() {
 
           // Get the correct product ID
           const productId = item.productId || item.id;
+          console.log(`🔧 Loading item: ${item.name}, productId: ${productId}`);
           
           // Add the item the correct number of times with proper sequencing
           const quantity = item.quantity || 1;
@@ -366,11 +370,13 @@ export default function POS() {
           
           // Apply custom price if present
           if (item.customPrice && item.customPrice !== item.price) {
+            console.log(`🔧 Applying custom price ${item.customPrice} to ${item.name}`);
             updateItemPrice(productId, item.customPrice);
           }
           
           // Apply item discount if present
           if (item.itemDiscount && item.itemDiscount > 0) {
+            console.log(`🔧 Applying discount ${item.itemDiscount} to ${item.name}`);
             updateItemDiscount(productId, item.itemDiscount);
           }
         }

@@ -533,26 +533,42 @@ export default function AdminOrders() {
   };
 
   const handleEditOrder = (order: any) => {
+    console.log('🔧 handleEditOrder called with order:', order);
+    
     // Store the order data in localStorage so POS can load it
     const orderData = {
       id: order.id,
       type: order.type,
-      items: order.items.map((item: any) => ({
-        id: item.products?.id || item.productId || item.product_id,
-        productId: item.products?.id || item.productId || item.product_id,
-        name: item.name || item.products?.name,
-        price: item.price || item.unit_price || item.products?.price || 0,
-        customPrice: item.customPrice,
-        quantity: item.quantity || 1,
-        itemDiscount: item.itemDiscount || 0,
-        barcode: item.barcode || item.products?.barcode
-      })),
+      items: order.items.map((item: any) => {
+        // For POS items: item.id IS the product ID
+        // For online orders: item.products.id is the product ID
+        const productId = item.id || item.products?.id || item.productId || item.product_id;
+        console.log('🔧 Mapping item:', {
+          itemId: item.id,
+          productsId: item.products?.id,
+          productId: item.productId,
+          finalId: productId,
+          name: item.name || item.products?.name
+        });
+        
+        return {
+          id: productId,
+          productId: productId,
+          name: item.name || item.products?.name,
+          price: item.price || item.unit_price || item.products?.price || 0,
+          customPrice: item.customPrice,
+          quantity: item.quantity || 1,
+          itemDiscount: item.itemDiscount || 0,
+          barcode: item.barcode || item.products?.barcode
+        };
+      }),
       discount: order.type === 'pos' ? (order.discount || 0) : 0,
       customer: order.customer_name,
       customerId: order.type === 'pos' ? order.customer_id : null,
       storeId: order.store_id
     };
     
+    console.log('🔧 Order data being saved:', orderData);
     localStorage.setItem('pos-edit-order', JSON.stringify(orderData));
     
     // Navigate to POS with edit flag
