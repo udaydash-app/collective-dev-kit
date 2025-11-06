@@ -117,13 +117,21 @@ export default function BOGOOffers() {
         .select(`
           id,
           name,
-          product_variants (id, name)
+          product_variants!product_variants_product_id_fkey (id, name)
         `)
         .eq("is_available", true)
         .order("name");
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Transform the data to match our Product interface
+      const transformedData = data?.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        variants: product.product_variants || []
+      }));
+      
+      setProducts(transformedData || []);
     } catch (error: any) {
       toast({
         title: "Error",
