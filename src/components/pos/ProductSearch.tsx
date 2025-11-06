@@ -112,19 +112,20 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     enabled: searchTerm.length > 0,
   });
 
-  const handleProductSelect = (product: any) => {
+  const handleProductSelect = (product: any, fromClick: boolean = false) => {
     const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
     
-    if (availableVariants.length > 1) {
-      // Show variant selector if multiple variants
+    // If clicked manually and has multiple variants, show selector
+    if (fromClick && availableVariants.length > 1) {
       setSelectedProduct(product);
       setVariantSelectorOpen(true);
-    } else if (availableVariants.length === 1) {
-      // Auto-select single variant
+    } else if (availableVariants.length > 0) {
+      // Auto-select default variant or first variant (for scanned barcodes)
+      const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
       onProductSelect({
         ...product,
-        price: availableVariants[0].price,
-        selectedVariant: availableVariants[0],
+        price: defaultVariant.price,
+        selectedVariant: defaultVariant,
       });
       // Clear search and refocus
       setSearchTerm('');
@@ -265,7 +266,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
               <Card
                 key={product.id}
                 className="p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => handleProductSelect(product)}
+                onClick={() => handleProductSelect(product, true)}
               >
                 {product.image_url && (
                   <img
