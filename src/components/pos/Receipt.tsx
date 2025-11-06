@@ -58,16 +58,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         `}</style>
         <div className="text-center">
           {logoUrl && (
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-1">
               <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
             </div>
           )}
-          <div className="-mt-6">
+          <div className={logoUrl ? "mt-1" : ""}>
             <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
             <p className="text-xs">Fresh groceries delivered to your doorstep</p>
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
             <p className="text-xs">{date.toLocaleString()}</p>
-            <p className="text-xs font-semibold">Customer: {customerName || 'Walk-in Customer'}</p>
+            <p className="text-xs font-semibold mt-1">Customer: {customerName || 'Walk-in Customer'}</p>
           </div>
         </div>
 
