@@ -180,7 +180,7 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               onUpdateQuantity(item.id, parseInt(e.target.value) || 1);
                             }}
-                            className="w-10 h-5 text-center text-[10px] px-0"
+                            className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                             min="1"
                             onClick={(e) => e.stopPropagation()}
                           />
@@ -212,7 +212,7 @@ export const TransactionCart = ({
                               handlePriceChange(item, newPrice);
                             }
                           }}
-                          className="w-16 h-5 text-right text-[10px] px-1"
+                          className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                           min="0.01"
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
@@ -233,7 +233,7 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
                             }}
-                            className="w-14 h-5 text-right text-[10px] ml-auto px-1"
+                            className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                             min="0"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
@@ -259,7 +259,7 @@ export const TransactionCart = ({
                               handleFinalAmountChange(item, newAmount);
                             }
                           }}
-                          className="w-20 h-5 text-right text-[10px] font-semibold px-1"
+                          className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                           min="0"
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
