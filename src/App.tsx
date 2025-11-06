@@ -53,6 +53,7 @@ import StockAging from "./pages/admin/StockAging";
 import ProfitMarginAnalysis from "./pages/admin/ProfitMarginAnalysis";
 import AdminComboOffers from "./pages/admin/ComboOffers";
 import AdminBOGOOffers from "./pages/admin/BOGOOffers";
+import AdminMultiProductBOGO from "./pages/admin/MultiProductBOGO";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
 import AdminOfflineSync from "./pages/admin/OfflineSync";
@@ -117,6 +118,7 @@ const AppContent = () => {
           <Route path="/admin/offers" element={<AdminRoute><AdminOffers /></AdminRoute>} />
           <Route path="/admin/combo-offers" element={<AdminRoute><AdminComboOffers /></AdminRoute>} />
           <Route path="/admin/bogo-offers" element={<AdminRoute><AdminBOGOOffers /></AdminRoute>} />
+          <Route path="/admin/multi-product-bogo" element={<AdminRoute><AdminMultiProductBOGO /></AdminRoute>} />
           <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
           <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
           <Route path="/admin/pos" element={<AdminRoute><AdminPOS /></AdminRoute>} />

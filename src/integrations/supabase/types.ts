@@ -1037,6 +1037,100 @@ export type Database = {
           },
         ]
       }
+      multi_product_bogo_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          offer_id: string | null
+          product_id: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          offer_id?: string | null
+          product_id?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          offer_id?: string | null
+          product_id?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multi_product_bogo_items_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "multi_product_bogo_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multi_product_bogo_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multi_product_bogo_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      multi_product_bogo_offers: {
+        Row: {
+          created_at: string | null
+          current_uses: number | null
+          description: string | null
+          discount_percentage: number
+          display_order: number | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          max_total_uses: number | null
+          max_uses_per_transaction: number | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_percentage?: number
+          display_order?: number | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          max_total_uses?: number | null
+          max_uses_per_transaction?: number | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_percentage?: number
+          display_order?: number | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          max_total_uses?: number | null
+          max_uses_per_transaction?: number | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       offers: {
         Row: {
           created_at: string | null

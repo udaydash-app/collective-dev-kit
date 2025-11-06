@@ -96,6 +96,180 @@ export const usePOSTransaction = () => {
     }
   };
 
+  // Helper function to fetch active multi-product BOGO offers
+  const fetchActiveMultiProductBOGOOffers = async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('multi_product_bogo_offers')
+        .select(`
+          *,
+          multi_product_bogo_items(
+            product_id,
+            variant_id,
+            products(name, price),
+            product_variants(label, price)
+          )
+        `)
+        .eq('is_active', true)
+        .lte('start_date', now)
+        .gte('end_date', now);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching multi-product BOGO offers:', error);
+      return [];
+    }
+  };
+
+  // Automatic multi-product BOGO detection and application
+  const detectAndApplyMultiProductBOGO = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+    try {
+      console.log('🎁 detectAndApplyMultiProductBOGO START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
+      const offers = await fetchActiveMultiProductBOGOOffers();
+      console.log('🎉 Fetched multi-product BOGO offers:', offers);
+      
+      if (!offers || offers.length === 0) {
+        console.log('❌ No active multi-product BOGO offers found');
+        return currentCart;
+      }
+
+      // Filter out existing BOGO/combo items
+      let regularItems = currentCart.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      const appliedBOGOs: CartItem[] = [];
+
+      // Try to apply each multi-product BOGO offer
+      for (const offer of offers) {
+        console.log('🎁 Processing multi-product BOGO:', offer.name);
+        
+        if (!offer.multi_product_bogo_items || offer.multi_product_bogo_items.length < 2) {
+          console.log('⚠️ Offer needs at least 2 products');
+          continue;
+        }
+
+        // Get eligible product/variant IDs from the offer
+        const eligibleItems = offer.multi_product_bogo_items;
+        
+        // Find cart items that match any of the eligible products
+        const matchingCartItems: CartItem[] = [];
+        for (const item of regularItems) {
+          const matches = eligibleItems.some((eligible: any) => {
+            if (eligible.variant_id) {
+              // Match by variant ID
+              return item.id === eligible.variant_id;
+            } else {
+              // Match by product ID
+              return item.productId === eligible.product_id;
+            }
+          });
+          
+          if (matches) {
+            matchingCartItems.push(item);
+          }
+        }
+
+        console.log('🔍 Found matching items:', matchingCartItems.length);
+        
+        if (matchingCartItems.length < 2) {
+          console.log('⚠️ Need at least 2 items from offer group');
+          continue;
+        }
+
+        // Calculate total quantity of eligible items
+        const totalQty = matchingCartItems.reduce((sum, item) => sum + item.quantity, 0);
+        let pairsToForm = Math.floor(totalQty / 2);
+
+        // Apply limits
+        if (offer.max_uses_per_transaction) {
+          pairsToForm = Math.min(pairsToForm, offer.max_uses_per_transaction);
+        }
+        if (offer.max_total_uses && offer.current_uses >= offer.max_total_uses) {
+          console.log('⚠️ Multi-product BOGO offer limit reached:', offer.name);
+          continue;
+        }
+        if (offer.max_total_uses) {
+          pairsToForm = Math.min(pairsToForm, offer.max_total_uses - offer.current_uses);
+        }
+
+        console.log(`✅ Can form ${pairsToForm} pair(s)`);
+
+        if (pairsToForm === 0) continue;
+
+        // Form pairs and create combo items
+        const itemsPool = [...matchingCartItems];
+        for (let pairIndex = 0; pairIndex < pairsToForm; pairIndex++) {
+          // Select 2 items from the pool (can be same or different products)
+          const pair: CartItem[] = [];
+          let remainingQty = 2;
+
+          for (let i = 0; i < itemsPool.length && remainingQty > 0; i++) {
+            if (itemsPool[i].quantity > 0) {
+              const qtyToTake = Math.min(itemsPool[i].quantity, remainingQty);
+              pair.push({ ...itemsPool[i], quantity: qtyToTake });
+              itemsPool[i].quantity -= qtyToTake;
+              remainingQty -= qtyToTake;
+            }
+          }
+
+          if (pair.length === 0 || remainingQty > 0) {
+            console.log('⚠️ Could not form complete pair');
+            break;
+          }
+
+          // Calculate combined price and discount
+          const combinedPrice = pair.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          const discountedPrice = combinedPrice * (1 - offer.discount_percentage / 100);
+
+          // Create a descriptive name
+          const pairNames = pair.map(item => `${item.name} x${item.quantity}`).join(' + ');
+          
+          // Add BOGO combo to cart
+          const bogoCartItem: CartItem = {
+            id: `multi-bogo-${offer.id}-${Date.now()}-${Math.random()}`,
+            productId: offer.id,
+            name: `${offer.name}: ${pairNames} (${offer.discount_percentage}% off)`,
+            price: discountedPrice,
+            quantity: 1,
+            itemDiscount: 0,
+            isBogo: true,
+            bogoOfferId: offer.id,
+          };
+          
+          appliedBOGOs.push(bogoCartItem);
+        }
+
+        // Update regular items by removing consumed quantities
+        regularItems = regularItems.map(item => {
+          const poolItem = itemsPool.find(p => p.id === item.id);
+          if (poolItem) {
+            return { ...item, quantity: poolItem.quantity };
+          }
+          return item;
+        }).filter(item => item.quantity > 0);
+
+        // Increment usage count
+        if (pairsToForm > 0) {
+          await supabase
+            .from('multi_product_bogo_offers')
+            .update({ current_uses: offer.current_uses + pairsToForm })
+            .eq('id', offer.id);
+        }
+      }
+
+      // Show toast if multi-product BOGOs were applied
+      if (appliedBOGOs.length > 0) {
+        toast.success(`🎉 ${appliedBOGOs.length} multi-product BOGO combo${appliedBOGOs.length > 1 ? 's' : ''} applied!`);
+      }
+
+      // Return combined cart: regular items + applied multi-product BOGOs
+      return [...regularItems, ...appliedBOGOs];
+    } catch (error) {
+      console.error('Error in detectAndApplyMultiProductBOGO:', error);
+      return currentCart;
+    }
+  };
+
   // Automatic BOGO offer detection and application
   const detectAndApplyBOGOOffers = async (currentCart: CartItem[]): Promise<CartItem[]> => {
     try {
@@ -442,11 +616,13 @@ export const usePOSTransaction = () => {
       updatedCart = [newItem, ...cart];
     }
     
-    // Apply combo detection
-    const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    // Apply BOGO detection
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
-    setCart(cartWithBOGOs);
+    // Apply BOGO detection first (standard BOGO)
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
+    // Apply multi-product BOGO detection
+    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
+    // Apply combo detection last
+    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
+    setCart(cartWithCombos);
     
     toast.success(`${product.name} added to cart`);
   };
@@ -454,11 +630,13 @@ export const usePOSTransaction = () => {
   const removeFromCart = async (productId: string) => {
     const updatedCart = cart.filter(item => item.id !== productId);
     
-    // Reapply combo detection after removal
-    const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    // Reapply BOGO detection after removal
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
-    setCart(cartWithBOGOs);
+    // Reapply BOGO detection first
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
+    // Reapply multi-product BOGO detection
+    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
+    // Reapply combo detection last
+    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
+    setCart(cartWithCombos);
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
@@ -471,11 +649,13 @@ export const usePOSTransaction = () => {
       item.id === productId ? { ...item, quantity } : item
     );
     
-    // Reapply combo detection after quantity update
-    const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    // Reapply BOGO detection after quantity update
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
-    setCart(cartWithBOGOs);
+    // Reapply BOGO detection first
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
+    // Reapply multi-product BOGO detection
+    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
+    // Reapply combo detection last
+    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
+    setCart(cartWithCombos);
   };
 
   const updateItemPrice = (productId: string, price: number) => {
