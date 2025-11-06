@@ -183,20 +183,30 @@ export default function PaymentReceipts() {
 
           if (jeUpdateError) throw jeUpdateError;
 
-          // Get account IDs for the journal entry lines
-          const { data: cashAccount } = await supabase
+          // Get the payment account based on payment method
+          const paymentAccountCodes: Record<string, string> = {
+            cash: '1010',
+            mobile_money: '1015',
+            bank_transfer: '1020',
+            cheque: '1030'
+          };
+          
+          const paymentAccountCode = paymentAccountCodes[data.payment_method] || '1010';
+          
+          const { data: paymentAccount } = await supabase
             .from('accounts')
             .select('id')
-            .eq('account_code', '1010')
+            .eq('account_code', paymentAccountCode)
             .single();
 
-          const { data: customerAccount } = await supabase
-            .from('accounts')
-            .select('id')
-            .eq('account_code', '1200')
+          // Get the customer's ledger account
+          const { data: contact } = await supabase
+            .from('contacts')
+            .select('customer_ledger_account_id')
+            .eq('id', data.contact_id)
             .single();
 
-          if (cashAccount && customerAccount) {
+          if (paymentAccount && contact?.customer_ledger_account_id) {
             // Delete existing lines
             await supabase
               .from('journal_entry_lines')
@@ -207,17 +217,17 @@ export default function PaymentReceipts() {
             const newLines = [
               {
                 journal_entry_id: journalEntry.id,
-                account_id: cashAccount.id,
+                account_id: paymentAccount.id,
                 debit_amount: amount,
                 credit_amount: 0,
                 description: `Payment received - ${data.payment_method}`
               },
               {
                 journal_entry_id: journalEntry.id,
-                account_id: customerAccount.id,
+                account_id: contact.customer_ledger_account_id,
                 debit_amount: 0,
                 credit_amount: amount,
-                description: 'Accounts Receivable'
+                description: 'Payment from customer'
               }
             ];
 
