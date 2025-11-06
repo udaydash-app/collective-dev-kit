@@ -27,6 +27,7 @@ import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
   Command,
   CommandEmpty,
@@ -42,6 +43,7 @@ import {
 
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
+  useRealtimeSync();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -180,6 +182,8 @@ export default function GeneralLedger() {
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: ['general-ledger', selectedAccount, startDate, endDate],
+    refetchOnMount: 'always',
+    staleTime: 0,
     queryFn: async () => {
       if (!selectedAccount) return null;
 
