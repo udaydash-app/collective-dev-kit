@@ -381,6 +381,35 @@ export default function POS() {
           }
         }
         
+        console.log('🔧 All items loaded. Setting edit mode metadata...');
+        
+        // Set customer if available
+        if (orderData.customerId) {
+          console.log(`🔧 Loading customer: ${orderData.customerId}`);
+          const { data: customer } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('id', orderData.customerId)
+            .single();
+          
+          if (customer) {
+            setSelectedCustomer(customer);
+            console.log(`🔧 Customer loaded: ${customer.name}`);
+          }
+        }
+        
+        // Set cart discount
+        if (orderData.discount) {
+          setDiscount(orderData.discount);
+          console.log(`🔧 Cart discount set: ${orderData.discount}`);
+        }
+        
+        console.log('🔧 ✅ Edit mode setup complete! Editing:', {
+          orderId: editingOrderId,
+          orderType: editingOrderType,
+          itemCount: cart.length
+        });
+        
         // Clear URL parameter
         navigate('/admin/pos', { replace: true });
         
