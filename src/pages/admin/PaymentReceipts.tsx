@@ -147,7 +147,7 @@ export default function PaymentReceipts() {
 
       if (editingReceipt) {
         // Update existing receipt
-        const { error } = await supabase
+        const { error: updateError } = await supabase
           .from('payment_receipts')
           .update({
             contact_id: data.contact_id,
@@ -160,7 +160,74 @@ export default function PaymentReceipts() {
           })
           .eq('id', editingReceipt.id);
 
-        if (error) throw error;
+        if (updateError) throw updateError;
+
+        // Update associated journal entry
+        const { data: journalEntry } = await supabase
+          .from('journal_entries')
+          .select('id')
+          .eq('reference', editingReceipt.receipt_number)
+          .single();
+
+        if (journalEntry) {
+          // Update journal entry header
+          const { error: jeUpdateError } = await supabase
+            .from('journal_entries')
+            .update({
+              entry_date: data.payment_date,
+              description: `Payment Receipt - ${editingReceipt.receipt_number}`,
+              total_debit: amount,
+              total_credit: amount
+            })
+            .eq('id', journalEntry.id);
+
+          if (jeUpdateError) throw jeUpdateError;
+
+          // Get account IDs for the journal entry lines
+          const { data: cashAccount } = await supabase
+            .from('accounts')
+            .select('id')
+            .eq('account_code', '1010')
+            .single();
+
+          const { data: customerAccount } = await supabase
+            .from('accounts')
+            .select('id')
+            .eq('account_code', '1200')
+            .single();
+
+          if (cashAccount && customerAccount) {
+            // Delete existing lines
+            await supabase
+              .from('journal_entry_lines')
+              .delete()
+              .eq('journal_entry_id', journalEntry.id);
+
+            // Create new lines with updated amounts
+            const newLines = [
+              {
+                journal_entry_id: journalEntry.id,
+                account_id: cashAccount.id,
+                debit_amount: amount,
+                credit_amount: 0,
+                description: `Payment received - ${data.payment_method}`
+              },
+              {
+                journal_entry_id: journalEntry.id,
+                account_id: customerAccount.id,
+                debit_amount: 0,
+                credit_amount: amount,
+                description: 'Accounts Receivable'
+              }
+            ];
+
+            const { error: linesError } = await supabase
+              .from('journal_entry_lines')
+              .insert(newLines);
+
+            if (linesError) throw linesError;
+          }
+        }
       } else {
         // Insert new receipt
         const { error } = await supabase
@@ -281,6 +348,7 @@ export default function PaymentReceipts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
       toast.success(editingReceipt ? 'Payment receipt updated successfully' : 'Payment receipt created successfully');
       handleClose();
     },
