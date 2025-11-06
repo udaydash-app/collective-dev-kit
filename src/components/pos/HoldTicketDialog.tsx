@@ -60,10 +60,9 @@ export const HoldTicketDialog = ({
   }, [isOpen]);
 
   const handleHold = () => {
-    if (!ticketName.trim()) {
-      return;
-    }
-    onHoldTicket(ticketName);
+    // Auto-generate ticket name if empty
+    const finalTicketName = ticketName.trim() || `Ticket #${heldTickets.length + 1} - ${format(new Date(), 'HH:mm')}`;
+    onHoldTicket(finalTicketName);
     setTicketName('');
     setShowHoldForm(false);
   };
@@ -102,10 +101,10 @@ export const HoldTicketDialog = ({
               {showHoldForm ? (
                 <div className="mt-4 space-y-3">
                   <div>
-                    <Label htmlFor="ticketName">Ticket Name</Label>
+                    <Label htmlFor="ticketName">Ticket Name (Optional)</Label>
                     <Input
                       id="ticketName"
-                      placeholder="e.g., Table 5, Customer Name..."
+                      placeholder="Leave empty for auto-name (e.g., Ticket #1 - 14:30)"
                       value={ticketName}
                       onChange={(e) => setTicketName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleHold()}
@@ -124,7 +123,6 @@ export const HoldTicketDialog = ({
                     </Button>
                     <Button
                       onClick={handleHold}
-                      disabled={!ticketName.trim()}
                       className="flex-1"
                     >
                       Hold Ticket
