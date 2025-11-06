@@ -67,8 +67,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <p className="text-xs">Fresh groceries delivered to your doorstep</p>
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
             <p className="text-xs">{date.toLocaleString()}</p>
-            {cashierName && <p className="text-xs">Cashier: {cashierName}</p>}
-            {customerName && <p className="text-xs">Customer: {customerName}</p>}
+            <p className="text-xs font-semibold">Customer: {customerName || 'Walk-in Customer'}</p>
           </div>
         </div>
 
