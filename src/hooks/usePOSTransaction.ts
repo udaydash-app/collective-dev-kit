@@ -171,13 +171,13 @@ export const usePOSTransaction = () => {
 
         console.log('🔍 Found matching items:', matchingCartItems.length);
         
-        if (matchingCartItems.length < 2) {
-          console.log('⚠️ Need at least 2 items from offer group');
-          continue;
-        }
-
         // Calculate total quantity of eligible items
         const totalQty = matchingCartItems.reduce((sum, item) => sum + item.quantity, 0);
+        
+        if (totalQty < 2) {
+          console.log('⚠️ Need at least 2 items total from offer group (found:', totalQty, ')');
+          continue;
+        }
         let pairsToForm = Math.floor(totalQty / 2);
 
         // Apply limits
