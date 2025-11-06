@@ -54,24 +54,31 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               margin: 0 !important;
               padding: 3mm !important;
             }
+            img {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              display: block !important;
+              max-height: 128px !important;
+              width: auto !important;
+            }
           }
         `}</style>
-        <div className="text-center">
+        <div className="text-center mb-3">
           {logoUrl && (
-            <div className="flex justify-center mb-1">
-              <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" />
+            <div className="flex justify-center mb-2">
+              <img src={logoUrl} alt="Company Logo" className="h-32 w-auto object-contain" style={{ maxHeight: '128px', width: 'auto' }} />
             </div>
           )}
-          <div className={logoUrl ? "mt-1" : ""}>
+          <div className={logoUrl ? "mt-2" : ""}>
             <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
             <p className="text-xs">Fresh groceries delivered to your doorstep</p>
             <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
             <p className="text-xs">{formatDateTime(date)}</p>
-            <p className="text-xs font-semibold mt-1">Customer: {customerName || 'Walk-in Customer'}</p>
+            <p className="text-xs font-semibold mt-2 mb-2">Customer: {customerName || 'Walk-in Customer'}</p>
           </div>
         </div>
 
-        <div className="border-t border-b border-black py-2 mb-2">
+        <div className="border-t border-b border-black py-2 mb-2 mt-3">
           <div className="grid grid-cols-12 gap-1 text-[11px] font-bold mb-1 border-b border-dashed border-gray-400 pb-1">
             <div className="col-span-5">Product</div>
             <div className="col-span-2 text-center">Qty</div>
