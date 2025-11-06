@@ -150,7 +150,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: matchingVariant,
       });
       setSearchTerm('');
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
       return;
     }
     
@@ -169,13 +169,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       });
       // Clear search and refocus
       setSearchTerm('');
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
     } else {
       // No variants, use product price
       onProductSelect(product);
       // Clear search and refocus
       setSearchTerm('');
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   };
 
@@ -237,7 +237,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           selectedVariant: singleVariantMatch,
         });
         setSearchTerm('');
-        setTimeout(() => searchInputRef.current?.focus(), 50);
+        requestAnimationFrame(() => searchInputRef.current?.focus());
         return;
       }
 
@@ -293,7 +293,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       setVariantSelectorOpen(false);
       // Clear search and refocus
       setSearchTerm('');
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   };
 
@@ -370,12 +370,12 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         onClose={() => {
           setAssignBarcodeOpen(false);
           setSearchTerm('');
-          setTimeout(() => searchInputRef.current?.focus(), 50);
+          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
         barcode={scannedBarcode}
         onBarcodeAssigned={() => {
           setSearchTerm('');
-          setTimeout(() => searchInputRef.current?.focus(), 50);
+          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
       />
     </div>

@@ -13,12 +13,13 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
     // Listen for keyboard input from USB barcode scanners
     let barcodeBuffer = '';
     let lastKeyTime = Date.now();
+    let debounceTimeout: NodeJS.Timeout | null = null;
 
     const handleKeyPress = (e: KeyboardEvent) => {
       const currentTime = Date.now();
       
-      // Reset buffer if more than 100ms between keys (manual typing)
-      if (currentTime - lastKeyTime > 100) {
+      // Reset buffer if more than 50ms between keys (faster detection)
+      if (currentTime - lastKeyTime > 50) {
         barcodeBuffer = '';
       }
       
@@ -27,10 +28,20 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       // Enter key signals end of barcode
       if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
+        if (debounceTimeout) clearTimeout(debounceTimeout);
         onScan(barcodeBuffer);
         barcodeBuffer = '';
       } else if (e.key.length === 1) {
         barcodeBuffer += e.key;
+        
+        // Auto-process if no Enter key after 30ms (for scanners without Enter)
+        if (debounceTimeout) clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+          if (barcodeBuffer.length > 0) {
+            onScan(barcodeBuffer);
+            barcodeBuffer = '';
+          }
+        }, 30);
       }
     };
 
@@ -38,6 +49,7 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
 
     return () => {
       window.removeEventListener('keypress', handleKeyPress);
+      if (debounceTimeout) clearTimeout(debounceTimeout);
     };
   }, [onScan, enabled]);
 
