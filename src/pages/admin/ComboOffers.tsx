@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -34,6 +35,7 @@ export default function ComboOffers() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [comboToDelete, setComboToDelete] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: combos, isLoading } = useQuery({
     queryKey: ['combo-offers'],
@@ -134,6 +136,13 @@ export default function ComboOffers() {
           <CardTitle>Combo Offers</CardTitle>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/admin/bogo-offers')}
+            >
+              <Gift className="mr-2 h-4 w-4" />
+              BOGO Offers
+            </Button>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Combo

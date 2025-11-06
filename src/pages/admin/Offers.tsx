@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Tag, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Package, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { useNavigate } from "react-router-dom";
@@ -218,6 +218,13 @@ export default function AdminOffers() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/admin/bogo-offers')}
+          >
+            <Gift className="mr-2 h-4 w-4" />
+            BOGO Offers
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => navigate('/admin/combo-offers')}

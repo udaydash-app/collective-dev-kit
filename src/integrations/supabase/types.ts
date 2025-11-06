@@ -202,6 +202,101 @@ export type Database = {
         }
         Relationships: []
       }
+      bogo_offers: {
+        Row: {
+          buy_product_id: string | null
+          buy_quantity: number
+          buy_variant_id: string | null
+          created_at: string | null
+          current_uses: number | null
+          description: string | null
+          display_order: number | null
+          end_date: string
+          get_discount_percentage: number
+          get_product_id: string | null
+          get_quantity: number
+          get_variant_id: string | null
+          id: string
+          is_active: boolean | null
+          max_total_uses: number | null
+          max_uses_per_transaction: number | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          buy_product_id?: string | null
+          buy_quantity?: number
+          buy_variant_id?: string | null
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          display_order?: number | null
+          end_date: string
+          get_discount_percentage?: number
+          get_product_id?: string | null
+          get_quantity?: number
+          get_variant_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_total_uses?: number | null
+          max_uses_per_transaction?: number | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          buy_product_id?: string | null
+          buy_quantity?: number
+          buy_variant_id?: string | null
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          display_order?: number | null
+          end_date?: string
+          get_discount_percentage?: number
+          get_product_id?: string | null
+          get_quantity?: number
+          get_variant_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_total_uses?: number | null
+          max_uses_per_transaction?: number | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bogo_offers_buy_product_id_fkey"
+            columns: ["buy_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bogo_offers_buy_variant_id_fkey"
+            columns: ["buy_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bogo_offers_get_product_id_fkey"
+            columns: ["get_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bogo_offers_get_variant_id_fkey"
+            columns: ["get_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cart_items: {
         Row: {
           created_at: string

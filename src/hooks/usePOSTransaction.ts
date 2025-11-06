@@ -22,6 +22,8 @@ export interface CartItem {
     quantity: number;
     product_name: string;
   }>;
+  isBogo?: boolean; // Added for BOGO offers
+  bogoOfferId?: string; // Added for BOGO offers
 }
 
 export interface PaymentDetail {
@@ -72,6 +74,157 @@ export const usePOSTransaction = () => {
         console.error('Error fetching offline combos:', offlineError);
         return [];
       }
+    }
+  };
+
+  // Helper function to fetch active BOGO offers
+  const fetchActiveBOGOOffers = async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('bogo_offers')
+        .select('*')
+        .eq('is_active', true)
+        .lte('start_date', now)
+        .gte('end_date', now);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching BOGO offers:', error);
+      return [];
+    }
+  };
+
+  // Automatic BOGO offer detection and application
+  const detectAndApplyBOGOOffers = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+    try {
+      console.log('🎁 detectAndApplyBOGOOffers START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
+      const bogoOffers = await fetchActiveBOGOOffers();
+      console.log('🎉 Fetched BOGO offers:', bogoOffers);
+      
+      if (!bogoOffers || bogoOffers.length === 0) {
+        console.log('❌ No active BOGO offers found');
+        return currentCart;
+      }
+
+      // Filter out existing BOGO items
+      let regularItems = currentCart.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      const appliedBOGOs: CartItem[] = [];
+
+      // Try to apply each BOGO offer
+      for (const bogo of bogoOffers) {
+        console.log('🎁 Processing BOGO:', bogo.name);
+        
+        // Find matching buy items in cart
+        const matchingBuyItems = regularItems.filter(item => {
+          const matchesProduct = bogo.buy_product_id === item.productId;
+          const matchesVariant = bogo.buy_variant_id ? bogo.buy_variant_id === item.id : true;
+          return matchesProduct && matchesVariant;
+        });
+
+        if (matchingBuyItems.length === 0) {
+          console.log('⚠️ No matching buy items for BOGO:', bogo.name);
+          continue;
+        }
+
+        // Calculate how many times we can apply this BOGO
+        const totalBuyQuantity = matchingBuyItems.reduce((sum, item) => sum + item.quantity, 0);
+        let timesApplicable = Math.floor(totalBuyQuantity / bogo.buy_quantity);
+
+        // Apply limits
+        if (bogo.max_uses_per_transaction) {
+          timesApplicable = Math.min(timesApplicable, bogo.max_uses_per_transaction);
+        }
+        if (bogo.max_total_uses && bogo.current_uses >= bogo.max_total_uses) {
+          console.log('⚠️ BOGO offer limit reached:', bogo.name);
+          continue;
+        }
+        if (bogo.max_total_uses) {
+          timesApplicable = Math.min(timesApplicable, bogo.max_total_uses - bogo.current_uses);
+        }
+
+        console.log(`✅ Can apply BOGO ${timesApplicable} time(s)`);
+
+        if (timesApplicable === 0) continue;
+
+        // Get the get product details
+        let getProduct: any;
+        let getProductName: string;
+        let originalPrice: number;
+        
+        if (bogo.get_variant_id) {
+          // Fetch variant and parent product
+          const { data: variant } = await supabase
+            .from('product_variants')
+            .select('*, products(name)')
+            .eq('id', bogo.get_variant_id)
+            .single();
+          
+          if (!variant) {
+            console.log('⚠️ Variant not found for BOGO:', bogo.name);
+            continue;
+          }
+          
+          getProduct = variant;
+          getProductName = `${(variant as any).products?.name || 'Product'} (${variant.label})`;
+          originalPrice = Number(variant.price);
+        } else {
+          // Fetch product
+          const { data: product } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', bogo.get_product_id)
+            .single();
+          
+          if (!product) {
+            console.log('⚠️ Product not found for BOGO:', bogo.name);
+            continue;
+          }
+          
+          getProduct = product;
+          getProductName = product.name;
+          originalPrice = Number(product.price);
+        }
+
+        // Calculate discounted price
+        const discountedPrice = originalPrice * (1 - bogo.get_discount_percentage / 100);
+
+        // Add BOGO items to cart
+        for (let i = 0; i < timesApplicable; i++) {
+          const bogoCartItem: CartItem = {
+            id: `bogo-${bogo.id}-${Date.now()}-${Math.random()}`,
+            productId: bogo.get_product_id || '',
+            name: `${getProductName} (BOGO ${bogo.get_discount_percentage}% off)`,
+            price: discountedPrice,
+            quantity: bogo.get_quantity,
+            itemDiscount: 0,
+            isBogo: true,
+            bogoOfferId: bogo.id,
+          };
+          
+          appliedBOGOs.push(bogoCartItem);
+        }
+
+        // Increment usage count
+        await supabase
+          .from('bogo_offers')
+          .update({ current_uses: bogo.current_uses + timesApplicable })
+          .eq('id', bogo.id);
+      }
+
+      // Show toast if BOGOs were applied
+      if (appliedBOGOs.length > 0) {
+        const bogoCount = appliedBOGOs.length;
+        const totalGetQty = appliedBOGOs.reduce((sum, item) => sum + item.quantity, 0);
+        toast.success(`🎉 BOGO applied! ${totalGetQty} item${totalGetQty > 1 ? 's' : ''} added with discount`);
+      }
+
+      // Return combined cart: regular items + applied BOGOs
+      return [...regularItems, ...appliedBOGOs];
+    } catch (error) {
+      console.error('Error in detectAndApplyBOGOOffers:', error);
+      return currentCart;
     }
   };
 
@@ -291,7 +444,9 @@ export const usePOSTransaction = () => {
     
     // Apply combo detection
     const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    setCart(cartWithCombos);
+    // Apply BOGO detection
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
+    setCart(cartWithBOGOs);
     
     toast.success(`${product.name} added to cart`);
   };
@@ -301,7 +456,9 @@ export const usePOSTransaction = () => {
     
     // Reapply combo detection after removal
     const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    setCart(cartWithCombos);
+    // Reapply BOGO detection after removal
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
+    setCart(cartWithBOGOs);
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
@@ -316,7 +473,9 @@ export const usePOSTransaction = () => {
     
     // Reapply combo detection after quantity update
     const cartWithCombos = await detectAndApplyCombos(updatedCart);
-    setCart(cartWithCombos);
+    // Reapply BOGO detection after quantity update
+    const cartWithBOGOs = await detectAndApplyBOGOOffers(cartWithCombos);
+    setCart(cartWithBOGOs);
   };
 
   const updateItemPrice = (productId: string, price: number) => {
