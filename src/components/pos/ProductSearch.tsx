@@ -216,19 +216,25 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         `)
         .ilike('barcode', barcode)
         .eq('is_available', true)
-        .eq('products.is_available', true)
-        .maybeSingle();
+        .eq('products.is_available', true);
       
-      console.log('🎯 Variant match result:', { variantMatch, variantError });
+      console.log('🎯 Variant match query result:', { 
+        found: variantMatch?.length || 0, 
+        data: variantMatch,
+        error: variantError 
+      });
 
-      if (variantMatch?.product) {
+      // Use maybeSingle() only if we found exactly one match
+      const singleVariantMatch = variantMatch && variantMatch.length === 1 ? variantMatch[0] : null;
+
+      if (singleVariantMatch?.product) {
         console.log('✅ Found variant match, adding directly to cart');
-        console.log('Selected variant:', variantMatch.label, 'Price:', variantMatch.price);
+        console.log('Matched variant:', singleVariantMatch.label, 'Barcode:', singleVariantMatch.barcode);
         // Found variant with this barcode - add directly to cart with this variant selected
         onProductSelect({
-          ...variantMatch.product,
-          price: variantMatch.price,
-          selectedVariant: variantMatch,
+          ...singleVariantMatch.product,
+          price: singleVariantMatch.price,
+          selectedVariant: singleVariantMatch,
         });
         setSearchTerm('');
         setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -252,20 +258,26 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           )
         `)
         .ilike('barcode', barcode)
-        .eq('is_available', true)
-        .maybeSingle();
+        .eq('is_available', true);
       
-      console.log('🎯 Product match result:', { productMatch, productError });
+      console.log('🎯 Product match query result:', { 
+        found: productMatch?.length || 0,
+        data: productMatch,
+        error: productError 
+      });
+      
+      const singleProductMatch = productMatch && productMatch.length === 1 ? productMatch[0] : null;
 
-      if (productMatch) {
+      if (singleProductMatch) {
         console.log('✅ Found product match, adding to cart');
+        console.log('Product barcode:', singleProductMatch.barcode);
         // Found product barcode match - add with default variant if available
-        handleProductSelect(productMatch);
+        handleProductSelect(singleProductMatch);
         return;
       }
 
       // No match found in products or variants - open assign barcode dialog
-      console.log('❌ No match found, opening assign dialog');
+      console.log('❌ No match found for barcode:', barcode);
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
     }
