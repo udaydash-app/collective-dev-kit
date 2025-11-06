@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface JournalLine {
   account_id: string;
@@ -62,6 +63,7 @@ interface JournalLine {
 
 export default function JournalEntries() {
   usePageView('Admin - Journal Entries');
+  useRealtimeSync();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -107,17 +109,9 @@ export default function JournalEntries() {
         `)
         .order('entry_date', { ascending: false });
       if (error) throw error;
-      
-      // Deduplicate entries by ID to prevent duplicates
-      const uniqueEntries = data?.reduce((acc, entry) => {
-        if (!acc.find(e => e.id === entry.id)) {
-          acc.push(entry);
-        }
-        return acc;
-      }, [] as typeof data);
-      
-      return uniqueEntries;
+      return data;
     },
+    refetchOnMount: 'always',
     staleTime: 0,
   });
 
