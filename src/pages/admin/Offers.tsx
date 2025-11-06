@@ -22,7 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Tag, Package, Gift } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Pencil, Trash2, Tag, Package, Gift, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { useNavigate } from "react-router-dom";
@@ -218,24 +224,33 @@ export default function AdminOffers() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/admin/bogo-offers')}
-          >
-            <Gift className="mr-2 h-4 w-4" />
-            BOGO Offers
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/admin/combo-offers')}
-          >
-            <Package className="mr-2 h-4 w-4" />
-            Combo Offers
-          </Button>
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Offer
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Offer
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={openCreateDialog}>
+                <Tag className="mr-2 h-4 w-4" />
+                Regular Offer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/bogo-offers')}>
+                <Gift className="mr-2 h-4 w-4" />
+                BOGO Offer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/combo-offers')}>
+                <Package className="mr-2 h-4 w-4" />
+                Combo Offer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/multi-product-bogo')}>
+                <Gift className="mr-2 h-4 w-4" />
+                Multi-Product BOGO
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
