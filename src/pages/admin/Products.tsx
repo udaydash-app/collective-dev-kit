@@ -629,56 +629,53 @@ export default function Products() {
         <div className="mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Product Management
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Manage your inventory • {filteredProducts.length} products
+              <h1 className="text-2xl font-bold">Product Management</h1>
+              <p className="text-muted-foreground text-xs">
+                {filteredProducts.length} products
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
               <ReturnToPOSButton inline />
               <Button
                 onClick={handleAdd}
+                size="sm"
                 className="gap-2"
               >
-                <Plus className="h-4 w-4" />
-                Add Product
+                <Plus className="h-3 w-3" />
+                Add
               </Button>
               {selectedProducts.size > 0 && (
                 <Button 
                   onClick={handleBulkDelete}
                   variant="destructive"
+                  size="sm"
                   className="gap-2"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3" />
                   Delete ({selectedProducts.size})
                 </Button>
               )}
               <Button 
                 onClick={handleEnrichAll}
+                size="sm"
                 className="gap-2"
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-3 w-3" />
                 AI Enrich
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mb-8 space-y-4">
+        <div className="mb-4 space-y-3">
           {/* Modern Filters Section */}
-          <Card className="border-border/50 shadow-md hover:shadow-lg transition-shadow bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-8 w-1 bg-gradient-primary rounded-full"></div>
-                <h3 className="font-semibold text-lg">Filter Products</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="filter-category" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category</Label>
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-category" className="text-xs font-medium">Category</Label>
                   <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger id="filter-category" className="border-border/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger id="filter-category" className="h-9 text-sm">
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
@@ -690,10 +687,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filter-store" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Store</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-store" className="text-xs font-medium">Store</Label>
                   <Select value={filterStore} onValueChange={setFilterStore}>
-                    <SelectTrigger id="filter-store" className="border-border/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger id="filter-store" className="h-9 text-sm">
                       <SelectValue placeholder="All Stores" />
                     </SelectTrigger>
                     <SelectContent>
@@ -705,10 +702,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filter-availability" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Availability</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-availability" className="text-xs font-medium">Availability</Label>
                   <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                    <SelectTrigger id="filter-availability" className="border-border/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger id="filter-availability" className="h-9 text-sm">
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -719,10 +716,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filter-featured" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Featured</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-featured" className="text-xs font-medium">Featured</Label>
                   <Select value={filterFeatured} onValueChange={setFilterFeatured}>
-                    <SelectTrigger id="filter-featured" className="border-border/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger id="filter-featured" className="h-9 text-sm">
                       <SelectValue placeholder="All Products" />
                     </SelectTrigger>
                     <SelectContent>
@@ -733,10 +730,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filter-stock" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock Level</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-stock" className="text-xs font-medium">Stock Level</Label>
                   <Select value={filterStock} onValueChange={setFilterStock}>
-                    <SelectTrigger id="filter-stock" className="border-border/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger id="filter-stock" className="h-9 text-sm">
                       <SelectValue placeholder="All Stock" />
                     </SelectTrigger>
                     <SelectContent>
@@ -750,10 +747,10 @@ export default function Products() {
 
               {/* Clear Filters Button */}
               {(filterCategory !== "all" || filterStore !== "all" || filterAvailability !== "all" || filterFeatured !== "all" || filterStock !== "all") && (
-                <div className="mt-4 pt-4 border-t border-border/50">
+                <div className="mt-3">
                   <Button 
                     type="button" 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
                     onClick={() => {
                       setFilterCategory("all");
@@ -762,10 +759,10 @@ export default function Products() {
                       setFilterFeatured("all");
                       setFilterStock("all");
                     }}
-                    className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
+                    className="h-8 text-xs"
                   >
-                    <X className="h-4 w-4 mr-2" />
-                    Clear All Filters
+                    <X className="h-3 w-3 mr-1" />
+                    Clear Filters
                   </Button>
                 </div>
               )}
@@ -773,83 +770,81 @@ export default function Products() {
           </Card>
 
           {/* Modern Search Bar */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-2xl">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products by name, description, or category..."
-                className="pl-10"
+                placeholder="Search products..."
+                className="pl-9 h-9 text-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             
             {/* View Toggle */}
-            <div className="flex border rounded-lg">
+            <div className="flex border rounded-lg overflow-hidden">
               <Button
                 variant={viewMode === "list" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("list")}
-                className="rounded-r-none gap-2"
+                className="rounded-none h-9 px-3"
               >
                 <List className="h-4 w-4" />
-                <span className="hidden sm:inline">List</span>
               </Button>
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("grid")}
-                className="rounded-l-none gap-2"
+                className="rounded-none h-9 px-3"
               >
                 <Grid className="h-4 w-4" />
-                <span className="hidden sm:inline">Grid</span>
               </Button>
             </div>
           </div>
           
           {searchQuery && (
-            <div className="text-sm text-muted-foreground">
-              Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} matching "{searchQuery}"
+            <div className="text-xs text-muted-foreground">
+              Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
             </div>
           )}
         </div>
 
         {/* Products Display - Table or Grid */}
         {viewMode === "list" ? (
-          <Card>
+          <Card className="shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 h-9">
                     <Checkbox 
                       checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Store</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Product</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Barcode</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Category</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Store</TableHead>
+                  <TableHead className="text-right text-xs font-semibold h-9">Stock</TableHead>
+                  <TableHead className="text-right text-xs font-semibold h-9">Price</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Status</TableHead>
+                  <TableHead className="text-right text-xs font-semibold h-9 w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <Package className="h-12 w-12 text-muted-foreground/50" />
-                        <p className="text-muted-foreground">
-                          {searchQuery ? `No products found matching "${searchQuery}"` : "No products found"}
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Package className="h-10 w-10 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          {searchQuery ? `No products found` : "No products"}
                         </p>
                         {!searchQuery && (
-                          <Button onClick={handleAdd} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add Your First Product
+                          <Button onClick={handleAdd} size="sm" className="gap-2 mt-2">
+                            <Plus className="h-3 w-3" />
+                            Add Product
                           </Button>
                         )}
                       </div>
@@ -858,52 +853,52 @@ export default function Products() {
                 ) : (
                   filteredProducts.map((product) => (
                     <TableRow key={product.id} className="group">
-                      <TableCell>
+                      <TableCell className="py-2">
                         <Checkbox
                           checked={selectedProducts.has(product.id)}
                           onCheckedChange={() => toggleProductSelection(product.id)}
                         />
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
                           {product.image_url ? (
                             <img 
                               src={product.image_url} 
                               alt={product.name}
-                              className="w-10 h-10 rounded object-cover"
+                              className="w-8 h-8 rounded object-cover"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-lg">
+                            <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                               📦
                             </div>
                           )}
-                          <div>
-                            <div className="font-medium">{product.name}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
                             {product.product_variants && product.product_variants.length > 0 && (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-[10px] text-muted-foreground">
                                 {product.product_variants.length} variants
                               </div>
                             )}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground py-2">
                         {product.barcode || '-'}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-xs py-2">
                         {product.categories?.name || '-'}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground py-2">
                         {product.stores?.name || '-'}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right py-2">
                         {(() => {
                           const stock = product.stock_quantity ?? 0;
                           const isNegative = stock < 0;
                           const isPositive = stock > 0;
                           return (
                             <span 
-                              className={`font-semibold ${
+                              className={`text-xs font-semibold ${
                                 isNegative 
                                   ? 'text-red-600' 
                                   : isPositive 
@@ -916,26 +911,26 @@ export default function Products() {
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right py-2">
                         {product.product_variants && product.product_variants.length > 0 ? (
-                          <div className="text-sm">
+                          <div className="text-xs font-medium">
                             {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
                           </div>
                         ) : (
-                          <span className="font-medium">{formatCurrency(product.price)}</span>
+                          <span className="text-xs font-medium">{formatCurrency(product.price)}</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={product.is_available ? 'default' : 'secondary'}>
-                            {product.is_available ? 'Available' : 'Unavailable'}
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-1">
+                          <Badge variant={product.is_available ? 'default' : 'secondary'} className="text-[10px] h-5">
+                            {product.is_available ? 'Available' : 'N/A'}
                           </Badge>
                           {product.is_featured && (
-                            <Badge variant="outline" className="bg-accent/10">⭐</Badge>
+                            <Badge variant="outline" className="text-[10px] h-5">⭐</Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right py-2">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             size="sm"
@@ -943,27 +938,27 @@ export default function Products() {
                             onClick={() => handleEnrichProduct(product)}
                             disabled={enrichingIds.has(product.id)}
                             title="AI Enrich"
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <Sparkles className={`h-4 w-4 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
+                            <Sparkles className={`h-3 w-3 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEdit(product)}
                             title="Edit"
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDelete(product.id)}
                             title="Delete"
-                            className="h-8 w-8 p-0 hover:text-destructive"
+                            className="h-7 w-7 p-0 hover:text-destructive"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -974,20 +969,20 @@ export default function Products() {
             </Table>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredProducts.length === 0 ? (
               <div className="col-span-full">
-                <Card>
-                  <CardContent className="p-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Package className="h-12 w-12 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">
-                        {searchQuery ? `No products found matching "${searchQuery}"` : "No products found"}
+                <Card className="shadow-sm">
+                  <CardContent className="p-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Package className="h-10 w-10 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">
+                        {searchQuery ? `No products found` : "No products"}
                       </p>
                       {!searchQuery && (
-                        <Button onClick={handleAdd} className="gap-2">
-                          <Plus className="h-4 w-4" />
-                          Add Your First Product
+                        <Button onClick={handleAdd} size="sm" className="gap-2 mt-2">
+                          <Plus className="h-3 w-3" />
+                          Add Product
                         </Button>
                       )}
                     </div>
@@ -996,39 +991,39 @@ export default function Products() {
               </div>
             ) : (
               filteredProducts.map((product) => (
-                <Card key={product.id} className="group hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
+                <Card key={product.id} className="group hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2 p-3">
                     <div className="flex items-start justify-between mb-2">
                       <Checkbox
                         checked={selectedProducts.has(product.id)}
                         onCheckedChange={() => toggleProductSelection(product.id)}
                       />
                       {product.is_featured && (
-                        <Badge variant="outline" className="bg-accent/10">⭐</Badge>
+                        <Badge variant="outline" className="text-[10px] h-5">⭐</Badge>
                       )}
                     </div>
                     {product.image_url ? (
                       <img 
                         src={product.image_url} 
                         alt={product.name}
-                        className="w-full h-32 object-cover rounded"
+                        className="w-full h-24 object-cover rounded"
                       />
                     ) : (
-                      <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-4xl">
+                      <div className="w-full h-24 bg-muted rounded flex items-center justify-center text-3xl">
                         📦
                       </div>
                     )}
-                    <CardTitle className="text-lg mt-3 line-clamp-2">{product.name}</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-sm mt-2 line-clamp-2 leading-tight">{product.name}</CardTitle>
+                    <CardDescription className="text-xs">
                       {product.categories?.name || 'Uncategorized'}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <CardContent className="space-y-1.5 p-3 pt-0">
+                    <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Barcode:</span>
-                      <span className="font-medium text-xs">{product.barcode || '-'}</span>
+                      <span className="font-medium text-[10px] truncate max-w-[100px]">{product.barcode || '-'}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Stock:</span>
                       {(() => {
                         const stock = product.stock_quantity ?? 0;
@@ -1036,7 +1031,7 @@ export default function Products() {
                         const isPositive = stock > 0;
                         return (
                           <span 
-                            className={`font-semibold ${
+                            className={`font-semibold text-xs ${
                               isNegative 
                                 ? 'text-red-600' 
                                 : isPositive 
@@ -1050,12 +1045,12 @@ export default function Products() {
                       })()}
                     </div>
                     {product.product_variants && product.product_variants.length > 0 ? (
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Variants:</span>
-                        <span className="font-medium">{product.product_variants.length}</span>
+                        <span className="font-medium text-xs">{product.product_variants.length}</span>
                       </div>
                     ) : null}
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Price:</span>
                       <span className="font-semibold text-xs">
                         {product.product_variants && product.product_variants.length > 0 
@@ -1064,10 +1059,10 @@ export default function Products() {
                         }
                       </span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs items-center">
                       <span className="text-muted-foreground">Status:</span>
-                      <Badge variant={product.is_available ? 'default' : 'secondary'} className="text-xs">
-                        {product.is_available ? 'Available' : 'Unavailable'}
+                      <Badge variant={product.is_available ? 'default' : 'secondary'} className="text-[10px] h-5">
+                        {product.is_available ? 'Available' : 'N/A'}
                       </Badge>
                     </div>
                     <div className="flex gap-1 pt-2 border-t">
@@ -1077,7 +1072,7 @@ export default function Products() {
                         onClick={() => handleEnrichProduct(product)}
                         disabled={enrichingIds.has(product.id)}
                         title="AI Enrich"
-                        className="flex-1"
+                        className="flex-1 h-7"
                       >
                         <Sparkles className={`h-3 w-3 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
                       </Button>
@@ -1086,7 +1081,7 @@ export default function Products() {
                         variant="outline"
                         onClick={() => handleEdit(product)}
                         title="Edit"
-                        className="flex-1"
+                        className="flex-1 h-7"
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
@@ -1095,7 +1090,7 @@ export default function Products() {
                         variant="outline"
                         onClick={() => handleDelete(product.id)}
                         title="Delete"
-                        className="flex-1"
+                        className="flex-1 h-7"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -1108,96 +1103,88 @@ export default function Products() {
         )}
 
         {filteredProducts.length > 0 && (
-          <div className="text-center text-sm text-muted-foreground mt-4">
+          <div className="text-center text-xs text-muted-foreground mt-3">
             Showing {filteredProducts.length} of {products.length} products
           </div>
         )}
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-sm border-border/50">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                {isAddingNew ? '✨ Add New Product' : '✏️ Edit Product'}
+              <DialogTitle className="text-xl font-bold">
+                {isAddingNew ? 'Add Product' : 'Edit Product'}
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {isAddingNew ? 'Fill in the details to add a new product to your inventory' : 'Update product information'}
+              <p className="text-xs text-muted-foreground">
+                {isAddingNew ? 'Fill in product details' : 'Update product information'}
               </p>
             </DialogHeader>
             {editingProduct && (
-              <form onSubmit={handleSave} className="space-y-6 mt-6">
+              <form onSubmit={handleSave} className="space-y-4 mt-4">
                 {/* Basic Information Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <CardTitle className="text-lg flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                        <Package className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <div className="font-bold">Basic Information</div>
-                        <div className="text-xs text-muted-foreground font-normal">Product name and description</div>
-                      </div>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Basic Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
                     <div>
-                      <Label htmlFor="name">Product Name *</Label>
+                      <Label htmlFor="name" className="text-xs">Product Name *</Label>
                       <Input
                         id="name"
                         name="name"
                         defaultValue={editingProduct.name}
                         required
                         placeholder="e.g., Fresh Tomatoes"
+                        className="h-9 text-sm"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <Label htmlFor="description" className="text-xs">Description</Label>
                       <Textarea
                         id="description"
                         name="description"
                         defaultValue={editingProduct.description || ""}
-                        rows={3}
-                        placeholder="Product description and details..."
+                        rows={2}
+                        placeholder="Product description..."
+                        className="text-sm"
                       />
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Product Image Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <CardTitle className="text-lg flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
-                        <Upload className="h-5 w-5 text-accent-foreground" />
-                      </div>
-                      <div>
-                        <div className="font-bold">Product Image</div>
-                        <div className="text-xs text-muted-foreground font-normal">Upload or link product photo</div>
-                      </div>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Product Image
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-2">
                     {(previewUrl || imageUrl || editingProduct.image_url) && (
-                      <div className="relative w-40 h-40 mx-auto">
+                      <div className="relative w-32 h-32 mx-auto">
                         <img 
                           src={previewUrl || imageUrl || editingProduct.image_url || ''} 
                           alt="Product preview"
-                          className="w-full h-full object-cover rounded-lg border-2 border-border"
+                          className="w-full h-full object-cover rounded border-2 border-border"
                         />
                         {(previewUrl || imageUrl) && (
                           <Button
                             type="button"
                             size="icon"
                             variant="destructive"
-                            className="absolute -top-2 -right-2 h-7 w-7"
+                            className="absolute -top-2 -right-2 h-6 w-6"
                             onClick={handleRemoveImage}
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
                     )}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2 justify-center">
                         <Input
                           id="image"
@@ -1209,22 +1196,24 @@ export default function Products() {
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => document.getElementById('image')?.click()}
                           className="gap-2"
                         >
-                          <Upload className="h-4 w-4" />
-                          {editingProduct.image_url ? 'Change Image' : 'Upload Image'}
+                          <Upload className="h-3 w-3" />
+                          {editingProduct.image_url ? 'Change' : 'Upload'}
                         </Button>
                       </div>
-                      <div className="text-center text-sm text-muted-foreground">or</div>
+                      <div className="text-center text-xs text-muted-foreground">or</div>
                       <div>
-                        <Label htmlFor="imageUrl" className="text-sm">Paste Image URL</Label>
+                        <Label htmlFor="imageUrl" className="text-xs">Paste Image URL</Label>
                         <Input
                           id="imageUrl"
                           type="url"
-                          placeholder="https://example.com/image.jpg"
+                          placeholder="https://..."
                           value={imageUrl}
                           onChange={(e) => setImageUrl(e.target.value)}
+                          className="h-9 text-sm"
                         />
                       </div>
                     </div>
@@ -1232,22 +1221,17 @@ export default function Products() {
                 </Card>
 
                 {/* Pricing Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <CardTitle className="text-lg flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                        <span className="text-xl font-bold text-primary-foreground">₣</span>
-                      </div>
-                      <div>
-                        <div className="font-bold">Pricing & Unit</div>
-                        <div className="text-xs text-muted-foreground font-normal">Set pricing and measurement unit</div>
-                      </div>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <span className="text-lg">₣</span>
+                      Pricing & Unit
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                       <div>
-                        <Label htmlFor="price">Retail Price (FCFA) *</Label>
+                        <Label htmlFor="price" className="text-xs">Retail Price *</Label>
                         <Input
                           id="price"
                           name="price"
@@ -1256,10 +1240,11 @@ export default function Products() {
                           defaultValue={editingProduct.price}
                           required={variants.length === 0}
                           placeholder="0.00"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="wholesale_price">Wholesale Price (FCFA)</Label>
+                        <Label htmlFor="wholesale_price" className="text-xs">Wholesale</Label>
                         <Input
                           id="wholesale_price"
                           name="wholesale_price"
@@ -1267,10 +1252,11 @@ export default function Products() {
                           step="0.01"
                           defaultValue={editingProduct.wholesale_price}
                           placeholder="0.00"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="vip_price">VIP Price (FCFA)</Label>
+                        <Label htmlFor="vip_price" className="text-xs">VIP Price</Label>
                         <Input
                           id="vip_price"
                           name="vip_price"
@@ -1278,10 +1264,11 @@ export default function Products() {
                           step="0.01"
                           defaultValue={editingProduct.vip_price}
                           placeholder="0.00"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="cost_price">Cost Price (FCFA)</Label>
+                        <Label htmlFor="cost_price" className="text-xs">Cost Price</Label>
                         <Input
                           id="cost_price"
                           name="cost_price"
@@ -1289,23 +1276,24 @@ export default function Products() {
                           step="0.01"
                           defaultValue={editingProduct.cost_price}
                           placeholder="0.00"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="unit">Unit *</Label>
+                        <Label htmlFor="unit" className="text-xs">Unit *</Label>
                         <Select name="unit" defaultValue={editingProduct.unit} required>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select unit" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pcs">Pieces (pcs)</SelectItem>
-                            <SelectItem value="gm">Grams (gm)</SelectItem>
-                            <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                            <SelectItem value="ltr">Liters (ltr)</SelectItem>
-                            <SelectItem value="ml">Milliliters (ml)</SelectItem>
-                            <SelectItem value="dozen">Dozen</SelectItem>
-                            <SelectItem value="pack">Pack</SelectItem>
-                            <SelectItem value="box">Box</SelectItem>
+                            <SelectItem value="pcs">pcs</SelectItem>
+                            <SelectItem value="gm">gm</SelectItem>
+                            <SelectItem value="kg">kg</SelectItem>
+                            <SelectItem value="ltr">ltr</SelectItem>
+                            <SelectItem value="ml">ml</SelectItem>
+                            <SelectItem value="dozen">dozen</SelectItem>
+                            <SelectItem value="pack">pack</SelectItem>
+                            <SelectItem value="box">box</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1314,24 +1302,19 @@ export default function Products() {
                 </Card>
 
                 {/* Product Variants Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
-                          <Grid3x3 className="h-5 w-5 text-accent-foreground" />
-                        </div>
-                        <div>
-                          <div className="font-bold">Product Variants</div>
-                          <div className="text-xs text-muted-foreground font-normal">Add different sizes or packaging</div>
-                        </div>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Grid3x3 className="h-4 w-4" />
+                        Variants
                       </CardTitle>
                       <Button 
                         type="button" 
                         size="sm" 
                         onClick={() => setShowVariants(!showVariants)} 
                         variant="ghost"
-                        className="hover:bg-primary/10"
+                        className="h-7 text-xs"
                       >
                         {showVariants ? 'Hide' : 'Show'} ({variants.length})
                       </Button>
@@ -1339,26 +1322,26 @@ export default function Products() {
                   </CardHeader>
                   
                   {showVariants && (
-                    <CardContent className="space-y-4 pt-4">
+                    <CardContent className="space-y-3 pt-3">
                       {variants.map((variant, index) => (
-                        <Card key={variant.id} className="border-2 border-primary/20 bg-gradient-subtle hover:border-primary/40 transition-colors">
-                          <CardContent className="p-4 space-y-4">
-                            <div className="grid grid-cols-12 gap-3">
+                        <Card key={variant.id} className="border">
+                          <CardContent className="p-3 space-y-3">
+                            <div className="grid grid-cols-12 gap-2">
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Quantity</Label>
+                                <Label className="text-[10px] font-medium">Quantity</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.quantity || ''}
                                   onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="500"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Unit</Label>
+                                <Label className="text-[10px] font-medium">Unit</Label>
                                 <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
-                                  <SelectTrigger className="h-10 border-border/50">
+                                  <SelectTrigger className="h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1374,63 +1357,63 @@ export default function Products() {
                                 </Select>
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Retail Price</Label>
+                                <Label className="text-[10px] font-medium">Retail</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.price}
                                   onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Wholesale</Label>
+                                <Label className="text-[10px] font-medium">Wholesale</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.wholesale_price || ''}
                                   onChange={(e) => updateVariant(index, 'wholesale_price', parseFloat(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">VIP Price</Label>
+                                <Label className="text-[10px] font-medium">VIP</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.vip_price || ''}
                                   onChange={(e) => updateVariant(index, 'vip_price', parseFloat(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Cost Price</Label>
+                                <Label className="text-[10px] font-medium">Cost</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.cost_price || ''}
                                   onChange={(e) => updateVariant(index, 'cost_price', parseFloat(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Stock</Label>
+                                <Label className="text-[10px] font-medium">Stock</Label>
                                 <Input
                                   type="number"
                                   value={variant.stock_quantity}
                                   onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
-                                  className="h-10 border-border/50"
+                                  className="h-8 text-xs"
                                   placeholder="0"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-1">
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Active</Label>
+                                <Label className="text-[10px] font-medium">Active</Label>
                                 <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
-                                  <SelectTrigger className="h-10 border-border/50">
+                                  <SelectTrigger className="h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1445,20 +1428,20 @@ export default function Products() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => removeVariant(index)}
-                                  className="h-10 w-full text-destructive hover:text-destructive hover:bg-destructive/20"
+                                  className="h-8 w-full text-destructive hover:text-destructive hover:bg-destructive/20"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
                             <div>
-                              <Label className="text-xs font-semibold text-muted-foreground uppercase">Barcode</Label>
+                              <Label className="text-[10px] font-medium">Barcode</Label>
                               <Input
                                 type="text"
                                 value={variant.barcode || ''}
                                 onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
-                                className="h-10 border-border/50"
-                                placeholder="Variant-specific barcode"
+                                className="h-8 text-xs"
+                                placeholder="Variant barcode"
                               />
                             </div>
                           </CardContent>
@@ -1469,9 +1452,9 @@ export default function Products() {
                         size="sm" 
                         onClick={addVariant} 
                         variant="outline" 
-                        className="w-full hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
+                        className="w-full h-8 text-xs"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="h-3 w-3 mr-1" />
                         Add Variant
                       </Button>
                     </CardContent>
@@ -1479,24 +1462,19 @@ export default function Products() {
                 </Card>
 
                 {/* Inventory & Classification Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <CardTitle className="text-lg flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                        <Search className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <div className="font-bold">Inventory & Classification</div>
-                        <div className="text-xs text-muted-foreground font-normal">Organize product details</div>
-                      </div>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Inventory & Classification
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="category_id">Category</Label>
+                        <Label htmlFor="category_id" className="text-xs">Category</Label>
                         <Select name="category_id" defaultValue={editingProduct.category_id || ""}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1510,9 +1488,9 @@ export default function Products() {
                       </div>
 
                       <div>
-                        <Label htmlFor="store_id">Store *</Label>
+                        <Label htmlFor="store_id" className="text-xs">Store *</Label>
                         <Select name="store_id" defaultValue={editingProduct.store_id} required>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select store" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1526,9 +1504,9 @@ export default function Products() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+                        <Label htmlFor="stock_quantity" className="text-xs">Stock Quantity *</Label>
                         <Input
                           id="stock_quantity"
                           name="stock_quantity"
@@ -1536,17 +1514,19 @@ export default function Products() {
                           defaultValue={editingProduct.stock_quantity}
                           required
                           placeholder="0"
+                          className="h-9 text-sm"
                         />
                       </div>
                       
                       <div>
-                        <Label htmlFor="barcode">Barcode</Label>
+                        <Label htmlFor="barcode" className="text-xs">Barcode</Label>
                         <Input
                           id="barcode"
                           name="barcode"
                           type="text"
                           defaultValue={(editingProduct as any).barcode || ''}
                           placeholder="Product barcode"
+                          className="h-9 text-sm"
                         />
                       </div>
                     </div>
@@ -1554,42 +1534,37 @@ export default function Products() {
                 </Card>
 
                 {/* Settings Section */}
-                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <CardTitle className="text-lg flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
-                        <Sparkles className="h-5 w-5 text-accent-foreground" />
-                      </div>
-                      <div>
-                        <div className="font-bold">Product Settings</div>
-                        <div className="text-xs text-muted-foreground font-normal">Availability and features</div>
-                      </div>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Settings
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="is_available">Availability *</Label>
+                        <Label htmlFor="is_available" className="text-xs">Availability *</Label>
                         <Select name="is_available" defaultValue={editingProduct.is_available.toString()}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="true">✓ Available for Sale</SelectItem>
+                            <SelectItem value="true">✓ Available</SelectItem>
                             <SelectItem value="false">✗ Unavailable</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div>
-                        <Label htmlFor="is_featured">Featured Product</Label>
+                        <Label htmlFor="is_featured" className="text-xs">Featured</Label>
                         <Select name="is_featured" defaultValue={editingProduct.is_featured?.toString() || "false"}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="true">⭐ Show on Home Page</SelectItem>
-                            <SelectItem value="false">Regular Product</SelectItem>
+                            <SelectItem value="true">⭐ Yes</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1597,29 +1572,30 @@ export default function Products() {
                   </CardContent>
                 </Card>
 
-                <div className="flex gap-3 justify-end pt-6 border-t border-border/50">
+                <div className="flex gap-2 justify-end pt-4 border-t">
                   <Button 
                     type="button" 
-                    variant="outline" 
+                    variant="outline"
+                    size="sm"
                     onClick={() => setIsDialogOpen(false)}
-                    className="hover:bg-muted"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
+                    size="sm"
                     disabled={uploadingImage}
-                    className="gap-2 shadow-glow hover:scale-105 transition-transform"
+                    className="gap-2"
                   >
                     {uploadingImage ? (
                       <>
-                        <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+                        <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
                         Uploading...
                       </>
                     ) : (
                       <>
-                        <Package className="h-4 w-4" />
-                        Save Changes
+                        <Package className="h-3 w-3" />
+                        Save
                       </>
                     )}
                   </Button>
