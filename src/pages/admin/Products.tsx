@@ -611,50 +611,67 @@ export default function Products() {
   console.log('Admin: Total products:', products.length, 'Filtered:', filteredProducts.length, 'Search:', searchQuery);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Product Management</h1>
-          <div className="flex gap-2">
-            <ReturnToPOSButton inline />
-            <Button
-              onClick={handleAdd}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Product
-            </Button>
-            {selectedProducts.size > 0 && (
-              <Button 
-                onClick={handleBulkDelete}
-                variant="destructive"
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Selected ({selectedProducts.size})
-              </Button>
-            )}
-            <Button 
-              onClick={handleEnrichAll}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              Enrich All Products
-            </Button>
+        {/* Modern Header with Gradient */}
+        <div className="mb-8 relative">
+          <div className="absolute inset-0 bg-gradient-primary opacity-5 rounded-2xl blur-3xl"></div>
+          <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 shadow-lg">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+                  Product Management
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Manage your inventory with ease • {filteredProducts.length} products
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <ReturnToPOSButton inline />
+                <Button
+                  onClick={handleAdd}
+                  className="gap-2 shadow-glow hover:scale-105 transition-transform"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Product
+                </Button>
+                {selectedProducts.size > 0 && (
+                  <Button 
+                    onClick={handleBulkDelete}
+                    variant="destructive"
+                    className="gap-2 hover:scale-105 transition-transform"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete ({selectedProducts.size})
+                  </Button>
+                )}
+                <Button 
+                  onClick={handleEnrichAll}
+                  className="gap-2 shadow-glow hover:scale-105 transition-transform"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI Enrich
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mb-6 space-y-4">
-          {/* Filters Section */}
-          <Card>
-            <CardContent className="p-4">
+        <div className="mb-8 space-y-4">
+          {/* Modern Filters Section */}
+          <Card className="border-border/50 shadow-md hover:shadow-lg transition-shadow bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="h-8 w-1 bg-gradient-primary rounded-full"></div>
+                <h3 className="font-semibold text-lg">Filter Products</h3>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div>
-                  <Label htmlFor="filter-category" className="text-xs font-medium">Category</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-category" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category</Label>
                   <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger id="filter-category">
+                    <SelectTrigger id="filter-category" className="border-border/50 hover:border-primary/50 transition-colors">
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
@@ -666,10 +683,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="filter-store" className="text-xs font-medium">Store</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-store" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Store</Label>
                   <Select value={filterStore} onValueChange={setFilterStore}>
-                    <SelectTrigger id="filter-store">
+                    <SelectTrigger id="filter-store" className="border-border/50 hover:border-primary/50 transition-colors">
                       <SelectValue placeholder="All Stores" />
                     </SelectTrigger>
                     <SelectContent>
@@ -681,10 +698,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="filter-availability" className="text-xs font-medium">Availability</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-availability" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Availability</Label>
                   <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                    <SelectTrigger id="filter-availability">
+                    <SelectTrigger id="filter-availability" className="border-border/50 hover:border-primary/50 transition-colors">
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -695,10 +712,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="filter-featured" className="text-xs font-medium">Featured</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-featured" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Featured</Label>
                   <Select value={filterFeatured} onValueChange={setFilterFeatured}>
-                    <SelectTrigger id="filter-featured">
+                    <SelectTrigger id="filter-featured" className="border-border/50 hover:border-primary/50 transition-colors">
                       <SelectValue placeholder="All Products" />
                     </SelectTrigger>
                     <SelectContent>
@@ -709,10 +726,10 @@ export default function Products() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="filter-stock" className="text-xs font-medium">Stock Level</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-stock" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock Level</Label>
                   <Select value={filterStock} onValueChange={setFilterStock}>
-                    <SelectTrigger id="filter-stock">
+                    <SelectTrigger id="filter-stock" className="border-border/50 hover:border-primary/50 transition-colors">
                       <SelectValue placeholder="All Stock" />
                     </SelectTrigger>
                     <SelectContent>
@@ -726,7 +743,7 @@ export default function Products() {
 
               {/* Clear Filters Button */}
               {(filterCategory !== "all" || filterStore !== "all" || filterAvailability !== "all" || filterFeatured !== "all" || filterStock !== "all") && (
-                <div className="mt-3">
+                <div className="mt-4 pt-4 border-t border-border/50">
                   <Button 
                     type="button" 
                     variant="outline" 
@@ -738,7 +755,9 @@ export default function Products() {
                       setFilterFeatured("all");
                       setFilterStock("all");
                     }}
+                    className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
                   >
+                    <X className="h-4 w-4 mr-2" />
                     Clear All Filters
                   </Button>
                 </div>
@@ -746,72 +765,95 @@ export default function Products() {
             </CardContent>
           </Card>
 
-          {/* Search Bar */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search products by name, description, or category..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* Modern Search Bar */}
+          <div className="relative max-w-2xl">
+            <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-xl rounded-full"></div>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+              <Input
+                type="search"
+                placeholder="Search products by name, description, or category..."
+                className="pl-12 h-12 border-border/50 bg-background/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow focus:border-primary"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
+          
+          {/* Select All with Modern Styling */}
           {filteredProducts.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border/50 backdrop-blur-sm">
               <Checkbox 
                 id="select-all"
                 checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
                 onCheckedChange={toggleSelectAll}
+                className="data-[state=checked]:bg-gradient-primary"
               />
-              <Label htmlFor="select-all" className="text-sm font-normal cursor-pointer">
-                Select All ({filteredProducts.length} products)
+              <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer flex-1">
+                Select All Products
               </Label>
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+              </span>
             </div>
           )}
+          
           {searchQuery && (
-            <p className="text-sm text-muted-foreground">
-              Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-1 w-1 rounded-full bg-primary animate-pulse"></div>
+              Found {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} matching "{searchQuery}"
+            </div>
           )}
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {filteredProducts.map((product) => (
-            <Card key={product.id}>
+            <Card 
+              key={product.id} 
+              className="group border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-card/50 backdrop-blur-sm overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <CardContent className="p-6">
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-6">
                   <Checkbox
                     checked={selectedProducts.has(product.id)}
                     onCheckedChange={() => toggleProductSelection(product.id)}
-                    className="mt-1"
+                    className="mt-1 data-[state=checked]:bg-gradient-primary"
                   />
                   {product.image_url ? (
-                    <img 
-                      src={product.image_url} 
-                      alt={product.name}
-                      className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                    />
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow">
+                      <img 
+                        src={product.image_url} 
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                    </div>
                   ) : (
-                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center text-4xl flex-shrink-0">
+                    <div className="w-24 h-24 bg-gradient-subtle rounded-xl flex items-center justify-center text-5xl flex-shrink-0 shadow-md group-hover:shadow-xl transition-shadow">
                       📦
                     </div>
                   )}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-xl font-semibold">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {product.categories?.name} • {product.stores?.name}
-                        </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-3 gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold mb-1 truncate group-hover:text-primary transition-colors">{product.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md font-medium">
+                            {product.categories?.name}
+                          </span>
+                          <span className="text-muted-foreground/50">•</span>
+                          <span>{product.stores?.name}</span>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleEnrichProduct(product)}
                           disabled={enrichingIds.has(product.id)}
                           title="Add AI description and image"
+                          className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
                         >
                           <Sparkles className={`h-4 w-4 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
                         </Button>
@@ -819,6 +861,7 @@ export default function Products() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleEdit(product)}
+                          className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -826,50 +869,58 @@ export default function Products() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDelete(product.id)}
+                          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                     {product.description && (
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                         {product.description}
                       </p>
                     )}
                     <div className="flex flex-wrap gap-3 text-sm">
                       {product.product_variants && product.product_variants.length > 0 ? (
                         <>
-                          <span className="font-semibold text-primary">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold">
+                            <Grid3x3 className="h-4 w-4" />
                             {product.product_variants.length} variant{product.product_variants.length > 1 ? 's' : ''}
-                          </span>
-                          <span>
+                          </div>
+                          <div className="px-3 py-1.5 bg-muted rounded-lg font-semibold">
                             {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
-                          </span>
+                          </div>
                         </>
                       ) : (
                         <>
-                          <span className="font-semibold text-primary">
+                          <div className="px-3 py-1.5 bg-gradient-primary text-primary-foreground rounded-lg font-bold shadow-glow">
                             {formatCurrency(product.price)}
-                          </span>
-                          <span>Unit: {product.unit}</span>
-                          <span className={`font-semibold ${
+                          </div>
+                          <div className="px-3 py-1.5 bg-muted rounded-lg font-medium">
+                            Unit: {product.unit}
+                          </div>
+                          <div className={`px-3 py-1.5 rounded-lg font-semibold shadow-sm ${
                             (product.stock_quantity || 0) < 0 
-                              ? 'text-red-600' 
+                              ? 'bg-destructive/10 text-destructive' 
                               : (product.stock_quantity || 0) > 0 
-                              ? 'text-green-600' 
-                              : 'text-muted-foreground'
+                              ? 'bg-success/10 text-success' 
+                              : 'bg-muted text-muted-foreground'
                           }`}>
                             Stock: {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
-                          </span>
+                          </div>
                         </>
                       )}
-                      <span className={product.is_available ? "text-green-600" : "text-red-600"}>
-                        {product.is_available ? "Available" : "Unavailable"}
-                      </span>
+                      <div className={`px-3 py-1.5 rounded-lg font-medium shadow-sm ${
+                        product.is_available 
+                          ? "bg-success/10 text-success" 
+                          : "bg-destructive/10 text-destructive"
+                      }`}>
+                        {product.is_available ? "✓ Available" : "✗ Unavailable"}
+                      </div>
                       {product.is_featured && (
-                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                          Featured
-                        </span>
+                        <div className="px-3 py-1.5 bg-gradient-accent text-accent-foreground rounded-lg font-medium shadow-glow flex items-center gap-1">
+                          ⭐ Featured
+                        </div>
                       )}
                     </div>
                   </div>
@@ -880,28 +931,55 @@ export default function Products() {
         </div>
 
         {filteredProducts.length === 0 && (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <p className="text-muted-foreground">
-                {searchQuery ? `No products found matching "${searchQuery}"` : "No products found"}
-              </p>
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-16 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-subtle flex items-center justify-center text-5xl shadow-lg">
+                  📦
+                </div>
+                <h3 className="text-xl font-bold mb-2">
+                  {searchQuery ? `No products found` : "No products yet"}
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchQuery 
+                    ? `No products matching "${searchQuery}". Try adjusting your search or filters.`
+                    : "Get started by adding your first product to the inventory."
+                  }
+                </p>
+                {!searchQuery && (
+                  <Button onClick={handleAdd} className="gap-2 shadow-glow">
+                    <Plus className="h-4 w-4" />
+                    Add Your First Product
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-sm border-border/50">
             <DialogHeader>
-              <DialogTitle className="text-2xl">{isAddingNew ? 'Add New Product' : 'Edit Product'}</DialogTitle>
+              <DialogTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                {isAddingNew ? '✨ Add New Product' : '✏️ Edit Product'}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isAddingNew ? 'Fill in the details to add a new product to your inventory' : 'Update product information'}
+              </p>
             </DialogHeader>
             {editingProduct && (
-              <form onSubmit={handleSave} className="space-y-6">
+              <form onSubmit={handleSave} className="space-y-6 mt-6">
                 {/* Basic Information Section */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Package className="h-5 w-5 text-primary" />
-                      Basic Information
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
+                        <Package className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Basic Information</div>
+                        <div className="text-xs text-muted-foreground font-normal">Product name and description</div>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -930,11 +1008,16 @@ export default function Products() {
                 </Card>
 
                 {/* Product Image Section */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Upload className="h-5 w-5 text-primary" />
-                      Product Image
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
+                        <Upload className="h-5 w-5 text-accent-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Product Image</div>
+                        <div className="text-xs text-muted-foreground font-normal">Upload or link product photo</div>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -993,11 +1076,16 @@ export default function Products() {
                 </Card>
 
                 {/* Pricing Section */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <span className="text-primary">₣</span>
-                      Pricing & Unit
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
+                        <span className="text-xl font-bold text-primary-foreground">₣</span>
+                      </div>
+                      <div>
+                        <div className="font-bold">Pricing & Unit</div>
+                        <div className="text-xs text-muted-foreground font-normal">Set pricing and measurement unit</div>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -1070,48 +1158,51 @@ export default function Products() {
                 </Card>
 
                 {/* Product Variants Section */}
-                <Card>
-                  <CardHeader className="pb-3">
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Grid3x3 className="h-5 w-5 text-primary" />
-                        Product Variants
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
+                          <Grid3x3 className="h-5 w-5 text-accent-foreground" />
+                        </div>
+                        <div>
+                          <div className="font-bold">Product Variants</div>
+                          <div className="text-xs text-muted-foreground font-normal">Add different sizes or packaging</div>
+                        </div>
                       </CardTitle>
                       <Button 
                         type="button" 
                         size="sm" 
                         onClick={() => setShowVariants(!showVariants)} 
                         variant="ghost"
+                        className="hover:bg-primary/10"
                       >
                         {showVariants ? 'Hide' : 'Show'} ({variants.length})
                       </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Add different sizes, weights, or packaging options
-                    </p>
                   </CardHeader>
                   
                   {showVariants && (
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4 pt-4">
                       {variants.map((variant, index) => (
-                        <Card key={variant.id} className="border-2">
-                          <CardContent className="p-4 space-y-3">
+                        <Card key={variant.id} className="border-2 border-primary/20 bg-gradient-subtle hover:border-primary/40 transition-colors">
+                          <CardContent className="p-4 space-y-4">
                             <div className="grid grid-cols-12 gap-3">
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Quantity</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Quantity</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.quantity || ''}
                                   onChange={(e) => updateVariant(index, 'quantity', parseFloat(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="500"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Unit</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Unit</Label>
                                 <Select value={variant.unit} onValueChange={(value) => updateVariant(index, 'unit', value)}>
-                                  <SelectTrigger className="h-9">
+                                  <SelectTrigger className="h-10 border-border/50">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1127,63 +1218,63 @@ export default function Products() {
                                 </Select>
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Retail Price</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Retail Price</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.price}
                                   onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Wholesale Price</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Wholesale</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.wholesale_price || ''}
                                   onChange={(e) => updateVariant(index, 'wholesale_price', parseFloat(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">VIP Price</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">VIP Price</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.vip_price || ''}
                                   onChange={(e) => updateVariant(index, 'vip_price', parseFloat(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Cost Price</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Cost Price</Label>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   value={variant.cost_price || ''}
                                   onChange={(e) => updateVariant(index, 'cost_price', parseFloat(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="0.00"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-2">
-                                <Label className="text-xs font-medium">Stock</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Stock</Label>
                                 <Input
                                   type="number"
                                   value={variant.stock_quantity}
                                   onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
-                                  className="h-9"
+                                  className="h-10 border-border/50"
                                   placeholder="0"
                                 />
                               </div>
                               <div className="col-span-6 md:col-span-1">
-                                <Label className="text-xs font-medium">Active</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Active</Label>
                                 <Select value={variant.is_available.toString()} onValueChange={(value) => updateVariant(index, 'is_available', value === 'true')}>
-                                  <SelectTrigger className="h-9">
+                                  <SelectTrigger className="h-10 border-border/50">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1198,19 +1289,19 @@ export default function Products() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => removeVariant(index)}
-                                  className="h-9 w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  className="h-10 w-full text-destructive hover:text-destructive hover:bg-destructive/20"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
                             <div>
-                              <Label className="text-xs font-medium">Barcode</Label>
+                              <Label className="text-xs font-semibold text-muted-foreground uppercase">Barcode</Label>
                               <Input
                                 type="text"
                                 value={variant.barcode || ''}
                                 onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
-                                className="h-9"
+                                className="h-10 border-border/50"
                                 placeholder="Variant-specific barcode"
                               />
                             </div>
@@ -1222,7 +1313,7 @@ export default function Products() {
                         size="sm" 
                         onClick={addVariant} 
                         variant="outline" 
-                        className="w-full"
+                        className="w-full hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Variant
@@ -1232,11 +1323,16 @@ export default function Products() {
                 </Card>
 
                 {/* Inventory & Classification Section */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Search className="h-5 w-5 text-primary" />
-                      Inventory & Classification
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
+                        <Search className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Inventory & Classification</div>
+                        <div className="text-xs text-muted-foreground font-normal">Organize product details</div>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -1302,11 +1398,16 @@ export default function Products() {
                 </Card>
 
                 {/* Settings Section */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      Product Settings
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-accent flex items-center justify-center shadow-glow">
+                        <Sparkles className="h-5 w-5 text-accent-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Product Settings</div>
+                        <div className="text-xs text-muted-foreground font-normal">Availability and features</div>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1340,12 +1441,31 @@ export default function Products() {
                   </CardContent>
                 </Card>
 
-                <div className="flex gap-3 justify-end pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <div className="flex gap-3 justify-end pt-6 border-t border-border/50">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsDialogOpen(false)}
+                    className="hover:bg-muted"
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={uploadingImage}>
-                    {uploadingImage ? 'Uploading...' : 'Save Changes'}
+                  <Button 
+                    type="submit" 
+                    disabled={uploadingImage}
+                    className="gap-2 shadow-glow hover:scale-105 transition-transform"
+                  >
+                    {uploadingImage ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Package className="h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
