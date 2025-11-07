@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3 } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, LayoutGrid, LayoutList } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -87,6 +87,7 @@ export default function Products() {
   const [filterAvailability, setFilterAvailability] = useState<string>("all");
   const [filterFeatured, setFilterFeatured] = useState<string>("all");
   const [filterStock, setFilterStock] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   useEffect(() => {
     fetchProducts();
@@ -766,17 +767,41 @@ export default function Products() {
           </Card>
 
           {/* Modern Search Bar */}
-          <div className="relative max-w-2xl">
-            <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-xl rounded-full"></div>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-              <Input
-                type="search"
-                placeholder="Search products by name, description, or category..."
-                className="pl-12 h-12 border-border/50 bg-background/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow focus:border-primary"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-2xl">
+              <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-xl rounded-full"></div>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+                <Input
+                  type="search"
+                  placeholder="Search products by name, description, or category..."
+                  className="pl-12 h-12 border-border/50 bg-background/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow focus:border-primary"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg border border-border/50">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="gap-2"
+              >
+                <LayoutList className="h-4 w-4" />
+                <span className="hidden sm:inline">List</span>
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="gap-2"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="hidden sm:inline">Grid</span>
+              </Button>
             </div>
           </div>
           
@@ -806,22 +831,155 @@ export default function Products() {
           )}
         </div>
 
-        <div className="grid gap-6">
-          {filteredProducts.map((product) => (
-            <Card 
-              key={product.id} 
-              className="group border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-card/50 backdrop-blur-sm overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-6">
-                  <Checkbox
-                    checked={selectedProducts.has(product.id)}
-                    onCheckedChange={() => toggleProductSelection(product.id)}
-                    className="mt-1 data-[state=checked]:bg-gradient-primary"
-                  />
+        {/* Products Display - List or Grid */}
+        {viewMode === "list" ? (
+          <div className="grid gap-6">
+            {filteredProducts.map((product) => (
+              <Card 
+                key={product.id} 
+                className="group border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-card/50 backdrop-blur-sm overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-6">
+                    <Checkbox
+                      checked={selectedProducts.has(product.id)}
+                      onCheckedChange={() => toggleProductSelection(product.id)}
+                      className="mt-1 data-[state=checked]:bg-gradient-primary"
+                    />
+                    {product.image_url ? (
+                      <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow">
+                        <img 
+                          src={product.image_url} 
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 bg-gradient-subtle rounded-xl flex items-center justify-center text-5xl flex-shrink-0 shadow-md group-hover:shadow-xl transition-shadow">
+                        📦
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-3 gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold mb-1 truncate group-hover:text-primary transition-colors">{product.name}</h3>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md font-medium">
+                              {product.categories?.name}
+                            </span>
+                            <span className="text-muted-foreground/50">•</span>
+                            <span>{product.stores?.name}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEnrichProduct(product)}
+                            disabled={enrichingIds.has(product.id)}
+                            title="Add AI description and image"
+                            className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
+                          >
+                            <Sparkles className={`h-4 w-4 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(product)}
+                            className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDelete(product.id)}
+                            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      {product.description && (
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {product.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3 text-sm">
+                        {product.product_variants && product.product_variants.length > 0 ? (
+                          <>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold">
+                              <Grid3x3 className="h-4 w-4" />
+                              {product.product_variants.length} variant{product.product_variants.length > 1 ? 's' : ''}
+                            </div>
+                            <div className="px-3 py-1.5 bg-muted rounded-lg font-semibold">
+                              {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="px-3 py-1.5 bg-gradient-primary text-primary-foreground rounded-lg font-bold shadow-glow">
+                              {formatCurrency(product.price)}
+                            </div>
+                            <div className="px-3 py-1.5 bg-muted rounded-lg font-medium">
+                              Unit: {product.unit}
+                            </div>
+                            <div className={`px-3 py-1.5 rounded-lg font-semibold shadow-sm ${
+                              (product.stock_quantity || 0) < 0 
+                                ? 'bg-destructive/10 text-destructive' 
+                                : (product.stock_quantity || 0) > 0 
+                                ? 'bg-success/10 text-success' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}>
+                              Stock: {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
+                            </div>
+                          </>
+                        )}
+                        <div className={`px-3 py-1.5 rounded-lg font-medium shadow-sm ${
+                          product.is_available 
+                            ? "bg-success/10 text-success" 
+                            : "bg-destructive/10 text-destructive"
+                        }`}>
+                          {product.is_available ? "✓ Available" : "✗ Unavailable"}
+                        </div>
+                        {product.is_featured && (
+                          <div className="px-3 py-1.5 bg-gradient-accent text-accent-foreground rounded-lg font-medium shadow-glow flex items-center gap-1">
+                            ⭐ Featured
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <Card 
+                key={product.id} 
+                className="group border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-card/50 backdrop-blur-sm overflow-hidden flex flex-col"
+              >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <CardContent className="p-4 flex flex-col flex-1">
+                  <div className="flex items-start justify-between mb-3">
+                    <Checkbox
+                      checked={selectedProducts.has(product.id)}
+                      onCheckedChange={() => toggleProductSelection(product.id)}
+                      className="data-[state=checked]:bg-gradient-primary"
+                    />
+                    {product.is_featured && (
+                      <div className="px-2 py-0.5 bg-gradient-accent text-accent-foreground rounded-md text-xs font-medium shadow-glow">
+                        ⭐
+                      </div>
+                    )}
+                  </div>
+                  
                   {product.image_url ? (
-                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow">
+                    <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow mb-3">
                       <img 
                         src={product.image_url} 
                         alt={product.name}
@@ -830,105 +988,91 @@ export default function Products() {
                       <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-10 transition-opacity"></div>
                     </div>
                   ) : (
-                    <div className="w-24 h-24 bg-gradient-subtle rounded-xl flex items-center justify-center text-5xl flex-shrink-0 shadow-md group-hover:shadow-xl transition-shadow">
+                    <div className="w-full aspect-square bg-gradient-subtle rounded-xl flex items-center justify-center text-6xl shadow-md group-hover:shadow-xl transition-shadow mb-3">
                       📦
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-3 gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xl font-bold mb-1 truncate group-hover:text-primary transition-colors">{product.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md font-medium">
-                            {product.categories?.name}
-                          </span>
-                          <span className="text-muted-foreground/50">•</span>
-                          <span>{product.stores?.name}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEnrichProduct(product)}
-                          disabled={enrichingIds.has(product.id)}
-                          title="Add AI description and image"
-                          className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
-                        >
-                          <Sparkles className={`h-4 w-4 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(product)}
-                          className="hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(product.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  
+                  <div className="flex-1 flex flex-col">
+                    <h3 className="text-lg font-bold mb-1 line-clamp-2 group-hover:text-primary transition-colors min-h-[3.5rem]">
+                      {product.name}
+                    </h3>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md font-medium">
+                        {product.categories?.name}
+                      </span>
                     </div>
+                    
                     {product.description && (
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                         {product.description}
                       </p>
                     )}
-                    <div className="flex flex-wrap gap-3 text-sm">
+                    
+                    <div className="space-y-2 text-sm mt-auto">
                       {product.product_variants && product.product_variants.length > 0 ? (
                         <>
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold">
-                            <Grid3x3 className="h-4 w-4" />
-                            {product.product_variants.length} variant{product.product_variants.length > 1 ? 's' : ''}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-primary flex items-center gap-1">
+                              <Grid3x3 className="h-3 w-3" />
+                              {product.product_variants.length} variants
+                            </span>
                           </div>
-                          <div className="px-3 py-1.5 bg-muted rounded-lg font-semibold">
+                          <div className="text-sm font-bold">
                             {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="px-3 py-1.5 bg-gradient-primary text-primary-foreground rounded-lg font-bold shadow-glow">
+                          <div className="text-lg font-bold text-primary">
                             {formatCurrency(product.price)}
                           </div>
-                          <div className="px-3 py-1.5 bg-muted rounded-lg font-medium">
-                            Unit: {product.unit}
-                          </div>
-                          <div className={`px-3 py-1.5 rounded-lg font-semibold shadow-sm ${
-                            (product.stock_quantity || 0) < 0 
-                              ? 'bg-destructive/10 text-destructive' 
-                              : (product.stock_quantity || 0) > 0 
-                              ? 'bg-success/10 text-success' 
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                            Stock: {(product.stock_quantity || 0) < 0 ? '-' : ''}{Math.abs(product.stock_quantity || 0)}
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Stock: {Math.abs(product.stock_quantity || 0)}</span>
+                            <span className={`font-medium ${
+                              product.is_available ? "text-success" : "text-destructive"
+                            }`}>
+                              {product.is_available ? "✓" : "✗"}
+                            </span>
                           </div>
                         </>
                       )}
-                      <div className={`px-3 py-1.5 rounded-lg font-medium shadow-sm ${
-                        product.is_available 
-                          ? "bg-success/10 text-success" 
-                          : "bg-destructive/10 text-destructive"
-                      }`}>
-                        {product.is_available ? "✓ Available" : "✗ Unavailable"}
-                      </div>
-                      {product.is_featured && (
-                        <div className="px-3 py-1.5 bg-gradient-accent text-accent-foreground rounded-lg font-medium shadow-glow flex items-center gap-1">
-                          ⭐ Featured
-                        </div>
-                      )}
+                    </div>
+                    
+                    <div className="flex gap-1 mt-3 pt-3 border-t border-border/50">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEnrichProduct(product)}
+                        disabled={enrichingIds.has(product.id)}
+                        title="Add AI description and image"
+                        className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors h-8"
+                      >
+                        <Sparkles className={`h-3 w-3 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(product)}
+                        className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors h-8"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(product.id)}
+                        className="flex-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors h-8"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {filteredProducts.length === 0 && (
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
