@@ -1328,6 +1328,31 @@ export default function POS() {
       return;
     }
     
+    // Prepare transaction data BEFORE opening payment modal
+    const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
+    const transactionDataPrep = {
+      transactionNumber: 'Pending',
+      items: allItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price, // Original price
+        customPrice: item.customPrice, // Custom/modified price if any
+        itemDiscount: item.itemDiscount || 0,
+      })),
+      subtotal: calculateSubtotal(),
+      discount: cartDiscountAmount,
+      tax: 0,
+      total: total,
+      paymentMethod: "Pending",
+      cashierName: currentCashSession?.cashier_name || "Cashier",
+      storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
+      logoUrl: settings?.logo_url,
+      supportPhone: settings?.company_phone,
+    };
+    
+    setLastTransactionData(transactionDataPrep);
+    
     // Check if customer is selected and has custom prices
     if (selectedCustomer) {
       const itemsWithCustomPrices = cart.filter(item => 
