@@ -532,7 +532,8 @@ export default function POS() {
         .from('purchases')
         .select('total_amount, payment_method, payment_status')
         .eq('store_id', currentCashSession.store_id)
-        .gte('purchased_at', currentCashSession.opened_at);
+        .gte('purchased_at', currentCashSession.opened_at)
+        .lte('purchased_at', new Date().toISOString());
 
       return data || [];
     },
@@ -549,7 +550,8 @@ export default function POS() {
         .from('expenses')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', currentCashSession.opened_at)
+        .lte('created_at', new Date().toISOString());
 
       return data || [];
     },
