@@ -293,36 +293,63 @@ export default function AdminOrders() {
     if (!customerName || customerName === 'Walk-in Customer') return undefined;
 
     try {
-      // Find the contact by name
+      // Find the contact by name - check if they're both customer and supplier
       const { data: contact } = await supabase
         .from('contacts')
-        .select('customer_ledger_account_id')
+        .select('customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
         .eq('name', customerName)
         .maybeSingle();
 
-      if (!contact?.customer_ledger_account_id) return undefined;
+      if (!contact) return undefined;
 
-      // Get all posted journal entry lines for this account
-      const { data: lines } = await supabase
-        .from('journal_entry_lines')
-        .select(`
-          debit_amount,
-          credit_amount,
-          journal_entries!inner (
-            status
-          )
-        `)
-        .eq('account_id', contact.customer_ledger_account_id)
-        .eq('journal_entries.status', 'posted');
+      let totalBalance = 0;
 
-      if (!lines || lines.length === 0) return 0;
+      // Fetch customer balance if they are a customer
+      if (contact.is_customer && contact.customer_ledger_account_id) {
+        const { data: customerLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', contact.customer_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
 
-      // Calculate balance (for receivables: debit increases balance)
-      const balance = lines.reduce((sum, line) => {
-        return sum + (line.debit_amount - line.credit_amount);
-      }, 0);
+        if (customerLines && customerLines.length > 0) {
+          const customerBalance = customerLines.reduce((sum, line) => {
+            return sum + (line.debit_amount - line.credit_amount);
+          }, 0);
+          totalBalance += customerBalance;
+        }
+      }
 
-      return balance;
+      // Fetch supplier balance if they are also a supplier (unified balance)
+      if (contact.is_supplier && contact.supplier_ledger_account_id) {
+        const { data: supplierLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', contact.supplier_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
+
+        if (supplierLines && supplierLines.length > 0) {
+          const supplierBalance = supplierLines.reduce((sum, line) => {
+            return sum + (line.debit_amount - line.credit_amount);
+          }, 0);
+          // Supplier balance offsets customer balance for unified view
+          totalBalance -= supplierBalance;
+        }
+      }
+
+      return totalBalance;
     } catch (error) {
       console.error('Error fetching customer balance:', error);
       return undefined;

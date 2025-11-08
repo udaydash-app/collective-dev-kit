@@ -1566,22 +1566,24 @@ export default function POS() {
         return;
       }
 
-      // Fetch customer name and balance if customer_id exists
+      // Fetch customer name and balance if customer_id exists (unified if both customer and supplier)
       let customerName = undefined;
       let customerBalance = undefined;
       if (transaction.customer_id) {
         const { data: contact } = await supabase
           .from('contacts')
-          .select('name, customer_ledger_account_id')
+          .select('name, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
           .eq('id', transaction.customer_id)
           .maybeSingle();
 
         if (contact) {
           customerName = contact.name;
           
-          // Fetch customer balance
-          if (contact.customer_ledger_account_id) {
-            const { data: lines } = await supabase
+          let totalBalance = 0;
+
+          // Fetch customer balance if they are a customer
+          if (contact.is_customer && contact.customer_ledger_account_id) {
+            const { data: customerLines } = await supabase
               .from('journal_entry_lines')
               .select(`
                 debit_amount,
@@ -1593,14 +1595,38 @@ export default function POS() {
               .eq('account_id', contact.customer_ledger_account_id)
               .eq('journal_entries.status', 'posted');
 
-            if (lines && lines.length > 0) {
-              customerBalance = lines.reduce((sum, line) => {
+            if (customerLines && customerLines.length > 0) {
+              const custBalance = customerLines.reduce((sum, line) => {
                 return sum + (line.debit_amount - line.credit_amount);
               }, 0);
-            } else {
-              customerBalance = 0;
+              totalBalance += custBalance;
             }
           }
+
+          // Fetch supplier balance if they are also a supplier (unified balance)
+          if (contact.is_supplier && contact.supplier_ledger_account_id) {
+            const { data: supplierLines } = await supabase
+              .from('journal_entry_lines')
+              .select(`
+                debit_amount,
+                credit_amount,
+                journal_entries!inner (
+                  status
+                )
+              `)
+              .eq('account_id', contact.supplier_ledger_account_id)
+              .eq('journal_entries.status', 'posted');
+
+            if (supplierLines && supplierLines.length > 0) {
+              const suppBalance = supplierLines.reduce((sum, line) => {
+                return sum + (line.debit_amount - line.credit_amount);
+              }, 0);
+              // Supplier balance offsets customer balance for unified view
+              totalBalance -= suppBalance;
+            }
+          }
+
+          customerBalance = totalBalance;
         }
       }
 
