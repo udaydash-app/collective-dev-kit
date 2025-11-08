@@ -41,7 +41,7 @@ export default function AccountsReceivable() {
         contacts.map(async (contact) => {
           let totalBalance = contact.accounts?.current_balance || 0;
 
-          // If also a supplier, add their supplier balance (already negative if we owe them)
+          // If also a supplier, subtract their supplier balance (we owe them)
           if (contact.is_supplier && contact.supplier_ledger_account_id) {
             const { data: supplierAccount } = await supabase
               .from('accounts')
@@ -50,7 +50,7 @@ export default function AccountsReceivable() {
               .single();
 
             if (supplierAccount) {
-              totalBalance += supplierAccount.current_balance;
+              totalBalance -= supplierAccount.current_balance;
             }
           }
 

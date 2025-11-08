@@ -40,7 +40,7 @@ export default function AccountsPayable() {
         contacts.map(async (contact) => {
           let totalBalance = contact.accounts?.current_balance || 0;
 
-          // If also a customer, add their customer balance (positive reduces what we owe)
+          // If also a customer, subtract their customer balance (they owe us, reduces what we owe)
           if (contact.is_customer && contact.customer_ledger_account_id) {
             const { data: customerAccount } = await supabase
               .from('accounts')
@@ -49,7 +49,7 @@ export default function AccountsPayable() {
               .single();
 
             if (customerAccount) {
-              totalBalance += customerAccount.current_balance;
+              totalBalance -= customerAccount.current_balance;
             }
           }
 
