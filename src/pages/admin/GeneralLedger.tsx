@@ -198,6 +198,23 @@ export default function GeneralLedger() {
       if (selectedAccountInfo?.isUnified) {
         const { customerAccountId, supplierAccountId } = selectedAccountInfo;
         
+        // Fetch current balances for both accounts
+        const { data: customerAccount } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', customerAccountId)
+          .maybeSingle();
+        
+        const { data: supplierAccount } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', supplierAccountId)
+          .maybeSingle();
+        
+        const customerBalance = Number(customerAccount?.current_balance || 0);
+        const supplierBalance = Number(supplierAccount?.current_balance || 0);
+        const unifiedBalance = customerBalance + supplierBalance;
+        
         // Fetch lines from both customer and supplier accounts
         const { data: customerLines, error: customerError } = await supabase
           .from('journal_entry_lines')
@@ -249,7 +266,10 @@ export default function GeneralLedger() {
           account: { 
             account_name: selectedAccountInfo.account_name,
             account_type: 'unified',
-            isUnified: true
+            isUnified: true,
+            current_balance: unifiedBalance,
+            customer_balance: customerBalance,
+            supplier_balance: supplierBalance
           } 
         };
       }
@@ -548,7 +568,7 @@ export default function GeneralLedger() {
       {/* Account Summary */}
       {ledgerData?.account && (
         <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div>
               <p className="text-sm text-muted-foreground">Account</p>
               <p className="text-lg font-bold">
@@ -557,6 +577,23 @@ export default function GeneralLedger() {
               <Badge className="mt-1">
                 {(ledgerData.account as any).isUnified ? 'Combined Customer/Supplier' : ledgerData.account.account_type}
               </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Current Balance</p>
+              <p
+                className={`text-lg font-bold font-mono ${
+                  Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                {formatCurrency(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
+                {Number((ledgerData.account as any).current_balance || 0) < 0 && ' CR'}
+              </p>
+              {(ledgerData.account as any).isUnified && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  A/R: {formatCurrency((ledgerData.account as any).customer_balance || 0)} | 
+                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))} CR
+                </p>
+              )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Debits</p>
@@ -571,7 +608,7 @@ export default function GeneralLedger() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Balance</p>
+              <p className="text-sm text-muted-foreground">Period Change</p>
               <p
                 className={`text-lg font-bold font-mono ${
                   netChange >= 0 ? 'text-green-600' : 'text-red-600'
