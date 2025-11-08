@@ -164,8 +164,8 @@ export default function GeneralLedger() {
     const searchLower = searchValue.toLowerCase().trim();
     
     const filtered = accounts.filter((account) => {
-      // Skip child accounts (non-unified sub-accounts)
-      if (account.isChild && !account.isUnified && !account.isHeader) {
+      // Skip only header rows from search results
+      if (account.isHeader) {
         return false;
       }
       
