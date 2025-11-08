@@ -87,7 +87,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       let query = supabase
         .from('products')
         .select(`
-          *,
+          id,
+          name,
+          price,
+          barcode,
+          is_available,
+          stock_quantity,
+          cost_price,
           product_variants (
             id,
             label,
@@ -203,7 +209,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           is_default,
           barcode,
           product:products!inner (
-            *,
+            id,
+            name,
+            price,
+            barcode,
+            is_available,
+            stock_quantity,
+            cost_price,
             product_variants (
               id,
               label,
@@ -247,7 +259,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       const { data: productMatch, error: productError } = await supabase
         .from('products')
         .select(`
-          *,
+          id,
+          name,
+          price,
+          barcode,
+          is_available,
+          stock_quantity,
+          cost_price,
           product_variants (
             id,
             label,
@@ -333,13 +351,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
                 className="p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
                 onClick={() => handleProductSelect(product, true)}
               >
-                {product.image_url && (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                )}
                 <div className="flex-1">
                   <p className="font-medium">{product.name}</p>
                   <p className="text-sm text-muted-foreground">
