@@ -217,7 +217,7 @@ export function RefundDialog({
           discount: 0,
           tax: 0,
           total: refundMode === 'payment' ? -refundTotal : -netAmount,
-          payment_method: refundMode === 'payment' ? paymentMethod : 'exchange',
+          payment_method: refundMode === 'payment' ? paymentMethod : (netAmount < 0 ? paymentMethod : 'exchange'),
           items: cartItems.map(item => ({
             id: item.id,
             name: item.name,
@@ -370,6 +370,28 @@ export function RefundDialog({
               <ProductSearch
                 onProductSelect={handleAddExchangeProduct}
               />
+              
+              {/* Payment method for additional payment in exchange */}
+              {netAmount < 0 && exchangeItems.length > 0 && (
+                <div className="space-y-3 pt-3 border-t">
+                  <Label className="text-base">Payment Method for Additional Amount</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          <div className="flex items-center gap-2">
+                            <method.icon className="h-4 w-4" />
+                            {method.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               {exchangeItems.length > 0 && (
                 <Card>
