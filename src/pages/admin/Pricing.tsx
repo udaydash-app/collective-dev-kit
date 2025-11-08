@@ -387,18 +387,27 @@ export default function Pricing() {
     try {
       // Items are already an array, no need to parse
       const items = bill.items as any[];
-      const potentialIds: string[] = [];
-
-      items.forEach((item: any) => {
-        // Use productId (base product ID) if available, otherwise use id
-        const productId = item.productId || item.id;
-        if (productId) {
-          potentialIds.push(productId);
-        }
-      });
+      
+      // Extract product IDs, filtering out special items (combos, BOGOs, cart discounts)
+      const potentialIds = items
+        .filter((item: any) => {
+          // Skip special items
+          if (item.id === 'cart-discount') return false;
+          if (item.id && typeof item.id === 'string') {
+            if (item.id.startsWith('combo-')) return false;
+            if (item.id.startsWith('bogo-')) return false;
+            if (item.id.startsWith('multi-bogo-')) return false;
+          }
+          return true;
+        })
+        .map((item: any) => {
+          // Try to get product ID from productId or id field
+          return item.productId || item.id;
+        })
+        .filter((id: any) => id && typeof id === 'string');
 
       if (potentialIds.length === 0) {
-        toast.error('No products found in this bill');
+        toast.error('No valid products found in this bill (may only contain combo/BOGO items)');
         return;
       }
 
@@ -418,14 +427,22 @@ export default function Pricing() {
       const prices: Array<{ product_id: string; price: number }> = [];
 
       items.forEach((item: any) => {
+        // Skip special items
+        if (item.id === 'cart-discount') return;
+        if (item.id && typeof item.id === 'string') {
+          if (item.id.startsWith('combo-') || item.id.startsWith('bogo-') || item.id.startsWith('multi-bogo-')) return;
+        }
+
         const productId = item.productId || item.id;
-        const finalPrice = item.customPrice ?? item.price;
+        
+        // Calculate effective price: customPrice or price minus discount
+        const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
         
         // Only add if product exists and has a valid price
-        if (productId && validProductIds.has(productId) && finalPrice) {
+        if (productId && validProductIds.has(productId) && effectivePrice && effectivePrice > 0) {
           prices.push({
             product_id: productId,
-            price: finalPrice
+            price: effectivePrice
           });
         }
       });

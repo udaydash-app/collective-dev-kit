@@ -1357,10 +1357,11 @@ export default function POS() {
     
     setLastTransactionData(transactionDataPrep);
     
-    // Check if customer is selected and has custom prices
+    // Check if customer is selected and has custom prices or discounts
     if (selectedCustomer) {
       const itemsWithCustomPrices = cart.filter(item => 
-        item.customPrice !== undefined && item.customPrice !== item.price
+        (item.customPrice !== undefined && item.customPrice !== item.price) ||
+        (item.itemDiscount !== undefined && item.itemDiscount > 0)
       );
       
       if (itemsWithCustomPrices.length > 0) {
@@ -1377,7 +1378,8 @@ export default function POS() {
     
     try {
       const itemsWithCustomPrices = cart.filter(item => 
-        item.customPrice !== undefined && item.customPrice !== item.price
+        (item.customPrice !== undefined && item.customPrice !== item.price) ||
+        (item.itemDiscount !== undefined && item.itemDiscount > 0)
       );
       
       if (itemsWithCustomPrices.length === 0) {
@@ -1391,15 +1393,36 @@ export default function POS() {
         .from('customer_product_prices')
         .select('product_id')
         .eq('customer_id', selectedCustomer.id);
-
+      
       const existingProductIds = new Set(existingPrices?.map(p => p.product_id) || []);
       
-      // Prepare prices to insert/update
-      const pricesToUpsert = itemsWithCustomPrices.map(item => ({
-        customer_id: selectedCustomer.id,
-        product_id: item.id,
-        price: item.customPrice!,
-      }));
+      // Prepare prices to save - only for valid product IDs not already saved
+      const pricesToUpsert = itemsWithCustomPrices
+        .filter(item => {
+          // Exclude items without valid product IDs (combos, BOGOs, cart discounts)
+          return item.productId && 
+                 !item.id.startsWith('combo-') && 
+                 !item.id.startsWith('bogo-') && 
+                 !item.id.startsWith('multi-bogo-') &&
+                 item.id !== 'cart-discount' &&
+                 !existingProductIds.has(item.productId);
+        })
+        .map(item => {
+          // Calculate effective price: use customPrice if set, otherwise price minus discount
+          const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
+          return {
+            customer_id: selectedCustomer.id,
+            product_id: item.productId,
+            price: effectivePrice,
+          };
+        });
+
+      if (pricesToUpsert.length === 0) {
+        toast.info('No new custom prices to save (all items already have saved prices or are special items)');
+        setShowCustomPriceConfirm(false);
+        setShowPayment(true);
+        return;
+      }
 
       // Upsert prices
       const { error } = await supabase
@@ -1410,7 +1433,7 @@ export default function POS() {
 
       if (error) throw error;
       
-      toast.success(`Custom prices saved for ${itemsWithCustomPrices.length} product(s)`);
+      toast.success(`Custom prices saved for ${pricesToUpsert.length} product(s)`);
     } catch (error: any) {
       console.error('Error saving customer prices:', error);
       toast.error('Failed to save custom prices');
@@ -3058,18 +3081,21 @@ export default function POS() {
           <AlertDialogHeader>
             <AlertDialogTitle>Save Custom Prices?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have changed prices for some items in this cart. Would you like to save these custom prices to {selectedCustomer?.name}'s profile for future orders?
-              {cart.filter(item => item.customPrice !== undefined && item.customPrice !== item.price).length > 0 && (
+              You have changed prices or applied discounts for some items in this cart. Would you like to save these custom prices to {selectedCustomer?.name}'s profile for future orders?
+              {cart.filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0)).length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="font-semibold text-sm">Items with custom prices:</p>
+                  <p className="font-semibold text-sm">Items with custom prices/discounts:</p>
                   <ul className="list-disc list-inside text-sm">
                     {cart
-                      .filter(item => item.customPrice !== undefined && item.customPrice !== item.price)
-                      .map(item => (
-                        <li key={item.id}>
-                          {item.name}: {formatCurrency(item.price)} → {formatCurrency(item.customPrice!)}
-                        </li>
-                      ))}
+                      .filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0))
+                      .map(item => {
+                        const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
+                        return (
+                          <li key={item.id}>
+                            {item.name}: {formatCurrency(item.price)} → {formatCurrency(effectivePrice)}
+                          </li>
+                        );
+                      })}
                   </ul>
                 </div>
               )}
