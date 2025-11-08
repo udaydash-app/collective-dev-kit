@@ -62,7 +62,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("today");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);

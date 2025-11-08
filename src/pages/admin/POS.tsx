@@ -2707,42 +2707,7 @@ export default function POS() {
         <div className="flex gap-2 p-2 border-t bg-background">
           {/* Numeric Keypad - left side */}
           <div className="flex-1">
-            <div className="text-xs text-muted-foreground mb-2 px-2">
-              {keypadMode === 'cartDiscount' ? (
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-primary">Cart Discount Mode - Enter amount</span>
-                  <span className="font-semibold text-primary">
-                    {keypadInput || '0'}{isPercentMode ? '%' : ''}
-                  </span>
-                </div>
-              ) : selectedCartItemId ? (
-                <div className="flex items-center justify-between">
-                  <span>Selected: {cart.find(item => item.id === selectedCartItemId)?.name || 'Product'}</span>
-                  {keypadMode && (
-                    <span className="font-semibold text-primary">
-                      {keypadMode.toUpperCase()}: {keypadInput || '0'}{isPercentMode && keypadMode === 'discount' ? '%' : ''}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span>Select a product from cart or use CART DISC</span>
-              )}
-            </div>
-            <NumericKeypad
-              onNumberClick={handleKeypadNumber}
-              onQtyClick={handleKeypadQty}
-              onDiscountClick={handleKeypadDiscount}
-              onPriceClick={handleKeypadPrice}
-              onPercentClick={handleKeypadPercent}
-              onCartDiscountClick={handleKeypadCartDiscount}
-              onPayClick={handleCheckout}
-              onClear={handleKeypadClear}
-              onEnter={handleKeypadEnter}
-              disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
-              activeMode={keypadMode}
-              isPercentMode={isPercentMode}
-              payDisabled={cart.length === 0 || !selectedStoreId}
-            />
+            {/* Keypad section removed per user request */}
           </div>
 
           {/* Quick Actions Grid - 2 columns, right side */}

@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
-const priceSchema = z.number().positive().max(1000000);
+const priceSchema = z.number().nonnegative().max(1000000);
 const amountSchema = z.number().nonnegative().max(10000000);
 
 interface TransactionCartProps {
@@ -202,21 +202,21 @@ export const TransactionCart = ({
                     </TableCell>
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdatePrice ? (
-                        <Input
-                          type="number"
-                          value={item.customPrice ?? item.price}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            const newPrice = parseFloat(e.target.value);
-                            if (!isNaN(newPrice) && newPrice > 0) {
-                              handlePriceChange(item, newPrice);
-                            }
-                          }}
-                          className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                          min="0.01"
-                          step="0.01"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                          <Input
+                            type="number"
+                            value={item.customPrice ?? item.price}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              const newPrice = parseFloat(e.target.value);
+                              if (!isNaN(newPrice) && newPrice >= 0) {
+                                handlePriceChange(item, newPrice);
+                              }
+                            }}
+                            className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                            min="0"
+                            step="0.01"
+                            onClick={(e) => e.stopPropagation()}
+                          />
                       ) : !isCartDiscount ? (
                         <span className="text-[10px]">{formatCurrency(Math.abs(item.customPrice ?? item.price))}</span>
                       ) : (
