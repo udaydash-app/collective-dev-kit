@@ -164,6 +164,11 @@ export default function GeneralLedger() {
     const searchLower = searchValue.toLowerCase().trim();
     
     const filtered = accounts.filter((account) => {
+      // Skip child accounts (non-unified sub-accounts)
+      if (account.isChild && !account.isUnified && !account.isHeader) {
+        return false;
+      }
+      
       const accountName = (account.account_name || '').toLowerCase();
       const accountCode = (account.account_code || '').toLowerCase();
       const contactName = (account.contactName || '').toLowerCase();
