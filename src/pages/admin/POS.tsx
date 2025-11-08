@@ -1553,40 +1553,8 @@ export default function POS() {
         setEditingOrderType(null);
       }
       
-      // Save custom prices for products that had price changes
-      if (selectedCustomer?.id) {
-        const productsWithCustomPrices = cart.filter(item => 
-          item.customPrice !== undefined && 
-          item.customPrice !== item.price &&
-          item.productId // Only save for items with a base product ID
-        );
-        
-        if (productsWithCustomPrices.length > 0) {
-          try {
-            const customPriceRecords = productsWithCustomPrices.map(item => ({
-              customer_id: selectedCustomer.id,
-              product_id: item.productId, // Use base product ID
-              price: item.customPrice,
-            }));
-            
-            // Upsert custom prices (update if exists, insert if new)
-            const { error: priceError } = await supabase
-              .from('customer_product_prices')
-              .upsert(customPriceRecords, {
-                onConflict: 'customer_id,product_id',
-              });
-            
-            if (priceError) {
-              console.error('Error saving custom prices:', priceError);
-              toast.warning('Transaction successful, but custom prices could not be saved');
-            } else {
-              toast.success(`Custom prices saved for ${productsWithCustomPrices.length} product(s)`);
-            }
-          } catch (error) {
-            console.error('Error saving custom prices:', error);
-          }
-        }
-      }
+      // Custom prices are handled by the confirmation dialog before payment
+      // No automatic saving here to respect user's choice
       
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
