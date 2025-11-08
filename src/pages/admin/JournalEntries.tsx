@@ -22,7 +22,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Check, Eye, Edit, AlertTriangle, ChevronsUpDown } from 'lucide-react';
+import { Plus, Trash2, Check, Eye, Edit, AlertTriangle, ChevronsUpDown, CalendarIcon, X } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +83,12 @@ export default function JournalEntries() {
 
   const [lines, setLines] = useState<JournalLine[]>([]);
   const [openAccountPopovers, setOpenAccountPopovers] = useState<{ [key: number]: boolean }>({});
+  
+  // Date filter state
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
 
   const { data: accounts } = useQuery({
     queryKey: ['accounts-active'],
@@ -326,6 +334,30 @@ export default function JournalEntries() {
   const totalDebit = lines.reduce((sum, line) => sum + line.debit_amount, 0);
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+
+  // Filter journal entries by date range
+  const filteredEntries = journalEntries?.filter((entry: any) => {
+    if (!startDate && !endDate) return true;
+    
+    const entryDate = startOfDay(new Date(entry.entry_date));
+    
+    if (startDate && endDate) {
+      return isWithinInterval(entryDate, {
+        start: startOfDay(startDate),
+        end: endOfDay(endDate)
+      });
+    }
+    
+    if (startDate) {
+      return entryDate >= startOfDay(startDate);
+    }
+    
+    if (endDate) {
+      return entryDate <= endOfDay(endDate);
+    }
+    
+    return true;
+  });
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -583,6 +615,84 @@ export default function JournalEntries() {
         </div>
       </div>
 
+      {/* Date Filters */}
+      <Card className="p-4">
+        <div className="flex items-end gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <Label>Start Date</Label>
+            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(date) => {
+                    setStartDate(date);
+                    setStartDateOpen(false);
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <Label>End Date</Label>
+            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(date) => {
+                    setEndDate(date);
+                    setEndDateOpen(false);
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {(startDate || endDate) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStartDate(undefined);
+                setEndDate(undefined);
+              }}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+      </Card>
+
       {/* Entries List */}
       <Card>
         <Table>
@@ -604,14 +714,14 @@ export default function JournalEntries() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : journalEntries?.length === 0 ? (
+            ) : filteredEntries?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">
-                  No journal entries found
+                  {startDate || endDate ? 'No journal entries found for the selected date range' : 'No journal entries found'}
                 </TableCell>
               </TableRow>
             ) : (
-              journalEntries?.map((entry: any) => (
+              filteredEntries?.map((entry: any) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-mono">{entry.entry_number}</TableCell>
                   <TableCell>{new Date(entry.entry_date).toLocaleDateString()}</TableCell>
