@@ -218,15 +218,17 @@ export function RefundDialog({
           tax: 0,
           total: refundMode === 'payment' ? -refundTotal : -netAmount,
           payment_method: refundMode === 'payment' ? paymentMethod : 'exchange',
-          items: {
-            refunded: cartItems.map(item => ({
-              id: item.id,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.customPrice ?? item.price,
-              itemDiscount: item.itemDiscount || 0,
-            })),
-            exchanged: refundMode === 'exchange' ? exchangeItems.map(item => ({
+          items: cartItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: -item.quantity, // Negative for refunds
+            price: item.customPrice ?? item.price,
+            itemDiscount: item.itemDiscount || 0,
+          })),
+          metadata: {
+            is_refund: true,
+            refund_mode: refundMode,
+            exchanged_items: refundMode === 'exchange' ? exchangeItems.map(item => ({
               id: item.id,
               name: item.name,
               quantity: item.quantity,
