@@ -252,6 +252,7 @@ export default function AdminOrders() {
           id: transaction.id,
           order_number: transaction.transaction_number,
           customer_name: transaction.customer_id ? customerMap.get(transaction.customer_id) || 'Walk-in Customer' : 'Walk-in Customer',
+          customer_id: transaction.customer_id,
           stores: transaction.stores,
           store_id: transaction.store_id,
           total: transaction.total,
