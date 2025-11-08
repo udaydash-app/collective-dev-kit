@@ -569,7 +569,7 @@ export default function GeneralLedger() {
       {/* Account Summary */}
       {ledgerData?.account && (
         <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <p className="text-sm text-muted-foreground">Account</p>
               <p className="text-lg font-bold">
@@ -606,17 +606,6 @@ export default function GeneralLedger() {
               <p className="text-sm text-muted-foreground">Total Credits</p>
               <p className="text-lg font-bold font-mono">
                 {formatCurrency(Number(totalCredit))}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Period Change</p>
-              <p
-                className={`text-lg font-bold font-mono ${
-                  netChange >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {formatCurrency(Math.abs(netChange))}
-                {netChange < 0 && ' CR'}
               </p>
             </div>
           </div>
