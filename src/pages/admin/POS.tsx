@@ -687,9 +687,12 @@ export default function POS() {
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', currentCashSession.opened_at)
+        .lte('journal_entries.created_at', new Date().toISOString())
         .not('journal_entries.reference', 'like', 'POS-%')
         .not('journal_entries.reference', 'like', 'PMT-%')
+        .not('journal_entries.reference', 'like', 'PUR-%')
         .not('journal_entries.description', 'like', 'Purchase -%')
+        .not('journal_entries.description', 'like', 'Payment for Purchase%')
         .not('journal_entries.description', 'like', 'Expense -%')
         .not('journal_entries.description', 'like', 'Supplier Payment -%');
       
