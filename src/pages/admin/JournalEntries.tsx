@@ -618,7 +618,7 @@ export default function JournalEntries() {
                   <TableCell>{entry.description}</TableCell>
                   <TableCell>{entry.reference || '-'}</TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(entry.total_debit)}
+                    {formatCurrency(entry.transaction_amount || entry.total_debit)}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -770,7 +770,7 @@ export default function JournalEntries() {
                 <div className="mt-2 p-2 bg-muted rounded text-sm">
                   <p><strong>Entry #:</strong> {entryToDelete.entry_number}</p>
                   <p><strong>Description:</strong> {entryToDelete.description}</p>
-                  <p><strong>Amount:</strong> {formatCurrency(entryToDelete.total_debit)}</p>
+                  <p><strong>Amount:</strong> {formatCurrency(entryToDelete.transaction_amount || entryToDelete.total_debit)}</p>
                 </div>
               )}
               <p className="mt-2 text-destructive font-semibold">

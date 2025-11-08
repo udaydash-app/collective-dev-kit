@@ -956,6 +956,7 @@ export type Database = {
           status: string
           total_credit: number
           total_debit: number
+          transaction_amount: number | null
           updated_at: string
         }
         Insert: {
@@ -972,6 +973,7 @@ export type Database = {
           status?: string
           total_credit?: number
           total_debit?: number
+          transaction_amount?: number | null
           updated_at?: string
         }
         Update: {
@@ -988,6 +990,7 @@ export type Database = {
           status?: string
           total_credit?: number
           total_debit?: number
+          transaction_amount?: number | null
           updated_at?: string
         }
         Relationships: []
