@@ -12,6 +12,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -73,6 +83,8 @@ export default function Pricing() {
   const [customerDiscountPercentage, setCustomerDiscountPercentage] = useState<string>('');
   const [showImportBillsDialog, setShowImportBillsDialog] = useState(false);
   const [selectedBill, setSelectedBill] = useState<string | null>(null);
+  const [showImportConfirmDialog, setShowImportConfirmDialog] = useState(false);
+  const [importPricesData, setImportPricesData] = useState<Array<{ product_id: string; product_name: string; price: number }>>([]);
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -420,7 +432,10 @@ export default function Pricing() {
       }
 
       const validProductIds = new Set(existingProducts?.map(p => p.id) || []);
-      const prices: Array<{ product_id: string; price: number }> = [];
+      
+      // Create a map of product IDs to product names for display
+      const productMap = new Map(existingProducts?.map(p => [p.id, p]) || []);
+      const prices: Array<{ product_id: string; product_name: string; price: number }> = [];
 
       items.forEach((item: any) => {
         // Skip special items
@@ -436,8 +451,11 @@ export default function Pricing() {
         
         // Only add if product exists and has a valid price
         if (productId && validProductIds.has(productId) && effectivePrice && effectivePrice > 0) {
+          // Get product name from the item or from products data
+          const productName = item.name || products?.find(p => p.id === productId)?.name || 'Unknown Product';
           prices.push({
             product_id: productId,
+            product_name: productName,
             price: effectivePrice
           });
         }
@@ -448,20 +466,39 @@ export default function Pricing() {
         return;
       }
 
-      const skippedCount = items.length - prices.length;
-      await updateCustomerPricesMutation.mutateAsync(prices);
-      
-      let message = `Imported ${prices.length} product${prices.length === 1 ? '' : 's'} from bill`;
-      if (skippedCount > 0) {
-        message += ` (${skippedCount} skipped - product no longer exists)`;
-      }
-      toast.success(message);
-      
-      setShowImportBillsDialog(false);
-      setSelectedBill(null);
+      // Store the prepared data and show confirmation dialog
+      setImportPricesData(prices);
+      setShowImportConfirmDialog(true);
     } catch (error: any) {
       console.error('Import bill error:', error);
       toast.error('Failed to import bill: ' + error.message);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    try {
+      // Remove product_name from the data before sending to mutation
+      const pricesToSave = importPricesData.map(({ product_id, price }) => ({
+        product_id,
+        price
+      }));
+      
+      await updateCustomerPricesMutation.mutateAsync(pricesToSave);
+      
+      const skippedCount = (customerBills?.find(b => b.id === selectedBill)?.items as any[])?.length - importPricesData.length || 0;
+      let message = `Imported ${importPricesData.length} product${importPricesData.length === 1 ? '' : 's'} from bill`;
+      if (skippedCount > 0) {
+        message += ` (${skippedCount} skipped - special items or deleted products)`;
+      }
+      toast.success(message);
+      
+      setShowImportConfirmDialog(false);
+      setShowImportBillsDialog(false);
+      setSelectedBill(null);
+      setImportPricesData([]);
+    } catch (error: any) {
+      console.error('Import confirmation error:', error);
+      toast.error('Failed to import prices: ' + error.message);
     }
   };
 
@@ -994,6 +1031,49 @@ export default function Pricing() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Import Confirmation Dialog */}
+      <AlertDialog open={showImportConfirmDialog} onOpenChange={setShowImportConfirmDialog}>
+        <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Import Prices</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following {importPricesData.length} product price{importPricesData.length === 1 ? '' : 's'} will be added or updated for {selectedCustomerData?.name}:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex-1 overflow-y-auto my-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importPricesData.map((item) => (
+                  <TableRow key={item.product_id}>
+                    <TableCell>{item.product_name}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(item.price)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowImportConfirmDialog(false);
+              setImportPricesData([]);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmImport}>
+              Confirm Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
