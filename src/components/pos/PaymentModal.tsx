@@ -88,6 +88,50 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     enabled: customerSearch.length > 0,
   });
 
+  // Fetch customer balance when customer is selected
+  const { data: customerBalance } = useQuery({
+    queryKey: ['customer-balance', selectedCustomer],
+    queryFn: async () => {
+      if (!selectedCustomer) return 0;
+      
+      const customer = customers?.find(c => c.id === selectedCustomer);
+      if (!customer) return 0;
+
+      let totalBalance = 0;
+
+      // Get customer account balance
+      if (customer.customer_ledger_account_id) {
+        const { data: customerAccount } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', customer.customer_ledger_account_id)
+          .single();
+        
+        if (customerAccount) {
+          totalBalance = Number(customerAccount.current_balance);
+        }
+      }
+
+      // If also a supplier, subtract supplier balance
+      if (customer.is_supplier && customer.supplier_ledger_account_id) {
+        const { data: supplierAccount } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', customer.supplier_ledger_account_id)
+          .single();
+        
+        if (supplierAccount) {
+          totalBalance -= Number(supplierAccount.current_balance);
+        }
+      }
+
+      return totalBalance;
+    },
+    enabled: !!selectedCustomer,
+  });
+
+  const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
+
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
   });
@@ -137,6 +181,9 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (transactionData.cashierName) {
       message += `Cashier: ${transactionData.cashierName}\n`;
     }
+    if (selectedCustomerData) {
+      message += `Customer: ${selectedCustomerData.name}\n`;
+    }
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `*ITEMS*\n\n${itemsList}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -149,6 +196,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
     message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
     message += `Payment: ${transactionData.paymentMethod}\n`;
+    if (selectedCustomerData && customerBalance !== undefined) {
+      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `Customer Balance: ${formatCurrency(customerBalance)}\n`;
+    }
     if (transactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
       message += `Support: ${transactionData.supportPhone}\n`;
@@ -508,9 +559,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               paymentMethod={transactionData.paymentMethod}
               date={new Date()}
               cashierName={transactionData.cashierName}
+              customerName={selectedCustomerData?.name}
               storeName={transactionData.storeName}
               logoUrl={transactionData.logoUrl}
               supportPhone={transactionData.supportPhone}
+              customerBalance={customerBalance}
             />
           )}
         </div>
