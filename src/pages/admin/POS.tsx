@@ -1330,9 +1330,11 @@ export default function POS() {
         id: item.id,
         name: item.name,
         quantity: item.quantity,
-        price: item.price, // Original price
+        price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
+        isCombo: item.isCombo,
+        comboItems: item.comboItems,
       })),
       subtotal: calculateSubtotal(),
       discount: cartDiscountAmount,
@@ -1423,9 +1425,11 @@ export default function POS() {
         id: item.id,
         name: item.name,
         quantity: item.quantity,
-        price: item.price, // Original price
+        price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
+        isCombo: item.isCombo,
+        comboItems: item.comboItems,
       })),
       subtotal: calculateSubtotal(),
       discount: cartDiscountAmount,
@@ -1664,8 +1668,11 @@ export default function POS() {
           id: item.id || 'unknown',
           name: item.name || 'Unknown Item',
           quantity: item.quantity || 1,
-          price: (item.customPrice ?? item.price) || 0, // Use custom price if available
+          price: item.customPrice !== undefined ? item.customPrice : (item.price !== undefined ? item.price : 0), // Preserve negative prices for cart-discount
+          customPrice: item.customPrice,
           itemDiscount: item.itemDiscount || 0,
+          isCombo: item.isCombo,
+          comboItems: item.comboItems,
         })),
         subtotal: parseFloat(transaction.subtotal?.toString() || '0'),
         discount: parseFloat(transaction.discount?.toString() || '0'),

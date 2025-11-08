@@ -942,10 +942,12 @@ export const usePOSTransaction = () => {
         productId: item.productId, // Base product ID for custom pricing
         name: item.name,
         quantity: item.quantity,
-        price: item.price, // Original price
+        price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
         barcode: item.barcode,
+        isCombo: item.isCombo,
+        comboItems: item.comboItems,
       }));
 
       const transactionData = {
@@ -1106,10 +1108,12 @@ export const usePOSTransaction = () => {
             productId: item.productId, // Base product ID for custom pricing
             name: item.name,
             quantity: item.quantity,
-            price: item.price, // Original price
+            price: item.price, // Original price (can be negative for cart-discount)
             customPrice: item.customPrice, // Custom/modified price if any
             itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode,
+            isCombo: item.isCombo,
+            comboItems: item.comboItems,
           }));
           
           const finalDiscountOffline = discountOverride !== undefined ? discountOverride : discount;

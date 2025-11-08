@@ -91,7 +91,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           {items.map((item, index) => {
             const isCartDiscount = item.id === 'cart-discount';
             const isCombo = item.isCombo;
-            const effectivePrice = item.customPrice ?? item.price;
+            // For cart-discount items, price is already negative, so use it directly
+            const effectivePrice = isCartDiscount ? item.price : (item.customPrice ?? item.price);
             const itemTotal = effectivePrice * item.quantity;
             const discountAmount = (item.itemDiscount || 0) * item.quantity;
             const finalAmount = itemTotal - discountAmount;
