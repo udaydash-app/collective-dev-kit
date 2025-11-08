@@ -1038,7 +1038,8 @@ export default function POS() {
 
       const expectedCash = (totalOpeningCash || 0) + 
         cashSales + 
-        cashPayments - 
+        cashPayments +
+        journalCashEffect - 
         cashPurchases - 
         cashExpenses - 
         cashSupplierPayments;
