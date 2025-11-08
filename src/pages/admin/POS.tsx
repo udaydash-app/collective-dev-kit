@@ -1914,8 +1914,11 @@ export default function POS() {
       return updatedTickets;
     });
 
-    // Restore ticket items to cart with proper sequencing
-    setTimeout(async () => {
+    // Restore ticket items to cart all at once to avoid race conditions
+    setTimeout(() => {
+      // Build cart items array
+      const cartItems: any[] = [];
+      
       for (const item of ticket.items) {
         // Skip cart-discount items as they'll be recalculated
         if (item.id === 'cart-discount') {
@@ -1931,31 +1934,23 @@ export default function POS() {
           continue;
         }
 
-        // Add item once with correct quantity
-        await addToCart({
+        // Add item to cart array with all properties
+        cartItems.push({
           id: item.id,
           productId: item.productId || item.id,
           name: item.name,
           price: item.price,
-          quantity: 1,
+          quantity: item.quantity || 1,
           barcode: item.barcode,
           image_url: item.image_url,
+          customPrice: item.customPrice,
+          itemDiscount: item.itemDiscount || 0,
         });
-        
-        // Update quantity if greater than 1
-        if (item.quantity > 1) {
-          await updateQuantity(item.id, item.quantity);
-        }
-        
-        // Apply custom price if present
-        if (item.customPrice) {
-          updateItemPrice(item.id, item.customPrice);
-        }
-        
-        // Apply item discount if present
-        if (item.itemDiscount && item.itemDiscount > 0) {
-          updateItemDiscount(item.id, item.itemDiscount);
-        }
+      }
+      
+      // Load all items at once
+      if (cartItems.length > 0) {
+        loadCart(cartItems);
       }
       
       toast.success(`Ticket "${ticket.name}" recalled`);
