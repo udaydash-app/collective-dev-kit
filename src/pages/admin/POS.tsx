@@ -676,8 +676,7 @@ export default function POS() {
       if (!cashAccount) return [];
       
       // Get journal entry lines for cash account from posted entries today
-      // Only exclude automatic system-generated entries (POS, PMT receipts)
-      // Include manual journal entries even if they reference purchases/expenses
+      // Only include truly manual journal entries (JE-*), exclude all system-generated entries
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -689,8 +688,7 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', currentCashSession.opened_at)
         .lte('journal_entries.created_at', new Date().toISOString())
-        .not('journal_entries.reference', 'like', 'POS-%')
-        .not('journal_entries.reference', 'like', 'PMT-%');
+        .like('journal_entries.reference', 'JE-%');
       
       return data || [];
     },
