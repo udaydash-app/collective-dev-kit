@@ -711,15 +711,12 @@ export default function POS() {
       return sum + debit - credit;
     }, 0) || 0;
 
-  // Calculate expected cash (Total opening cash + cash sales + cash payments + journal entries - cash purchases - cash expenses - cash supplier payments)
+  // Calculate expected cash (Opening cash + cash sales - cash purchases - expenses)
   const expectedCashAtClose = currentCashSession 
     ? (totalOpeningCash || 0) + 
-      dayActivity.cashSales + 
-      cashPayments +
-      journalCashEffect - 
+      dayActivity.cashSales - 
       dayActivity.cashPurchases - 
-      dayActivity.cashExpenses - 
-      cashSupplierPayments
+      dayActivity.cashExpenses
     : 0;
 
   // Calculate expected mobile money (mobile money sales + mobile money payments - mobile money purchases - mobile money expenses - mobile money supplier payments)
@@ -1037,12 +1034,9 @@ export default function POS() {
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       const expectedCash = (totalOpeningCash || 0) + 
-        cashSales + 
-        cashPayments +
-        journalCashEffect - 
+        cashSales - 
         cashPurchases - 
-        cashExpenses - 
-        cashSupplierPayments;
+        cashExpenses;
       const cashDifference = closingCash - expectedCash;
 
       const expectedMobileMoney = mobileMoneySales +
