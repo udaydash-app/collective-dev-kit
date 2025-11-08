@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
@@ -35,7 +35,41 @@ export const usePOSTransaction = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Cache offers to avoid repeated database queries
+  const [cachedCombos, setCachedCombos] = useState<any[]>([]);
+  const [cachedBOGOs, setCachedBOGOs] = useState<any[]>([]);
+  const [cachedMultiBOGOs, setCachedMultiBOGOs] = useState<any[]>([]);
+  const [offersLoaded, setOffersLoaded] = useState(false);
+  
+  // Debounce timer for offer detection
+  const offerDetectionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const cartUpdateQueueRef = useRef<CartItem[]>([]);
 
+  // Load and cache all offers on mount
+  useEffect(() => {
+    const loadAllOffers = async () => {
+      try {
+        // Fetch all offers in parallel
+        const [combos, bogos, multiBogos] = await Promise.all([
+          fetchActiveCombos(),
+          fetchActiveBOGOOffers(),
+          fetchActiveMultiProductBOGOOffers()
+        ]);
+        
+        setCachedCombos(combos);
+        setCachedBOGOs(bogos);
+        setCachedMultiBOGOs(multiBogos);
+        setOffersLoaded(true);
+      } catch (error) {
+        console.error('Error loading offers:', error);
+        setOffersLoaded(true); // Continue even if offers fail to load
+      }
+    };
+    
+    loadAllOffers();
+  }, []);
+  
   // Helper function to fetch active combos
   const fetchActiveCombos = async () => {
     try {
@@ -124,10 +158,10 @@ export const usePOSTransaction = () => {
   };
 
   // Automatic multi-product BOGO detection and application
-  const detectAndApplyMultiProductBOGO = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+  const detectAndApplyMultiProductBOGO = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
       console.log('🎁 detectAndApplyMultiProductBOGO START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
-      const offers = await fetchActiveMultiProductBOGOOffers();
+      const offers = useCache ? cachedMultiBOGOs : await fetchActiveMultiProductBOGOOffers();
       console.log('🎉 Fetched multi-product BOGO offers:', offers);
       
       if (!offers || offers.length === 0) {
@@ -271,10 +305,10 @@ export const usePOSTransaction = () => {
   };
 
   // Automatic BOGO offer detection and application
-  const detectAndApplyBOGOOffers = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+  const detectAndApplyBOGOOffers = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
       console.log('🎁 detectAndApplyBOGOOffers START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
-      const bogoOffers = await fetchActiveBOGOOffers();
+      const bogoOffers = useCache ? cachedBOGOs : await fetchActiveBOGOOffers();
       console.log('🎉 Fetched BOGO offers:', bogoOffers);
       
       if (!bogoOffers || bogoOffers.length === 0) {
@@ -403,10 +437,10 @@ export const usePOSTransaction = () => {
   };
 
   // Automatic combo detection and application
-  const detectAndApplyCombos = async (currentCart: CartItem[]): Promise<CartItem[]> => {
+  const detectAndApplyCombos = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
       console.log('🔍 detectAndApplyCombos START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
-      const combos = await fetchActiveCombos();
+      const combos = useCache ? cachedCombos : await fetchActiveCombos();
       console.log('📦 Fetched combos:', combos);
       if (!combos || combos.length === 0) {
         console.log('❌ No active combos found');
@@ -616,13 +650,35 @@ export const usePOSTransaction = () => {
       updatedCart = [newItem, ...cart];
     }
     
-    // Apply BOGO detection first (standard BOGO)
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
-    // Apply multi-product BOGO detection
-    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
-    // Apply combo detection last
-    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
-    setCart(cartWithCombos);
+    // Update cart immediately for fast UI response
+    setCart(updatedCart);
+    
+    // Debounce offer detection for performance during rapid scanning
+    cartUpdateQueueRef.current = updatedCart;
+    
+    if (offerDetectionTimerRef.current) {
+      clearTimeout(offerDetectionTimerRef.current);
+    }
+    
+    offerDetectionTimerRef.current = setTimeout(async () => {
+      const cartToProcess = cartUpdateQueueRef.current;
+      
+      // Run all offer detections in parallel for speed
+      const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
+        detectAndApplyBOGOOffers(cartToProcess, true),
+        detectAndApplyMultiProductBOGO(cartToProcess, true),
+        detectAndApplyCombos(cartToProcess, true)
+      ]);
+      
+      // Merge all offers (prioritize combos, then multi-BOGOs, then BOGOs)
+      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
+      const comboItems = cartWithCombos.filter(item => item.isCombo);
+      
+      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      setCart(finalCart);
+    }, 300); // Wait 300ms after last scan before applying offers
     
     toast.success(`${product.name} added to cart`);
   };
@@ -630,13 +686,33 @@ export const usePOSTransaction = () => {
   const removeFromCart = async (productId: string) => {
     const updatedCart = cart.filter(item => item.id !== productId);
     
-    // Reapply BOGO detection first
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
-    // Reapply multi-product BOGO detection
-    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
-    // Reapply combo detection last
-    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
-    setCart(cartWithCombos);
+    // Update immediately
+    setCart(updatedCart);
+    
+    // Debounce offer recalculation
+    cartUpdateQueueRef.current = updatedCart;
+    
+    if (offerDetectionTimerRef.current) {
+      clearTimeout(offerDetectionTimerRef.current);
+    }
+    
+    offerDetectionTimerRef.current = setTimeout(async () => {
+      const cartToProcess = cartUpdateQueueRef.current;
+      
+      const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
+        detectAndApplyBOGOOffers(cartToProcess, true),
+        detectAndApplyMultiProductBOGO(cartToProcess, true),
+        detectAndApplyCombos(cartToProcess, true)
+      ]);
+      
+      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
+      const comboItems = cartWithCombos.filter(item => item.isCombo);
+      
+      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      setCart(finalCart);
+    }, 300);
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
@@ -649,13 +725,33 @@ export const usePOSTransaction = () => {
       item.id === productId ? { ...item, quantity } : item
     );
     
-    // Reapply BOGO detection first
-    const cartWithBOGOs = await detectAndApplyBOGOOffers(updatedCart);
-    // Reapply multi-product BOGO detection
-    const cartWithMultiBOGOs = await detectAndApplyMultiProductBOGO(cartWithBOGOs);
-    // Reapply combo detection last
-    const cartWithCombos = await detectAndApplyCombos(cartWithMultiBOGOs);
-    setCart(cartWithCombos);
+    // Update immediately
+    setCart(updatedCart);
+    
+    // Debounce offer recalculation
+    cartUpdateQueueRef.current = updatedCart;
+    
+    if (offerDetectionTimerRef.current) {
+      clearTimeout(offerDetectionTimerRef.current);
+    }
+    
+    offerDetectionTimerRef.current = setTimeout(async () => {
+      const cartToProcess = cartUpdateQueueRef.current;
+      
+      const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
+        detectAndApplyBOGOOffers(cartToProcess, true),
+        detectAndApplyMultiProductBOGO(cartToProcess, true),
+        detectAndApplyCombos(cartToProcess, true)
+      ]);
+      
+      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
+      const comboItems = cartWithCombos.filter(item => item.isCombo);
+      
+      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      setCart(finalCart);
+    }, 300);
   };
 
   const updateItemPrice = (productId: string, price: number) => {
