@@ -218,7 +218,7 @@ export function RefundDialog({
           tax: 0,
           total: refundMode === 'payment' ? -refundTotal : -netAmount,
           payment_method: refundMode === 'payment' ? paymentMethod : 'exchange',
-          items: JSON.stringify({
+          items: {
             refunded: cartItems.map(item => ({
               id: item.id,
               name: item.name,
@@ -232,7 +232,7 @@ export function RefundDialog({
               quantity: item.quantity,
               price: item.price,
             })) : [],
-          }),
+          },
         });
 
       if (transactionError) throw transactionError;
