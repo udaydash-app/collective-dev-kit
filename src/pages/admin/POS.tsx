@@ -1621,8 +1621,8 @@ export default function POS() {
               const suppBalance = supplierLines.reduce((sum, line) => {
                 return sum + (line.debit_amount - line.credit_amount);
               }, 0);
-              // Supplier balance offsets customer balance for unified view
-              totalBalance -= suppBalance;
+              // Add supplier balance (already negative if we owe them) for unified view
+              totalBalance += suppBalance;
             }
           }
 
