@@ -107,7 +107,7 @@ export default function JournalEntries() {
             accounts (account_code, account_name)
           )
         `)
-        .order('entry_date', { ascending: false });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },

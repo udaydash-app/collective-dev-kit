@@ -18,7 +18,7 @@ export function formatCurrencyCompact(amount: number | null | undefined): string
   return value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-// Date formatting utilities
+// Date formatting utilities - using dd/MM/yyyy format for Côte d'Ivoire
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;

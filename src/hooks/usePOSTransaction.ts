@@ -169,7 +169,7 @@ export const usePOSTransaction = () => {
           }
         }
 
-        console.log('🔍 Found matching items:', matchingCartItems.length);
+        console.log('🔍 Found matching items:', matchingCartItems.length, matchingCartItems.map(i => i.name));
         
         // Calculate total quantity of eligible items
         const totalQty = matchingCartItems.reduce((sum, item) => sum + item.quantity, 0);

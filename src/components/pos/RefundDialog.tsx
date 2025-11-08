@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
+  productId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -132,24 +133,48 @@ export function RefundDialog({
 
       // Return stock for refunded items
       for (const item of cartItems) {
-        if (item.id === 'cart-discount') continue; // Skip cart discount items
+        if (item.id === 'cart-discount') continue;
         
-        const { data: product, error: fetchError } = await supabase
-          .from('products')
-          .select('stock_quantity')
-          .eq('id', item.id)
-          .single();
+        // Check if it's a variant or regular product
+        const isVariant = item.id !== item.productId;
+        
+        if (isVariant) {
+          // Update variant stock
+          const { data: variant, error: fetchError } = await supabase
+            .from('product_variants')
+            .select('stock_quantity')
+            .eq('id', item.id)
+            .single();
 
-        if (fetchError) throw fetchError;
+          if (fetchError) throw fetchError;
 
-        const newStock = (product?.stock_quantity || 0) + item.quantity;
+          const newStock = (variant?.stock_quantity || 0) + item.quantity;
 
-        const { error: updateError } = await supabase
-          .from('products')
-          .update({ stock_quantity: newStock })
-          .eq('id', item.id);
+          const { error: updateError } = await supabase
+            .from('product_variants')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.id);
 
-        if (updateError) throw updateError;
+          if (updateError) throw updateError;
+        } else {
+          // Update product stock
+          const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', item.id)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const newStock = (product?.stock_quantity || 0) + item.quantity;
+
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.id);
+
+          if (updateError) throw updateError;
+        }
       }
 
       // Deduct stock for exchange items

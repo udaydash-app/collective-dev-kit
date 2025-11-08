@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/utils';
 import { FileText, Package, AlertTriangle, TrendingUp, Printer, Layers, DollarSign, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 type ReportType = 
   | 'stock-levels-by-category'
@@ -576,14 +577,19 @@ export default function InventoryReports() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">Inventory Reports</h1>
-        {showReport && (
-          <Button onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print Report
-          </Button>
-        )}
+      <div className="flex items-center justify-between no-print">
+        <div>
+          <h1 className="text-3xl font-bold">Inventory Reports</h1>
+        </div>
+        <div className="flex gap-2">
+          <ReturnToPOSButton inline />
+          {showReport && (
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Report
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* FIFO Reports Menu */}
