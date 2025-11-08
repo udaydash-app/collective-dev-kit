@@ -711,10 +711,11 @@ export default function POS() {
       return sum + debit - credit;
     }, 0) || 0;
 
-  // Calculate expected cash (Opening cash + cash sales - cash purchases - expenses)
+  // Calculate expected cash (Opening cash + cash sales + cash payments received - cash purchases - expenses)
   const expectedCashAtClose = currentCashSession 
     ? (totalOpeningCash || 0) + 
-      dayActivity.cashSales - 
+      dayActivity.cashSales + 
+      cashPayments - 
       dayActivity.cashPurchases - 
       dayActivity.cashExpenses
     : 0;
@@ -1034,7 +1035,8 @@ export default function POS() {
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       const expectedCash = (totalOpeningCash || 0) + 
-        cashSales - 
+        cashSales + 
+        cashPayments - 
         cashPurchases - 
         cashExpenses;
       const cashDifference = closingCash - expectedCash;
