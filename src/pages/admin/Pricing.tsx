@@ -202,14 +202,8 @@ export default function Pricing() {
     mutationFn: async (prices: Array<{ product_id: string; price: number }>) => {
       if (!selectedCustomer) return;
       
-      // Delete existing prices for this customer
-      await supabase
-        .from('customer_product_prices')
-        .delete()
-        .eq('customer_id', selectedCustomer);
-
-      // Insert new prices
-      const inserts = prices.map(p => ({
+      // Upsert prices (update existing, insert new, keep others unchanged)
+      const upserts = prices.map(p => ({
         customer_id: selectedCustomer,
         product_id: p.product_id,
         price: p.price,
@@ -217,7 +211,9 @@ export default function Pricing() {
 
       const { error } = await supabase
         .from('customer_product_prices')
-        .insert(inserts);
+        .upsert(upserts, {
+          onConflict: 'customer_id,product_id'
+        });
         
       if (error) throw error;
     },
