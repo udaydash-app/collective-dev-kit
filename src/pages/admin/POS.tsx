@@ -676,7 +676,8 @@ export default function POS() {
       if (!cashAccount) return [];
       
       // Get journal entry lines for cash account from posted entries today
-      // Exclude POS transactions, purchases, expenses, and payment receipts as they're already counted separately
+      // Only exclude automatic system-generated entries (POS, PMT receipts)
+      // Include manual journal entries even if they reference purchases/expenses
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -689,12 +690,7 @@ export default function POS() {
         .gte('journal_entries.created_at', currentCashSession.opened_at)
         .lte('journal_entries.created_at', new Date().toISOString())
         .not('journal_entries.reference', 'like', 'POS-%')
-        .not('journal_entries.reference', 'like', 'PMT-%')
-        .not('journal_entries.reference', 'like', 'PUR-%')
-        .not('journal_entries.description', 'like', 'Purchase -%')
-        .not('journal_entries.description', 'like', 'Payment for Purchase%')
-        .not('journal_entries.description', 'like', 'Expense -%')
-        .not('journal_entries.description', 'like', 'Supplier Payment -%');
+        .not('journal_entries.reference', 'like', 'PMT-%');
       
       return data || [];
     },
