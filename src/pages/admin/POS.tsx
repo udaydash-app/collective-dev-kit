@@ -2707,7 +2707,21 @@ export default function POS() {
         <div className="flex gap-2 p-2 border-t bg-background">
           {/* Numeric Keypad - left side */}
           <div className="flex-1">
-            {/* Keypad section removed per user request */}
+            <NumericKeypad
+              onNumberClick={handleKeypadNumber}
+              onQtyClick={handleKeypadQty}
+              onDiscountClick={handleKeypadDiscount}
+              onPriceClick={handleKeypadPrice}
+              onPercentClick={handleKeypadPercent}
+              onCartDiscountClick={handleKeypadCartDiscount}
+              onPayClick={() => setShowPayment(true)}
+              onClear={handleKeypadClear}
+              onEnter={handleKeypadEnter}
+              disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
+              activeMode={keypadMode}
+              isPercentMode={isPercentMode}
+              payDisabled={cart.length === 0}
+            />
           </div>
 
           {/* Quick Actions Grid - 2 columns, right side */}
