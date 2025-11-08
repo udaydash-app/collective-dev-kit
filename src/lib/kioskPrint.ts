@@ -24,6 +24,7 @@ export interface KioskReceiptData {
   customerName?: string;
   logoUrl?: string;
   supportPhone?: string;
+  customerBalance?: number;
 }
 
 class KioskPrintService {
@@ -221,6 +222,11 @@ class KioskPrintService {
 
           <div class="border-top mb-2">
             <div class="small">Payment Method: ${data.paymentMethod.toUpperCase()}</div>
+            ${data.customerName && data.customerName !== 'Walk-in Customer' && data.customerBalance !== undefined ? `
+              <div class="mt-3 border-top-dashed">
+                <div class="small bold">Customer Balance: ${formatCurrency(data.customerBalance)}</div>
+              </div>
+            ` : ''}
           </div>
 
           <div class="center small">

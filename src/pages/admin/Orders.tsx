@@ -288,6 +288,47 @@ export default function AdminOrders() {
     },
   });
 
+  // Function to fetch customer ledger balance
+  const fetchCustomerBalance = async (customerName: string): Promise<number | undefined> => {
+    if (!customerName || customerName === 'Walk-in Customer') return undefined;
+
+    try {
+      // Find the contact by name
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('customer_ledger_account_id')
+        .eq('name', customerName)
+        .maybeSingle();
+
+      if (!contact?.customer_ledger_account_id) return undefined;
+
+      // Get all posted journal entry lines for this account
+      const { data: lines } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (
+            status
+          )
+        `)
+        .eq('account_id', contact.customer_ledger_account_id)
+        .eq('journal_entries.status', 'posted');
+
+      if (!lines || lines.length === 0) return 0;
+
+      // Calculate balance (for receivables: debit increases balance)
+      const balance = lines.reduce((sum, line) => {
+        return sum + (line.debit_amount - line.credit_amount);
+      }, 0);
+
+      return balance;
+    } catch (error) {
+      console.error('Error fetching customer balance:', error);
+      return undefined;
+    }
+  };
+
   if (queryError) {
     console.error('Query error:', queryError);
   }
@@ -302,6 +343,9 @@ export default function AdminOrders() {
       toast.error('Order not found');
       return;
     }
+
+    // Fetch customer balance
+    const customerBalance = await fetchCustomerBalance(order.customer_name);
 
     // Create a temporary container for the receipt
     const printWindow = window.open('', '_blank');
@@ -369,6 +413,7 @@ export default function AdminOrders() {
               <p class="text-xs">${formatDateTime(order.created_at)}</p>
               ${order.type === 'pos' ? `<p class="text-xs">Cashier: ${order.cashier_name}</p>` : ''}
               ${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `<p class="text-xs">Customer: ${order.customer_name}</p>` : ''}
+              ${customerBalance !== undefined && order.customer_name && order.customer_name !== 'Walk-in Customer' ? `<p class="text-xs font-bold mt-2">Customer Balance: ${customerBalance.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</p>` : ''}
             </div>
 
             <div class="border-t border-b py-2 mb-2">
@@ -461,7 +506,10 @@ export default function AdminOrders() {
       toast.error('Order not found');
       return;
     }
-    setSelectedReceiptOrder(order);
+    
+    // Fetch customer balance
+    const customerBalance = await fetchCustomerBalance(order.customer_name);
+    setSelectedReceiptOrder({ ...order, customerBalance });
     setShowReceiptOptions(true);
   };
 
@@ -491,7 +539,8 @@ export default function AdminOrders() {
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
         customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
         logoUrl: settings?.logo_url || undefined,
-        supportPhone: settings?.company_phone || undefined
+        supportPhone: settings?.company_phone || undefined,
+        customerBalance: order.customerBalance
       });
       
       toast.success('Print sent to printer', { id: 'direct-print' });
@@ -584,14 +633,17 @@ export default function AdminOrders() {
       return `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(effectivePrice)} = ${formatCurrency(effectivePrice * item.quantity)}`;
     }).join('\n');
 
+    const customerBalanceText = order.customerBalance !== undefined && order.customer_name && order.customer_name !== 'Walk-in Customer' 
+      ? `\n*Customer Balance:* ${formatCurrency(order.customerBalance)}\n` 
+      : '';
+
     const message = `
 *${order.stores?.name || settings?.company_name || 'Global Market'}*
 Fresh groceries delivered to your doorstep
 
 *Transaction:* ${order.order_number}
 *Date:* ${formatDateTime(order.created_at)}
-${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `*Customer:* ${order.customer_name}\n` : ''}
-----------------------------
+${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `*Customer:* ${order.customer_name}\n` : ''}${customerBalanceText}----------------------------
 *ITEMS:*
 ${itemsList}
 ----------------------------
@@ -1758,6 +1810,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
             storeName={selectedReceiptOrder.stores?.name || settings?.company_name || 'Global Market'}
             logoUrl={settings?.logo_url}
             supportPhone={settings?.company_phone}
+            customerBalance={selectedReceiptOrder.customerBalance}
           />
         </div>
       )}

@@ -1566,6 +1566,44 @@ export default function POS() {
         return;
       }
 
+      // Fetch customer name and balance if customer_id exists
+      let customerName = undefined;
+      let customerBalance = undefined;
+      if (transaction.customer_id) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('name, customer_ledger_account_id')
+          .eq('id', transaction.customer_id)
+          .maybeSingle();
+
+        if (contact) {
+          customerName = contact.name;
+          
+          // Fetch customer balance
+          if (contact.customer_ledger_account_id) {
+            const { data: lines } = await supabase
+              .from('journal_entry_lines')
+              .select(`
+                debit_amount,
+                credit_amount,
+                journal_entries!inner (
+                  status
+                )
+              `)
+              .eq('account_id', contact.customer_ledger_account_id)
+              .eq('journal_entries.status', 'posted');
+
+            if (lines && lines.length > 0) {
+              customerBalance = lines.reduce((sum, line) => {
+                return sum + (line.debit_amount - line.credit_amount);
+              }, 0);
+            } else {
+              customerBalance = 0;
+            }
+          }
+        }
+      }
+
       // Parse transaction items
       const items = Array.isArray(transaction.items) ? transaction.items : [];
       
@@ -1585,6 +1623,8 @@ export default function POS() {
         total: parseFloat(transaction.total?.toString() || '0'),
         paymentMethod: transaction.payment_method || 'Cash',
         cashierName: currentCashSession?.cashier_name || 'Cashier',
+        customerName,
+        customerBalance,
         storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
         logoUrl: settings?.logo_url,
         supportPhone: settings?.company_phone,
@@ -1661,6 +1701,9 @@ export default function POS() {
     if (lastTransactionData.cashierName) {
       message += `Cashier: ${lastTransactionData.cashierName}\n`;
     }
+    if (lastTransactionData.customerName) {
+      message += `Customer: ${lastTransactionData.customerName}\n`;
+    }
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `*ITEMS*\n\n${itemsList}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -1673,6 +1716,10 @@ export default function POS() {
     }
     message += `\n*TOTAL: ${formatCurrency(lastTransactionData.total)}*\n\n`;
     message += `Payment: ${lastTransactionData.paymentMethod}\n`;
+    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerName) {
+      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `*Customer Balance: ${formatCurrency(lastTransactionData.customerBalance)}*\n`;
+    }
     if (lastTransactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
       message += `Support: ${lastTransactionData.supportPhone}\n`;
@@ -1707,6 +1754,8 @@ export default function POS() {
         total: lastTransactionData.total,
         paymentMethod: lastTransactionData.paymentMethod,
         cashierName: lastTransactionData.cashierName,
+        customerName: lastTransactionData.customerName,
+        customerBalance: lastTransactionData.customerBalance,
         logoUrl: lastTransactionData.logoUrl,
         supportPhone: lastTransactionData.supportPhone
       });
@@ -3052,6 +3101,8 @@ export default function POS() {
               paymentMethod={lastTransactionData.paymentMethod}
               date={new Date()}
               cashierName={lastTransactionData.cashierName}
+              customerName={lastTransactionData.customerName}
+              customerBalance={lastTransactionData.customerBalance}
               storeName={lastTransactionData.storeName}
               logoUrl={lastTransactionData.logoUrl}
               supportPhone={lastTransactionData.supportPhone}
