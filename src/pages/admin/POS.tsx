@@ -1397,25 +1397,16 @@ export default function POS() {
         setShowPayment(true);
         return;
       }
-
-      // Fetch existing customer prices
-      const { data: existingPrices } = await supabase
-        .from('customer_product_prices')
-        .select('product_id')
-        .eq('customer_id', selectedCustomer.id);
       
-      const existingProductIds = new Set(existingPrices?.map(p => p.product_id) || []);
-      
-      // Prepare prices to save - only for valid product IDs not already saved
+      // Prepare prices to save - only for valid product IDs (exclude combos, BOGOs, cart discounts)
       const pricesToUpsert = itemsWithCustomPrices
         .filter(item => {
-          // Exclude items without valid product IDs (combos, BOGOs, cart discounts)
+          // Exclude items without valid product IDs or special items
           return item.productId && 
                  !item.id.startsWith('combo-') && 
                  !item.id.startsWith('bogo-') && 
                  !item.id.startsWith('multi-bogo-') &&
-                 item.id !== 'cart-discount' &&
-                 !existingProductIds.has(item.productId);
+                 item.id !== 'cart-discount';
         })
         .map(item => {
           // Calculate effective price: use customPrice if set, otherwise price minus discount
@@ -1428,13 +1419,13 @@ export default function POS() {
         });
 
       if (pricesToUpsert.length === 0) {
-        toast.info('No new custom prices to save (all items already have saved prices or are special items)');
+        toast.info('No items with valid product IDs to save');
         setShowCustomPriceConfirm(false);
         setShowPayment(true);
         return;
       }
 
-      // Upsert prices
+      // Upsert prices (will update existing or insert new)
       const { error } = await supabase
         .from('customer_product_prices')
         .upsert(pricesToUpsert, {
