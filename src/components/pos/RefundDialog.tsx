@@ -177,7 +177,7 @@ export function RefundDialog({
         }
       }
 
-      // Deduct stock for exchange items
+      // Deduct stock for exchange items (allow negative stock for exchanges)
       if (refundMode === 'exchange') {
         for (const item of exchangeItems) {
           const { data: product, error: fetchError } = await supabase
@@ -189,11 +189,6 @@ export function RefundDialog({
           if (fetchError) throw fetchError;
 
           const newStock = (product?.stock_quantity || 0) - item.quantity;
-
-          if (newStock < 0) {
-            toast.error(`Insufficient stock for ${item.name}`);
-            throw new Error(`Insufficient stock for ${item.name}`);
-          }
 
           const { error: updateError } = await supabase
             .from('products')
