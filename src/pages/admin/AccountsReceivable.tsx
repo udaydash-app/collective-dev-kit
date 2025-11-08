@@ -23,7 +23,10 @@ export default function AccountsReceivable() {
           phone,
           email,
           credit_limit,
+          is_customer,
+          is_supplier,
           customer_ledger_account_id,
+          supplier_ledger_account_id,
           accounts!contacts_customer_ledger_account_id_fkey(
             current_balance
           )
@@ -33,14 +36,37 @@ export default function AccountsReceivable() {
 
       if (error) throw error;
 
-      return contacts.map(contact => ({
-        id: contact.id,
-        name: contact.name,
-        phone: contact.phone,
-        email: contact.email,
-        credit_limit: contact.credit_limit || 0,
-        balance: contact.accounts?.current_balance || 0
-      })).filter(c => c.balance > 0);
+      // Calculate unified balance for each contact
+      const contactsWithBalance = await Promise.all(
+        contacts.map(async (contact) => {
+          let totalBalance = contact.accounts?.current_balance || 0;
+
+          // If also a supplier, add their supplier balance (already negative if we owe them)
+          if (contact.is_supplier && contact.supplier_ledger_account_id) {
+            const { data: supplierAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', contact.supplier_ledger_account_id)
+              .single();
+
+            if (supplierAccount) {
+              totalBalance += supplierAccount.current_balance;
+            }
+          }
+
+          return {
+            id: contact.id,
+            name: contact.name,
+            phone: contact.phone,
+            email: contact.email,
+            credit_limit: contact.credit_limit || 0,
+            balance: totalBalance,
+            isUnified: contact.is_supplier
+          };
+        })
+      );
+
+      return contactsWithBalance.filter(c => c.balance > 0);
     }
   });
 
@@ -122,7 +148,12 @@ export default function AccountsReceivable() {
               <TableBody>
                 {filteredReceivables.map((receivable) => (
                   <TableRow key={receivable.id}>
-                    <TableCell className="font-medium">{receivable.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {receivable.name}
+                      {receivable.isUnified && (
+                        <span className="ml-2 text-xs text-muted-foreground">(Unified)</span>
+                      )}
+                    </TableCell>
                     <TableCell>{receivable.phone || '-'}</TableCell>
                     <TableCell>{receivable.email || '-'}</TableCell>
                     <TableCell className="text-right">{formatCurrency(receivable.credit_limit)}</TableCell>

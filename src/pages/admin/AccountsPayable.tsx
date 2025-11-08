@@ -22,6 +22,9 @@ export default function AccountsPayable() {
           name,
           phone,
           email,
+          is_customer,
+          is_supplier,
+          customer_ledger_account_id,
           supplier_ledger_account_id,
           accounts!contacts_supplier_ledger_account_id_fkey(
             current_balance
@@ -32,13 +35,36 @@ export default function AccountsPayable() {
 
       if (error) throw error;
 
-      return contacts.map(contact => ({
-        id: contact.id,
-        name: contact.name,
-        phone: contact.phone,
-        email: contact.email,
-        balance: contact.accounts?.current_balance || 0
-      })).filter(c => c.balance < 0); // Negative balance means we owe them
+      // Calculate unified balance for each contact
+      const contactsWithBalance = await Promise.all(
+        contacts.map(async (contact) => {
+          let totalBalance = contact.accounts?.current_balance || 0;
+
+          // If also a customer, add their customer balance (positive reduces what we owe)
+          if (contact.is_customer && contact.customer_ledger_account_id) {
+            const { data: customerAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', contact.customer_ledger_account_id)
+              .single();
+
+            if (customerAccount) {
+              totalBalance += customerAccount.current_balance;
+            }
+          }
+
+          return {
+            id: contact.id,
+            name: contact.name,
+            phone: contact.phone,
+            email: contact.email,
+            balance: totalBalance,
+            isUnified: contact.is_customer
+          };
+        })
+      );
+
+      return contactsWithBalance.filter(c => c.balance < 0); // Negative balance means we owe them
     }
   });
 
@@ -119,7 +145,12 @@ export default function AccountsPayable() {
               <TableBody>
                 {filteredPayables.map((payable) => (
                   <TableRow key={payable.id}>
-                    <TableCell className="font-medium">{payable.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {payable.name}
+                      {payable.isUnified && (
+                        <span className="ml-2 text-xs text-muted-foreground">(Unified)</span>
+                      )}
+                    </TableCell>
                     <TableCell>{payable.phone || '-'}</TableCell>
                     <TableCell>{payable.email || '-'}</TableCell>
                     <TableCell className="text-right font-semibold text-destructive">
