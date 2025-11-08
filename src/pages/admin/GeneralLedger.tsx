@@ -213,7 +213,8 @@ export default function GeneralLedger() {
         
         const customerBalance = Number(customerAccount?.current_balance || 0);
         const supplierBalance = Number(supplierAccount?.current_balance || 0);
-        const unifiedBalance = customerBalance + supplierBalance;
+        // Net position: Customer balance (what they owe us) minus Supplier balance (what we owe them)
+        const unifiedBalance = customerBalance - supplierBalance;
         
         // Fetch lines from both customer and supplier accounts
         const { data: customerLines, error: customerError } = await supabase
