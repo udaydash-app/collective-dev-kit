@@ -379,16 +379,24 @@ export default function POS() {
         // Set customer if available
         if (orderData.customerId) {
           console.log(`🔧 Loading customer: ${orderData.customerId}`);
-          const { data: customer } = await supabase
+          const { data: customer, error: customerError } = await supabase
             .from('contacts')
             .select('*')
             .eq('id', orderData.customerId)
-            .single();
+            .maybeSingle();
           
-          if (customer) {
+          if (customerError) {
+            console.error('🔧 Error loading customer:', customerError);
+            toast.error(`Failed to load customer: ${customerError.message}`);
+          } else if (customer) {
             setSelectedCustomer(customer);
             console.log(`🔧 Customer loaded: ${customer.name}`);
+          } else {
+            console.warn('🔧 Customer not found with ID:', orderData.customerId);
+            toast.warning('Customer from original bill not found - it may have been deleted');
           }
+        } else {
+          console.log('🔧 No customer ID in order data');
         }
         
         // Set cart discount
