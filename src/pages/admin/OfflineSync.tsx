@@ -64,6 +64,19 @@ export default function OfflineSync() {
     }
   };
 
+  const handleSyncSingle = async (txId: string) => {
+    setSyncing(true);
+    try {
+      await syncService.syncTransactions();
+      await loadOfflineTransactions();
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error('Failed to sync transaction');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleClearAll = async () => {
     if (!confirm('Are you sure you want to clear all offline transactions? This action cannot be undone.')) {
       return;
@@ -155,38 +168,76 @@ export default function OfflineSync() {
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {transactions.map((tx) => (
-                      <TableRow key={tx.id}>
-                        <TableCell className="font-mono text-xs">
-                          {tx.id.slice(0, 8)}...
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(tx.timestamp), 'MMM dd, yyyy HH:mm')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-h-20 overflow-y-auto">
-                            {tx.items.map((item: any, idx: number) => (
-                              <div key={idx} className="text-xs text-muted-foreground">
-                                {item.name} x{item.quantity}
+                      <>
+                        <TableRow key={tx.id}>
+                          <TableCell className="font-mono text-xs">
+                            {tx.id.slice(0, 8)}...
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(tx.timestamp), 'dd/MM/yyyy HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-h-20 overflow-y-auto">
+                              {tx.items.map((item: any, idx: number) => (
+                                <div key={idx} className="text-xs text-muted-foreground">
+                                  {item.name} x{item.quantity}
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(tx.total)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{tx.paymentMethod}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={tx.synced ? "default" : tx.syncError ? "destructive" : "secondary"}>
+                                {tx.synced ? 'Synced' : tx.syncError ? 'Failed' : 'Pending'}
+                              </Badge>
+                              {tx.syncAttempts && tx.syncAttempts > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  Attempts: {tx.syncAttempts}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {!tx.synced && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSyncSingle(tx.id)}
+                                disabled={syncing}
+                              >
+                                <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+                                Retry
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        {tx.syncError && (
+                          <TableRow key={`${tx.id}-error`}>
+                            <TableCell colSpan={7} className="bg-destructive/10">
+                              <div className="text-xs text-destructive">
+                                <span className="font-semibold">Error: </span>
+                                {tx.syncError}
                               </div>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(tx.total)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{tx.paymentMethod}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={tx.synced ? "default" : "secondary"}>
-                            {tx.synced ? 'Synced' : 'Pending'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+                              {tx.lastSyncAttempt && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Last attempt: {format(new Date(tx.lastSyncAttempt), 'dd/MM/yyyy HH:mm:ss')}
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
                     ))}
                   </TableBody>
                 </Table>

@@ -19,6 +19,9 @@ export interface OfflineTransaction {
   notes?: string;
   timestamp: string;
   synced: boolean;
+  syncError?: string;
+  syncAttempts?: number;
+  lastSyncAttempt?: string;
 }
 
 export interface OfflineProduct {
@@ -154,6 +157,32 @@ class OfflineDB {
         const transaction = getRequest.result;
         if (transaction) {
           transaction.synced = true;
+          transaction.syncError = undefined;
+          transaction.syncAttempts = 0;
+          const updateRequest = store.put(transaction);
+          updateRequest.onsuccess = () => resolve();
+          updateRequest.onerror = () => reject(updateRequest.error);
+        } else {
+          resolve();
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  async updateTransactionError(id: string, error: string, attempts: number): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('transactions', 'readwrite');
+      const store = tx.objectStore('transactions');
+      const getRequest = store.get(id);
+      
+      getRequest.onsuccess = () => {
+        const transaction = getRequest.result;
+        if (transaction) {
+          transaction.syncError = error;
+          transaction.syncAttempts = attempts;
+          transaction.lastSyncAttempt = new Date().toISOString();
           const updateRequest = store.put(transaction);
           updateRequest.onsuccess = () => resolve();
           updateRequest.onerror = () => reject(updateRequest.error);

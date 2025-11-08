@@ -52,9 +52,18 @@ class SyncService {
           });
           failedCount++;
           
+          // Store error details in transaction
+          const errorMessage = error?.message || 'Unknown error';
+          const errorDetails = error?.details || error?.hint || '';
+          await offlineDB.updateTransactionError(
+            transaction.id, 
+            `${errorMessage}${errorDetails ? ': ' + errorDetails : ''}`,
+            (transaction.syncAttempts || 0) + 1
+          );
+          
           // Show detailed error to user
-          toast.error(`Sync failed: ${error?.message || 'Unknown error'}`, {
-            description: error?.details || error?.hint
+          toast.error(`Sync failed: ${errorMessage}`, {
+            description: errorDetails
           });
         }
       }
