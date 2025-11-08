@@ -2197,6 +2197,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      reverse_transaction_journal_entries: {
+        Args: { p_reference: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
