@@ -716,8 +716,8 @@ export default function POS() {
         : new Date().toISOString().split('T')[0];
       
       // Get journal entry lines for cash account from posted entries during the session
-      // Only include truly manual journal entries (JE-*), exclude all system-generated entries
-      // Filter by entry_date (the date of the journal entry) not created_at
+      // Include only truly manual journal entries by excluding system-generated prefixes
+      // (POS-, PUR-, SPM-, PMT-, OB-)
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -729,7 +729,11 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .like('journal_entries.reference', 'JE-%')
+        .not('journal_entries.reference', 'like', 'POS-%')
+        .not('journal_entries.reference', 'like', 'PUR-%')
+        .not('journal_entries.reference', 'like', 'SPM-%')
+        .not('journal_entries.reference', 'like', 'PMT-%')
+        .not('journal_entries.reference', 'like', 'OB-%')
         .order('journal_entries.entry_date', { ascending: true });
       
       return data || [];
@@ -759,7 +763,7 @@ export default function POS() {
         : new Date().toISOString().split('T')[0];
       
       // Get journal entry lines for mobile money account from posted entries during the session
-      // Filter by entry_date (the date of the journal entry) not created_at
+      // Include only truly manual journal entries by excluding system-generated prefixes
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -771,7 +775,11 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .like('journal_entries.reference', 'JE-%')
+        .not('journal_entries.reference', 'like', 'POS-%')
+        .not('journal_entries.reference', 'like', 'PUR-%')
+        .not('journal_entries.reference', 'like', 'SPM-%')
+        .not('journal_entries.reference', 'like', 'PMT-%')
+        .not('journal_entries.reference', 'like', 'OB-%')
         .order('journal_entries.entry_date', { ascending: true });
       
       return data || [];
