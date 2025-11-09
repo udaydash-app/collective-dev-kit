@@ -2981,6 +2981,8 @@ export default function POS() {
           paymentReceipts={paymentReceiptsData}
           journalEntries={cashJournalEntries || []}
           journalCashEffect={journalCashEffect}
+          mobileMoneyJournalEntries={mobileMoneyJournalEntries || []}
+          journalMobileMoneyEffect={journalMobileMoneyEffect}
         />
       )}
 

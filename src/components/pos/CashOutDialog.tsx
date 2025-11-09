@@ -54,9 +54,11 @@ interface CashOutDialogProps {
   paymentReceipts?: PaymentReceipts;
   journalEntries?: JournalEntry[];
   journalCashEffect?: number;
+  mobileMoneyJournalEntries?: JournalEntry[];
+  journalMobileMoneyEffect?: number;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts, journalEntries = [], journalCashEffect = 0 }: CashOutDialogProps) => {
+export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts, journalEntries = [], journalCashEffect = 0, mobileMoneyJournalEntries = [], journalMobileMoneyEffect = 0 }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -194,55 +196,112 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
 
             <Separator />
 
-            {/* Manual Journal Entries Section - Always visible */}
+            {/* Manual Journal Entries Section */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between border-b pb-2">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-indigo-600" />
-                  <h3 className="font-semibold text-sm">Manual Journal Entries</h3>
-                </div>
-                {journalEntries.length > 0 ? (
-                  <p className={cn(
-                    "text-lg font-bold",
-                    journalCashEffect >= 0 ? "text-green-600" : "text-red-600"
-                  )}>
-                    {formatCurrency(Math.abs(journalCashEffect))}
-                    {journalCashEffect >= 0 ? ' (In)' : ' (Out)'}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No entries today</p>
-                )}
+              <div className="flex items-center gap-2 border-b pb-2">
+                <BookOpen className="h-5 w-5 text-indigo-600" />
+                <h3 className="font-semibold text-sm">Manual Journal Entries (Cash Account)</h3>
               </div>
               {journalEntries.length > 0 ? (
-                <ScrollArea className="h-[120px]">
-                  <div className="space-y-2 pr-4">
-                    {journalEntries.map((entry, index) => {
-                      const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
-                      return (
-                        <div key={index} className="flex items-start justify-between text-sm border-l-2 border-indigo-200 pl-3 py-1">
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
-                            <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
-                          </div>
-                          <div className="flex flex-col items-end ml-2">
-                            <p className={cn(
-                              "font-semibold",
-                              netEffect >= 0 ? "text-green-600" : "text-red-600"
-                            )}>
-                              {formatCurrency(Math.abs(netEffect))}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {netEffect >= 0 ? 'Cash In' : 'Cash Out'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                <>
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium">Cash Account Impact</p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        journalCashEffect >= 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                        {formatCurrency(Math.abs(journalCashEffect))}
+                        {journalCashEffect >= 0 ? ' (In)' : ' (Out)'}
+                      </p>
+                    </div>
                   </div>
-                </ScrollArea>
+                  <ScrollArea className="h-[100px]">
+                    <div className="space-y-2 pr-4">
+                      {journalEntries.map((entry, index) => {
+                        const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
+                        return (
+                          <div key={index} className="flex items-start justify-between text-sm border-l-2 border-indigo-200 pl-3 py-1">
+                            <div className="flex-1">
+                              <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
+                              <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
+                            </div>
+                            <div className="flex flex-col items-end ml-2">
+                              <p className={cn(
+                                "font-semibold",
+                                netEffect >= 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                {formatCurrency(Math.abs(netEffect))}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {netEffect >= 0 ? 'In' : 'Out'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </>
               ) : (
                 <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">No manual journal entries for today</p>
+                  <p className="text-sm text-muted-foreground">No cash journal entries today</p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Mobile Money Journal Entries Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <BookOpen className="h-5 w-5 text-purple-600" />
+                <h3 className="font-semibold text-sm">Manual Journal Entries (Mobile Money)</h3>
+              </div>
+              {mobileMoneyJournalEntries.length > 0 ? (
+                <>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium">Mobile Money Account Impact</p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        journalMobileMoneyEffect >= 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                        {formatCurrency(Math.abs(journalMobileMoneyEffect))}
+                        {journalMobileMoneyEffect >= 0 ? ' (In)' : ' (Out)'}
+                      </p>
+                    </div>
+                  </div>
+                  <ScrollArea className="h-[100px]">
+                    <div className="space-y-2 pr-4">
+                      {mobileMoneyJournalEntries.map((entry, index) => {
+                        const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
+                        return (
+                          <div key={index} className="flex items-start justify-between text-sm border-l-2 border-purple-200 pl-3 py-1">
+                            <div className="flex-1">
+                              <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
+                              <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
+                            </div>
+                            <div className="flex flex-col items-end ml-2">
+                              <p className={cn(
+                                "font-semibold",
+                                netEffect >= 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                {formatCurrency(Math.abs(netEffect))}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {netEffect >= 0 ? 'In' : 'Out'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </>
+              ) : (
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">No mobile money journal entries today</p>
                 </div>
               )}
             </div>
@@ -316,7 +375,7 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
                   <p className="text-lg font-bold text-purple-600">{formatCurrency(expectedMobileMoney)}</p>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Mobile Sales + Payments - Purchases - Expenses - Supplier Payments
+                  Mobile Sales + Payments - Purchases - Expenses - Supplier Payments + Journal Entries
                 </p>
               </div>
 
