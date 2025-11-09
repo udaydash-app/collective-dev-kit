@@ -5,5 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   getPath: (name) => ipcRenderer.invoke('app:getPath', name),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (event, progress) => callback(progress));
+  },
   isElectron: true,
 });

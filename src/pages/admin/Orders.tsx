@@ -447,6 +447,7 @@ export default function AdminOrders() {
             <div class="border-t border-b py-2 mb-2">
               ${order.items.map((item: any) => {
                 const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
                 return `
                 <div class="mb-2">
                   <div class="flex justify-between">
@@ -456,6 +457,12 @@ export default function AdminOrders() {
                     <span>${item.quantity} x ${effectivePrice.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                     <span>${(effectivePrice * item.quantity).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                   </div>
+                  ${itemDiscount > 0 ? `
+                  <div class="flex justify-between text-xs" style="margin-left: 8px;">
+                    <span>Item Discount:</span>
+                    <span>-${itemDiscount.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                  </div>
+                  ` : ''}
                 </div>
               `}).join('')}
             </div>
@@ -658,7 +665,9 @@ export default function AdminOrders() {
     const order = selectedReceiptOrder;
     const itemsList = order.items.map((item: any) => {
       const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
-      return `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(effectivePrice)} = ${formatCurrency(effectivePrice * item.quantity)}`;
+      const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
+      const itemText = `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(effectivePrice)} = ${formatCurrency(effectivePrice * item.quantity)}`;
+      return itemDiscount > 0 ? `${itemText}\n  Item Discount: -${formatCurrency(itemDiscount)}` : itemText;
     }).join('\n');
 
     const customerBalanceText = order.customerBalance !== undefined && order.customer_name && order.customer_name !== 'Walk-in Customer' 

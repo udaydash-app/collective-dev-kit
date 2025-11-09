@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Categories from "./pages/Categories";
 import SearchPage from "./pages/SearchPage";
@@ -90,16 +90,25 @@ const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
 
+  // Use HashRouter for Electron, BrowserRouter for web
+  const isElectron = React.useMemo(() => 
+    typeof window !== 'undefined' && (window as any).electron?.isElectron === true, 
+    []
+  );
+  const Router = isElectron ? HashRouter : BrowserRouter;
+
+  console.log('isElectron:', isElectron);
+
   return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
       <OfflineIndicator />
-      <BrowserRouter>
+      <Router>
         <Routes>
           {/* Customer-facing home */}
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={isElectron ? <Navigate to="/pos-login" replace /> : <Index />} />
           
           {/* PWA Installation page */}
           <Route path="/install" element={<PWAInstall />} />
@@ -172,7 +181,7 @@ const AppContent = () => {
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </TooltipProvider>
   );
 };

@@ -1,6 +1,10 @@
 {
   "appId": "com.globalmarket.pos",
   "productName": "Global Market POS",
+  "asarUnpack": [
+    "node_modules/@huggingface/**/*",
+    "node_modules/@emnapi/**/*"
+  ],
   "directories": {
     "output": "release",
     "buildResources": "public"
@@ -23,19 +27,26 @@
       }
     ],
     "icon": "public/icon-512x512.png",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "publisherName": "Global Market"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Global Market POS"
+    "shortcutName": "Global Market POS",
+    "allowElevation": true
   },
   "portable": {
     "artifactName": "${productName}-${version}-Portable.${ext}"
   },
   "extraMetadata": {
     "main": "electron/main.cjs"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "udaydash-app",
+    "repo": "collective-dev-kit"
   }
 }

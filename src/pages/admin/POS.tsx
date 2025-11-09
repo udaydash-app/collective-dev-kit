@@ -1770,11 +1770,13 @@ export default function POS() {
               .eq('journal_entries.status', 'posted');
 
             if (supplierLines && supplierLines.length > 0) {
-              const suppBalance = supplierLines.reduce((sum, line) => {
-                return sum + (line.debit_amount - line.credit_amount);
+              // For supplier (payable/liability) accounts: credit increases balance, debit decreases
+              // Payable balance = credit - debit (positive means we owe them)
+              // For unified view, we SUBTRACT payable from total (negative unified = we owe them net)
+              const suppPayableBalance = supplierLines.reduce((sum, line) => {
+                return sum + (line.credit_amount - line.debit_amount);
               }, 0);
-              // Add supplier balance (already negative if we owe them) for unified view
-              totalBalance += suppBalance;
+              totalBalance -= suppPayableBalance;
             }
           }
 

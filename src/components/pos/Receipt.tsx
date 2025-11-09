@@ -80,56 +80,46 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           </div>
         </div>
 
-        <div className="border-t border-b border-black py-2 mb-2 mt-3">
-          <div className="grid grid-cols-12 gap-1 text-[11px] font-bold mb-1 border-b border-dashed border-gray-400 pb-1">
-            <div className="col-span-5">Product</div>
-            <div className="col-span-2 text-center">Qty</div>
-            <div className="col-span-2 text-right">Price</div>
-            <div className="col-span-1 text-right">Disc</div>
-            <div className="col-span-2 text-right">Final</div>
-          </div>
+        <div className="border-t border-b border-black py-2 mb-2">
           {items.map((item, index) => {
-            const isCartDiscount = item.id === 'cart-discount';
-            const isCombo = item.isCombo;
-            // For cart-discount items, price is already negative, so use it directly
-            const effectivePrice = isCartDiscount ? item.price : (item.customPrice ?? item.price);
-            const itemTotal = effectivePrice * item.quantity;
-            const discountAmount = (item.itemDiscount || 0) * item.quantity;
-            const finalAmount = itemTotal - discountAmount;
-            
+            const effectivePrice = item.customPrice ?? item.price;
+            const itemDiscount = (item.itemDiscount || 0) * item.quantity;
             return (
-              <>
-                <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
-                  <div className="col-span-5 break-words leading-tight">
-                    {isCombo && '🎁 '}{item.displayName ?? item.name}
-                  </div>
-                  <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
-                  <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(effectivePrice) : ''}</div>
-                  <div className="col-span-1 text-right">
-                    {!isCartDiscount && discountAmount > 0 ? formatCurrencyCompact(discountAmount) : ''}
-                  </div>
-                  <div className="col-span-2 text-right font-semibold">{formatCurrencyCompact(finalAmount)}</div>
+              <div key={index} className="mb-2">
+                <div className="flex justify-between">
+                  <span className="flex-1">{item.displayName ?? item.name}</span>
                 </div>
-                {isCombo && item.comboItems && (
-                  <div key={`${index}-combo-items`} className="text-[8px] text-muted-foreground ml-2 mb-1">
-                    ({item.comboItems.map((ci, idx) => 
-                      `${ci.quantity}x ${ci.product_name}`
-                    ).join(', ')})
+                <div className="flex justify-between text-xs">
+                  <span>{item.quantity} x {formatCurrency(effectivePrice)}</span>
+                  <span>{formatCurrency(effectivePrice * item.quantity)}</span>
+                </div>
+                {itemDiscount > 0 && (
+                  <div className="flex justify-between text-xs ml-2">
+                    <span>Item Discount:</span>
+                    <span>-{formatCurrency(itemDiscount)}</span>
                   </div>
                 )}
-              </>
+              </div>
             );
           })}
         </div>
 
-        <div className="space-y-2 mb-4 border-t-2 border-black pt-3 mt-4">
+        <div className="space-y-1 mb-2">
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>{formatCurrency(subtotal)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Tax (15%):</span>
+            <span>{formatCurrency(tax)}</span>
+          </div>
           {discount > 0 && (
-            <div className="flex justify-between text-base mb-3">
-              <span>Cart Discount:</span>
-              <span className="font-semibold">-{formatCurrency(discount)}</span>
+            <div className="flex justify-between">
+              <span>Discount:</span>
+              <span>-{formatCurrency(discount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-2xl border-t-2 border-black pt-3 mt-3">
+          <div className="flex justify-between font-bold text-lg border-t pt-1">
             <span>TOTAL:</span>
             <span>{formatCurrency(total)}</span>
           </div>
