@@ -1,5 +1,5 @@
 // Updated: 2025-11-02 - Editable price and final amount
-import { Fragment } from 'react';
+import React, { Fragment, useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { useState } from 'react';
 
 const priceSchema = z.number().min(0).max(1000000).optional();
 const amountSchema = z.number().min(0).max(10000000).optional();
@@ -39,6 +38,10 @@ export const TransactionCart = ({
   onUpdateDisplayName,
 }: TransactionCartProps) => {
   const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
+  const [focusedItemIndex, setFocusedItemIndex] = useState(0);
+  const [focusedField, setFocusedField] = useState<'name' | 'qty' | 'price' | 'disc' | 'final'>('name');
+  const cartContainerRef = useRef<HTMLDivElement>(null);
+  const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   const toggleComboExpansion = (itemId: string) => {
     setExpandedCombos(prev => {
@@ -51,6 +54,83 @@ export const TransactionCart = ({
       return newSet;
     });
   };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if not in a dialog or modal
+      if (document.querySelector('[role="dialog"]')) return;
+      
+      // Only handle if focus is within cart or not in another input
+      const activeElement = document.activeElement as HTMLElement;
+      const isInCart = cartContainerRef.current?.contains(activeElement);
+      const isInInput = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
+      
+      if (!isInCart && isInInput) return;
+
+      const visibleItems = items.filter(item => item.id !== 'cart-discount');
+      if (visibleItems.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedItemIndex(prev => Math.min(prev + 1, visibleItems.length - 1));
+          setFocusedField('name');
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedItemIndex(prev => Math.max(prev - 1, 0));
+          setFocusedField('name');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          const fields: Array<'name' | 'qty' | 'price' | 'disc' | 'final'> = ['name', 'qty', 'price', 'disc', 'final'];
+          const currentIndex = fields.indexOf(focusedField);
+          if (currentIndex < fields.length - 1) {
+            setFocusedField(fields[currentIndex + 1]);
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          const fieldsLeft: Array<'name' | 'qty' | 'price' | 'disc' | 'final'> = ['name', 'qty', 'price', 'disc', 'final'];
+          const currentIndexLeft = fieldsLeft.indexOf(focusedField);
+          if (currentIndexLeft > 0) {
+            setFocusedField(fieldsLeft[currentIndexLeft - 1]);
+          }
+          break;
+        case 'Enter':
+          e.preventDefault();
+          const currentItem = visibleItems[focusedItemIndex];
+          if (currentItem) {
+            const refKey = `${currentItem.id}-${focusedField}`;
+            inputRefs.current[refKey]?.focus();
+            inputRefs.current[refKey]?.select();
+          }
+          break;
+        case 'Delete':
+          if (!isInInput) {
+            e.preventDefault();
+            const currentItem = visibleItems[focusedItemIndex];
+            if (currentItem) {
+              onRemove(currentItem.id);
+              setFocusedItemIndex(prev => Math.max(0, Math.min(prev, visibleItems.length - 2)));
+            }
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [items, focusedItemIndex, focusedField, onRemove]);
+
+  // Auto-select the newly focused item
+  useEffect(() => {
+    const visibleItems = items.filter(item => item.id !== 'cart-discount');
+    if (visibleItems[focusedItemIndex]) {
+      onSelectItem?.(visibleItems[focusedItemIndex].id);
+    }
+  }, [focusedItemIndex, items, onSelectItem]);
 
   if (items.length === 0) {
     return (
@@ -112,7 +192,7 @@ export const TransactionCart = ({
   };
 
   return (
-    <div className="space-y-1 h-full flex flex-col">
+    <div ref={cartContainerRef} className="space-y-1 h-full flex flex-col" tabIndex={-1}>
       <div className="flex items-center justify-between px-2">
         <h3 className="font-semibold text-sm">Cart Items ({items.filter(item => item.id !== 'cart-discount').length})</h3>
         <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs px-2">
@@ -134,10 +214,12 @@ export const TransactionCart = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const isCartDiscount = item.id === 'cart-discount';
                 const isCombo = item.isCombo;
                 const isExpanded = expandedCombos.has(item.id);
+                const visibleIndex = items.filter((i, idx) => idx < index && i.id !== 'cart-discount').length;
+                const isKeyboardFocused = !isCartDiscount && visibleIndex === focusedItemIndex;
                 return (
                   <Fragment key={item.id}>
                     <TableRow
@@ -145,6 +227,7 @@ export const TransactionCart = ({
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer",
                         selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15",
+                        isKeyboardFocused && "ring-2 ring-primary/50 bg-primary/5",
                         isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
                         isCombo && "bg-green-50 dark:bg-green-950/20"
                       )}
@@ -171,6 +254,7 @@ export const TransactionCart = ({
                             </span>
                           ) : (
                             <Input
+                              ref={(el) => { inputRefs.current[`${item.id}-name`] = el; }}
                               type="text"
                               value={item.displayName ?? item.name}
                               onChange={(e) => {
@@ -178,7 +262,10 @@ export const TransactionCart = ({
                                 onUpdateDisplayName?.(item.id, e.target.value);
                               }}
                               placeholder={item.name}
-                              className="text-[10px] font-medium px-1 py-0 h-auto min-h-[20px] border-0 bg-transparent hover:bg-muted/50 focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-primary/20"
+                              className={cn(
+                                "text-[10px] font-medium px-1 py-0 h-auto min-h-[20px] border-0 bg-transparent hover:bg-muted/50 focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-primary/20",
+                                isKeyboardFocused && focusedField === 'name' && "ring-1 ring-primary/40"
+                              )}
                               onClick={(e) => e.stopPropagation()}
                               title="Click to edit display name for this order"
                             />
@@ -205,6 +292,7 @@ export const TransactionCart = ({
                             <Minus className="h-2 w-2" />
                           </Button>
                           <Input
+                            ref={(el) => { inputRefs.current[`${item.id}-qty`] = el; }}
                             type="number"
                             value={item.quantity || ''}
                             onChange={(e) => {
@@ -218,7 +306,10 @@ export const TransactionCart = ({
                                 onUpdateQuantity(item.id, 1);
                               }
                             }}
-                            className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className={cn(
+                              "w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              isKeyboardFocused && focusedField === 'qty' && "ring-1 ring-primary/40 rounded"
+                            )}
                             onClick={(e) => e.stopPropagation()}
                             placeholder="0"
                           />
@@ -241,6 +332,7 @@ export const TransactionCart = ({
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdatePrice ? (
                           <Input
+                            ref={(el) => { inputRefs.current[`${item.id}-price`] = el; }}
                             type="number"
                             value={(item.customPrice ?? item.price) || ''}
                             onChange={(e) => {
@@ -254,7 +346,10 @@ export const TransactionCart = ({
                                 onUpdatePrice?.(item.id, item.price);
                               }
                             }}
-                            className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className={cn(
+                              "w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              isKeyboardFocused && focusedField === 'price' && "ring-1 ring-primary/40 rounded"
+                            )}
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
                             placeholder="0"
@@ -269,6 +364,7 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdateDiscount ? (
                         item.itemDiscount && item.itemDiscount > 0 ? (
                           <Input
+                            ref={(el) => { inputRefs.current[`${item.id}-disc`] = el; }}
                             type="number"
                             value={item.itemDiscount || ''}
                             onChange={(e) => {
@@ -282,7 +378,10 @@ export const TransactionCart = ({
                                 onUpdateDiscount?.(item.id, 0);
                               }
                             }}
-                            className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className={cn(
+                              "w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              isKeyboardFocused && focusedField === 'disc' && "ring-1 ring-primary/40 rounded"
+                            )}
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
                             placeholder="0"
@@ -299,6 +398,7 @@ export const TransactionCart = ({
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdatePrice ? (
                         <Input
+                          ref={(el) => { inputRefs.current[`${item.id}-final`] = el; }}
                           type="number"
                           value={calculateFinalAmount(item) || ''}
                           onChange={(e) => {
@@ -314,7 +414,10 @@ export const TransactionCart = ({
                               handleFinalAmountChange(item, originalAmount);
                             }
                           }}
-                          className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={cn(
+                            "w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                            isKeyboardFocused && focusedField === 'final' && "ring-1 ring-primary/40 rounded"
+                          )}
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
                           placeholder="0"
