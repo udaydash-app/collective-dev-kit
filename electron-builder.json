@@ -26,7 +26,6 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "public/icon-512x512.png",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "publisherName": "Global Market"
   },
