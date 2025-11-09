@@ -101,7 +101,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <>
                 <div key={index} className="grid grid-cols-12 gap-1 text-[10px] mb-1">
                   <div className="col-span-5 break-words leading-tight">
-                    {isCombo && '🎁 '}{item.name}
+                    {isCombo && '🎁 '}{item.displayName ?? item.name}
                   </div>
                   <div className="col-span-2 text-center">{!isCartDiscount ? item.quantity : '-'}</div>
                   <div className="col-span-2 text-right">{!isCartDiscount ? formatCurrencyCompact(effectivePrice) : ''}</div>

@@ -8,6 +8,7 @@ export interface CartItem {
   id: string;
   productId: string; // Base product ID (for looking up custom prices)
   name: string;
+  displayName?: string; // Custom name for this order only (doesn't modify product in DB)
   price: number;
   quantity: number;
   barcode?: string;
@@ -770,6 +771,16 @@ export const usePOSTransaction = () => {
     );
   };
 
+  const updateItemDisplayName = useCallback((productId: string, displayName: string) => {
+    setCart(prevCart => 
+      prevCart.map(item => 
+        item.id === productId 
+          ? { ...item, displayName: displayName.trim() || undefined }
+          : item
+      )
+    );
+  }, []);
+
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
@@ -941,6 +952,7 @@ export const usePOSTransaction = () => {
         id: item.id,
         productId: item.productId, // Base product ID for custom pricing
         name: item.name,
+        display_name: item.displayName, // Custom name for this order only
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
@@ -1157,6 +1169,7 @@ export const usePOSTransaction = () => {
     updateQuantity,
     updateItemPrice,
     updateItemDiscount,
+    updateItemDisplayName,
     clearCart,
     loadCart,
     calculateSubtotal,

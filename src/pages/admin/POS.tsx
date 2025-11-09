@@ -200,6 +200,7 @@ export default function POS() {
     updateQuantity,
     updateItemPrice,
     updateItemDiscount,
+    updateItemDisplayName,
     clearCart,
     loadCart,
     calculateSubtotal,
@@ -2451,6 +2452,7 @@ export default function POS() {
             onUpdateQuantity={updateQuantity}
             onUpdateDiscount={updateItemDiscount}
             onUpdatePrice={updateItemPrice}
+            onUpdateDisplayName={updateItemDisplayName}
             onRemove={(id) => {
               if (id === 'cart-discount') {
                 setCartDiscountItem(null);

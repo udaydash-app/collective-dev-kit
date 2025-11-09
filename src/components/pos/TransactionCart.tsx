@@ -24,6 +24,7 @@ interface TransactionCartProps {
   selectedItemId?: string;
   onSelectItem?: (productId: string) => void;
   onUpdatePrice?: (productId: string, price: number) => void;
+  onUpdateDisplayName?: (productId: string, displayName: string) => void;
 }
 
 export const TransactionCart = ({
@@ -35,6 +36,7 @@ export const TransactionCart = ({
   selectedItemId,
   onSelectItem,
   onUpdatePrice,
+  onUpdateDisplayName,
 }: TransactionCartProps) => {
   const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
 
@@ -149,9 +151,24 @@ export const TransactionCart = ({
                               {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                             </Button>
                           )}
-                          <span className={cn("text-[10px] font-medium line-clamp-2", isCartDiscount && "text-orange-600 dark:text-orange-400")}>
-                            {item.name}
-                          </span>
+                          {isCartDiscount ? (
+                            <span className="text-[10px] font-medium line-clamp-2 text-orange-600 dark:text-orange-400">
+                              {item.name}
+                            </span>
+                          ) : (
+                            <Input
+                              type="text"
+                              value={item.displayName ?? item.name}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                onUpdateDisplayName?.(item.id, e.target.value);
+                              }}
+                              placeholder={item.name}
+                              className="text-[10px] font-medium px-1 py-0 h-auto min-h-[20px] border-0 bg-transparent hover:bg-muted/50 focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-primary/20"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Click to edit display name for this order"
+                            />
+                          )}
                           {isCombo && (
                             <Badge variant="secondary" className="text-[8px] px-1 h-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               COMBO APPLIED
