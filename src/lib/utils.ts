@@ -9,13 +9,23 @@ export function cn(...inputs: ClassValue[]) {
 // Currency formatting for Côte d'Ivoire (West African CFA Franc)
 export function formatCurrency(amount: number | null | undefined): string {
   const value = amount ?? 0;
-  return `${value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
+  // Show decimals only if the value has fractional parts
+  const hasDecimals = value % 1 !== 0;
+  return `${value.toLocaleString('fr-CI', { 
+    minimumFractionDigits: hasDecimals ? 2 : 0, 
+    maximumFractionDigits: 2 
+  })} FCFA`;
 }
 
 // Currency formatting without currency sign for compact displays
 export function formatCurrencyCompact(amount: number | null | undefined): string {
   const value = amount ?? 0;
-  return value.toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  // Show decimals only if the value has fractional parts
+  const hasDecimals = value % 1 !== 0;
+  return value.toLocaleString('fr-CI', { 
+    minimumFractionDigits: hasDecimals ? 2 : 0, 
+    maximumFractionDigits: 2 
+  });
 }
 
 // Date formatting utilities - using dd/MM/yyyy format for Côte d'Ivoire
