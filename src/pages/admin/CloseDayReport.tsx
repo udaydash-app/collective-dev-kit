@@ -278,13 +278,15 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch manual journal entries that affect cash accounts
-      const { data: cashAccountIds } = await supabase
+      // Fetch payment method account IDs
+      const { data: paymentAccounts } = await supabase
         .from('accounts')
-        .select('id')
-        .in('account_code', ['1010', '1015']); // Cash and Mobile Money accounts
+        .select('id, account_code, account_name')
+        .in('account_code', ['1010', '1015', '1030']); // Cash, Mobile Money, AR (credit)
       
-      const cashAccounts = cashAccountIds?.map(a => a.id) || [];
+      const cashAccountId = paymentAccounts?.find(a => a.account_code === '1010')?.id;
+      const mobileMoneyAccountId = paymentAccounts?.find(a => a.account_code === '1015')?.id;
+      const arAccountId = paymentAccounts?.find(a => a.account_code === '1030')?.id;
       
       const { data: journalEntries } = await supabase
         .from('journal_entries')
@@ -302,25 +304,36 @@ export default function CloseDayReport() {
         .lte('entry_date', endDate)
         .order('entry_date', { ascending: false });
 
-      // Filter and calculate net cash impact from journal entries
+      // Categorize journal entries by payment method
       const journalCashImpact = journalEntries?.map(je => {
         const lines = Array.isArray(je.journal_entry_lines) ? je.journal_entry_lines : [];
-        let cashDebit = 0;
-        let cashCredit = 0;
+        let cashImpact = 0;
+        let mobileMoneyImpact = 0;
+        let creditImpact = 0;
         
         lines.forEach((line: any) => {
-          if (cashAccounts.includes(line.account_id)) {
-            cashDebit += parseFloat(line.debit_amount?.toString() || '0');
-            cashCredit += parseFloat(line.credit_amount?.toString() || '0');
+          const debit = parseFloat(line.debit_amount?.toString() || '0');
+          const credit = parseFloat(line.credit_amount?.toString() || '0');
+          const netImpact = debit - credit;
+          
+          if (line.account_id === cashAccountId) {
+            cashImpact += netImpact;
+          } else if (line.account_id === mobileMoneyAccountId) {
+            mobileMoneyImpact += netImpact;
+          } else if (line.account_id === arAccountId) {
+            creditImpact += netImpact;
           }
         });
         
         return {
           ...je,
-          cash_impact: cashDebit - cashCredit,
+          cash_impact: cashImpact,
+          mobile_money_impact: mobileMoneyImpact,
+          credit_impact: creditImpact,
+          total_impact: cashImpact + mobileMoneyImpact + creditImpact,
           entry_date: je.entry_date
         };
-      }).filter(je => je.cash_impact !== 0) || [];
+      }).filter(je => je.total_impact !== 0) || [];
 
       // Fetch sessions that were active during the selected period
       // This includes sessions opened before but closed during the period,
@@ -399,10 +412,15 @@ export default function CloseDayReport() {
               const sessEnd = new Date(sessionEnd);
               return jeDate >= sessStart && jeDate <= sessEnd;
             })
-            .reduce((sum, je) => sum + je.cash_impact, 0) || 0;
+            .reduce((acc, je) => ({
+              cash: acc.cash + je.cash_impact,
+              mobile_money: acc.mobile_money + je.mobile_money_impact,
+              credit: acc.credit + je.credit_impact,
+              total: acc.total + je.total_impact
+            }), { cash: 0, mobile_money: 0, credit: 0, total: 0 });
 
           const openingCash = parseFloat(session.opening_cash?.toString() || '0');
-          const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses + sessionJournalImpact;
+          const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses + (sessionJournalImpact?.cash || 0);
           const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
           const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
 
@@ -414,7 +432,7 @@ export default function CloseDayReport() {
             cash_payments_received: cashPaymentsReceived,
             cash_purchases: cashPurchases,
             cash_expenses: cashExpenses,
-            journal_entries_impact: sessionJournalImpact,
+            journal_entries_impact: sessionJournalImpact || { cash: 0, mobile_money: 0, credit: 0, total: 0 },
             transaction_count: sessionTransactions?.length || 0,
           };
         })
@@ -469,7 +487,7 @@ export default function CloseDayReport() {
         sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
         purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
         expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
-        journalEntries: { cash: 0, total: 0, entries: [] },
+        journalEntries: { cash: 0, credit: 0, mobileMoney: 0, total: 0, entries: [] },
         cashSessions: [],
         totalOpeningCash: 0,
       });
@@ -521,9 +539,10 @@ export default function CloseDayReport() {
       const dayData = dateMap.get(date);
       if (!dayData) return;
       
-      const impact = je.cash_impact;
-      dayData.journalEntries.total += impact;
-      dayData.journalEntries.cash += impact;
+      dayData.journalEntries.cash += je.cash_impact;
+      dayData.journalEntries.mobileMoney += je.mobile_money_impact;
+      dayData.journalEntries.credit += je.credit_impact;
+      dayData.journalEntries.total += je.total_impact;
       dayData.journalEntries.entries.push(je);
     });
 
@@ -1126,8 +1145,8 @@ export default function CloseDayReport() {
                             Manual Journal Entries
                           </td>
                           <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.cash, 0))}</td>
-                          <td className="text-right p-3 text-muted-foreground">—</td>
-                          <td className="text-right p-3 text-muted-foreground">—</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.credit, 0))}</td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.mobileMoney, 0))}</td>
                           <td className="text-right p-3 font-bold font-mono text-lg text-blue-600 bg-blue-50/50 dark:bg-blue-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.total, 0))}</td>
                         </tr>
                         <tr className="border-t-2 border-border bg-muted/30">
@@ -1256,8 +1275,8 @@ export default function CloseDayReport() {
                               </div>
                             </td>
                             <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.journalEntries.cash)}</td>
-                            <td className="text-right p-3 font-mono border border-border text-muted-foreground">—</td>
-                            <td className="text-right p-3 font-mono border border-border text-muted-foreground">—</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.journalEntries.credit)}</td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.journalEntries.mobileMoney)}</td>
                             <td className={`text-right p-3 font-bold font-mono text-lg border border-border ${
                               dayData.journalEntries.total >= 0 
                                 ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600' 
@@ -1326,10 +1345,27 @@ export default function CloseDayReport() {
                                   </td>
                                   <td className="text-right p-3 font-mono border border-border">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</td>
                                   <td className="text-right p-3 font-mono border border-border text-green-600">{formatCurrency(session.cash_sales || 0)}</td>
-                                  <td className={`text-right p-3 font-mono border border-border ${
-                                    (session.journal_entries_impact || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
-                                  }`}>
-                                    {session.journal_entries_impact ? formatCurrency(session.journal_entries_impact) : '—'}
+                                  <td className="text-right p-3 font-mono border border-border">
+                                    <div className="space-y-1">
+                                      {session.journal_entries_impact?.cash !== 0 && (
+                                        <div className={session.journal_entries_impact?.cash >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                                          Cash: {formatCurrency(session.journal_entries_impact?.cash || 0)}
+                                        </div>
+                                      )}
+                                      {session.journal_entries_impact?.mobile_money !== 0 && (
+                                        <div className={session.journal_entries_impact?.mobile_money >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                                          M.Money: {formatCurrency(session.journal_entries_impact?.mobile_money || 0)}
+                                        </div>
+                                      )}
+                                      {session.journal_entries_impact?.credit !== 0 && (
+                                        <div className={session.journal_entries_impact?.credit >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                                          Credit: {formatCurrency(session.journal_entries_impact?.credit || 0)}
+                                        </div>
+                                      )}
+                                      {session.journal_entries_impact?.total === 0 && (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="text-right p-3 font-mono border border-border font-semibold">{formatCurrency(expectedCash || 0)}</td>
                                   <td className="text-right p-3 font-mono border border-border">
