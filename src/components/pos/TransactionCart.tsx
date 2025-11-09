@@ -70,6 +70,12 @@ export const TransactionCart = ({
     return subtotal - discountAmount;
   };
 
+  const formatNumberForDisplay = (value: number): string => {
+    // Show decimals only if the value has fractional parts
+    const hasDecimals = value % 1 !== 0;
+    return hasDecimals ? value.toFixed(2) : value.toString();
+  };
+
   const handlePriceChange = (item: CartItem, newPrice: number) => {
     try {
       const validated = priceSchema.parse(newPrice);
@@ -197,7 +203,7 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               onUpdateQuantity(item.id, parseInt(e.target.value) || 1);
                             }}
-                            className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             min="1"
                             onClick={(e) => e.stopPropagation()}
                           />
@@ -229,7 +235,7 @@ export const TransactionCart = ({
                                 handlePriceChange(item, newPrice);
                               }
                             }}
-                            className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             min="0"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
@@ -250,7 +256,7 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
                             }}
-                            className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             min="0"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
@@ -268,7 +274,7 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdatePrice ? (
                         <Input
                           type="number"
-                          value={calculateFinalAmount(item).toFixed(2)}
+                          value={formatNumberForDisplay(calculateFinalAmount(item))}
                           onChange={(e) => {
                             e.stopPropagation();
                             const newAmount = parseFloat(e.target.value);
@@ -276,7 +282,7 @@ export const TransactionCart = ({
                               handleFinalAmountChange(item, newAmount);
                             }
                           }}
-                          className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                          className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           min="0"
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
