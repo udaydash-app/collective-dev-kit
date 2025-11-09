@@ -12,8 +12,8 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
-const priceSchema = z.number().nonnegative().max(1000000);
-const amountSchema = z.number().nonnegative().max(10000000);
+const priceSchema = z.number().min(0).max(1000000).optional();
+const amountSchema = z.number().min(0).max(10000000).optional();
 
 interface TransactionCartProps {
   items: CartItem[];
@@ -76,26 +76,34 @@ export const TransactionCart = ({
     return hasDecimals ? value.toFixed(2) : value.toString();
   };
 
-  const handlePriceChange = (item: CartItem, newPrice: number) => {
+  const handlePriceChange = (item: CartItem, newPrice: number | undefined) => {
+    if (newPrice === undefined || newPrice === null) {
+      onUpdatePrice?.(item.id, 0);
+      return;
+    }
     try {
       const validated = priceSchema.parse(newPrice);
-      onUpdatePrice?.(item.id, validated);
+      onUpdatePrice?.(item.id, validated ?? 0);
       // Clear item discount when price is manually changed
       if (item.itemDiscount && item.itemDiscount > 0) {
         onUpdateDiscount?.(item.id, 0);
       }
     } catch (error) {
-      toast.error('Invalid price. Must be between 0.01 and 1,000,000');
+      toast.error('Invalid price. Must be between 0 and 1,000,000');
     }
   };
 
-  const handleFinalAmountChange = (item: CartItem, newFinalAmount: number) => {
+  const handleFinalAmountChange = (item: CartItem, newFinalAmount: number | undefined) => {
+    if (newFinalAmount === undefined || newFinalAmount === null || item.quantity === 0) {
+      onUpdatePrice?.(item.id, 0);
+      return;
+    }
     try {
       const validated = amountSchema.parse(newFinalAmount);
       // Back-calculate the price per unit based on new final amount
-      const newPricePerUnit = validated / item.quantity;
+      const newPricePerUnit = (validated ?? 0) / item.quantity;
       const validatedPrice = priceSchema.parse(newPricePerUnit);
-      onUpdatePrice?.(item.id, validatedPrice);
+      onUpdatePrice?.(item.id, validatedPrice ?? 0);
       // Clear item discount when editing final amount
       onUpdateDiscount?.(item.id, 0);
     } catch (error) {
@@ -198,14 +206,15 @@ export const TransactionCart = ({
                           </Button>
                           <Input
                             type="number"
-                            value={item.quantity}
+                            value={item.quantity || ''}
                             onChange={(e) => {
                               e.stopPropagation();
-                              onUpdateQuantity(item.id, parseInt(e.target.value) || 1);
+                              const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                              onUpdateQuantity(item.id, val);
                             }}
                             className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min="1"
                             onClick={(e) => e.stopPropagation()}
+                            placeholder="0"
                           />
                           <Button
                             variant="outline"
@@ -227,18 +236,16 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdatePrice ? (
                           <Input
                             type="number"
-                            value={item.customPrice ?? item.price}
+                            value={(item.customPrice ?? item.price) || ''}
                             onChange={(e) => {
                               e.stopPropagation();
-                              const newPrice = parseFloat(e.target.value);
-                              if (!isNaN(newPrice) && newPrice >= 0) {
-                                handlePriceChange(item, newPrice);
-                              }
+                              const newPrice = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                              handlePriceChange(item, newPrice);
                             }}
                             className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min="0"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
+                            placeholder="0"
                           />
                       ) : !isCartDiscount ? (
                         <span className="text-[10px]">{formatCurrency(Math.abs(item.customPrice ?? item.price))}</span>
@@ -251,15 +258,16 @@ export const TransactionCart = ({
                         item.itemDiscount && item.itemDiscount > 0 ? (
                           <Input
                             type="number"
-                            value={item.itemDiscount}
+                            value={item.itemDiscount || ''}
                             onChange={(e) => {
                               e.stopPropagation();
-                              onUpdateDiscount(item.id, parseFloat(e.target.value) || 0);
+                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              onUpdateDiscount(item.id, val);
                             }}
                             className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min="0"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
+                            placeholder="0"
                           />
                         ) : (
                           <span className="text-[10px]"></span>
@@ -274,18 +282,16 @@ export const TransactionCart = ({
                       {!isCartDiscount && onUpdatePrice ? (
                         <Input
                           type="number"
-                          value={formatNumberForDisplay(calculateFinalAmount(item))}
+                          value={calculateFinalAmount(item) || ''}
                           onChange={(e) => {
                             e.stopPropagation();
-                            const newAmount = parseFloat(e.target.value);
-                            if (!isNaN(newAmount) && newAmount >= 0) {
-                              handleFinalAmountChange(item, newAmount);
-                            }
+                            const newAmount = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                            handleFinalAmountChange(item, newAmount);
                           }}
                           className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          min="0"
                           step="0.01"
                           onClick={(e) => e.stopPropagation()}
+                          placeholder="0"
                         />
                       ) : (
                         <span className="font-semibold text-[10px]">{formatCurrency(calculateFinalAmount(item))}</span>
