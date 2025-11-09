@@ -1,10 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-<<<<<<< HEAD
-=======
 // import { componentTagger } from "lovable-tagger"; // Disabled for local builds
->>>>>>> 3c7afdbc46a78dbbf4b951402b65b3c68870d263
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
@@ -25,10 +22,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-<<<<<<< HEAD
-=======
     // mode === "development" && componentTagger(), // Disabled for local builds
->>>>>>> 3c7afdbc46a78dbbf4b951402b65b3c68870d263
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "icon-192x192.png", "icon-512x512.png"],
