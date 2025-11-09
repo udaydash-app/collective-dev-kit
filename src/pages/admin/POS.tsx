@@ -507,10 +507,19 @@ export default function POS() {
 
   // Show cash in dialog if no active session
   useEffect(() => {
+    console.log('=== CASH SESSION EFFECT ===', {
+      selectedStoreId,
+      isLoadingCashSession,
+      activeCashSession,
+      showCashIn
+    });
+    
     if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
       setShowCashIn(true);
     }
     setCurrentCashSession(activeCashSession);
+    
+    console.log('Current cash session set to:', activeCashSession);
   }, [activeCashSession, selectedStoreId, isLoadingCashSession]);
 
   // Get all transactions for today from all users
