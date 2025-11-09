@@ -717,7 +717,6 @@ export default function POS() {
       
       // Get journal entry lines for cash account from posted entries during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
-      // (POS-, PUR-, SPM-, PMT-, OB-)
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -729,14 +728,20 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .not('journal_entries.reference', 'like', 'POS-%')
-        .not('journal_entries.reference', 'like', 'PUR-%')
-        .not('journal_entries.reference', 'like', 'SPM-%')
-        .not('journal_entries.reference', 'like', 'PMT-%')
-        .not('journal_entries.reference', 'like', 'OB-%')
         .order('journal_entries.entry_date', { ascending: true });
       
-      return data || [];
+      // Filter out system-generated entries client-side
+      const filteredData = data?.filter(entry => {
+        const ref = entry.journal_entries.reference || '';
+        return !ref.startsWith('POS-') && 
+               !ref.startsWith('PUR-') && 
+               !ref.startsWith('SPM-') && 
+               !ref.startsWith('PMT-') &&
+               !ref.startsWith('OB-') &&
+               !ref.endsWith('-PMT');
+      });
+      
+      return filteredData || [];
     },
     enabled: !!currentCashSession
   });
@@ -775,14 +780,20 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .not('journal_entries.reference', 'like', 'POS-%')
-        .not('journal_entries.reference', 'like', 'PUR-%')
-        .not('journal_entries.reference', 'like', 'SPM-%')
-        .not('journal_entries.reference', 'like', 'PMT-%')
-        .not('journal_entries.reference', 'like', 'OB-%')
         .order('journal_entries.entry_date', { ascending: true });
       
-      return data || [];
+      // Filter out system-generated entries client-side
+      const filteredData = data?.filter(entry => {
+        const ref = entry.journal_entries.reference || '';
+        return !ref.startsWith('POS-') && 
+               !ref.startsWith('PUR-') && 
+               !ref.startsWith('SPM-') && 
+               !ref.startsWith('PMT-') &&
+               !ref.startsWith('OB-') &&
+               !ref.endsWith('-PMT');
+      });
+      
+      return filteredData || [];
     },
     enabled: !!currentCashSession
   });
