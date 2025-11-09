@@ -59,12 +59,9 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
-<<<<<<< HEAD
-=======
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
     "electron-updater": "^6.6.2",
->>>>>>> 3c7afdbc46a78dbbf4b951402b65b3c68870d263
     "embla-carousel-react": "^8.6.0",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
