@@ -741,6 +741,9 @@ export default function POS() {
                !ref.endsWith('-PMT');
       });
       
+      console.log('Cash Journal Entries - Raw data:', data);
+      console.log('Cash Journal Entries - Filtered:', filteredData);
+      
       return filteredData || [];
     },
     enabled: !!currentCashSession
@@ -792,6 +795,9 @@ export default function POS() {
                !ref.startsWith('OB-') &&
                !ref.endsWith('-PMT');
       });
+      
+      console.log('Mobile Money Journal Entries - Raw data:', data);
+      console.log('Mobile Money Journal Entries - Filtered:', filteredData);
       
       return filteredData || [];
     },

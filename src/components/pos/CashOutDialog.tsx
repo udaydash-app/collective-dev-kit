@@ -87,6 +87,8 @@ export const CashOutDialog = ({
   mobileMoneyJournalEntries = [], 
   journalMobileMoneyEffect = 0 
 }: CashOutDialogProps) => {
+  console.log('CashOutDialog - journalEntries:', journalEntries);
+  console.log('CashOutDialog - mobileMoneyJournalEntries:', mobileMoneyJournalEntries);
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
