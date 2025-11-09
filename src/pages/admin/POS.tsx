@@ -507,19 +507,10 @@ export default function POS() {
 
   // Show cash in dialog if no active session
   useEffect(() => {
-    console.log('=== CASH SESSION EFFECT ===', {
-      selectedStoreId,
-      isLoadingCashSession,
-      activeCashSession,
-      showCashIn
-    });
-    
     if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
       setShowCashIn(true);
     }
     setCurrentCashSession(activeCashSession);
-    
-    console.log('Current cash session set to:', activeCashSession);
   }, [activeCashSession, selectedStoreId, isLoadingCashSession]);
 
   // Get all transactions for today from all users
@@ -665,12 +656,23 @@ export default function POS() {
       
       const { data, error } = await supabase
         .from('supplier_payments')
-        .select('amount, payment_method')
+        .select(`
+          id,
+          amount,
+          payment_method,
+          created_at,
+          contacts!supplier_payments_contact_id_fkey(name)
+        `)
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at);
       
       if (error) throw error;
-      return data || [];
+      
+      // Transform data to include contact_name
+      return (data || []).map(payment => ({
+        ...payment,
+        contact_name: payment.contacts?.name
+      }));
     },
     enabled: !!currentCashSession
   });
@@ -707,13 +709,9 @@ export default function POS() {
   const { data: cashJournalEntries, isLoading: cashJournalLoading, error: cashJournalError } = useQuery({
     queryKey: ['session-cash-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
-      console.log('=== CASH JOURNAL QUERY STARTING ===');
       if (!currentCashSession) {
-        console.log('No cash session - skipping cash journal entries');
         return [];
       }
-      
-      console.log('Current cash session:', currentCashSession);
       
       // Get cash account ID
       const { data: cashAccount, error: accountError } = await supabase
@@ -722,22 +720,13 @@ export default function POS() {
         .eq('account_code', '1010')
         .single();
       
-      console.log('Cash account lookup:', { cashAccount, accountError });
-      
       if (!cashAccount) {
-        console.log('No cash account found with code 1010');
         return [];
       }
       
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
-      
-      console.log('Cash journal query params:', {
-        accountId: cashAccount.id,
-        sessionStart,
-        sessionEnd
-      });
 
       // Get journal entry lines for cash account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
@@ -754,8 +743,6 @@ export default function POS() {
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
-      console.log('Cash journal query error:', queryError);
-      
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
         const ref = entry.journal_entries.reference || '';
@@ -767,9 +754,6 @@ export default function POS() {
                !ref.endsWith('-PMT');
       });
       
-      console.log('Cash Journal Entries - Raw data:', data);
-      console.log('Cash Journal Entries - Filtered:', filteredData);
-      
       return filteredData || [];
     },
     enabled: !!currentCashSession,
@@ -777,24 +761,13 @@ export default function POS() {
     staleTime: 0
   });
 
-  console.log('Cash journal query status:', { 
-    data: cashJournalEntries, 
-    isLoading: cashJournalLoading, 
-    error: cashJournalError,
-    hasSession: !!currentCashSession 
-  });
-
   // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
     queryKey: ['session-mobile-money-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
-      console.log('=== MOBILE MONEY JOURNAL QUERY STARTING ===');
       if (!currentCashSession) {
-        console.log('No cash session - skipping mobile money journal entries');
         return [];
       }
-      
-      console.log('Current cash session:', currentCashSession);
       
       // Get mobile money account ID
       const { data: mobileMoneyAccount, error: accountError } = await supabase
@@ -803,22 +776,13 @@ export default function POS() {
         .eq('account_code', '1015')
         .single();
       
-      console.log('Mobile money account lookup:', { mobileMoneyAccount, accountError });
-      
       if (!mobileMoneyAccount) {
-        console.log('No mobile money account found with code 1015');
         return [];
       }
       
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
-      
-      console.log('Mobile money journal query params:', {
-        accountId: mobileMoneyAccount.id,
-        sessionStart,
-        sessionEnd
-      });
       
       // Get journal entry lines for mobile money account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
@@ -835,8 +799,6 @@ export default function POS() {
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
-      console.log('Mobile money journal query error:', queryError);
-      
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
         const ref = entry.journal_entries.reference || '';
@@ -848,19 +810,11 @@ export default function POS() {
                !ref.endsWith('-PMT');
       });
       
-      console.log('Mobile Money Journal Entries - Raw data:', data);
-      console.log('Mobile Money Journal Entries - Filtered:', filteredData);
-      
       return filteredData || [];
     },
     enabled: !!currentCashSession,
     refetchOnMount: 'always',
     staleTime: 0
-  });
-
-  console.log('Mobile money journal query status:', { 
-    data: mobileMoneyJournalEntries, 
-    hasSession: !!currentCashSession 
   });
 
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
@@ -3106,6 +3060,7 @@ export default function POS() {
           purchases={dayPurchases || []}
           expenses={dayExpenses || []}
           paymentReceipts={paymentReceipts || []}
+          supplierPayments={supplierPayments || []}
           journalEntries={cashJournalEntries || []}
           journalCashEffect={journalCashEffect}
           mobileMoneyJournalEntries={mobileMoneyJournalEntries || []}

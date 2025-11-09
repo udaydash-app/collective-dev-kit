@@ -44,6 +44,14 @@ interface PaymentReceipt {
   contact_name?: string;
 }
 
+interface SupplierPayment {
+  id: string;
+  amount: number;
+  payment_method: string;
+  created_at: string;
+  contact_name?: string;
+}
+
 interface JournalEntry {
   debit_amount: number;
   credit_amount: number;
@@ -65,6 +73,7 @@ interface CashOutDialogProps {
   purchases?: Purchase[];
   expenses?: Expense[];
   paymentReceipts?: PaymentReceipt[];
+  supplierPayments?: SupplierPayment[];
   journalEntries?: JournalEntry[];
   journalCashEffect?: number;
   mobileMoneyJournalEntries?: JournalEntry[];
@@ -82,13 +91,12 @@ export const CashOutDialog = ({
   purchases = [],
   expenses = [],
   paymentReceipts = [],
+  supplierPayments = [],
   journalEntries = [], 
   journalCashEffect = 0, 
   mobileMoneyJournalEntries = [], 
   journalMobileMoneyEffect = 0 
 }: CashOutDialogProps) => {
-  console.log('CashOutDialog - journalEntries:', journalEntries);
-  console.log('CashOutDialog - mobileMoneyJournalEntries:', mobileMoneyJournalEntries);
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -97,6 +105,7 @@ export const CashOutDialog = ({
     purchases: false,
     expenses: false,
     receipts: false,
+    supplierPayments: false,
     journals: false
   });
 
@@ -126,6 +135,11 @@ export const CashOutDialog = ({
   const cashPayments = paymentReceipts.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + p.amount, 0);
   const mobileMoneyPayments = paymentReceipts.filter(p => p.payment_method === 'mobile_money').reduce((sum, p) => sum + p.amount, 0);
   const totalPayments = cashPayments + mobileMoneyPayments;
+
+  // Calculate supplier payments by method
+  const cashSupplierPayments = supplierPayments.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + p.amount, 0);
+  const mobileMoneySupplierPayments = supplierPayments.filter(p => p.payment_method === 'mobile_money').reduce((sum, p) => sum + p.amount, 0);
+  const totalSupplierPayments = cashSupplierPayments + mobileMoneySupplierPayments;
 
   // Calculate journal effects
   const journalCashIn = journalEntries.filter(e => (e.debit_amount - e.credit_amount) > 0).reduce((sum, e) => sum + (e.debit_amount - e.credit_amount), 0);
@@ -482,6 +496,71 @@ export const CashOutDialog = ({
               </div>
             )}
 
+            {/* Supplier Payments Section */}
+            {supplierPayments.length > 0 && (
+              <div className="space-y-3">
+                <Collapsible open={openSections.supplierPayments} onOpenChange={() => toggleSection('supplierPayments')}>
+                  <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20">
+                    <CardContent className="p-4">
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-500/10 rounded-lg">
+                              <ArrowUpCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold">Supplier Payments</h3>
+                              <p className="text-xs text-muted-foreground">Payments made to suppliers</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(totalSupplierPayments)}</p>
+                            {openSections.supplierPayments ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="pt-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-amber-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Cash</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(cashSupplierPayments)}</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Smartphone className="h-4 w-4 text-purple-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(mobileMoneySupplierPayments)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Payment Details</p>
+                          <div className="space-y-1">
+                            {supplierPayments.map((payment) => (
+                              <div key={payment.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div className="flex items-center gap-2">
+                                  {payment.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-amber-600" />}
+                                  {payment.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
+                                  <span className="text-muted-foreground">{formatDateTime(payment.created_at)}</span>
+                                  {payment.contact_name && <span className="text-muted-foreground">• {payment.contact_name}</span>}
+                                </div>
+                                <span className="font-semibold">{formatCurrency(payment.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
+              </div>
+            )}
+
             {/* Manual Journal Entries */}
             {(journalEntries.length > 0 || mobileMoneyJournalEntries.length > 0) && (
               <div className="space-y-3">
@@ -600,6 +679,7 @@ export const CashOutDialog = ({
                       {cashPayments > 0 && <p>+ Receipts ({formatCurrency(cashPayments)})</p>}
                       {cashPurchases > 0 && <p>- Purchases ({formatCurrency(cashPurchases)})</p>}
                       {cashExpenses > 0 && <p>- Expenses ({formatCurrency(cashExpenses)})</p>}
+                      {cashSupplierPayments > 0 && <p>- Supplier Payments ({formatCurrency(cashSupplierPayments)})</p>}
                       {journalCashEffect !== 0 && <p>{journalCashEffect >= 0 ? '+' : '-'} Journals ({formatCurrency(Math.abs(journalCashEffect))})</p>}
                     </div>
                   </div>
@@ -619,6 +699,7 @@ export const CashOutDialog = ({
                       {mobileMoneyPayments > 0 && <p>+ Receipts ({formatCurrency(mobileMoneyPayments)})</p>}
                       {mobileMoneyPurchases > 0 && <p>- Purchases ({formatCurrency(mobileMoneyPurchases)})</p>}
                       {mobileMoneyExpenses > 0 && <p>- Expenses ({formatCurrency(mobileMoneyExpenses)})</p>}
+                      {mobileMoneySupplierPayments > 0 && <p>- Supplier Payments ({formatCurrency(mobileMoneySupplierPayments)})</p>}
                       {journalMobileMoneyEffect !== 0 && <p>{journalMobileMoneyEffect >= 0 ? '+' : '-'} Journals ({formatCurrency(Math.abs(journalMobileMoneyEffect))})</p>}
                     </div>
                   </div>
