@@ -48,12 +48,14 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       
-      // Allow clicks on these elements
+      // Allow clicks on these elements and cart interactions
       if (
         target.matches('input[type="number"]') ||
+        target.matches('input[type="text"]') ||
         target.closest('[role="dialog"]') ||
         target.closest('button') ||
         target.closest('[role="button"]') ||
+        target.closest('[data-cart-container="true"]') || // Cart container
         target === searchInputRef.current
       ) {
         return;
@@ -67,25 +69,37 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // If not focused on an input, focus the search field for scanner input
       const activeElement = document.activeElement as HTMLElement;
+      
+      // Don't steal focus if user is in cart or in any input field
       if (
-        activeElement?.tagName !== 'INPUT' &&
-        activeElement?.tagName !== 'TEXTAREA' &&
-        !activeElement?.closest('[role="dialog"]')
+        activeElement?.tagName === 'INPUT' ||
+        activeElement?.tagName === 'TEXTAREA' ||
+        activeElement?.closest('[role="dialog"]') ||
+        activeElement?.closest('[data-cart-container="true"]') // Cart container
       ) {
-        searchInputRef.current?.focus();
+        return;
       }
+      
+      searchInputRef.current?.focus();
     };
 
     // Periodically check and refocus (for scanner reliability)
     const focusInterval = setInterval(() => {
       const activeElement = document.activeElement as HTMLElement;
+      
+      // Don't steal focus from cart or any input field
       if (
-        !document.querySelector('[role="dialog"]') &&
-        !activeElement?.matches('input[type="number"]') &&
-        activeElement !== searchInputRef.current
+        document.querySelector('[role="dialog"]') ||
+        activeElement?.matches('input[type="number"]') ||
+        activeElement?.matches('input[type="text"]') ||
+        activeElement?.matches('textarea') ||
+        activeElement?.closest('[data-cart-container="true"]') || // Cart container
+        activeElement === searchInputRef.current
       ) {
-        searchInputRef.current?.focus();
+        return;
       }
+      
+      searchInputRef.current?.focus();
     }, 100);
 
     document.addEventListener('mousedown', handleMouseDown, true); // Use capture phase
@@ -175,7 +189,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: matchingVariant,
       });
       setSearchTerm('');
-      requestAnimationFrame(() => searchInputRef.current?.focus());
+      // Only refocus if this was from scanning (not clicking)
+      if (!fromClick) {
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }
       return;
     }
     
@@ -192,15 +209,19 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         price: defaultVariant.price,
         selectedVariant: defaultVariant,
       });
-      // Clear search and refocus
+      // Clear search and refocus only if not from click
       setSearchTerm('');
-      requestAnimationFrame(() => searchInputRef.current?.focus());
+      if (!fromClick) {
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }
     } else {
       // No variants, use product price
       onProductSelect(product);
-      // Clear search and refocus
+      // Clear search and refocus only if not from click
       setSearchTerm('');
-      requestAnimationFrame(() => searchInputRef.current?.focus());
+      if (!fromClick) {
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }
     }
   };
 
@@ -351,9 +372,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: variant,
       });
       setVariantSelectorOpen(false);
-      // Clear search and refocus
+      // Clear search but don't refocus - user might want to navigate cart
       setSearchTerm('');
-      requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   };
 

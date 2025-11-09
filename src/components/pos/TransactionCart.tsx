@@ -192,7 +192,7 @@ export const TransactionCart = ({
   };
 
   return (
-    <div ref={cartContainerRef} className="space-y-1 h-full flex flex-col" tabIndex={-1}>
+    <div ref={cartContainerRef} data-cart-container="true" className="space-y-1 h-full flex flex-col" tabIndex={-1}>
       <div className="flex items-center justify-between px-2">
         <h3 className="font-semibold text-sm">Cart Items ({items.filter(item => item.id !== 'cart-discount').length})</h3>
         <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs px-2">
