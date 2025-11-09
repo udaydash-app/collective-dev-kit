@@ -698,16 +698,24 @@ export default function POS() {
   const { data: cashJournalEntries } = useQuery({
     queryKey: ['session-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
-      if (!currentCashSession) return [];
+      if (!currentCashSession) {
+        console.log('No cash session - skipping cash journal entries');
+        return [];
+      }
       
       // Get cash account ID
-      const { data: cashAccount } = await supabase
+      const { data: cashAccount, error: accountError } = await supabase
         .from('accounts')
         .select('id')
         .eq('account_code', '1010')
         .single();
       
-      if (!cashAccount) return [];
+      console.log('Cash account lookup:', { cashAccount, accountError });
+      
+      if (!cashAccount) {
+        console.log('No cash account found with code 1010');
+        return [];
+      }
       
       // Get the session date range
       const sessionStartDate = new Date(currentCashSession.opened_at).toISOString().split('T')[0];
@@ -715,9 +723,15 @@ export default function POS() {
         ? new Date(currentCashSession.closed_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
       
+      console.log('Cash journal query params:', {
+        accountId: cashAccount.id,
+        sessionStartDate,
+        sessionEndDate
+      });
+      
       // Get journal entry lines for cash account from posted entries during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -729,6 +743,8 @@ export default function POS() {
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
         .order('journal_entries.entry_date', { ascending: true });
+      
+      console.log('Cash journal query error:', queryError);
       
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
@@ -753,16 +769,24 @@ export default function POS() {
   const { data: mobileMoneyJournalEntries } = useQuery({
     queryKey: ['session-mobile-money-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
-      if (!currentCashSession) return [];
+      if (!currentCashSession) {
+        console.log('No cash session - skipping mobile money journal entries');
+        return [];
+      }
       
       // Get mobile money account ID
-      const { data: mobileMoneyAccount } = await supabase
+      const { data: mobileMoneyAccount, error: accountError } = await supabase
         .from('accounts')
         .select('id')
         .eq('account_code', '1015')
         .single();
       
-      if (!mobileMoneyAccount) return [];
+      console.log('Mobile money account lookup:', { mobileMoneyAccount, accountError });
+      
+      if (!mobileMoneyAccount) {
+        console.log('No mobile money account found with code 1015');
+        return [];
+      }
       
       // Get the session date range
       const sessionStartDate = new Date(currentCashSession.opened_at).toISOString().split('T')[0];
@@ -770,9 +794,15 @@ export default function POS() {
         ? new Date(currentCashSession.closed_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
       
+      console.log('Mobile money journal query params:', {
+        accountId: mobileMoneyAccount.id,
+        sessionStartDate,
+        sessionEndDate
+      });
+      
       // Get journal entry lines for mobile money account from posted entries during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -784,6 +814,8 @@ export default function POS() {
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
         .order('journal_entries.entry_date', { ascending: true });
+      
+      console.log('Mobile money journal query error:', queryError);
       
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
