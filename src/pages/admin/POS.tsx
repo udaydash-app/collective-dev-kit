@@ -696,12 +696,15 @@ export default function POS() {
 
   // Fetch journal entries affecting cash account for the session period (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
   const { data: cashJournalEntries } = useQuery({
-    queryKey: ['session-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-cash-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
+      console.log('=== CASH JOURNAL QUERY STARTING ===');
       if (!currentCashSession) {
         console.log('No cash session - skipping cash journal entries');
         return [];
       }
+      
+      console.log('Current cash session:', currentCashSession);
       
       // Get cash account ID
       const { data: cashAccount, error: accountError } = await supabase
@@ -767,12 +770,15 @@ export default function POS() {
 
   // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
-    queryKey: ['session-mobile-money-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-mobile-money-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
+      console.log('=== MOBILE MONEY JOURNAL QUERY STARTING ===');
       if (!currentCashSession) {
         console.log('No cash session - skipping mobile money journal entries');
         return [];
       }
+      
+      console.log('Current cash session:', currentCashSession);
       
       // Get mobile money account ID
       const { data: mobileMoneyAccount, error: accountError } = await supabase
