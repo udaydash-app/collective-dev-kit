@@ -703,6 +703,40 @@ export default function POS() {
     enabled: !!currentCashSession
   });
 
+  // Fetch mobile money journal entries
+  const { data: mobileMoneyJournalEntries } = useQuery({
+    queryKey: ['today-mobile-money-journal-entries', selectedStoreId, currentCashSession?.opened_at],
+    queryFn: async () => {
+      if (!currentCashSession) return [];
+      
+      // Get mobile money account ID
+      const { data: mobileMoneyAccount } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('account_code', '1015')
+        .single();
+      
+      if (!mobileMoneyAccount) return [];
+      
+      // Get journal entry lines for mobile money account from posted entries today
+      const { data } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner(status, entry_date, created_at, reference, description)
+        `)
+        .eq('account_id', mobileMoneyAccount.id)
+        .eq('journal_entries.status', 'posted')
+        .gte('journal_entries.created_at', currentCashSession.opened_at)
+        .lte('journal_entries.created_at', new Date().toISOString())
+        .like('journal_entries.reference', 'JE-%');
+      
+      return data || [];
+    },
+    enabled: !!currentCashSession
+  });
+
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
   const journalCashEffect = cashJournalEntries
     ?.reduce((sum, entry) => {
@@ -711,23 +745,33 @@ export default function POS() {
       return sum + debit - credit;
     }, 0) || 0;
 
-  // Calculate expected cash (Opening cash + cash sales + cash payments received - cash purchases - expenses - cash supplier payments)
+  // Calculate net mobile money from journal entries
+  const journalMobileMoneyEffect = mobileMoneyJournalEntries
+    ?.reduce((sum, entry) => {
+      const debit = parseFloat(entry.debit_amount?.toString() || '0');
+      const credit = parseFloat(entry.credit_amount?.toString() || '0');
+      return sum + debit - credit;
+    }, 0) || 0;
+
+  // Calculate expected cash (Opening cash + cash sales + cash payments received - cash purchases - expenses - cash supplier payments + journal entries)
   const expectedCashAtClose = currentCashSession 
     ? (totalOpeningCash || 0) + 
       dayActivity.cashSales + 
       cashPayments - 
       dayActivity.cashPurchases - 
       dayActivity.cashExpenses -
-      cashSupplierPayments
+      cashSupplierPayments +
+      journalCashEffect
     : 0;
 
-  // Calculate expected mobile money (mobile money sales + mobile money payments - mobile money purchases - mobile money expenses - mobile money supplier payments)
+  // Calculate expected mobile money (mobile money sales + mobile money payments - mobile money purchases - mobile money expenses - mobile money supplier payments + journal entries)
   const expectedMobileMoneyAtClose = currentCashSession
     ? dayActivity.mobileMoneySales +
       mobileMoneyPayments -
       dayActivity.mobileMoneyPurchases -
       dayActivity.mobileMoneyExpenses -
-      mobileMoneySupplierPayments
+      mobileMoneySupplierPayments +
+      journalMobileMoneyEffect
     : 0;
 
   const { data: categories } = useQuery({
