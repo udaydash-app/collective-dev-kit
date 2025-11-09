@@ -1,35 +1,47 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { formatCurrency, cn, formatDateTime } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Card, CardContent } from '@/components/ui/card';
 
-interface DayActivity {
-  cashSales: number;
-  creditSales: number;
-  mobileMoneySales: number;
-  totalSales: number;
-  totalTransactions: number;
-  purchases: number;
-  cashPurchases: number;
-  creditPurchases: number;
-  mobileMoneyPurchases: number;
-  expenses: number;
-  cashExpenses: number;
-  creditExpenses: number;
-  mobileMoneyExpenses: number;
+interface Transaction {
+  id: string;
+  total: number;
+  payment_method: string;
+  created_at: string;
 }
 
-interface PaymentReceipts {
-  cashPayments: number;
-  mobileMoneyPayments: number;
-  bankPayments: number;
-  totalPayments: number;
+interface Purchase {
+  id: string;
+  total_amount: number;
+  payment_method: string;
+  payment_status: string;
+  purchased_at: string;
+  supplier_name?: string;
+}
+
+interface Expense {
+  id: string;
+  amount: number;
+  payment_method: string;
+  description: string;
+  created_at: string;
+  category?: string;
+}
+
+interface PaymentReceipt {
+  id: string;
+  amount: number;
+  payment_method: string;
+  created_at: string;
+  contact_name?: string;
 }
 
 interface JournalEntry {
@@ -49,41 +61,80 @@ interface CashOutDialogProps {
   openingCash: number;
   expectedCash: number;
   expectedMobileMoney: number;
-  dayActivity: DayActivity;
-  totalOpeningCash?: number;
-  paymentReceipts?: PaymentReceipts;
+  transactions?: Transaction[];
+  purchases?: Purchase[];
+  expenses?: Expense[];
+  paymentReceipts?: PaymentReceipt[];
   journalEntries?: JournalEntry[];
   journalCashEffect?: number;
   mobileMoneyJournalEntries?: JournalEntry[];
   journalMobileMoneyEffect?: number;
 }
 
-export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expectedCash, expectedMobileMoney, dayActivity, totalOpeningCash, paymentReceipts, journalEntries = [], journalCashEffect = 0, mobileMoneyJournalEntries = [], journalMobileMoneyEffect = 0 }: CashOutDialogProps) => {
+export const CashOutDialog = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  openingCash, 
+  expectedCash, 
+  expectedMobileMoney, 
+  transactions = [],
+  purchases = [],
+  expenses = [],
+  paymentReceipts = [],
+  journalEntries = [], 
+  journalCashEffect = 0, 
+  mobileMoneyJournalEntries = [], 
+  journalMobileMoneyEffect = 0 
+}: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    sales: false,
+    purchases: false,
+    expenses: false,
+    receipts: false,
+    journals: false
+  });
 
   const actualClosing = parseFloat(closingCash);
   const difference = !isNaN(actualClosing) ? actualClosing - expectedCash : 0;
   const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
 
-  const salesActivities = [
-    { icon: DollarSign, label: 'Cash Sales', value: dayActivity.cashSales, color: 'text-green-600' },
-    { icon: CreditCard, label: 'Credit Sales', value: dayActivity.creditSales, color: 'text-blue-600' },
-    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneySales, color: 'text-purple-600' },
-  ];
+  // Calculate sales by payment method
+  const cashSales = transactions.filter(t => t.payment_method === 'cash').reduce((sum, t) => sum + t.total, 0);
+  const creditSales = transactions.filter(t => t.payment_method === 'credit').reduce((sum, t) => sum + t.total, 0);
+  const mobileMoneySales = transactions.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + t.total, 0);
+  const totalSales = cashSales + creditSales + mobileMoneySales;
 
-  const purchaseActivities = [
-    { icon: DollarSign, label: 'Cash', value: dayActivity.cashPurchases, color: 'text-green-600' },
-    { icon: CreditCard, label: 'Credit', value: dayActivity.creditPurchases, color: 'text-blue-600' },
-    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneyPurchases, color: 'text-purple-600' },
-  ];
+  // Calculate purchases by payment method
+  const cashPurchases = purchases.filter(p => p.payment_status === 'paid' && p.payment_method === 'cash').reduce((sum, p) => sum + p.total_amount, 0);
+  const creditPurchases = purchases.filter(p => p.payment_status === 'pending' || p.payment_status === 'partial' || p.payment_method === 'credit').reduce((sum, p) => sum + p.total_amount, 0);
+  const mobileMoneyPurchases = purchases.filter(p => p.payment_status === 'paid' && p.payment_method === 'mobile_money').reduce((sum, p) => sum + p.total_amount, 0);
+  const totalPurchases = cashPurchases + creditPurchases + mobileMoneyPurchases;
 
-  const expenseActivities = [
-    { icon: DollarSign, label: 'Cash', value: dayActivity.cashExpenses, color: 'text-green-600' },
-    { icon: CreditCard, label: 'Credit', value: dayActivity.creditExpenses, color: 'text-blue-600' },
-    { icon: Smartphone, label: 'Mobile Money', value: dayActivity.mobileMoneyExpenses, color: 'text-purple-600' },
-  ];
+  // Calculate expenses by payment method
+  const cashExpenses = expenses.filter(e => e.payment_method === 'cash').reduce((sum, e) => sum + e.amount, 0);
+  const creditExpenses = expenses.filter(e => e.payment_method === 'credit').reduce((sum, e) => sum + e.amount, 0);
+  const mobileMoneyExpenses = expenses.filter(e => e.payment_method === 'mobile_money').reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = cashExpenses + creditExpenses + mobileMoneyExpenses;
+
+  // Calculate payment receipts by method
+  const cashPayments = paymentReceipts.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + p.amount, 0);
+  const mobileMoneyPayments = paymentReceipts.filter(p => p.payment_method === 'mobile_money').reduce((sum, p) => sum + p.amount, 0);
+  const totalPayments = cashPayments + mobileMoneyPayments;
+
+  // Calculate journal effects
+  const journalCashIn = journalEntries.filter(e => (e.debit_amount - e.credit_amount) > 0).reduce((sum, e) => sum + (e.debit_amount - e.credit_amount), 0);
+  const journalCashOut = Math.abs(journalEntries.filter(e => (e.debit_amount - e.credit_amount) < 0).reduce((sum, e) => sum + (e.debit_amount - e.credit_amount), 0));
+  
+  const journalMobileMoneyIn = mobileMoneyJournalEntries.filter(e => (e.debit_amount - e.credit_amount) > 0).reduce((sum, e) => sum + (e.debit_amount - e.credit_amount), 0);
+  const journalMobileMoneyOut = Math.abs(mobileMoneyJournalEntries.filter(e => (e.debit_amount - e.credit_amount) < 0).reduce((sum, e) => sum + (e.debit_amount - e.credit_amount), 0));
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const handleConfirm = async () => {
     const amount = parseFloat(closingCash);
@@ -102,344 +153,566 @@ export const CashOutDialog = ({ isOpen, onClose, onConfirm, openingCash, expecte
     }
   };
 
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Cash Out - End Of Day Summary</DialogTitle>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+          <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Receipt className="h-6 w-6 text-primary" />
+            </div>
+            End of Day Summary
+          </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-6">
-            {/* Day Activity Summary */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Day's Sales Activity</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {salesActivities.map((activity, index) => (
-                  <div key={index} className="p-3 bg-accent rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <activity.icon className={`h-4 w-4 ${activity.color}`} />
-                      <p className="text-xs text-muted-foreground">{activity.label}</p>
+        <ScrollArea className="max-h-[calc(90vh-180px)]">
+          <div className="p-6 space-y-6">
+            {/* Opening Balance */}
+            <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <Wallet className="h-5 w-5 text-primary" />
                     </div>
-                    <p className="text-base font-bold">{formatCurrency(activity.value)}</p>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Opening Balance</p>
+                      <p className="text-xs text-muted-foreground/60">Cash in register at start</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Total Sales Summary */}
-            <div className="p-4 bg-primary/10 rounded-lg">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Sales</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {dayActivity.totalTransactions} transaction{dayActivity.totalTransactions !== 1 ? 's' : ''}
-                  </p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(openingCash)}</p>
                 </div>
-                <p className="text-2xl font-bold text-primary">{formatCurrency(dayActivity.totalSales)}</p>
-              </div>
+              </CardContent>
+            </Card>
+
+            {/* Sales Section */}
+            <div className="space-y-3">
+              <Collapsible open={openSections.sales} onOpenChange={() => toggleSection('sales')}>
+                <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20">
+                  <CardContent className="p-4">
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-500/10 rounded-lg">
+                            <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="font-semibold">Sales Revenue</h3>
+                            <p className="text-xs text-muted-foreground">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(totalSales)}</p>
+                          {openSections.sales ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </div>
+                      </button>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent className="pt-4 space-y-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 bg-background/80 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="h-4 w-4 text-emerald-600" />
+                            <p className="text-xs font-medium text-muted-foreground">Cash</p>
+                          </div>
+                          <p className="text-lg font-bold">{formatCurrency(cashSales)}</p>
+                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'cash').length} txn</p>
+                        </div>
+                        <div className="p-3 bg-background/80 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CreditCard className="h-4 w-4 text-blue-600" />
+                            <p className="text-xs font-medium text-muted-foreground">Credit</p>
+                          </div>
+                          <p className="text-lg font-bold">{formatCurrency(creditSales)}</p>
+                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'credit').length} txn</p>
+                        </div>
+                        <div className="p-3 bg-background/80 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Smartphone className="h-4 w-4 text-purple-600" />
+                            <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
+                          </div>
+                          <p className="text-lg font-bold">{formatCurrency(mobileMoneySales)}</p>
+                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'mobile_money').length} txn</p>
+                        </div>
+                      </div>
+                      
+                      {transactions.length > 0 && (
+                        <div className="mt-3 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Transaction Details</p>
+                          <div className="space-y-1">
+                            {transactions.map((txn) => (
+                              <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div className="flex items-center gap-2">
+                                  {txn.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-emerald-600" />}
+                                  {txn.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600" />}
+                                  {txn.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
+                                  <span className="text-muted-foreground">{formatDateTime(txn.created_at)}</span>
+                                </div>
+                                <span className="font-semibold">{formatCurrency(txn.total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </Collapsible>
             </div>
 
-            <Separator />
-
-            {/* Purchases Breakdown */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Day's Purchases by Payment Method</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {purchaseActivities.map((activity, index) => (
-                  <div key={index} className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <activity.icon className={`h-4 w-4 ${activity.color}`} />
-                      <p className="text-xs text-muted-foreground">{activity.label}</p>
-                    </div>
-                    <p className="text-base font-bold">{formatCurrency(activity.value)}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-orange-600" />
-                    <p className="text-sm font-medium">Total Purchases</p>
-                  </div>
-                  <p className="text-lg font-bold text-orange-600">{formatCurrency(dayActivity.purchases)}</p>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Expenses Breakdown */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Day's Expenses by Payment Method</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {expenseActivities.map((activity, index) => (
-                  <div key={index} className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <activity.icon className={`h-4 w-4 ${activity.color}`} />
-                      <p className="text-xs text-muted-foreground">{activity.label}</p>
-                    </div>
-                    <p className="text-base font-bold">{formatCurrency(activity.value)}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                    <p className="text-sm font-medium">Total Expenses</p>
-                  </div>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(dayActivity.expenses)}</p>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Manual Journal Entries Section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 border-b pb-2">
-                <BookOpen className="h-5 w-5 text-indigo-600" />
-                <h3 className="font-semibold text-sm">Manual Journal Entries (Cash Account)</h3>
-              </div>
-              {journalEntries.length > 0 ? (
-                <>
-                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-medium">Cash Account Impact</p>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        journalCashEffect >= 0 ? "text-green-600" : "text-red-600"
-                      )}>
-                        {formatCurrency(Math.abs(journalCashEffect))}
-                        {journalCashEffect >= 0 ? ' (In)' : ' (Out)'}
-                      </p>
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[100px]">
-                    <div className="space-y-2 pr-4">
-                      {journalEntries.map((entry, index) => {
-                        const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
-                        return (
-                          <div key={index} className="flex items-start justify-between text-sm border-l-2 border-indigo-200 pl-3 py-1">
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
-                              <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
+            {/* Purchases Section */}
+            {purchases.length > 0 && (
+              <div className="space-y-3">
+                <Collapsible open={openSections.purchases} onOpenChange={() => toggleSection('purchases')}>
+                  <Card className="border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20">
+                    <CardContent className="p-4">
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-orange-500/10 rounded-lg">
+                              <ShoppingBag className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                             </div>
-                            <div className="flex flex-col items-end ml-2">
-                              <p className={cn(
-                                "font-semibold",
-                                netEffect >= 0 ? "text-green-600" : "text-red-600"
-                              )}>
-                                {formatCurrency(Math.abs(netEffect))}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {netEffect >= 0 ? 'In' : 'Out'}
-                              </p>
+                            <div className="text-left">
+                              <h3 className="font-semibold">Purchases</h3>
+                              <p className="text-xs text-muted-foreground">{purchases.length} purchase{purchases.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </>
-              ) : (
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">No cash journal entries today</p>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Mobile Money Journal Entries Section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 border-b pb-2">
-                <BookOpen className="h-5 w-5 text-purple-600" />
-                <h3 className="font-semibold text-sm">Manual Journal Entries (Mobile Money)</h3>
-              </div>
-              {mobileMoneyJournalEntries.length > 0 ? (
-                <>
-                  <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-medium">Mobile Money Account Impact</p>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        journalMobileMoneyEffect >= 0 ? "text-green-600" : "text-red-600"
-                      )}>
-                        {formatCurrency(Math.abs(journalMobileMoneyEffect))}
-                        {journalMobileMoneyEffect >= 0 ? ' (In)' : ' (Out)'}
-                      </p>
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[100px]">
-                    <div className="space-y-2 pr-4">
-                      {mobileMoneyJournalEntries.map((entry, index) => {
-                        const netEffect = parseFloat(entry.debit_amount?.toString() || '0') - parseFloat(entry.credit_amount?.toString() || '0');
-                        return (
-                          <div key={index} className="flex items-start justify-between text-sm border-l-2 border-purple-200 pl-3 py-1">
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">{entry.journal_entries.reference}</p>
-                              <p className="text-xs text-muted-foreground">{entry.journal_entries.description}</p>
-                            </div>
-                            <div className="flex flex-col items-end ml-2">
-                              <p className={cn(
-                                "font-semibold",
-                                netEffect >= 0 ? "text-green-600" : "text-red-600"
-                              )}>
-                                {formatCurrency(Math.abs(netEffect))}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {netEffect >= 0 ? 'In' : 'Out'}
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(totalPurchases)}</p>
+                            {openSections.purchases ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </>
-              ) : (
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">No mobile money journal entries today</p>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Payment Received Section */}
-            {paymentReceipts && paymentReceipts.totalPayments > 0 && (
-              <>
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">Customer Payments Received (Not from Today's Sales)</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        <p className="text-xs text-muted-foreground">Cash</p>
-                      </div>
-                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.cashPayments)}</p>
-                    </div>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Smartphone className="h-4 w-4 text-purple-600" />
-                        <p className="text-xs text-muted-foreground">Mobile Money</p>
-                      </div>
-                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.mobileMoneyPayments)}</p>
-                    </div>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CreditCard className="h-4 w-4 text-blue-600" />
-                        <p className="text-xs text-muted-foreground">Bank</p>
-                      </div>
-                      <p className="text-base font-bold">{formatCurrency(paymentReceipts.bankPayments)}</p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-blue-600" />
-                        <p className="text-sm font-medium">Total Payments Received</p>
-                      </div>
-                      <p className="text-lg font-bold text-blue-600">{formatCurrency(paymentReceipts.totalPayments)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-              </>
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="pt-4 space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-orange-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Cash</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(cashPurchases)}</p>
+                            <p className="text-xs text-muted-foreground">{purchases.filter(p => p.payment_status === 'paid' && p.payment_method === 'cash').length} purch</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CreditCard className="h-4 w-4 text-blue-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Credit</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(creditPurchases)}</p>
+                            <p className="text-xs text-muted-foreground">{purchases.filter(p => p.payment_status === 'pending' || p.payment_status === 'partial' || p.payment_method === 'credit').length} purch</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Smartphone className="h-4 w-4 text-purple-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(mobileMoneyPurchases)}</p>
+                            <p className="text-xs text-muted-foreground">{purchases.filter(p => p.payment_status === 'paid' && p.payment_method === 'mobile_money').length} purch</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Purchase Details</p>
+                          <div className="space-y-1">
+                            {purchases.map((purch) => (
+                              <div key={purch.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div className="flex items-center gap-2">
+                                  {purch.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-orange-600" />}
+                                  {purch.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600" />}
+                                  {purch.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
+                                  <span className="text-muted-foreground">{formatDateTime(purch.purchased_at)}</span>
+                                  {purch.supplier_name && <span className="text-muted-foreground">• {purch.supplier_name}</span>}
+                                </div>
+                                <span className="font-semibold">{formatCurrency(purch.total_amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
+              </div>
             )}
 
-            {/* Cash Management */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Cash Management</h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-accent rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Total Opening Cash</p>
-                  <p className="text-lg font-bold">{formatCurrency(totalOpeningCash ?? openingCash)}</p>
-                </div>
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Expected Cash</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(expectedCash)}</p>
-                </div>
+            {/* Expenses Section */}
+            {expenses.length > 0 && (
+              <div className="space-y-3">
+                <Collapsible open={openSections.expenses} onOpenChange={() => toggleSection('expenses')}>
+                  <Card className="border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20">
+                    <CardContent className="p-4">
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-500/10 rounded-lg">
+                              <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold">Expenses</h3>
+                              <p className="text-xs text-muted-foreground">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses)}</p>
+                            {openSections.expenses ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="pt-4 space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-red-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Cash</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(cashExpenses)}</p>
+                            <p className="text-xs text-muted-foreground">{expenses.filter(e => e.payment_method === 'cash').length} exp</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CreditCard className="h-4 w-4 text-blue-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Credit</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(creditExpenses)}</p>
+                            <p className="text-xs text-muted-foreground">{expenses.filter(e => e.payment_method === 'credit').length} exp</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Smartphone className="h-4 w-4 text-purple-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(mobileMoneyExpenses)}</p>
+                            <p className="text-xs text-muted-foreground">{expenses.filter(e => e.payment_method === 'mobile_money').length} exp</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Expense Details</p>
+                          <div className="space-y-1">
+                            {expenses.map((exp) => (
+                              <div key={exp.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div className="flex items-center gap-2 flex-1">
+                                  {exp.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-red-600" />}
+                                  {exp.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600" />}
+                                  {exp.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
+                                  <div className="flex-1">
+                                    <span className="text-foreground">{exp.description}</span>
+                                    <span className="text-muted-foreground ml-2">• {formatDateTime(exp.created_at)}</span>
+                                  </div>
+                                </div>
+                                <span className="font-semibold">{formatCurrency(exp.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
               </div>
+            )}
 
-              <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg mt-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-4 w-4 text-purple-600" />
-                    <p className="text-sm font-medium">Expected Mobile Money</p>
-                  </div>
-                  <p className="text-lg font-bold text-purple-600">{formatCurrency(expectedMobileMoney)}</p>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Mobile Sales + Payments - Purchases - Expenses - Supplier Payments + Journal Entries
-                </p>
+            {/* Payment Receipts Section */}
+            {paymentReceipts.length > 0 && (
+              <div className="space-y-3">
+                <Collapsible open={openSections.receipts} onOpenChange={() => toggleSection('receipts')}>
+                  <Card className="border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20">
+                    <CardContent className="p-4">
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-500/10 rounded-lg">
+                              <ArrowDownCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold">Payment Receipts</h3>
+                              <p className="text-xs text-muted-foreground">Customer payments received</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalPayments)}</p>
+                            {openSections.receipts ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="pt-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-blue-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Cash</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(cashPayments)}</p>
+                          </div>
+                          <div className="p-3 bg-background/80 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Smartphone className="h-4 w-4 text-purple-600" />
+                              <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
+                            </div>
+                            <p className="text-lg font-bold">{formatCurrency(mobileMoneyPayments)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Receipt Details</p>
+                          <div className="space-y-1">
+                            {paymentReceipts.map((receipt) => (
+                              <div key={receipt.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div className="flex items-center gap-2">
+                                  {receipt.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-blue-600" />}
+                                  {receipt.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
+                                  <span className="text-muted-foreground">{formatDateTime(receipt.created_at)}</span>
+                                  {receipt.contact_name && <span className="text-muted-foreground">• {receipt.contact_name}</span>}
+                                </div>
+                                <span className="font-semibold">{formatCurrency(receipt.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="closingCash">Actual Closing Cash Count</Label>
-                <Input
-                  id="closingCash"
-                  type="number"
-                  placeholder="0.00"
-                  value={closingCash}
-                  onChange={(e) => setClosingCash(e.target.value)}
-                  step="0.01"
-                  min="0"
-                  autoFocus
-                />
+            {/* Manual Journal Entries */}
+            {(journalEntries.length > 0 || mobileMoneyJournalEntries.length > 0) && (
+              <div className="space-y-3">
+                <Collapsible open={openSections.journals} onOpenChange={() => toggleSection('journals')}>
+                  <Card className="border-l-4 border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20">
+                    <CardContent className="p-4">
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-500/10 rounded-lg">
+                              <BookOpen className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold">Manual Journal Entries</h3>
+                              <p className="text-xs text-muted-foreground">Fund transfers and adjustments</p>
+                            </div>
+                          </div>
+                          {openSections.journals ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="pt-4 space-y-4">
+                        {journalEntries.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3 p-2 bg-background/80 rounded-lg border">
+                              <p className="text-sm font-medium">Cash Account</p>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="text-xs text-emerald-600 dark:text-emerald-400">In: {formatCurrency(journalCashIn)}</p>
+                                  <p className="text-xs text-red-600 dark:text-red-400">Out: {formatCurrency(journalCashOut)}</p>
+                                </div>
+                                <p className={cn("text-lg font-bold", journalCashEffect >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                                  {journalCashEffect >= 0 ? '+' : ''}{formatCurrency(Math.abs(journalCashEffect))}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="max-h-[150px] overflow-y-auto space-y-1">
+                              {journalEntries.map((entry, index) => {
+                                const netEffect = entry.debit_amount - entry.credit_amount;
+                                return (
+                                  <div key={index} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border-l-2 border-l-indigo-200">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      {netEffect >= 0 ? <ArrowDownCircle className="h-3 w-3 text-emerald-600" /> : <ArrowUpCircle className="h-3 w-3 text-red-600" />}
+                                      <div>
+                                        <p className="font-medium">{entry.journal_entries.reference}</p>
+                                        <p className="text-muted-foreground">{entry.journal_entries.description}</p>
+                                      </div>
+                                    </div>
+                                    <span className={cn("font-semibold", netEffect >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                      {netEffect >= 0 ? '+' : ''}{formatCurrency(Math.abs(netEffect))}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {mobileMoneyJournalEntries.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3 p-2 bg-background/80 rounded-lg border">
+                              <p className="text-sm font-medium">Mobile Money Account</p>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="text-xs text-emerald-600 dark:text-emerald-400">In: {formatCurrency(journalMobileMoneyIn)}</p>
+                                  <p className="text-xs text-red-600 dark:text-red-400">Out: {formatCurrency(journalMobileMoneyOut)}</p>
+                                </div>
+                                <p className={cn("text-lg font-bold", journalMobileMoneyEffect >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                                  {journalMobileMoneyEffect >= 0 ? '+' : ''}{formatCurrency(Math.abs(journalMobileMoneyEffect))}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="max-h-[150px] overflow-y-auto space-y-1">
+                              {mobileMoneyJournalEntries.map((entry, index) => {
+                                const netEffect = entry.debit_amount - entry.credit_amount;
+                                return (
+                                  <div key={index} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border-l-2 border-l-purple-200">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      {netEffect >= 0 ? <ArrowDownCircle className="h-3 w-3 text-emerald-600" /> : <ArrowUpCircle className="h-3 w-3 text-red-600" />}
+                                      <div>
+                                        <p className="font-medium">{entry.journal_entries.reference}</p>
+                                        <p className="text-muted-foreground">{entry.journal_entries.description}</p>
+                                      </div>
+                                    </div>
+                                    <span className={cn("font-semibold", netEffect >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                      {netEffect >= 0 ? '+' : ''}{formatCurrency(Math.abs(netEffect))}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
               </div>
+            )}
 
-              {hasDifference && (
-                <div className={`p-4 rounded-lg ${difference > 0 ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className={`h-5 w-5 mt-0.5 ${difference > 0 ? 'text-green-600' : 'text-destructive'}`} />
-                    <div className="flex-1">
-                      <p className="font-semibold">
-                        {difference > 0 ? 'Cash Over' : 'Cash Short'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Difference: <span className={`font-bold ${difference > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                          {difference > 0 ? '+' : ''}{formatCurrency(Math.abs(difference))}
-                        </span>
-                      </p>
+            <Separator className="my-6" />
+
+            {/* Expected Cash & Mobile Money */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/20">
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                      <p className="text-sm font-medium">Expected Cash</p>
+                    </div>
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(expectedCash)}</p>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>= Opening ({formatCurrency(openingCash)})</p>
+                      <p>+ Sales ({formatCurrency(cashSales)})</p>
+                      {cashPayments > 0 && <p>+ Receipts ({formatCurrency(cashPayments)})</p>}
+                      {cashPurchases > 0 && <p>- Purchases ({formatCurrency(cashPurchases)})</p>}
+                      {cashExpenses > 0 && <p>- Expenses ({formatCurrency(cashExpenses)})</p>}
+                      {journalCashEffect !== 0 && <p>{journalCashEffect >= 0 ? '+' : '-'} Journals ({formatCurrency(Math.abs(journalCashEffect))})</p>}
                     </div>
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Add any notes about cash discrepancies or issues..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
+              <Card className="border-2 border-purple-500/30 bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-950/20 dark:to-purple-900/20">
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-5 w-5 text-purple-600" />
+                      <p className="text-sm font-medium">Expected Mobile Money</p>
+                    </div>
+                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatCurrency(expectedMobileMoney)}</p>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>= Sales ({formatCurrency(mobileMoneySales)})</p>
+                      {mobileMoneyPayments > 0 && <p>+ Receipts ({formatCurrency(mobileMoneyPayments)})</p>}
+                      {mobileMoneyPurchases > 0 && <p>- Purchases ({formatCurrency(mobileMoneyPurchases)})</p>}
+                      {mobileMoneyExpenses > 0 && <p>- Expenses ({formatCurrency(mobileMoneyExpenses)})</p>}
+                      {journalMobileMoneyEffect !== 0 && <p>{journalMobileMoneyEffect >= 0 ? '+' : '-'} Journals ({formatCurrency(Math.abs(journalMobileMoneyEffect))})</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Actual Closing Cash Input */}
+            <Card className="border-2 border-primary/50">
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="closingCash" className="text-base font-semibold">Actual Closing Cash Count</Label>
+                  <Input
+                    id="closingCash"
+                    type="number"
+                    placeholder="Enter physical cash in register"
+                    value={closingCash}
+                    onChange={(e) => setClosingCash(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                    className="text-lg h-12"
+                  />
+                </div>
+
+                {hasDifference && (
+                  <Card className={cn(
+                    "border-2",
+                    difference > 0 ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/50" : "bg-red-50/50 dark:bg-red-950/20 border-red-500/50"
+                  )}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className={cn("h-6 w-6 mt-0.5", difference > 0 ? "text-emerald-600" : "text-red-600")} />
+                        <div className="flex-1">
+                          <p className="font-semibold text-lg">
+                            {difference > 0 ? '💰 Cash Over' : '⚠️ Cash Short'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Difference: <span className={cn("font-bold text-base", difference > 0 ? "text-emerald-600" : "text-red-600")}>
+                              {difference > 0 ? '+' : ''}{formatCurrency(Math.abs(difference))}
+                            </span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {difference > 0 
+                              ? "The physical cash in the register is more than expected. This will be recorded as a cash overage."
+                              : "The physical cash in the register is less than expected. Please verify the count and provide notes below."}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes" className="text-sm font-medium">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Add any notes about discrepancies, issues, or observations..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </ScrollArea>
 
-        <div className="flex gap-2 pt-4 border-t">
+        <div className="flex gap-3 p-6 border-t bg-muted/30">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={isProcessing}
-            className="flex-1"
+            className="flex-1 h-12"
+            size="lg"
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={isProcessing || !closingCash || isNaN(parseFloat(closingCash)) || parseFloat(closingCash) < 0}
-            className="flex-1"
+            className="flex-1 h-12"
+            size="lg"
           >
-            {isProcessing ? 'Closing...' : 'End Of Day'}
+            {isProcessing ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Closing Day...
+              </>
+            ) : (
+              <>
+                <Receipt className="mr-2 h-5 w-5" />
+                End Of Day
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

@@ -521,9 +521,10 @@ export default function POS() {
 
       const { data } = await supabase
         .from('pos_transactions')
-        .select('total, payment_method')
+        .select('id, total, payment_method, created_at')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', currentCashSession.opened_at)
+        .order('created_at', { ascending: false });
 
       return data || [];
     },
@@ -538,10 +539,17 @@ export default function POS() {
 
       const { data } = await supabase
         .from('purchases')
-        .select('total_amount, payment_method, payment_status')
+        .select(`
+          id, 
+          total_amount, 
+          payment_method, 
+          payment_status,
+          purchased_at
+        `)
         .eq('store_id', currentCashSession.store_id)
         .gte('purchased_at', currentCashSession.opened_at)
-        .lte('purchased_at', new Date().toISOString());
+        .lte('purchased_at', new Date().toISOString())
+        .order('purchased_at', { ascending: false });
 
       return data || [];
     },
@@ -556,10 +564,11 @@ export default function POS() {
 
       const { data } = await supabase
         .from('expenses')
-        .select('amount, payment_method')
+        .select('id, amount, payment_method, description, category, created_at')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
-        .lte('created_at', new Date().toISOString());
+        .lte('created_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
 
       return data || [];
     },
@@ -612,12 +621,29 @@ export default function POS() {
       
       const { data, error } = await supabase
         .from('payment_receipts')
-        .select('amount, payment_method')
+        .select('id, amount, payment_method, created_at, contact_id')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('created_at', currentCashSession.opened_at)
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      
+      // Fetch contact names
+      const receiptsWithContacts = await Promise.all(
+        (data || []).map(async (r) => {
+          if (r.contact_id) {
+            const { data: contact } = await supabase
+              .from('contacts')
+              .select('name')
+              .eq('id', r.contact_id)
+              .single();
+            return { ...r, contact_name: contact?.name };
+          }
+          return r;
+        })
+      );
+      
+      return receiptsWithContacts;
     },
     enabled: !!currentCashSession
   });
@@ -2982,9 +3008,10 @@ export default function POS() {
           openingCash={parseFloat(currentCashSession.opening_cash?.toString() || '0')}
           expectedCash={expectedCashAtClose}
           expectedMobileMoney={expectedMobileMoneyAtClose}
-          dayActivity={dayActivity}
-          totalOpeningCash={totalOpeningCash}
-          paymentReceipts={paymentReceiptsData}
+          transactions={sessionTransactions || []}
+          purchases={dayPurchases || []}
+          expenses={dayExpenses || []}
+          paymentReceipts={paymentReceipts || []}
           journalEntries={cashJournalEntries || []}
           journalCashEffect={journalCashEffect}
           mobileMoneyJournalEntries={mobileMoneyJournalEntries || []}
