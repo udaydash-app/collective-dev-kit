@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -34,14 +37,13 @@ jobs:
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
-      - name: List all directories
+      - name: List all directories and find files
         run: |
           echo "Root directory:"
           dir
-          echo "Release directory (if exists):"
-          if exist release dir release
+          echo "Release directory:"
+          dir release /s
         shell: cmd
 
       - name: Upload artifacts
