@@ -278,6 +278,50 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
+      // Fetch manual journal entries that affect cash accounts
+      const { data: cashAccountIds } = await supabase
+        .from('accounts')
+        .select('id')
+        .in('account_code', ['1010', '1015']); // Cash and Mobile Money accounts
+      
+      const cashAccounts = cashAccountIds?.map(a => a.id) || [];
+      
+      const { data: journalEntries } = await supabase
+        .from('journal_entries')
+        .select(`
+          *,
+          journal_entry_lines!inner(
+            account_id,
+            debit_amount,
+            credit_amount,
+            description
+          )
+        `)
+        .eq('status', 'posted')
+        .gte('entry_date', startDate)
+        .lte('entry_date', endDate)
+        .order('entry_date', { ascending: false });
+
+      // Filter and calculate net cash impact from journal entries
+      const journalCashImpact = journalEntries?.map(je => {
+        const lines = Array.isArray(je.journal_entry_lines) ? je.journal_entry_lines : [];
+        let cashDebit = 0;
+        let cashCredit = 0;
+        
+        lines.forEach((line: any) => {
+          if (cashAccounts.includes(line.account_id)) {
+            cashDebit += parseFloat(line.debit_amount?.toString() || '0');
+            cashCredit += parseFloat(line.credit_amount?.toString() || '0');
+          }
+        });
+        
+        return {
+          ...je,
+          cash_impact: cashDebit - cashCredit,
+          entry_date: je.entry_date
+        };
+      }).filter(je => je.cash_impact !== 0) || [];
+
       // Fetch sessions that were active during the selected period
       // This includes sessions opened before but closed during the period,
       // and sessions opened during the period (even if still open)
@@ -347,8 +391,18 @@ export default function CloseDayReport() {
             ?.filter(e => e.payment_method === 'cash')
             .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
+          // Get manual journal entries affecting cash during this period
+          const sessionJournalImpact = journalCashImpact
+            ?.filter(je => {
+              const jeDate = new Date(je.entry_date);
+              const sessStart = new Date(sessionStart);
+              const sessEnd = new Date(sessionEnd);
+              return jeDate >= sessStart && jeDate <= sessEnd;
+            })
+            .reduce((sum, je) => sum + je.cash_impact, 0) || 0;
+
           const openingCash = parseFloat(session.opening_cash?.toString() || '0');
-          const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses;
+          const calculatedExpectedCash = openingCash + cashSales + cashPaymentsReceived - cashPurchases - cashExpenses + sessionJournalImpact;
           const actualClosingCash = session.closing_cash ? parseFloat(session.closing_cash.toString()) : null;
           const calculatedDifference = actualClosingCash !== null ? actualClosingCash - calculatedExpectedCash : null;
 
@@ -360,6 +414,7 @@ export default function CloseDayReport() {
             cash_payments_received: cashPaymentsReceived,
             cash_purchases: cashPurchases,
             cash_expenses: cashExpenses,
+            journal_entries_impact: sessionJournalImpact,
             transaction_count: sessionTransactions?.length || 0,
           };
         })
@@ -370,6 +425,7 @@ export default function CloseDayReport() {
         transactions: transactions || [],
         purchases: purchases || [],
         expenses: expenses || [],
+        journalEntries: journalCashImpact || [],
         cashSessions: sessionsWithCalculations || [],
       };
     },
@@ -413,6 +469,7 @@ export default function CloseDayReport() {
         sales: { cash: 0, credit: 0, mobileMoney: 0, total: 0, count: 0 },
         purchases: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
         expenses: { cash: 0, credit: 0, mobileMoney: 0, total: 0 },
+        journalEntries: { cash: 0, total: 0, entries: [] },
         cashSessions: [],
         totalOpeningCash: 0,
       });
@@ -456,6 +513,18 @@ export default function CloseDayReport() {
       if (e.payment_method === 'cash') dayData.expenses.cash += amount;
       else if (e.payment_method === 'credit') dayData.expenses.credit += amount;
       else if (e.payment_method === 'mobile_money') dayData.expenses.mobileMoney += amount;
+    });
+
+    // Group journal entries by date
+    reportData.journalEntries?.forEach((je: any) => {
+      const date = je.entry_date;
+      const dayData = dateMap.get(date);
+      if (!dayData) return;
+      
+      const impact = je.cash_impact;
+      dayData.journalEntries.total += impact;
+      dayData.journalEntries.cash += impact;
+      dayData.journalEntries.entries.push(je);
     });
 
     // Group cash sessions by the days they were active
@@ -1051,15 +1120,25 @@ export default function CloseDayReport() {
                           <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.mobileMoney, 0))}</td>
                           <td className="text-right p-3 font-bold font-mono text-lg text-red-600 bg-red-50/50 dark:bg-red-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.expenses.total, 0))}</td>
                         </tr>
+                        <tr className="border-b border-border hover:bg-muted/10 bg-blue-50/50 dark:bg-blue-950/10">
+                          <td className="p-3 font-medium flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            Manual Journal Entries
+                          </td>
+                          <td className="text-right p-3 font-mono">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.cash, 0))}</td>
+                          <td className="text-right p-3 text-muted-foreground">—</td>
+                          <td className="text-right p-3 text-muted-foreground">—</td>
+                          <td className="text-right p-3 font-bold font-mono text-lg text-blue-600 bg-blue-50/50 dark:bg-blue-950/20">{formatCurrency(dailyBreakdown.reduce((sum, day) => sum + day.journalEntries.total, 0))}</td>
+                        </tr>
                         <tr className="border-t-2 border-border bg-muted/30">
                           <td className="p-4 font-bold text-lg">Net Cash Flow</td>
                           <td className="text-right p-4 font-mono font-semibold" colSpan={3}></td>
                           <td className={`text-right p-4 font-bold font-mono text-2xl ${
-                            dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0) >= 0
+                            dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total + day.journalEntries.total), 0) >= 0
                               ? 'text-green-600'
                               : 'text-red-600'
                           }`}>
-                            {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total), 0))}
+                            {formatCurrency(dailyBreakdown.reduce((sum, day) => sum + (day.sales.total - day.purchases.total - day.expenses.total + day.journalEntries.total), 0))}
                           </td>
                         </tr>
                       </tbody>
@@ -1090,7 +1169,7 @@ export default function CloseDayReport() {
 
               {/* Daily Breakdown */}
               {dailyBreakdown.map((dayData, index) => {
-            const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total;
+            const netDaily = dayData.sales.total - dayData.purchases.total - dayData.expenses.total + dayData.journalEntries.total;
             
             return (
               <Card key={dayData.date} className="print-page-break border-2">
@@ -1166,6 +1245,29 @@ export default function CloseDayReport() {
                           </tr>
                         )}
 
+                        {/* Manual Journal Entries Row */}
+                        {dayData.journalEntries.total !== 0 && (
+                          <tr className="hover:bg-muted/10 bg-blue-50/30 dark:bg-blue-950/10">
+                            <td className="p-3 font-medium border border-border">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-blue-600" />
+                                Manual Journals
+                                <span className="text-xs text-muted-foreground">({dayData.journalEntries.entries?.length || 0} entries)</span>
+                              </div>
+                            </td>
+                            <td className="text-right p-3 font-mono border border-border">{formatCurrency(dayData.journalEntries.cash)}</td>
+                            <td className="text-right p-3 font-mono border border-border text-muted-foreground">—</td>
+                            <td className="text-right p-3 font-mono border border-border text-muted-foreground">—</td>
+                            <td className={`text-right p-3 font-bold font-mono text-lg border border-border ${
+                              dayData.journalEntries.total >= 0 
+                                ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600' 
+                                : 'bg-red-50 dark:bg-red-950/20 text-red-600'
+                            }`}>
+                              {formatCurrency(dayData.journalEntries.total)}
+                            </td>
+                          </tr>
+                        )}
+
                         {/* Net Row */}
                         <tr className="border-t-2 border-border bg-muted/30">
                           <td className="p-4 font-bold text-lg border border-border">Daily Net Cash Flow</td>
@@ -1200,6 +1302,7 @@ export default function CloseDayReport() {
                               <th className="text-center p-3 font-semibold border border-border">Status</th>
                               <th className="text-right p-3 font-semibold border border-border">Opening</th>
                               <th className="text-right p-3 font-semibold border border-border">Cash Sales</th>
+                              <th className="text-right p-3 font-semibold border border-border">Journals</th>
                               <th className="text-right p-3 font-semibold border border-border">Expected</th>
                               <th className="text-right p-3 font-semibold border border-border">Closing</th>
                               <th className="text-right p-3 font-semibold border border-border bg-muted/40">Difference</th>
@@ -1223,6 +1326,11 @@ export default function CloseDayReport() {
                                   </td>
                                   <td className="text-right p-3 font-mono border border-border">{formatCurrency(parseFloat(session.opening_cash?.toString() || '0'))}</td>
                                   <td className="text-right p-3 font-mono border border-border text-green-600">{formatCurrency(session.cash_sales || 0)}</td>
+                                  <td className={`text-right p-3 font-mono border border-border ${
+                                    (session.journal_entries_impact || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
+                                  }`}>
+                                    {session.journal_entries_impact ? formatCurrency(session.journal_entries_impact) : '—'}
+                                  </td>
                                   <td className="text-right p-3 font-mono border border-border font-semibold">{formatCurrency(expectedCash || 0)}</td>
                                   <td className="text-right p-3 font-mono border border-border">
                                     {closingCash !== null ? formatCurrency(closingCash) : <span className="text-muted-foreground">—</span>}
