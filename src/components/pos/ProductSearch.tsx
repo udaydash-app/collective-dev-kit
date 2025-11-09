@@ -18,13 +18,30 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
   // Auto-focus search input on mount
   React.useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
+
+  // Reset highlighted index when search term changes
+  React.useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [searchTerm]);
+
+  // Scroll highlighted item into view
+  React.useEffect(() => {
+    if (highlightedIndex >= 0 && productRefs.current[highlightedIndex]) {
+      productRefs.current[highlightedIndex]?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth'
+      });
+    }
+  }, [highlightedIndex]);
 
   // Maintain focus on search input for scanner input
   React.useEffect(() => {
@@ -189,8 +206,31 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
   // Handle barcode scan from search field
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Handle arrow key navigation
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => 
+        products && prev < products.length - 1 ? prev + 1 : prev
+      );
+      return;
+    }
+    
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+      return;
+    }
+
     if (e.key === 'Enter' && searchTerm.trim()) {
       e.preventDefault();
+      
+      // If a product is highlighted, select it
+      if (highlightedIndex >= 0 && products && products[highlightedIndex]) {
+        handleProductSelect(products[highlightedIndex], false);
+        return;
+      }
+      
+      // Otherwise, treat as barcode scan
       const barcode = searchTerm.trim();
       
       console.log('🔍 Scanning barcode:', barcode);
@@ -338,17 +378,23 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
       {products && products.length > 0 && (
         <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-          {products.map((product) => {
+          {products.map((product, index) => {
             const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
             const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
             const displayPrice = availableVariants.length > 0 
               ? defaultVariant?.price 
               : product.price;
+            const isHighlighted = index === highlightedIndex;
 
             return (
               <Card
                 key={product.id}
-                className="p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
+                ref={(el) => (productRefs.current[index] = el)}
+                className={`p-3 flex items-center gap-3 cursor-pointer transition-colors ${
+                  isHighlighted 
+                    ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
+                    : 'hover:bg-accent'
+                }`}
                 onClick={() => handleProductSelect(product, true)}
               >
                 <div className="flex-1">
