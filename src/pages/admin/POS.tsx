@@ -729,19 +729,17 @@ export default function POS() {
         return [];
       }
       
-      // Get the session date range
-      const sessionStartDate = new Date(currentCashSession.opened_at).toISOString().split('T')[0];
-      const sessionEndDate = currentCashSession.closed_at 
-        ? new Date(currentCashSession.closed_at).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0];
+      // Get the session timestamp range
+      const sessionStart = currentCashSession.opened_at;
+      const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
       
       console.log('Cash journal query params:', {
         accountId: cashAccount.id,
-        sessionStartDate,
-        sessionEndDate
+        sessionStart,
+        sessionEnd
       });
 
-      // Get journal entry lines for cash account from posted entries during the session
+      // Get journal entry lines for cash account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
       const { data, error: queryError } = await supabase
         .from('journal_entry_lines')
@@ -752,9 +750,9 @@ export default function POS() {
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.entry_date', sessionStartDate)
-        .lte('journal_entries.entry_date', sessionEndDate)
-        .order('entry_date', { foreignTable: 'journal_entries', ascending: true });
+        .gte('journal_entries.created_at', sessionStart)
+        .lte('journal_entries.created_at', sessionEnd)
+        .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
       console.log('Cash journal query error:', queryError);
       
@@ -812,19 +810,17 @@ export default function POS() {
         return [];
       }
       
-      // Get the session date range
-      const sessionStartDate = new Date(currentCashSession.opened_at).toISOString().split('T')[0];
-      const sessionEndDate = currentCashSession.closed_at 
-        ? new Date(currentCashSession.closed_at).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0];
+      // Get the session timestamp range
+      const sessionStart = currentCashSession.opened_at;
+      const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
       
       console.log('Mobile money journal query params:', {
         accountId: mobileMoneyAccount.id,
-        sessionStartDate,
-        sessionEndDate
+        sessionStart,
+        sessionEnd
       });
       
-      // Get journal entry lines for mobile money account from posted entries during the session
+      // Get journal entry lines for mobile money account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
       const { data, error: queryError } = await supabase
         .from('journal_entry_lines')
@@ -835,9 +831,9 @@ export default function POS() {
         `)
         .eq('account_id', mobileMoneyAccount.id)
         .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.entry_date', sessionStartDate)
-        .lte('journal_entries.entry_date', sessionEndDate)
-        .order('entry_date', { foreignTable: 'journal_entries', ascending: true });
+        .gte('journal_entries.created_at', sessionStart)
+        .lte('journal_entries.created_at', sessionEnd)
+        .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
       console.log('Mobile money journal query error:', queryError);
       
