@@ -668,9 +668,9 @@ export default function POS() {
     ?.filter(p => p.payment_method === 'mobile_money')
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-  // Fetch journal entries affecting cash account for today (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
+  // Fetch journal entries affecting cash account for the session period (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
   const { data: cashJournalEntries } = useQuery({
-    queryKey: ['today-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at],
+    queryKey: ['session-cash-journal-entries', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
       
@@ -683,8 +683,11 @@ export default function POS() {
       
       if (!cashAccount) return [];
       
-      // Get journal entry lines for cash account from posted entries today
+      // Get journal entry lines for cash account from posted entries during the session
       // Only include truly manual journal entries (JE-*), exclude all system-generated entries
+      // From session open until now (if still open) or until session close
+      const endTime = currentCashSession.closed_at || new Date().toISOString();
+      
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -695,7 +698,7 @@ export default function POS() {
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', currentCashSession.opened_at)
-        .lte('journal_entries.created_at', new Date().toISOString())
+        .lte('journal_entries.created_at', endTime)
         .like('journal_entries.reference', 'JE-%');
       
       return data || [];
@@ -703,9 +706,9 @@ export default function POS() {
     enabled: !!currentCashSession
   });
 
-  // Fetch mobile money journal entries
+  // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
-    queryKey: ['today-mobile-money-journal-entries', selectedStoreId, currentCashSession?.opened_at],
+    queryKey: ['session-mobile-money-journal-entries', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
       
@@ -718,7 +721,10 @@ export default function POS() {
       
       if (!mobileMoneyAccount) return [];
       
-      // Get journal entry lines for mobile money account from posted entries today
+      // Get journal entry lines for mobile money account from posted entries during the session
+      // From session open until now (if still open) or until session close
+      const endTime = currentCashSession.closed_at || new Date().toISOString();
+      
       const { data } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -729,7 +735,7 @@ export default function POS() {
         .eq('account_id', mobileMoneyAccount.id)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', currentCashSession.opened_at)
-        .lte('journal_entries.created_at', new Date().toISOString())
+        .lte('journal_entries.created_at', endTime)
         .like('journal_entries.reference', 'JE-%');
       
       return data || [];
