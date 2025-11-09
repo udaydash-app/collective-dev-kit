@@ -754,7 +754,7 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .order('journal_entries.entry_date', { ascending: true });
+        .order('entry_date', { foreignTable: 'journal_entries', ascending: true });
       
       console.log('Cash journal query error:', queryError);
       
@@ -837,7 +837,7 @@ export default function POS() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', sessionStartDate)
         .lte('journal_entries.entry_date', sessionEndDate)
-        .order('journal_entries.entry_date', { ascending: true });
+        .order('entry_date', { foreignTable: 'journal_entries', ascending: true });
       
       console.log('Mobile money journal query error:', queryError);
       
