@@ -695,7 +695,7 @@ export default function POS() {
     .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
   // Fetch journal entries affecting cash account for the session period (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
-  const { data: cashJournalEntries } = useQuery({
+  const { data: cashJournalEntries, isLoading: cashJournalLoading, error: cashJournalError } = useQuery({
     queryKey: ['session-cash-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       console.log('=== CASH JOURNAL QUERY STARTING ===');
@@ -731,7 +731,7 @@ export default function POS() {
         sessionStartDate,
         sessionEndDate
       });
-      
+
       // Get journal entry lines for cash account from posted entries during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
       const { data, error: queryError } = await supabase
@@ -765,7 +765,16 @@ export default function POS() {
       
       return filteredData || [];
     },
-    enabled: !!currentCashSession
+    enabled: !!currentCashSession,
+    refetchOnMount: 'always',
+    staleTime: 0
+  });
+
+  console.log('Cash journal query status:', { 
+    data: cashJournalEntries, 
+    isLoading: cashJournalLoading, 
+    error: cashJournalError,
+    hasSession: !!currentCashSession 
   });
 
   // Fetch mobile money journal entries for the entire session period
@@ -839,7 +848,14 @@ export default function POS() {
       
       return filteredData || [];
     },
-    enabled: !!currentCashSession
+    enabled: !!currentCashSession,
+    refetchOnMount: 'always',
+    staleTime: 0
+  });
+
+  console.log('Mobile money journal query status:', { 
+    data: mobileMoneyJournalEntries, 
+    hasSession: !!currentCashSession 
   });
 
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
