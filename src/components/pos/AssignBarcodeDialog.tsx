@@ -177,7 +177,7 @@ export const AssignBarcodeDialog = ({
                   <Button
                     onClick={() => {
                       onClose();
-                      navigate(`/admin/products?addNew=true&barcode=${encodeURIComponent(barcode)}`);
+                      navigate(`/admin/products?addNew=true&barcode=${encodeURIComponent(barcode)}&returnTo=pos`);
                     }}
                     className="w-full"
                   >

@@ -97,6 +97,7 @@ export default function Products() {
   const [filterFeatured, setFilterFeatured] = useState<string>("all");
   const [filterStock, setFilterStock] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [returnPath, setReturnPath] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -217,12 +218,19 @@ export default function Products() {
   useEffect(() => {
     const shouldAddNew = searchParams.get('addNew');
     const barcodeParam = searchParams.get('barcode');
+    const returnToParam = searchParams.get('returnTo');
     
     if (shouldAddNew === 'true' && stores.length > 0 && !isDialogOpen) {
+      // Capture return path if specified
+      if (returnToParam === 'pos') {
+        setReturnPath('/admin/pos');
+      }
+      
       // Remove the query parameters
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.delete('addNew');
       newSearchParams.delete('barcode');
+      newSearchParams.delete('returnTo');
       setSearchParams(newSearchParams);
       
       // Set up new product with barcode pre-filled
@@ -415,6 +423,13 @@ export default function Products() {
         }
 
         toast.success("Product created successfully");
+        
+        // Navigate back to POS if that's where we came from
+        if (returnPath) {
+          navigate(returnPath);
+          setReturnPath(null);
+          return;
+        }
       } else {
         // Update existing product
         // Upload new image if selected
@@ -446,13 +461,16 @@ export default function Products() {
         toast.success("Product updated successfully");
       }
 
-      setIsDialogOpen(false);
-      setSelectedImage(null);
-      setPreviewUrl(null);
-      setImageUrl("");
-      setVariants([]);
-      setIsAddingNew(false);
-      fetchProducts();
+      // Only close dialog and refresh if not navigating away
+      if (!returnPath) {
+        setIsDialogOpen(false);
+        setSelectedImage(null);
+        setPreviewUrl(null);
+        setImageUrl("");
+        setVariants([]);
+        setIsAddingNew(false);
+        fetchProducts();
+      }
     } catch (error) {
       console.error("Error saving product:", error);
       toast.error(isAddingNew ? "Failed to create product" : "Failed to update product");
