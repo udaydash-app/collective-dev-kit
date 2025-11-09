@@ -212,6 +212,12 @@ export const TransactionCart = ({
                               const val = e.target.value === '' ? 0 : parseInt(e.target.value);
                               onUpdateQuantity(item.id, val);
                             }}
+                            onBlur={(e) => {
+                              e.stopPropagation();
+                              if (e.target.value === '' || parseInt(e.target.value) === 0) {
+                                onUpdateQuantity(item.id, 1);
+                              }
+                            }}
                             className="w-10 h-5 text-center text-[10px] px-0 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             onClick={(e) => e.stopPropagation()}
                             placeholder="0"
@@ -242,6 +248,12 @@ export const TransactionCart = ({
                               const newPrice = e.target.value === '' ? undefined : parseFloat(e.target.value);
                               handlePriceChange(item, newPrice);
                             }}
+                            onBlur={(e) => {
+                              e.stopPropagation();
+                              if (e.target.value === '' || parseFloat(e.target.value) === 0) {
+                                onUpdatePrice?.(item.id, item.price);
+                              }
+                            }}
                             className="w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             step="0.01"
                             onClick={(e) => e.stopPropagation()}
@@ -263,6 +275,12 @@ export const TransactionCart = ({
                               e.stopPropagation();
                               const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
                               onUpdateDiscount(item.id, val);
+                            }}
+                            onBlur={(e) => {
+                              e.stopPropagation();
+                              if (e.target.value === '') {
+                                onUpdateDiscount?.(item.id, 0);
+                              }
                             }}
                             className="w-14 h-5 text-right text-[10px] ml-auto px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             step="0.01"
@@ -287,6 +305,14 @@ export const TransactionCart = ({
                             e.stopPropagation();
                             const newAmount = e.target.value === '' ? undefined : parseFloat(e.target.value);
                             handleFinalAmountChange(item, newAmount);
+                          }}
+                          onBlur={(e) => {
+                            e.stopPropagation();
+                            if (e.target.value === '' || parseFloat(e.target.value) === 0) {
+                              // Restore to calculated amount based on original price
+                              const originalAmount = item.price * item.quantity;
+                              handleFinalAmountChange(item, originalAmount);
+                            }
                           }}
                           className="w-20 h-5 text-right text-[10px] font-semibold px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           step="0.01"
