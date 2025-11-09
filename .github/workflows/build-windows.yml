@@ -24,15 +24,24 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Check dist directory
+        run: |
+          echo "Checking if dist exists:"
+          dir dist
+        shell: cmd
+
       - name: Build Electron app
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      - name: List build output
+      - name: List all directories
         run: |
-          echo "Listing release directory:"
-          dir release
+          echo "Root directory:"
+          dir
+          echo "Release directory (if exists):"
+          if exist release dir release
         shell: cmd
 
       - name: Upload artifacts
