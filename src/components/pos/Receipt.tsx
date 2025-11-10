@@ -55,6 +55,44 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               width: 80mm !important;
               margin: 0 !important;
               padding: 3mm !important;
+              background: white !important;
+              color: black !important;
+              font-family: monospace !important;
+              font-size: 14px !important;
+            }
+            .receipt-container * {
+              color: black !important;
+              background: transparent !important;
+            }
+            .receipt-container .border-t {
+              border-top: 1px solid black !important;
+            }
+            .receipt-container .border-b {
+              border-bottom: 1px solid black !important;
+            }
+            .receipt-container .border-black {
+              border-color: black !important;
+            }
+            .receipt-container .border-dashed {
+              border-style: dashed !important;
+            }
+            .receipt-container .border-gray-400 {
+              border-color: #9ca3af !important;
+            }
+            .receipt-container .text-xl {
+              font-size: 20px !important;
+            }
+            .receipt-container .text-lg {
+              font-size: 18px !important;
+            }
+            .receipt-container .text-sm {
+              font-size: 14px !important;
+            }
+            .receipt-container .text-xs {
+              font-size: 12px !important;
+            }
+            .receipt-container .font-bold {
+              font-weight: bold !important;
             }
             img {
               -webkit-print-color-adjust: exact !important;
