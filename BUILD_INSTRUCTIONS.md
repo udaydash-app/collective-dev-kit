@@ -1,60 +1,78 @@
-# Build Windows EXE - Complete Instructions
+# Build Cross-Platform Installers - Complete Instructions
 
 ## Your Project Location
-`C:\collective-dev-kit`
+Mac: `~/collective-dev-kit` or your project path
+Windows: `C:\collective-dev-kit`
 
-## Step 1: Required package.json Scripts
+## Automated Builds (Recommended)
 
-Your `package.json` needs these scripts in the `"scripts"` section:
+The easiest way to build both Mac and Windows installers is through **GitHub Actions**:
 
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "tsc && vite build",
-  "electron:dev": "cross-env ELECTRON_DEV=true electron electron/main.cjs",
-  "electron:build": "npm run build && electron-builder"
-}
+1. **Make your changes** in Lovable (auto-syncs to GitHub)
+2. **Create a new version tag**:
+   ```bash
+   npm version patch  # or 'minor' or 'major'
+   ```
+3. **Push the tag to GitHub**:
+   ```bash
+   git push origin --tags
+   ```
+4. **GitHub Actions automatically builds**:
+   - Windows EXE (x64, ia32, portable)
+   - Mac DMG and ZIP (Apple Silicon arm64, Intel x64)
+5. **Download installers** from GitHub Releases page
+
+This happens automatically in the cloud - no need for Windows or Mac machines!
+
+## Manual Local Builds
+
+### Mac (macOS)
+
+**Commands:**
+```bash
+# Navigate to project
+cd ~/collective-dev-kit  # or your project path
+
+# Install dependencies (first time only)
+npm install --legacy-peer-deps
+
+# Build the app
+npm run build && npm run electron:build
 ```
 
-**Note:** The `electron` and `electron-builder` packages are already installed, so you don't need to install them again.
+**Output files in `release/` folder:**
+- `Global Market POS-{version}-arm64.dmg` - Apple Silicon Mac
+- `Global Market POS-{version}-x64.dmg` - Intel Mac
+- ZIP files for both architectures
 
-## Step 2: Build Commands (Run in Order)
+### Windows
 
-Open **Command Prompt** or **PowerShell** and run these commands:
-
-### 1. Navigate to Your Project
+**Commands (PowerShell or CMD):**
 ```bash
+# Navigate to project
 cd C:\collective-dev-kit
-```
 
-### 2. Clean Previous Build (if any)
-```bash
-rmdir /s /q dist
-rmdir /s /q release
-```
+# Install dependencies (first time only)
+npm install --legacy-peer-deps
 
-### 3. Build the Web Application
-```bash
+# Build the app
 npm run build
-```
-This creates the `dist` folder with your built application.
-
-### 4. Build the Windows EXE
-```bash
 npm run electron:build
 ```
 
-## Step 3: Find Your EXE Files
+**Output files in `release\` folder:**
+- `Global Market POS-{version}-x64.exe` - 64-bit installer
+- `Global Market POS-{version}-ia32.exe` - 32-bit installer  
+- `Global Market POS-{version}-Portable.exe` - Portable (no install)
 
-After successful build, find your executables in:
-```
-C:\collective-dev-kit\release\
-```
+## How Updates Work
 
-You'll find:
-- **Global Market POS-{version}-x64.exe** - 64-bit installer
-- **Global Market POS-{version}-ia32.exe** - 32-bit installer  
-- **Global Market POS-{version}-Portable.exe** - Portable version (no installation needed)
+After users install your app:
+1. You make changes in Lovable (syncs to GitHub)
+2. Create new version: `npm version patch`
+3. Push tag: `git push origin --tags`
+4. GitHub Actions builds both platforms automatically
+5. Apps check for updates and prompt users to download
 
 ## Troubleshooting
 
