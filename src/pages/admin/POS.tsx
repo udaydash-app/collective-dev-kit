@@ -56,6 +56,7 @@ import { Receipt } from '@/components/pos/Receipt';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
+import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -87,6 +88,7 @@ export default function POS() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerPrices, setCustomerPrices] = useState<Record<string, number>>({});
+  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -1354,72 +1356,80 @@ export default function POS() {
   // Fetch customer prices when customer is selected
   useEffect(() => {
     const fetchCustomerPrices = async () => {
-      // First, reset all cart items to retail price
-      cart.forEach((item) => {
-        if (item.itemDiscount && item.itemDiscount > 0) {
-          updateItemDiscount(item.id, 0);
-        }
-      });
-
-      if (!selectedCustomer) {
-        setCustomerPrices({});
-        toast.info('Prices reset to retail');
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('customer_product_prices')
-          .select('product_id, price')
-          .eq('customer_id', selectedCustomer.id);
-
-        if (error) throw error;
-
-        // Convert to map for easy lookup
-        const pricesMap: Record<string, number> = {};
-        data?.forEach((item) => {
-          pricesMap[item.product_id] = item.price;
+      // Detect customer change (including removal)
+      const currentCustomerId = selectedCustomer?.id || null;
+      const customerChanged = currentCustomerId !== prevCustomerId;
+      
+      if (customerChanged) {
+        setPrevCustomerId(currentCustomerId);
+        
+        // First, reset all cart items to retail price
+        cart.forEach((item) => {
+          if (item.itemDiscount && item.itemDiscount > 0) {
+            updateItemDiscount(item.id, 0);
+          }
         });
 
-        setCustomerPrices(pricesMap);
-        
-        // Apply custom prices to existing cart items
-        if (Object.keys(pricesMap).length > 0) {
-          let appliedCount = 0;
-          cart.forEach((cartItem) => {
-            // Use the base productId stored in cart item
-            const customPrice = pricesMap[cartItem.productId];
-            
-            console.log('Checking custom price for cart item:', {
-              cartItemId: cartItem.id,
-              productId: cartItem.productId,
-              retailPrice: cartItem.price,
-              customPrice: customPrice
+        if (!selectedCustomer) {
+          setCustomerPrices({});
+          toast.info('Customer removed - prices reset to retail');
+          return;
+        }
+
+        try {
+          const { data, error } = await supabase
+            .from('customer_product_prices')
+            .select('product_id, price')
+            .eq('customer_id', selectedCustomer.id);
+
+          if (error) throw error;
+
+          // Convert to map for easy lookup
+          const pricesMap: Record<string, number> = {};
+          data?.forEach((item) => {
+            pricesMap[item.product_id] = item.price;
+          });
+
+          setCustomerPrices(pricesMap);
+          
+          // Apply custom prices to existing cart items
+          if (Object.keys(pricesMap).length > 0) {
+            let appliedCount = 0;
+            cart.forEach((cartItem) => {
+              // Use the base productId stored in cart item
+              const customPrice = pricesMap[cartItem.productId];
+              
+              console.log('Checking custom price for cart item:', {
+                cartItemId: cartItem.id,
+                productId: cartItem.productId,
+                retailPrice: cartItem.price,
+                customPrice: customPrice
+              });
+              
+              if (customPrice && customPrice < cartItem.price) {
+                const discount = cartItem.price - customPrice;
+                updateItemDiscount(cartItem.id, discount);
+                appliedCount++;
+                console.log('Applied discount:', discount, 'to item:', cartItem.id);
+              }
             });
             
-            if (customPrice && customPrice < cartItem.price) {
-              const discount = cartItem.price - customPrice;
-              updateItemDiscount(cartItem.id, discount);
-              appliedCount++;
-              console.log('Applied discount:', discount, 'to item:', cartItem.id);
+            if (appliedCount > 0) {
+              toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
+            } else {
+              toast.info(`No custom prices available for current cart items`);
             }
-          });
-          
-          if (appliedCount > 0) {
-            toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
           } else {
-            toast.info(`No custom prices available for current cart items`);
+            toast.info(`No custom prices set for ${selectedCustomer.name}`);
           }
-        } else {
-          toast.info(`No custom prices set for ${selectedCustomer.name}`);
+        } catch (error) {
+          console.error('Error fetching customer prices:', error);
         }
-      } catch (error) {
-        console.error('Error fetching customer prices:', error);
       }
     };
 
     fetchCustomerPrices();
-  }, [selectedCustomer]);
+  }, [selectedCustomer?.id]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -1507,13 +1517,19 @@ export default function POS() {
     setShowPayment(true);
   };
 
-  const handleSaveCustomerPrices = async () => {
-    if (!selectedCustomer) return;
+  const handleSaveCustomerPrices = async (selectedProductIds: string[]) => {
+    if (!selectedCustomer || selectedProductIds.length === 0) {
+      setShowCustomPriceConfirm(false);
+      setShowPayment(true);
+      return;
+    }
     
     try {
+      // Get items with custom prices that were selected
       const itemsWithCustomPrices = cart.filter(item => 
-        (item.customPrice !== undefined && item.customPrice !== item.price) ||
-        (item.itemDiscount !== undefined && item.itemDiscount > 0)
+        selectedProductIds.includes(item.productId) &&
+        ((item.customPrice !== undefined && item.customPrice !== item.price) ||
+        (item.itemDiscount !== undefined && item.itemDiscount > 0))
       );
       
       if (itemsWithCustomPrices.length === 0) {
@@ -1522,10 +1538,10 @@ export default function POS() {
         return;
       }
       
-      // Prepare prices to save - only for valid product IDs (exclude combos, BOGOs, cart discounts)
+      // Prepare prices to save
       const pricesToUpsert = itemsWithCustomPrices
         .filter(item => {
-          // Exclude items without valid product IDs or special items
+          // Exclude special items
           return item.productId && 
                  !item.id.startsWith('combo-') && 
                  !item.id.startsWith('bogo-') && 
@@ -1533,7 +1549,6 @@ export default function POS() {
                  item.id !== 'cart-discount';
         })
         .map(item => {
-          // Calculate effective price: use customPrice if set, otherwise price minus discount
           const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
           return {
             customer_id: selectedCustomer.id,
@@ -1543,13 +1558,13 @@ export default function POS() {
         });
 
       if (pricesToUpsert.length === 0) {
-        toast.info('No items with valid product IDs to save');
+        toast.info('No valid items to save');
         setShowCustomPriceConfirm(false);
         setShowPayment(true);
         return;
       }
 
-      // Upsert prices (will update existing or insert new)
+      // Upsert selected prices
       const { error } = await supabase
         .from('customer_product_prices')
         .upsert(pricesToUpsert, {
@@ -1557,6 +1572,13 @@ export default function POS() {
         });
 
       if (error) throw error;
+      
+      // Update local price map
+      const updatedPrices = { ...customerPrices };
+      pricesToUpsert.forEach(item => {
+        updatedPrices[item.product_id] = item.price;
+      });
+      setCustomerPrices(updatedPrices);
       
       toast.success(`Custom prices saved for ${pricesToUpsert.length} product(s)`);
     } catch (error: any) {
@@ -2431,7 +2453,7 @@ export default function POS() {
                 size="sm"
                 onClick={() => {
                   setSelectedCustomer(null);
-                  toast.info('Customer removed - prices reset to retail');
+                  // Price reset is handled by useEffect
                 }}
                 className="h-6 w-6 p-0"
               >
@@ -3176,41 +3198,14 @@ export default function POS() {
 
 
       {/* Custom Price Confirmation Dialog */}
-      <AlertDialog open={showCustomPriceConfirm} onOpenChange={setShowCustomPriceConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Save Custom Prices?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have changed prices or applied discounts for some items in this cart. Would you like to save these custom prices to {selectedCustomer?.name}'s profile for future orders?
-              {cart.filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0)).length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="font-semibold text-sm">Items with custom prices/discounts:</p>
-                  <ul className="list-disc list-inside text-sm">
-                    {cart
-                      .filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0))
-                      .map(item => {
-                        const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
-                        return (
-                          <li key={item.id}>
-                            {item.name}: {formatCurrency(item.price)} → {formatCurrency(effectivePrice)}
-                          </li>
-                        );
-                      })}
-                  </ul>
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleSkipCustomerPrices}>
-              No, Continue Without Saving
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveCustomerPrices}>
-              Yes, Save Prices
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CustomPriceDialog
+        open={showCustomPriceConfirm}
+        onClose={() => setShowCustomPriceConfirm(false)}
+        customerName={selectedCustomer?.name || ''}
+        cartItems={cart}
+        onSave={handleSaveCustomerPrices}
+        onSkip={handleSkipCustomerPrices}
+      />
 
       {/* Last Receipt Options Dialog */}
       <Dialog open={showLastReceiptOptions} onOpenChange={setShowLastReceiptOptions}>
