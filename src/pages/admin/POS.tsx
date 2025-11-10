@@ -363,7 +363,7 @@ export default function POS() {
           const productId = item.productId || item.id;
           console.log(`🔧 Loading item: ${item.name}, productId: ${productId}`);
           
-          // Create cart item
+          // Create cart item with proper custom pricing and discounts
           cartItems.push({
             id: productId,
             productId: productId,
@@ -371,9 +371,11 @@ export default function POS() {
             price: item.price,
             quantity: item.quantity || 1,
             barcode: item.barcode,
-            customPrice: item.customPrice,
+            customPrice: item.customPrice || null,
             itemDiscount: item.itemDiscount || 0,
           });
+          
+          console.log(`🔧 Item loaded with customPrice: ${item.customPrice}, itemDiscount: ${item.itemDiscount}`);
         }
         
         // Load all items at once
