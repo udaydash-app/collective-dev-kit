@@ -10,6 +10,14 @@ try {
   // Configure auto-updater
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  
+  // If GH_TOKEN is set, use it for private repo access
+  if (process.env.GH_TOKEN) {
+    autoUpdater.requestHeaders = {
+      'Authorization': `token ${process.env.GH_TOKEN}`
+    };
+    console.log('[AUTO-UPDATE] Using GitHub token for private repository access');
+  }
 } catch (error) {
   console.warn('electron-updater not available:', error.message);
 }
