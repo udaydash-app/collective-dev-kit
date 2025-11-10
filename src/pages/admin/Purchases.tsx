@@ -169,6 +169,31 @@ export default function Purchases() {
     }
   }, [location.state?.newProductId]);
 
+  // Auto-select newly created supplier from Contacts page
+  useEffect(() => {
+    const newSupplierId = location.state?.newSupplierId;
+    if (newSupplierId) {
+      setSelectedSupplier(newSupplierId);
+      
+      // Fetch the supplier details to show success message
+      const fetchNewSupplier = async () => {
+        const { data: supplier } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .eq('id', newSupplierId)
+          .single();
+        
+        if (supplier) {
+          toast.success(`Supplier "${supplier.name}" selected`);
+        }
+      };
+      
+      fetchNewSupplier();
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.newSupplierId]);
+
   const createPurchaseMutation = useMutation({
     mutationFn: async (paymentDetails?: Array<{method: string; amount: number}>) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -680,29 +705,36 @@ export default function Purchases() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="supplier" className="text-sm font-semibold">Supplier *</Label>
-                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                      <SelectTrigger id="supplier" className="mt-1">
-                        <SelectValue placeholder="Select supplier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers?.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
-                            {(supplier.phone || supplier.email) && (
-                              <span className="text-xs text-muted-foreground ml-2">
-                                {supplier.phone || supplier.email}
-                              </span>
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Don't see your supplier?{' '}
-                      <a href="/admin/contacts" className="text-primary hover:underline">
-                        Add in Contacts
-                      </a>
-                    </p>
+                    <div className="flex gap-2">
+                      <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                        <SelectTrigger id="supplier" className="mt-1 flex-1">
+                          <SelectValue placeholder="Select supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers?.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                              {(supplier.phone || supplier.email) && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  {supplier.phone || supplier.email}
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="mt-1"
+                        onClick={() => navigate('/admin/contacts', { 
+                          state: { openAddDialog: true, fromPurchases: true } 
+                        })}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div>

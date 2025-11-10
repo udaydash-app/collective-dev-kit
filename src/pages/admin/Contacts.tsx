@@ -64,12 +64,14 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [fromPOS, setFromPOS] = useState(false);
+  const [fromPurchases, setFromPurchases] = useState(false);
 
-  // Open add dialog if navigated from POS
+  // Open add dialog if navigated from POS or Purchases
   useEffect(() => {
     if (location.state?.openAddDialog) {
       setOpen(true);
       setFromPOS(location.state?.fromPOS || false);
+      setFromPurchases(location.state?.fromPurchases || false);
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -141,6 +143,15 @@ export default function Contacts() {
         setFromPOS(false);
         navigate('/admin/pos', { 
           state: { newCustomerId: newContact.id },
+          replace: true 
+        });
+      }
+      
+      // If from Purchases, return to Purchases with new supplier ID
+      if (fromPurchases) {
+        setFromPurchases(false);
+        navigate('/admin/purchases', { 
+          state: { newSupplierId: newContact.id },
           replace: true 
         });
       }
@@ -240,6 +251,7 @@ export default function Contacts() {
     setOpen(false);
     setEditingContact(null);
     setFromPOS(false);
+    setFromPurchases(false);
     setFormData({
       name: '',
       email: '',
