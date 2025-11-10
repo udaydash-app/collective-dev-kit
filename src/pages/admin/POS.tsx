@@ -1359,15 +1359,11 @@ export default function POS() {
       
       console.log('✅ Applying custom price discount:', discount);
       
-      // Add product with original price
-      await addToCart(product);
-      
-      // Apply discount immediately
-      setTimeout(() => {
-        const itemId = product.selectedVariant?.id || product.id;
-        console.log('🎯 Applying discount to item ID:', itemId, 'discount:', discount);
-        updateItemDiscount(itemId, discount);
-      }, 50);
+      // Add product with discount already applied
+      await addToCart({
+        ...product,
+        itemDiscount: discount
+      });
     } else {
       console.log('❌ No custom price or custom price not lower, adding normally');
       // No custom price, add normally

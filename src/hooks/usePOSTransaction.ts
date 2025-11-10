@@ -635,7 +635,13 @@ export const usePOSTransaction = () => {
     if (existing) {
       updatedCart = cart.map(item =>
         item.id === cartItemId
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { 
+              ...item, 
+              quantity: item.quantity + 1,
+              // Preserve or update discount if passed in
+              itemDiscount: product.itemDiscount !== undefined ? product.itemDiscount : item.itemDiscount,
+              customPrice: product.customPrice !== undefined ? product.customPrice : item.customPrice,
+            }
           : item
       );
     } else {
@@ -647,6 +653,8 @@ export const usePOSTransaction = () => {
         quantity: 1,
         barcode: product.barcode,
         image_url: product.image_url,
+        itemDiscount: product.itemDiscount || 0,
+        customPrice: product.customPrice,
       };
       updatedCart = [newItem, ...cart];
     }
