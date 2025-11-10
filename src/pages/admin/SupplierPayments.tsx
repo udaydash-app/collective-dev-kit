@@ -30,6 +30,7 @@ interface SupplierPayment {
   id: string;
   payment_number: string;
   contact_id: string;
+  purchase_id: string | null;
   amount: number;
   payment_method: string;
   payment_date: string;
@@ -44,6 +45,10 @@ interface SupplierPayment {
   profiles: {
     full_name: string;
   };
+  purchases?: {
+    purchase_number: string;
+    total_amount: number;
+  };
 }
 
 export default function SupplierPayments() {
@@ -54,6 +59,7 @@ export default function SupplierPayments() {
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     contact_id: '',
+    purchase_id: '',
     amount: '',
     payment_method: 'cash',
     payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -91,6 +97,28 @@ export default function SupplierPayments() {
     }
   });
 
+  // Fetch outstanding purchases for selected supplier
+  const { data: outstandingPurchases } = useQuery({
+    queryKey: ['outstanding-purchases', formData.contact_id],
+    queryFn: async () => {
+      if (!formData.contact_id) return [];
+      
+      const supplier = suppliers?.find(s => s.id === formData.contact_id);
+      if (!supplier) return [];
+
+      const { data, error } = await supabase
+        .from('purchases')
+        .select('id, purchase_number, total_amount, amount_paid, payment_status, purchased_at')
+        .eq('supplier_name', supplier.name)
+        .in('payment_status', ['pending', 'partial'])
+        .order('purchased_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!formData.contact_id && open
+  });
+
   // Fetch supplier payments
   const { data: payments, isLoading } = useQuery({
     queryKey: ['supplier-payments', searchTerm],
@@ -99,7 +127,8 @@ export default function SupplierPayments() {
         .from('supplier_payments')
         .select(`
           *,
-          contacts(name)
+          contacts(name),
+          purchases(purchase_number, total_amount)
         `)
         .order('created_at', { ascending: false });
 
@@ -136,39 +165,46 @@ export default function SupplierPayments() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const paymentData = {
+        contact_id: data.contact_id,
+        purchase_id: data.purchase_id || null,
+        amount: parseFloat(data.amount),
+        payment_method: data.payment_method,
+        payment_date: data.payment_date,
+        reference: data.reference,
+        notes: data.notes,
+        store_id: data.store_id
+      };
+
       if (editingPayment) {
         // Update existing payment
         const { error } = await supabase
           .from('supplier_payments')
-          .update({
-            contact_id: data.contact_id,
-            amount: parseFloat(data.amount),
-            payment_method: data.payment_method,
-            payment_date: data.payment_date,
-            reference: data.reference,
-            notes: data.notes,
-            store_id: data.store_id
-          })
+          .update(paymentData)
           .eq('id', editingPayment.id);
 
         if (error) throw error;
       } else {
         // Insert new payment
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('supplier_payments')
           .insert({
-            ...data,
-            amount: parseFloat(data.amount),
+            ...paymentData,
             paid_by: user.id
           });
 
-        if (error) throw error;
+        if (insertError) throw insertError;
+
+        // Create journal entry for the payment
+        await createSupplierPaymentJournalEntry(paymentData);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success(editingPayment ? 'Supplier payment updated successfully' : 'Supplier payment recorded successfully');
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-purchases'] });
+      toast.success(editingPayment ? 'Supplier payment updated successfully' : 'Supplier payment recorded and posted to general ledger');
       handleClose();
     },
     onError: (error: any) => {
@@ -198,6 +234,97 @@ export default function SupplierPayments() {
     }
   });
 
+  // Function to create journal entries for supplier payment
+  const createSupplierPaymentJournalEntry = async (payment: any) => {
+    try {
+      // Get accounts
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('*')
+        .in('account_code', ['2010', '1010', '1020', '1030']);
+
+      if (!accounts || accounts.length === 0) {
+        console.error('Required accounts not found');
+        return;
+      }
+
+      const accountsPayableAccount = accounts.find(a => a.account_code === '2010'); // Accounts Payable
+      const cashAccount = accounts.find(a => a.account_code === '1010'); // Cash
+      const bankAccount = accounts.find(a => a.account_code === '1020'); // Bank
+      const mobileMoneyAccount = accounts.find(a => a.account_code === '1030'); // Mobile Money
+
+      // Get supplier and purchase details
+      const { data: supplier } = await supabase
+        .from('contacts')
+        .select('name')
+        .eq('id', payment.contact_id)
+        .single();
+
+      let purchaseRef = '';
+      if (payment.purchase_id) {
+        const { data: purchase } = await supabase
+          .from('purchases')
+          .select('purchase_number')
+          .eq('id', payment.purchase_id)
+          .single();
+        purchaseRef = purchase ? ` - ${purchase.purchase_number}` : '';
+      }
+
+      // Create journal entry
+      const { data: journalEntry, error: jeError } = await supabase
+        .from('journal_entries')
+        .insert({
+          description: `Supplier Payment to ${supplier?.name}${purchaseRef}`,
+          reference: payment.reference || '',
+          entry_date: payment.payment_date,
+          status: 'posted',
+          total_debit: payment.amount,
+          total_credit: payment.amount,
+        })
+        .select()
+        .single();
+
+      if (jeError) throw jeError;
+
+      // Debit: Accounts Payable (liability decreases)
+      await supabase.from('journal_entry_lines').insert({
+        journal_entry_id: journalEntry.id,
+        account_id: accountsPayableAccount?.id,
+        debit_amount: payment.amount,
+        credit_amount: 0,
+        description: `Payment to ${supplier?.name}${purchaseRef}`,
+      });
+
+      // Credit: Payment account (asset decreases)
+      let paymentAccountId;
+      switch (payment.payment_method) {
+        case 'cash':
+          paymentAccountId = cashAccount?.id;
+          break;
+        case 'bank_transfer':
+        case 'cheque':
+          paymentAccountId = bankAccount?.id;
+          break;
+        case 'mobile_money':
+          paymentAccountId = mobileMoneyAccount?.id;
+          break;
+        default:
+          paymentAccountId = cashAccount?.id;
+      }
+
+      await supabase.from('journal_entry_lines').insert({
+        journal_entry_id: journalEntry.id,
+        account_id: paymentAccountId,
+        debit_amount: 0,
+        credit_amount: payment.amount,
+        description: `Payment via ${payment.payment_method}${purchaseRef}`,
+      });
+
+    } catch (error) {
+      console.error('Error creating journal entries:', error);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.contact_id || !formData.amount || !formData.store_id) {
@@ -212,6 +339,7 @@ export default function SupplierPayments() {
     setEditingPayment(null);
     setFormData({
       contact_id: '',
+      purchase_id: '',
       amount: '',
       payment_method: 'cash',
       payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -225,6 +353,7 @@ export default function SupplierPayments() {
     setEditingPayment(payment);
     setFormData({
       contact_id: payment.contact_id,
+      purchase_id: payment.purchase_id || '',
       amount: payment.amount.toString(),
       payment_method: payment.payment_method,
       payment_date: payment.payment_date,
@@ -287,6 +416,7 @@ export default function SupplierPayments() {
                 <TableHead>Payment #</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Supplier</TableHead>
+                <TableHead>Purchase #</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Reference</TableHead>
@@ -297,11 +427,11 @@ export default function SupplierPayments() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={9} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : payments?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">No supplier payments found</TableCell>
+                  <TableCell colSpan={9} className="text-center">No supplier payments found</TableCell>
                 </TableRow>
               ) : (
                 payments?.map((payment) => (
@@ -309,6 +439,13 @@ export default function SupplierPayments() {
                     <TableCell className="font-medium">{payment.payment_number}</TableCell>
                     <TableCell>{format(new Date(payment.payment_date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{payment.contacts.name}</TableCell>
+                    <TableCell>
+                      {payment.purchases?.purchase_number ? (
+                        <span className="text-xs font-mono">{payment.purchases.purchase_number}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-semibold">{formatCurrency(payment.amount)}</TableCell>
                     <TableCell>
                       <Badge className={paymentMethodColors[payment.payment_method]}>
@@ -373,7 +510,7 @@ export default function SupplierPayments() {
                 <Label htmlFor="contact_id">Supplier *</Label>
                 <Select
                   value={formData.contact_id}
-                  onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
+                  onValueChange={(value) => setFormData({ ...formData, contact_id: value, purchase_id: '' })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select supplier" />
@@ -387,6 +524,42 @@ export default function SupplierPayments() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.contact_id && outstandingPurchases && outstandingPurchases.length > 0 && (
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="purchase_id">Purchase (Optional)</Label>
+                  <Select
+                    value={formData.purchase_id}
+                    onValueChange={(value) => {
+                      const purchase = outstandingPurchases.find(p => p.id === value);
+                      setFormData({ 
+                        ...formData, 
+                        purchase_id: value,
+                        amount: purchase ? (purchase.total_amount - (purchase.amount_paid || 0)).toString() : formData.amount
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select purchase to pay (or leave blank for general payment)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {outstandingPurchases.map((purchase) => (
+                        <SelectItem key={purchase.id} value={purchase.id}>
+                          {purchase.purchase_number} - {formatCurrency(purchase.total_amount)} 
+                          {purchase.amount_paid > 0 && ` (Paid: ${formatCurrency(purchase.amount_paid)})`}
+                          {' '}
+                          <Badge variant={purchase.payment_status === 'partial' ? 'secondary' : 'destructive'} className="ml-2">
+                            {purchase.payment_status}
+                          </Badge>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Link this payment to a specific purchase, or leave blank for a general payment
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount *</Label>

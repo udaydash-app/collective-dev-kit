@@ -1764,6 +1764,7 @@ export type Database = {
       }
       purchases: {
         Row: {
+          amount_paid: number | null
           created_at: string
           id: string
           notes: string | null
@@ -1780,6 +1781,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -1796,6 +1798,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -2027,6 +2030,7 @@ export type Database = {
           payment_date: string
           payment_method: string
           payment_number: string
+          purchase_id: string | null
           reference: string | null
           store_id: string
           updated_at: string
@@ -2041,6 +2045,7 @@ export type Database = {
           payment_date?: string
           payment_method: string
           payment_number?: string
+          purchase_id?: string | null
           reference?: string | null
           store_id: string
           updated_at?: string
@@ -2055,6 +2060,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: string
+          purchase_id?: string | null
           reference?: string | null
           store_id?: string
           updated_at?: string
@@ -2065,6 +2071,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
           {
