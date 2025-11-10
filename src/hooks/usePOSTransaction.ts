@@ -448,8 +448,9 @@ export const usePOSTransaction = () => {
         return currentCart;
       }
 
-      // Filter out existing combo items and cart-discount items
-      let regularItems = currentCart.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      // Preserve existing combo items, only process regular items for new combos
+      const existingCombos = currentCart.filter(item => item.isCombo);
+      let regularItems = currentCart.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const appliedCombos: CartItem[] = [];
 
       // Try to apply each combo
@@ -611,8 +612,8 @@ export const usePOSTransaction = () => {
         toast.success(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
       }
 
-      // Return combined cart: regular items + applied combos
-      return [...regularItems, ...appliedCombos];
+      // Return combined cart: existing combos + regular items + newly applied combos
+      return [...existingCombos, ...regularItems, ...appliedCombos];
     } catch (error) {
       console.error('Error in detectAndApplyCombos:', error);
       return currentCart;
