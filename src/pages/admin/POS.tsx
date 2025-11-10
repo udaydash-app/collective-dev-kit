@@ -78,6 +78,7 @@ import { NumericKeypad } from '@/components/pos/NumericKeypad';
 import { ProductSearch } from '@/components/pos/ProductSearch';
 import { Label } from '@/components/ui/label';
 import { UpdateButton } from '@/components/UpdateButton';
+import { APP_VERSION } from '@/config/version';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -2679,7 +2680,7 @@ export default function POS() {
               <DropdownMenuContent align="start" className="w-56 bg-background z-50">
                 <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center gap-2 py-2">
                   <Award className="h-3 w-3" />
-                  Global Market POS v1.0.20
+                  Global Market POS v{APP_VERSION}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {menuSections.settings.map((item, index) => (

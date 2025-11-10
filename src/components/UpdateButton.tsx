@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { APP_VERSION } from '@/config/version';
 
 interface UpdateButtonProps {
   showVersion?: boolean;
@@ -10,7 +11,7 @@ interface UpdateButtonProps {
 
 export function UpdateButton({ showVersion = false, compact = false }: UpdateButtonProps) {
   const [checking, setChecking] = useState(false);
-  const version = '1.0.20'; // App version from GitHub
+  const version = APP_VERSION;
 
   const checkForUpdates = async () => {
     if (!window.electron?.checkForUpdates) {
