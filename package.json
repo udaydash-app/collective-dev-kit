@@ -1,7 +1,7 @@
 {
   "name": "global-market",
   "private": true,
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Global Market POS - Point of Sale and E-commerce System",
   "author": "Global Market Team",
   "type": "module",
