@@ -107,7 +107,11 @@ if (autoUpdater) {
 
   autoUpdater.on('error', (err) => {
     console.error('Update error:', err);
-    dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
+    // Don't show error dialog for 404 (no releases available yet)
+    const is404 = err.message && (err.message.includes('404') || err.message.includes('HttpError'));
+    if (!is404) {
+      dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
+    }
   });
 }
 
