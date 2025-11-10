@@ -118,6 +118,7 @@ export default function Purchases() {
             quantity,
             unit,
             price,
+            cost_price,
             is_available
           )
         `)
@@ -149,6 +150,7 @@ export default function Purchases() {
               quantity,
               unit,
               price,
+              cost_price,
               is_available
             )
           `)
@@ -355,7 +357,7 @@ export default function Purchases() {
       updated[existingIndex].total_cost = updated[existingIndex].quantity * updated[existingIndex].unit_cost;
       setItems(updated);
     } else {
-      const unitCost = variant ? variant.price : product.price;
+      const unitCost = variant ? (variant.cost_price || variant.price) : (product.cost_price || product.price);
       setItems([
         ...items,
         {
@@ -1112,7 +1114,7 @@ export default function Purchases() {
                             onClick={() => addProductToItems(product, variant)}
                           >
                             <span>{variant.label || `${variant.quantity}${variant.unit}`}</span>
-                            <span>{formatCurrency(variant.price)}</span>
+                            <span>{formatCurrency(variant.cost_price || variant.price)}</span>
                           </Button>
                         ))}
                       </div>
@@ -1123,7 +1125,7 @@ export default function Purchases() {
                         className="w-full mt-2"
                         onClick={() => addProductToItems(product)}
                       >
-                        Add - {formatCurrency(product.price)}
+                        Add - {formatCurrency(product.cost_price || product.price)}
                       </Button>
                     )}
                   </div>
