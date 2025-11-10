@@ -907,7 +907,9 @@ export const usePOSTransaction = () => {
     customerId?: string,
     notes?: string,
     additionalItems?: CartItem[],
-    discountOverride?: number
+    discountOverride?: number,
+    editingTransactionId?: string,
+    editingTransactionType?: 'pos' | 'online'
   ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -939,12 +941,12 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
-      // Calculate COGS using FIFO method before saving transaction
+      // Calculate COGS using FIFO method before saving transaction (only for NEW transactions)
       let totalCOGS = 0;
       const cogsDetails: any[] = [];
 
-      // Check if online for FIFO calculation
-      if (navigator.onLine) {
+      // Check if online for FIFO calculation (skip for edited transactions to avoid double deduction)
+      if (navigator.onLine && !editingTransactionId) {
         for (const item of cart) {
           if (item.id === 'cart-discount') continue;
           
@@ -1034,7 +1036,7 @@ export const usePOSTransaction = () => {
       }));
 
       const transactionData = {
-        id: uuidv4(),
+        id: editingTransactionId || uuidv4(),  // Use existing ID if editing
         cashier_id: user.id,
         store_id: storeId,
         customer_id: customerId,
@@ -1052,104 +1054,162 @@ export const usePOSTransaction = () => {
         metadata: {
           total_cogs: totalCOGS,
           cogs_details: cogsDetails,
-          gross_profit: (subtotal - finalDiscount) - totalCOGS
+          gross_profit: (subtotal - finalDiscount) - totalCOGS,
+          ...(editingTransactionId && { edited_at: new Date().toISOString() })
         }
       };
 
-      console.log('Processing transaction with COGS:', transactionData);
+      console.log(editingTransactionId ? 'Updating transaction:' : 'Processing new transaction:', transactionData);
 
       // Check if online
       if (navigator.onLine) {
-        // Try to save online
-        const { data, error } = await supabase
-          .from('pos_transactions')
-          .insert(transactionData)
-          .select()
-          .single();
+        if (editingTransactionId && editingTransactionType === 'pos') {
+          // UPDATE existing POS transaction instead of creating new one
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .update({
+              store_id: transactionData.store_id,
+              customer_id: transactionData.customer_id,
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              tax: transactionData.tax,
+              discount: transactionData.discount,
+              total: transactionData.total,
+              payment_method: transactionData.payment_method,
+              payment_details: transactionData.payment_details,
+              notes: transactionData.notes,
+              metadata: transactionData.metadata,
+            })
+            .eq('id', editingTransactionId)
+            .select()
+            .single();
 
-        if (error) {
-          console.error('Database error:', error);
-          // If online but failed, save offline as backup
-          await offlineDB.addTransaction({
-            id: transactionData.id,
-            storeId: transactionData.store_id,
-            cashierId: transactionData.cashier_id,
-            customerId: transactionData.customer_id,
-            items: transactionData.items,
-            subtotal: transactionData.subtotal,
-            discount: transactionData.discount,
-            total: transactionData.total,
-            paymentMethod: transactionData.payment_method,
-            notes: transactionData.notes,
-            timestamp: new Date().toISOString(),
-            synced: false,
-          });
-          toast.warning('Saved offline - will sync when connection is stable');
+          if (error) {
+            console.error('Database update error:', error);
+            toast.error('Failed to update transaction');
+            return null;
+          }
+
+          toast.success('Transaction updated successfully!');
           clearCart();
-          return { ...transactionData, offline: true };
-        }
+          return data;
+        } else if (editingTransactionId && editingTransactionType === 'online') {
+          // For online orders, we still create a POS transaction and delete the order
+          // (converting order to POS transaction)
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .insert(transactionData)
+            .select()
+            .single();
 
-        // Update stock quantities for sold items
-        for (const item of cart) {
-          if (item.id === 'cart-discount') continue; // Skip cart discount items
-          
-          // Handle combo items - deduct stock from each product in the combo
-          if (item.isCombo && item.comboItems) {
-            for (const comboProduct of item.comboItems) {
-              const stockToDeduct = comboProduct.quantity * item.quantity;
+          if (error) {
+            console.error('Database error:', error);
+            toast.error('Failed to create POS transaction');
+            return null;
+          }
+
+          // Delete the original online order
+          await supabase.from('order_items').delete().eq('order_id', editingTransactionId);
+          await supabase.from('orders').delete().eq('id', editingTransactionId);
+
+          toast.success('Order converted to POS transaction successfully!');
+          clearCart();
+          return data;
+        } else {
+          // Create new transaction (original flow)
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .insert(transactionData)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Database error:', error);
+            // If online but failed, save offline as backup
+            await offlineDB.addTransaction({
+              id: transactionData.id,
+              storeId: transactionData.store_id,
+              cashierId: transactionData.cashier_id,
+              customerId: transactionData.customer_id,
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              discount: transactionData.discount,
+              total: transactionData.total,
+              paymentMethod: transactionData.payment_method,
+              notes: transactionData.notes,
+              timestamp: new Date().toISOString(),
+              synced: false,
+            });
+            toast.warning('Saved offline - will sync when connection is stable');
+            clearCart();
+            return { ...transactionData, offline: true };
+          }
+        }
+        
+        // Update stock quantities for sold items (only for new transactions)
+        let data = null;
+        if (!editingTransactionId) {
+          for (const item of cart) {
+            if (item.id === 'cart-discount') continue; // Skip cart discount items
+            
+            // Handle combo items - deduct stock from each product in the combo
+            if (item.isCombo && item.comboItems) {
+              for (const comboProduct of item.comboItems) {
+                const stockToDeduct = comboProduct.quantity * item.quantity;
+                
+                if (comboProduct.variant_id) {
+                  const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
+                    p_variant_id: comboProduct.variant_id,
+                    p_quantity: stockToDeduct
+                  });
+                  
+                  if (variantError) {
+                    console.error('Error updating combo variant stock:', variantError);
+                  }
+                } else {
+                  const { error: stockError } = await supabase.rpc('decrement_product_stock', {
+                    p_product_id: comboProduct.product_id,
+                    p_quantity: stockToDeduct
+                  });
+                  
+                  if (stockError) {
+                    console.error('Error updating combo product stock:', stockError);
+                  }
+                }
+              }
+            } else {
+              // Regular product stock deduction
+              // Check if this is a variant or base product
+              const isVariant = item.id !== item.productId;
               
-              if (comboProduct.variant_id) {
+              if (isVariant) {
+                // Update variant stock
                 const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                  p_variant_id: comboProduct.variant_id,
-                  p_quantity: stockToDeduct
+                  p_variant_id: item.id,
+                  p_quantity: item.quantity
                 });
                 
                 if (variantError) {
-                  console.error('Error updating combo variant stock:', variantError);
+                  console.error('Error updating variant stock:', variantError);
                 }
               } else {
+                // Update base product stock
                 const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                  p_product_id: comboProduct.product_id,
-                  p_quantity: stockToDeduct
+                  p_product_id: item.id,
+                  p_quantity: item.quantity
                 });
                 
                 if (stockError) {
-                  console.error('Error updating combo product stock:', stockError);
+                  console.error('Error updating product stock:', stockError);
                 }
-              }
-            }
-          } else {
-            // Regular product stock deduction
-            // Check if this is a variant or base product
-            const isVariant = item.id !== item.productId;
-            
-            if (isVariant) {
-              // Update variant stock
-              const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                p_variant_id: item.id,
-                p_quantity: item.quantity
-              });
-              
-              if (variantError) {
-                console.error('Error updating variant stock:', variantError);
-              }
-            } else {
-              // Update base product stock
-              const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                p_product_id: item.id,
-                p_quantity: item.quantity
-              });
-              
-              if (stockError) {
-                console.error('Error updating product stock:', stockError);
               }
             }
           }
         }
 
-        toast.success('Transaction completed successfully!');
+        toast.success(editingTransactionId ? 'Transaction updated successfully!' : 'Transaction completed successfully!');
         clearCart();
-        return data;
+        return data || transactionData;
       } else {
         // Save offline
         await offlineDB.addTransaction({
