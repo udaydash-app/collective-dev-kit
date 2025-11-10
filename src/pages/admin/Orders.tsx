@@ -62,7 +62,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("today");
+  const [periodFilter, setPeriodFilter] = useState<string>("this_month");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -182,28 +182,6 @@ export default function AdminOrders() {
         console.error('Error fetching POS transactions:', posError);
       }
 
-      // Fetch purchases
-      let purchasesQuery = supabase
-        .from('purchases')
-        .select(`
-          *,
-          stores(name),
-          contacts(name)
-        `)
-        .order('purchased_at', { ascending: false });
-
-      if (dateRange) {
-        purchasesQuery = purchasesQuery
-          .gte('purchased_at', dateRange.start.toISOString())
-          .lte('purchased_at', dateRange.end.toISOString());
-      }
-
-      const { data: purchases, error: purchasesError } = await purchasesQuery;
-
-      if (purchasesError) {
-        console.error('Error fetching purchases:', purchasesError);
-      }
-
       const allOrders = [];
 
       // Process online orders
@@ -270,6 +248,9 @@ export default function AdminOrders() {
           return statusFilter === 'completed';
         });
         
+        console.log('🔍 POS Transactions found:', filteredPOSTransactions.length);
+        console.log('🔍 Sample POS transaction:', filteredPOSTransactions[0]);
+        
         allOrders.push(...filteredPOSTransactions.map(transaction => ({
           id: transaction.id,
           order_number: transaction.transaction_number,
@@ -290,62 +271,6 @@ export default function AdminOrders() {
           cashier_name: cashierMap.get(transaction.cashier_id) || 'Unknown',
           addresses: null
         })));
-      }
-
-      // Process purchases
-      if (purchases && purchases.length > 0) {
-        const filteredPurchases = purchases.filter(purchase => {
-          if (statusFilter === 'all') return true;
-          // Show purchases in "completed" or "paid" status filter
-          return statusFilter === 'completed' && purchase.payment_status === 'paid';
-        });
-
-        // Fetch purchase items for all purchases
-        const purchaseIds = filteredPurchases.map(p => p.id);
-        const { data: purchaseItems } = await supabase
-          .from('purchase_items')
-          .select(`
-            *,
-            products(id, name, image_url, price, unit),
-            purchase_id
-          `)
-          .in('purchase_id', purchaseIds);
-
-        const itemsByPurchase = new Map<string, any[]>();
-        purchaseItems?.forEach(item => {
-          if (!itemsByPurchase.has(item.purchase_id)) {
-            itemsByPurchase.set(item.purchase_id, []);
-          }
-          itemsByPurchase.get(item.purchase_id)?.push(item);
-        });
-
-        allOrders.push(...filteredPurchases.map(purchase => {
-          const items = itemsByPurchase.get(purchase.id) || [];
-          const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
-          
-          return {
-            id: purchase.id,
-            order_number: purchase.purchase_number,
-            customer_name: Array.isArray(purchase.contacts) && purchase.contacts.length > 0 
-              ? purchase.contacts[0].name 
-              : 'Unknown Supplier',
-            customer_id: null,
-            stores: purchase.stores,
-            store_id: purchase.store_id,
-            total: purchase.amount_paid || subtotal,
-            subtotal: subtotal,
-            tax: 0,
-            discount: 0,
-            delivery_fee: 0,
-            created_at: purchase.purchased_at,
-            items: items,
-            type: 'purchase',
-            status: purchase.payment_status || 'pending',
-            payment_method: purchase.payment_method || 'pending',
-            cashier_name: null,
-            addresses: null
-          };
-        }));
       }
 
       // Sort by date
