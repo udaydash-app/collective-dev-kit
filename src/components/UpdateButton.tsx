@@ -10,7 +10,7 @@ interface UpdateButtonProps {
 
 export function UpdateButton({ showVersion = false, compact = false }: UpdateButtonProps) {
   const [checking, setChecking] = useState(false);
-  const version = '1.0.7'; // App version from package.json
+  const version = '1.0.20'; // App version from GitHub
 
   const checkForUpdates = async () => {
     if (!window.electron?.checkForUpdates) {
