@@ -1336,16 +1336,21 @@ export default function POS() {
     // Get base product ID (in case product has variants, we still use base ID for custom pricing)
     const baseProductId = product.id;
     
+    console.log('🛒 addToCartWithCustomPrice called');
+    console.log('🛒 Product:', { id: baseProductId, name: product.name, price: product.price });
+    console.log('🛒 Selected customer:', selectedCustomer?.name || 'None');
+    console.log('🛒 Available custom prices:', customerPrices);
+    
     // Check if customer is selected and has custom price for this product
     const customPrice = selectedCustomer ? customerPrices[baseProductId] : null;
     
-    console.log('🔍 Custom price check:', {
+    console.log('🔍 Custom price lookup:', {
       baseProductId,
       productName: product.name,
       retailPrice: product.price,
       customPrice,
       hasCustomer: !!selectedCustomer,
-      availablePrices: Object.keys(customerPrices)
+      customerPricesKeys: Object.keys(customerPrices)
     });
     
     if (customPrice && customPrice < product.price) {
@@ -1359,9 +1364,12 @@ export default function POS() {
       
       // Apply discount immediately
       setTimeout(() => {
-        updateItemDiscount(product.selectedVariant?.id || product.id, discount);
+        const itemId = product.selectedVariant?.id || product.id;
+        console.log('🎯 Applying discount to item ID:', itemId, 'discount:', discount);
+        updateItemDiscount(itemId, discount);
       }, 50);
     } else {
+      console.log('❌ No custom price or custom price not lower, adding normally');
       // No custom price, add normally
       await addToCart(product);
     }
@@ -1408,7 +1416,10 @@ export default function POS() {
           pricesMap[item.product_id] = item.price;
         });
 
-        console.log('📦 Fetched custom prices:', pricesMap);
+        console.log('📦 Fetched custom prices for customer:', selectedCustomer.name);
+        console.log('📦 Prices map:', pricesMap);
+        console.log('📦 Product IDs with custom prices:', Object.keys(pricesMap));
+        
         setCustomerPrices(pricesMap);
         
         // Apply custom prices to existing cart items
