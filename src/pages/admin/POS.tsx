@@ -1374,41 +1374,49 @@ export default function POS() {
       const currentCustomerId = selectedCustomer?.id || null;
       const customerChanged = currentCustomerId !== prevCustomerId;
       
-      if (customerChanged) {
-        setPrevCustomerId(currentCustomerId);
-        
-        // First, reset all cart items to retail price
-        cart.forEach((item) => {
-          if (item.itemDiscount && item.itemDiscount > 0) {
-            updateItemDiscount(item.id, 0);
-          }
+      // Only proceed if customer actually changed
+      if (!customerChanged) return;
+      
+      setPrevCustomerId(currentCustomerId);
+      
+      // Reset all cart items to retail price when customer changes
+      cart.forEach((item) => {
+        if (item.itemDiscount && item.itemDiscount > 0) {
+          updateItemDiscount(item.id, 0);
+        }
+      });
+
+      // If customer removed, clear prices and exit
+      if (!selectedCustomer) {
+        setCustomerPrices({});
+        toast.info('Customer removed - prices reset to retail');
+        return;
+      }
+
+      // Fetch custom prices for the new customer
+      try {
+        const { data, error } = await supabase
+          .from('customer_product_prices')
+          .select('product_id, price')
+          .eq('customer_id', selectedCustomer.id);
+
+        if (error) throw error;
+
+        // Convert to map for easy lookup
+        const pricesMap: Record<string, number> = {};
+        data?.forEach((item) => {
+          pricesMap[item.product_id] = item.price;
         });
 
-        if (!selectedCustomer) {
-          setCustomerPrices({});
-          toast.info('Customer removed - prices reset to retail');
-          return;
-        }
-
-        try {
-          const { data, error } = await supabase
-            .from('customer_product_prices')
-            .select('product_id, price')
-            .eq('customer_id', selectedCustomer.id);
-
-          if (error) throw error;
-
-          // Convert to map for easy lookup
-          const pricesMap: Record<string, number> = {};
-          data?.forEach((item) => {
-            pricesMap[item.product_id] = item.price;
-          });
-
-          setCustomerPrices(pricesMap);
+        console.log('📦 Fetched custom prices:', pricesMap);
+        setCustomerPrices(pricesMap);
+        
+        // Apply custom prices to existing cart items
+        if (Object.keys(pricesMap).length > 0 && cart.length > 0) {
+          let appliedCount = 0;
           
-          // Apply custom prices to existing cart items
-          if (Object.keys(pricesMap).length > 0) {
-            let appliedCount = 0;
+          // Small delay to ensure cart is updated
+          setTimeout(() => {
             cart.forEach((cartItem) => {
               // Use the base productId stored in cart item
               const customPrice = pricesMap[cartItem.productId];
@@ -1424,7 +1432,7 @@ export default function POS() {
                 const discount = cartItem.price - customPrice;
                 updateItemDiscount(cartItem.id, discount);
                 appliedCount++;
-                console.log('Applied discount:', discount, 'to item:', cartItem.id);
+                console.log('✅ Applied discount:', discount, 'to item:', cartItem.id);
               }
             });
             
@@ -1433,12 +1441,13 @@ export default function POS() {
             } else {
               toast.info(`No custom prices available for current cart items`);
             }
-          } else {
-            toast.info(`No custom prices set for ${selectedCustomer.name}`);
-          }
-        } catch (error) {
-          console.error('Error fetching customer prices:', error);
+          }, 100);
+        } else if (Object.keys(pricesMap).length === 0) {
+          toast.info(`No custom prices set for ${selectedCustomer.name}`);
         }
+      } catch (error) {
+        console.error('Error fetching customer prices:', error);
+        toast.error('Failed to fetch custom prices');
       }
     };
 
