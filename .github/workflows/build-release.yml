@@ -79,6 +79,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: [build-windows, build-mac]
+    if: always() && needs.build-windows.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -90,6 +91,7 @@ jobs:
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: mac-installers
           path: release-mac
