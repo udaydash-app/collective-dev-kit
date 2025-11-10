@@ -65,10 +65,13 @@ function createWindow() {
 // Auto-updater event handlers (only if electron-updater is available)
 if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => {
-    console.log('Checking for updates...');
+    console.log('[AUTO-UPDATE] Checking for updates...');
+    console.log('[AUTO-UPDATE] Current version:', app.getVersion());
+    console.log('[AUTO-UPDATE] Update URL:', autoUpdater.getFeedURL());
   });
 
   autoUpdater.on('update-available', (info) => {
+    console.log('[AUTO-UPDATE] Update available:', info.version);
     dialog.showMessageBox({
       type: 'info',
       title: 'Update Available',
@@ -76,23 +79,25 @@ if (autoUpdater) {
       buttons: ['Download', 'Later']
     }).then((result) => {
       if (result.response === 0) {
+        console.log('[AUTO-UPDATE] Starting download...');
         autoUpdater.downloadUpdate();
       }
     });
   });
 
-  autoUpdater.on('update-not-available', () => {
-    console.log('No updates available');
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[AUTO-UPDATE] No updates available. Current version:', info.version);
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    let message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
+    let message = `[AUTO-UPDATE] Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent.toFixed(2)}%`;
     console.log(message);
     // Send progress to renderer if needed
     BrowserWindow.getAllWindows()[0]?.webContents.send('download-progress', progressObj);
   });
 
   autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AUTO-UPDATE] Update downloaded:', info.version);
     dialog.showMessageBox({
       type: 'info',
       title: 'Update Ready',
@@ -100,16 +105,23 @@ if (autoUpdater) {
       buttons: ['Restart Now', 'Later']
     }).then((result) => {
       if (result.response === 0) {
+        console.log('[AUTO-UPDATE] Restarting to install...');
         autoUpdater.quitAndInstall(false, true);
       }
     });
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('Update check failed (silently):', err.message);
-    // Don't show error dialogs for update checks
-    // Common errors: 404 (no releases), network issues, etc.
-    // Users can manually check for updates if needed
+    console.error('[AUTO-UPDATE] Error occurred:', err.message);
+    console.error('[AUTO-UPDATE] Full error:', err);
+    console.error('[AUTO-UPDATE] Stack:', err.stack);
+    // Show error dialog for better debugging
+    dialog.showMessageBox({
+      type: 'error',
+      title: 'Update Check Error',
+      message: `Failed to check for updates: ${err.message}`,
+      buttons: ['OK']
+    });
   });
 }
 
@@ -136,9 +148,16 @@ app.whenReady().then(() => {
 
   // Check for updates on startup (only in production)
   if (!isDev && autoUpdater) {
+    console.log('[AUTO-UPDATE] App started in PRODUCTION mode');
+    console.log('[AUTO-UPDATE] Will check for updates in 3 seconds...');
     setTimeout(() => {
-      autoUpdater.checkForUpdates();
+      console.log('[AUTO-UPDATE] Starting update check...');
+      autoUpdater.checkForUpdates().catch(err => {
+        console.error('[AUTO-UPDATE] Check failed:', err);
+      });
     }, 3000); // Check after 3 seconds
+  } else {
+    console.log('[AUTO-UPDATE] App started in DEVELOPMENT mode - updates disabled');
   }
 
   app.on('activate', () => {
