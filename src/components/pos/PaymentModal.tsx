@@ -88,7 +88,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     enabled: customerSearch.length > 0,
   });
 
-  // Fetch customer balance when customer is selected
+  // Fetch customer balance from journal entries when customer is selected
   const { data: customerBalance } = useQuery({
     queryKey: ['customer-balance', selectedCustomer],
     queryFn: async () => {
@@ -99,29 +99,49 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
 
       let totalBalance = 0;
 
-      // Get customer account balance
+      // Calculate balance from posted journal entries for customer account
       if (customer.customer_ledger_account_id) {
-        const { data: customerAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', customer.customer_ledger_account_id)
-          .single();
-        
-        if (customerAccount) {
-          totalBalance = Number(customerAccount.current_balance);
+        const { data: customerLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', customer.customer_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
+
+        if (customerLines && customerLines.length > 0) {
+          // Customer account balance = debit - credit (receivable)
+          const custReceivableBalance = customerLines.reduce((sum, line) => {
+            return sum + (line.debit_amount - line.credit_amount);
+          }, 0);
+          totalBalance = custReceivableBalance;
         }
       }
 
-      // If also a supplier, subtract supplier balance
+      // If also a supplier, subtract supplier balance from posted journal entries
       if (customer.is_supplier && customer.supplier_ledger_account_id) {
-        const { data: supplierAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', customer.supplier_ledger_account_id)
-          .single();
-        
-        if (supplierAccount) {
-          totalBalance -= Number(supplierAccount.current_balance);
+        const { data: supplierLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', customer.supplier_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
+
+        if (supplierLines && supplierLines.length > 0) {
+          // Supplier account balance = credit - debit (payable)
+          const suppPayableBalance = supplierLines.reduce((sum, line) => {
+            return sum + (line.credit_amount - line.debit_amount);
+          }, 0);
+          totalBalance -= suppPayableBalance;
         }
       }
 
