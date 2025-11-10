@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PurchasePaymentDialog } from '@/components/admin/PurchasePaymentDialog';
 
 interface PurchaseItem {
   product_id: string;
@@ -39,6 +40,8 @@ export default function Purchases() {
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [pendingPaymentPurchase, setPendingPaymentPurchase] = useState<any>(null);
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -128,7 +131,7 @@ export default function Purchases() {
   });
 
   const createPurchaseMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (paymentDetails?: Array<{method: string; amount: number}>) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -137,6 +140,11 @@ export default function Purchases() {
       if (!supplier) throw new Error('Supplier not found');
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+
+      // Determine payment method display
+      const displayMethod = paymentDetails && paymentDetails.length > 1 
+        ? 'Multiple' 
+        : paymentDetails?.[0]?.method || paymentMethod || 'cash';
 
       // Create purchase
       const { data: purchase, error: purchaseError } = await supabase
@@ -147,7 +155,8 @@ export default function Purchases() {
           supplier_contact: supplier.phone || supplier.email || '',
           total_amount: totalAmount,
           payment_status: paymentStatus,
-          payment_method: paymentMethod,
+          payment_method: displayMethod,
+          payment_details: paymentDetails || [],
           notes: notes,
           purchased_by: user.id,
         })
@@ -156,7 +165,7 @@ export default function Purchases() {
 
       if (purchaseError) throw purchaseError;
 
-      // Create purchase items
+      // Create purchase items and inventory layers
       const purchaseItems = items.map(item => ({
         purchase_id: purchase.id,
         product_id: item.product_id,
@@ -172,6 +181,11 @@ export default function Purchases() {
 
       if (itemsError) throw itemsError;
 
+      // Create journal entries if payment status is paid or partial
+      if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+        await createPurchaseJournalEntries(purchase, paymentDetails || [], supplier);
+      }
+
       return purchase;
     },
     onSuccess: () => {
@@ -185,6 +199,104 @@ export default function Purchases() {
       toast.error(`Failed to create purchase: ${error.message}`);
     },
   });
+
+  // Function to create journal entries for purchase payments
+  const createPurchaseJournalEntries = async (
+    purchase: any, 
+    payments: Array<{method: string; amount: number}>, 
+    supplier: any
+  ) => {
+    try {
+      // Get accounts
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('*')
+        .in('account_code', ['1510', '2010', '1010', '1020', '1030']);
+
+      if (!accounts || accounts.length === 0) {
+        console.error('Required accounts not found');
+        return;
+      }
+
+      const inventoryAccount = accounts.find(a => a.account_code === '1510'); // Inventory
+      const accountsPayableAccount = accounts.find(a => a.account_code === '2010'); // Accounts Payable
+      const cashAccount = accounts.find(a => a.account_code === '1010'); // Cash
+      const bankAccount = accounts.find(a => a.account_code === '1020'); // Bank
+      const mobileMoneyAccount = accounts.find(a => a.account_code === '1030'); // Mobile Money
+
+      // Create journal entry for purchase
+      const { data: journalEntry, error: jeError } = await supabase
+        .from('journal_entries')
+        .insert({
+          description: `Purchase from ${supplier.name} - ${purchase.purchase_number}`,
+          reference: purchase.purchase_number,
+          entry_date: new Date().toISOString().split('T')[0],
+          status: 'posted',
+          total_debit: purchase.total_amount,
+          total_credit: purchase.total_amount,
+        })
+        .select()
+        .single();
+
+      if (jeError) throw jeError;
+
+      // Debit: Inventory (asset increases)
+      await supabase.from('journal_entry_lines').insert({
+        journal_entry_id: journalEntry.id,
+        account_id: inventoryAccount?.id,
+        debit_amount: purchase.total_amount,
+        credit_amount: 0,
+        description: `Inventory purchase - ${purchase.purchase_number}`,
+      });
+
+      // Credit: Based on payment method
+      if (purchase.payment_status === 'paid') {
+        // Fully paid - credit payment accounts
+        for (const payment of payments) {
+          let accountId;
+          switch (payment.method) {
+            case 'cash':
+              accountId = cashAccount?.id;
+              break;
+            case 'card':
+            case 'bank_transfer':
+            case 'cheque':
+              accountId = bankAccount?.id;
+              break;
+            case 'mobile_money':
+              accountId = mobileMoneyAccount?.id;
+              break;
+            default:
+              accountId = cashAccount?.id;
+          }
+
+          await supabase.from('journal_entry_lines').insert({
+            journal_entry_id: journalEntry.id,
+            account_id: accountId,
+            debit_amount: 0,
+            credit_amount: payment.amount,
+            description: `Payment via ${payment.method} - ${purchase.purchase_number}`,
+          });
+        }
+      } else {
+        // Pending or Partial - credit Accounts Payable (liability increases)
+        await supabase.from('journal_entry_lines').insert({
+          journal_entry_id: journalEntry.id,
+          account_id: accountsPayableAccount?.id,
+          debit_amount: 0,
+          credit_amount: purchase.total_amount,
+          description: `Accounts Payable - ${supplier.name}`,
+        });
+      }
+
+      // Update account balances via triggers
+      // Account balances are automatically updated by database triggers
+      
+    } catch (error) {
+      console.error('Error creating journal entries:', error);
+      // Don't throw - allow purchase to complete even if journal entry fails
+    }
+  };
 
   const resetForm = () => {
     setSelectedSupplier('');
@@ -226,6 +338,37 @@ export default function Purchases() {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  // Handle create purchase click
+  const handleCreatePurchase = () => {
+    if (!selectedSupplier || !selectedStore || items.length === 0) {
+      return;
+    }
+
+    // If payment status is paid or partial, show payment dialog
+    if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+      const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+      setPendingPaymentPurchase({ totalAmount, isNew: true });
+      setShowPaymentDialog(true);
+    } else {
+      // For pending, create directly
+      createPurchaseMutation.mutate(undefined);
+    }
+  };
+
+  // Handle payment confirmation for new purchase
+  const handlePaymentConfirm = async (payments: Array<{id: string; method: string; amount: number}>) => {
+    const paymentDetails = payments.map(p => ({ method: p.method, amount: p.amount }));
+    
+    if (pendingPaymentPurchase?.isNew) {
+      await createPurchaseMutation.mutateAsync(paymentDetails);
+    } else if (selectedPurchase) {
+      await updatePurchaseMutation.mutateAsync({ paymentDetails });
+    }
+    
+    setShowPaymentDialog(false);
+    setPendingPaymentPurchase(null);
   };
 
   const updateItemQuantity = (index: number, quantity: number) => {
@@ -276,17 +419,23 @@ export default function Purchases() {
   });
 
   const updatePurchaseMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ paymentDetails }: { paymentDetails?: Array<{method: string; amount: number}> }) => {
       if (!selectedPurchase) throw new Error('No purchase selected');
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+
+      // Determine payment method display
+      const displayMethod = paymentDetails && paymentDetails.length > 1 
+        ? 'Multiple' 
+        : paymentDetails?.[0]?.method || paymentMethod || selectedPurchase.payment_method;
 
       // Update purchase
       const { error: purchaseError } = await supabase
         .from('purchases')
         .update({
           payment_status: paymentStatus,
-          payment_method: paymentMethod,
+          payment_method: displayMethod,
+          payment_details: paymentDetails || selectedPurchase.payment_details || [],
           notes: notes,
           total_amount: totalAmount,
         })
@@ -315,6 +464,18 @@ export default function Purchases() {
         .insert(purchaseItems);
 
       if (itemsError) throw itemsError;
+
+      // Create journal entries if payment status changed to paid or partial
+      if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+        const supplier = suppliers?.find(s => s.name === selectedPurchase.supplier_name);
+        if (supplier && paymentDetails) {
+          await createPurchaseJournalEntries(
+            { ...selectedPurchase, total_amount: totalAmount }, 
+            paymentDetails, 
+            supplier
+          );
+        }
+      }
     },
     onSuccess: () => {
       toast.success('Purchase updated successfully');
@@ -332,6 +493,26 @@ export default function Purchases() {
   const handleViewPurchase = (purchase: any) => {
     setSelectedPurchase(purchase);
     setShowViewDialog(true);
+  };
+
+  // Handle update purchase click
+  const handleUpdatePurchase = () => {
+    if (items.length === 0) {
+      return;
+    }
+
+    // If payment status changed to paid or partial, and it wasn't before
+    const wasNotPaid = selectedPurchase?.payment_status === 'pending';
+    const isNowPaid = paymentStatus === 'paid' || paymentStatus === 'partial';
+    
+    if (wasNotPaid && isNowPaid) {
+      const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+      setPendingPaymentPurchase({ totalAmount, isNew: false });
+      setShowPaymentDialog(true);
+    } else {
+      // No payment change or already paid
+      updatePurchaseMutation.mutate({ paymentDetails: undefined });
+    }
   };
 
   const handleEditPurchase = (purchase: any) => {
@@ -653,7 +834,7 @@ export default function Purchases() {
                 Cancel
               </Button>
               <Button
-                onClick={() => createPurchaseMutation.mutate()}
+                onClick={handleCreatePurchase}
                 disabled={!selectedSupplier || !selectedStore || items.length === 0 || createPurchaseMutation.isPending}
                 className="flex-1"
               >
@@ -837,7 +1018,7 @@ export default function Purchases() {
                 Cancel
               </Button>
               <Button
-                onClick={() => updatePurchaseMutation.mutate()}
+                onClick={handleUpdatePurchase}
                 disabled={items.length === 0 || updatePurchaseMutation.isPending}
                 className="flex-1"
               >
@@ -982,6 +1163,18 @@ export default function Purchases() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <PurchasePaymentDialog
+        isOpen={showPaymentDialog}
+        onClose={() => {
+          setShowPaymentDialog(false);
+          setPendingPaymentPurchase(null);
+        }}
+        totalAmount={pendingPaymentPurchase?.totalAmount || 0}
+        onConfirm={handlePaymentConfirm}
+        currentPaymentStatus={paymentStatus}
+      />
 
       <BottomNav />
     </div>

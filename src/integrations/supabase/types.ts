@@ -1767,6 +1767,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          payment_details: Json | null
           payment_method: string | null
           payment_status: string
           purchase_number: string
@@ -1782,6 +1783,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           payment_status?: string
           purchase_number?: string
@@ -1797,6 +1799,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           payment_status?: string
           purchase_number?: string
