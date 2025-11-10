@@ -1,12 +1,18 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const isDev = process.env.ELECTRON_DEV || false;
 
-// Configure auto-updater
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
+// Try to load electron-updater, but don't crash if it's not available
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+  // Configure auto-updater
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+} catch (error) {
+  console.warn('electron-updater not available:', error.message);
+}
 
 let mainWindow;
 
@@ -56,55 +62,61 @@ function createWindow() {
 }
 
 // App lifecycle
-// Auto-updater event handlers
-autoUpdater.on('checking-for-update', () => {
-  console.log('Checking for updates...');
-});
-
-autoUpdater.on('update-available', (info) => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Update Available',
-    message: `A new version ${info.version} is available. Do you want to download it now?`,
-    buttons: ['Download', 'Later']
-  }).then((result) => {
-    if (result.response === 0) {
-      autoUpdater.downloadUpdate();
-    }
+// Auto-updater event handlers (only if electron-updater is available)
+if (autoUpdater) {
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...');
   });
-});
 
-autoUpdater.on('update-not-available', () => {
-  console.log('No updates available');
-});
-
-autoUpdater.on('download-progress', (progressObj) => {
-  let message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
-  console.log(message);
-  // Send progress to renderer if needed
-  BrowserWindow.getAllWindows()[0]?.webContents.send('download-progress', progressObj);
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Update Ready',
-    message: 'Update downloaded. The application will restart to install the update.',
-    buttons: ['Restart Now', 'Later']
-  }).then((result) => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall(false, true);
-    }
+  autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version ${info.version} is available. Do you want to download it now?`,
+      buttons: ['Download', 'Later']
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.downloadUpdate();
+      }
+    });
   });
-});
 
-autoUpdater.on('error', (err) => {
-  console.error('Update error:', err);
-  dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
-});
+  autoUpdater.on('update-not-available', () => {
+    console.log('No updates available');
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    let message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
+    console.log(message);
+    // Send progress to renderer if needed
+    BrowserWindow.getAllWindows()[0]?.webContents.send('download-progress', progressObj);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: 'Update downloaded. The application will restart to install the update.',
+      buttons: ['Restart Now', 'Later']
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall(false, true);
+      }
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Update error:', err);
+    dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
+  });
+}
 
 // IPC handler for manual update check
 ipcMain.handle('check-for-updates', async () => {
+  if (!autoUpdater) {
+    return { success: false, error: 'Auto-updater not available' };
+  }
+  
   if (!isDev) {
     try {
       const result = await autoUpdater.checkForUpdates();
@@ -121,7 +133,7 @@ app.whenReady().then(() => {
   createWindow();
 
   // Check for updates on startup (only in production)
-  if (!isDev) {
+  if (!isDev && autoUpdater) {
     setTimeout(() => {
       autoUpdater.checkForUpdates();
     }, 3000); // Check after 3 seconds
