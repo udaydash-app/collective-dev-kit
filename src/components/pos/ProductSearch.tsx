@@ -23,11 +23,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
-  // Auto-focus search input on mount
-  React.useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
   // Reset highlighted index when search term changes
   React.useEffect(() => {
     setHighlightedIndex(-1);
@@ -42,75 +37,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       });
     }
   }, [highlightedIndex]);
-
-  // Maintain focus on search input for scanner input
-  React.useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Allow clicks on these elements and cart interactions
-      if (
-        target.matches('input[type="number"]') ||
-        target.matches('input[type="text"]') ||
-        target.closest('[role="dialog"]') ||
-        target.closest('button') ||
-        target.closest('[role="button"]') ||
-        target.closest('[data-cart-container="true"]') || // Cart container
-        target === searchInputRef.current
-      ) {
-        return;
-      }
-      
-      // Prevent blur by stopping the event and refocusing
-      e.preventDefault();
-      searchInputRef.current?.focus();
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // If not focused on an input, focus the search field for scanner input
-      const activeElement = document.activeElement as HTMLElement;
-      
-      // Don't steal focus if user is in cart or in any input field
-      if (
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA' ||
-        activeElement?.closest('[role="dialog"]') ||
-        activeElement?.closest('[data-cart-container="true"]') // Cart container
-      ) {
-        return;
-      }
-      
-      searchInputRef.current?.focus();
-    };
-
-    // Periodically check and refocus (for scanner reliability)
-    const focusInterval = setInterval(() => {
-      const activeElement = document.activeElement as HTMLElement;
-      
-      // Don't steal focus from cart or any input field
-      if (
-        document.querySelector('[role="dialog"]') ||
-        activeElement?.matches('input[type="number"]') ||
-        activeElement?.matches('input[type="text"]') ||
-        activeElement?.matches('textarea') ||
-        activeElement?.closest('[data-cart-container="true"]') || // Cart container
-        activeElement === searchInputRef.current
-      ) {
-        return;
-      }
-      
-      searchInputRef.current?.focus();
-    }, 100);
-
-    document.addEventListener('mousedown', handleMouseDown, true); // Use capture phase
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('keydown', handleKeyDown);
-      clearInterval(focusInterval);
-    };
-  }, []);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
@@ -189,10 +115,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: matchingVariant,
       });
       setSearchTerm('');
-      // Only refocus if this was from scanning (not clicking)
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
       return;
     }
     
@@ -209,19 +131,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         price: defaultVariant.price,
         selectedVariant: defaultVariant,
       });
-      // Clear search and refocus only if not from click
+      // Clear search
       setSearchTerm('');
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
     } else {
       // No variants, use product price
       onProductSelect(product);
-      // Clear search and refocus only if not from click
+      // Clear search
       setSearchTerm('');
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
     }
   };
 
@@ -312,7 +228,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           selectedVariant: singleVariantMatch,
         });
         setSearchTerm('');
-        requestAnimationFrame(() => searchInputRef.current?.focus());
         return;
       }
 
@@ -449,12 +364,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         onClose={() => {
           setAssignBarcodeOpen(false);
           setSearchTerm('');
-          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
         barcode={scannedBarcode}
         onBarcodeAssigned={() => {
           setSearchTerm('');
-          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
       />
     </div>
