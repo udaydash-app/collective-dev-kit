@@ -690,14 +690,14 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Merge all offers (prioritize combos, then multi-BOGOs, then BOGOs)
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       // Restore custom prices and discounts to regular items
-      const regularItemsWithDiscounts = regularItems.map(item => {
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         if (savedDiscount) {
           return { ...item, ...savedDiscount };
@@ -745,13 +745,14 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       // Restore custom prices and discounts to regular items
-      const regularItemsWithDiscounts = regularItems.map(item => {
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         if (savedDiscount) {
           return { ...item, ...savedDiscount };
@@ -804,13 +805,14 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       // Restore custom prices and discounts to regular items
-      const regularItemsWithDiscounts = regularItems.map(item => {
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         if (savedDiscount) {
           return { ...item, ...savedDiscount };
