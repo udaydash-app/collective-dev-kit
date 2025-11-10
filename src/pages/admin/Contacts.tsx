@@ -63,11 +63,13 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [fromPOS, setFromPOS] = useState(false);
 
   // Open add dialog if navigated from POS
   useEffect(() => {
     if (location.state?.openAddDialog) {
       setOpen(true);
+      setFromPOS(location.state?.fromPOS || false);
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -133,15 +135,17 @@ export default function Contacts() {
     onSuccess: (newContact) => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Contact created successfully');
-      handleClose();
       
-      // If came from POS, navigate back with new customer ID
-      if (location.state?.openAddDialog && location.state?.fromPOS) {
+      // If came from POS, navigate back with new customer ID BEFORE closing dialog
+      if (fromPOS) {
+        setFromPOS(false);
         navigate('/admin/pos', { 
           state: { newCustomerId: newContact.id },
           replace: true 
         });
       }
+      
+      handleClose();
     },
     onError: (error) => {
       toast.error('Failed to create contact: ' + error.message);
@@ -235,6 +239,7 @@ export default function Contacts() {
   const handleClose = () => {
     setOpen(false);
     setEditingContact(null);
+    setFromPOS(false);
     setFormData({
       name: '',
       email: '',
