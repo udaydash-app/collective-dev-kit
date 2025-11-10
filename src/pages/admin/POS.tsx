@@ -58,7 +58,7 @@ import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { cn } from '@/lib/utils';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
@@ -81,6 +81,7 @@ import { Label } from '@/components/ui/label';
 export default function POS() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -1460,6 +1461,39 @@ export default function POS() {
 
     fetchCustomerPrices();
   }, [selectedCustomer?.id]);
+
+  // Auto-select newly created customer from Contacts page
+  useEffect(() => {
+    const newCustomerId = location.state?.newCustomerId;
+    if (newCustomerId) {
+      // Fetch the new customer details
+      const fetchNewCustomer = async () => {
+        try {
+          const { data: customer, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('id', newCustomerId)
+            .single();
+          
+          if (error) throw error;
+          
+          if (customer) {
+            setSelectedCustomer(customer);
+            setShowCustomerDialog(false);
+            toast.success(`Customer "${customer.name}" selected`);
+          }
+        } catch (error) {
+          console.error('Error fetching new customer:', error);
+          toast.error('Failed to select new customer');
+        }
+      };
+      
+      fetchNewCustomer();
+      
+      // Clear the state to prevent re-selecting on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.newCustomerId]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -3169,7 +3203,7 @@ export default function POS() {
                 <Button 
                   onClick={() => {
                     setShowCustomerDialog(false);
-                    navigate('/admin/contacts', { state: { openAddDialog: true } });
+                    navigate('/admin/contacts', { state: { openAddDialog: true, fromPOS: true } });
                   }}
                   variant="default"
                 >
@@ -3211,7 +3245,7 @@ export default function POS() {
                     <Button 
                       onClick={() => {
                         setShowCustomerDialog(false);
-                        navigate('/admin/contacts', { state: { openAddDialog: true } });
+                        navigate('/admin/contacts', { state: { openAddDialog: true, fromPOS: true } });
                       }}
                       variant="outline"
                     >

@@ -122,13 +122,26 @@ export default function Contacts() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from('contacts').insert([data]);
+      const { data: newContact, error } = await supabase
+        .from('contacts')
+        .insert([data])
+        .select()
+        .single();
       if (error) throw error;
+      return newContact;
     },
-    onSuccess: () => {
+    onSuccess: (newContact) => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Contact created successfully');
       handleClose();
+      
+      // If came from POS, navigate back with new customer ID
+      if (location.state?.openAddDialog && location.state?.fromPOS) {
+        navigate('/admin/pos', { 
+          state: { newCustomerId: newContact.id },
+          replace: true 
+        });
+      }
     },
     onError: (error) => {
       toast.error('Failed to create contact: ' + error.message);
