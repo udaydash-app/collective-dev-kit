@@ -106,12 +106,10 @@ if (autoUpdater) {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('Update error:', err);
-    // Don't show error dialog for 404 (no releases available yet)
-    const is404 = err.message && (err.message.includes('404') || err.message.includes('HttpError'));
-    if (!is404) {
-      dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
-    }
+    console.error('Update check failed (silently):', err.message);
+    // Don't show error dialogs for update checks
+    // Common errors: 404 (no releases), network issues, etc.
+    // Users can manually check for updates if needed
   });
 }
 
