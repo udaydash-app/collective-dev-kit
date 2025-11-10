@@ -45,6 +45,20 @@ function createWindow() {
   // Show window when ready to prevent flickering
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    
+    // Set default zoom to 150% when window is maximized
+    if (mainWindow.isMaximized()) {
+      mainWindow.webContents.setZoomFactor(1.5);
+    }
+  });
+
+  // Handle maximize/unmaximize events for zoom
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.setZoomFactor(1.5);
+  });
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.setZoomFactor(1.0);
   });
 
   // Load the app
