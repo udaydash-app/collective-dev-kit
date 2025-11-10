@@ -77,6 +77,7 @@ import {
 import { NumericKeypad } from '@/components/pos/NumericKeypad';
 import { ProductSearch } from '@/components/pos/ProductSearch';
 import { Label } from '@/components/ui/label';
+import { UpdateButton } from '@/components/UpdateButton';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -2675,7 +2676,12 @@ export default function POS() {
                   <ChevronDown className="h-2.5 w-2.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center gap-2 py-2">
+                  <Award className="h-3 w-3" />
+                  Global Market POS v1.0.7
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {menuSections.settings.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -2686,6 +2692,10 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1">
+                  <UpdateButton compact />
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
