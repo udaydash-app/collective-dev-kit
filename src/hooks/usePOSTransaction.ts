@@ -664,6 +664,17 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       // Run all offer detections in parallel for speed
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
@@ -677,7 +688,16 @@ export const usePOSTransaction = () => {
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItems.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300); // Wait 300ms after last scan before applying offers
     
@@ -700,6 +720,17 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
         detectAndApplyMultiProductBOGO(cartToProcess, true),
@@ -711,7 +742,16 @@ export const usePOSTransaction = () => {
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItems.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300);
   };
@@ -739,6 +779,17 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
         detectAndApplyMultiProductBOGO(cartToProcess, true),
@@ -750,7 +801,16 @@ export const usePOSTransaction = () => {
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItems.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300);
   };
