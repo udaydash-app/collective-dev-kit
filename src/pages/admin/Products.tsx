@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,7 @@ interface Store {
 
 export default function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,11 +99,20 @@ export default function Products() {
   const [filterStock, setFilterStock] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [returnPath, setReturnPath] = useState<string | null>(null);
+  const [fromPurchases, setFromPurchases] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchCategories();
     fetchStores();
+    
+    // Check if opened from Purchases page
+    if (location.state?.openAddDialog) {
+      setFromPurchases(location.state?.fromPurchases || false);
+      handleAdd();
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
   }, []);
 
   const fetchProducts = async () => {
@@ -423,6 +433,16 @@ export default function Products() {
         }
 
         toast.success("Product created successfully");
+        
+        // Navigate back to Purchases if that's where we came from
+        if (fromPurchases && newProduct) {
+          navigate('/admin/purchases', { 
+            state: { newProductId: newProduct.id },
+            replace: true 
+          });
+          setFromPurchases(false);
+          return;
+        }
         
         // Navigate back to POS if that's where we came from
         if (returnPath) {

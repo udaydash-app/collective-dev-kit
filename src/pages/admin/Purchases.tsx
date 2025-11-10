@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,8 @@ interface PurchaseItem {
 }
 
 export default function Purchases() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showNewPurchase, setShowNewPurchase] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
@@ -129,6 +132,40 @@ export default function Purchases() {
     },
     enabled: showProductSearch && searchTerm.length > 0,
   });
+
+  // Auto-select newly created product from Products page
+  useEffect(() => {
+    const newProductId = location.state?.newProductId;
+    if (newProductId) {
+      // Fetch the specific product
+      const fetchNewProduct = async () => {
+        const { data: product } = await supabase
+          .from('products')
+          .select(`
+            *,
+            product_variants (
+              id,
+              label,
+              quantity,
+              unit,
+              price,
+              is_available
+            )
+          `)
+          .eq('id', newProductId)
+          .single();
+        
+        if (product) {
+          addProductToItems(product);
+          toast.success(`"${product.name}" added to purchase`);
+        }
+      };
+      
+      fetchNewProduct();
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.newProductId]);
 
   const createPurchaseMutation = useMutation({
     mutationFn: async (paymentDetails?: Array<{method: string; amount: number}>) => {
@@ -1036,14 +1073,26 @@ export default function Purchases() {
             <DialogTitle>Search Products</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                variant="default"
+                onClick={() => {
+                  setShowProductSearch(false);
+                  navigate('/admin/products', { state: { openAddDialog: true, fromPurchases: true } });
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Product
+              </Button>
             </div>
             <div className="max-h-[400px] overflow-y-auto space-y-2">
               {products?.map((product) => {
