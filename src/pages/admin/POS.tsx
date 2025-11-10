@@ -1333,12 +1333,26 @@ export default function POS() {
 
   // Helper function to add to cart with custom pricing logic
   const addToCartWithCustomPrice = async (product: any) => {
-    // Check if customer has custom price for this product
-    const customPrice = customerPrices[product.id];
+    // Get base product ID (in case product has variants, we still use base ID for custom pricing)
+    const baseProductId = product.id;
+    
+    // Check if customer is selected and has custom price for this product
+    const customPrice = selectedCustomer ? customerPrices[baseProductId] : null;
+    
+    console.log('🔍 Custom price check:', {
+      baseProductId,
+      productName: product.name,
+      retailPrice: product.price,
+      customPrice,
+      hasCustomer: !!selectedCustomer,
+      availablePrices: Object.keys(customerPrices)
+    });
     
     if (customPrice && customPrice < product.price) {
       // Calculate discount as difference between retail and custom price
       const discount = product.price - customPrice;
+      
+      console.log('✅ Applying custom price discount:', discount);
       
       // Add product with original price
       await addToCart(product);
