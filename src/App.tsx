@@ -91,12 +91,15 @@ const App = () => {
   );
 };
 
+// Component that uses router hooks - must be inside Router
+const RouterContent = () => {
+  useGlobalShortcuts();
+  return null;
+};
+
 const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
-  
-  // Enable global keyboard shortcuts
-  useGlobalShortcuts();
 
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
@@ -115,6 +118,7 @@ const AppContent = () => {
       <OfflineIndicator />
       <KeyboardShortcutsDialog />
       <Router>
+        <RouterContent />
         <Routes>
           {/* Customer-facing home */}
           <Route path="/" element={isElectron ? <Navigate to="/pos-login" replace /> : <Index />} />
