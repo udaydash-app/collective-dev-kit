@@ -597,7 +597,10 @@ export default function Quotations() {
       return;
     }
     
-    window.open(`https://wa.me/${phone}`, '_blank');
+    const whatsappUrl = `https://wa.me/${phone}`;
+    console.log('Opening WhatsApp with URL:', whatsappUrl);
+    toast.info(`Opening WhatsApp for ${phone}`);
+    window.open(whatsappUrl, '_blank');
   };
 
   const getStatusBadge = (status: string) => {
