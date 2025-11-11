@@ -551,7 +551,7 @@ export default function Quotations() {
       return;
     }
     
-    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const getStatusBadge = (status: string) => {
