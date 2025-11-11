@@ -624,6 +624,21 @@ export default function Quotations() {
           </div>
           <div className="flex items-center gap-2">
             <ReturnToPOSButton />
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (quotations.length > 0) {
+                  setSelectedQuotation(quotations[0]);
+                  setViewMode(true);
+                  // Print will be triggered from the dialog
+                } else {
+                  toast.error('No quotations available to print');
+                }
+              }}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Latest
+            </Button>
             <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
               <DialogTrigger asChild>
                 <Button>
