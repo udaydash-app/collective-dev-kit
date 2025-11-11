@@ -39,7 +39,8 @@ import {
   Plus,
   Calendar,
   Award,
-  Banknote
+  Banknote,
+  Factory
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -2006,6 +2007,7 @@ export default function POS() {
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
       { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
+      { icon: Factory, label: 'Production', path: '/admin/production' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
     ],
