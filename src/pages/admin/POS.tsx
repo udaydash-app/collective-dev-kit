@@ -132,6 +132,8 @@ export default function POS() {
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
   
+  // Track processed customer IDs to prevent re-selecting
+  const processedCustomerIdRef = useRef<string | null>(null);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1470,7 +1472,9 @@ export default function POS() {
   // Auto-select newly created customer from Contacts page
   useEffect(() => {
     const newCustomerId = location.state?.newCustomerId;
-    if (newCustomerId) {
+    if (newCustomerId && newCustomerId !== processedCustomerIdRef.current) {
+      processedCustomerIdRef.current = newCustomerId;
+      
       // Fetch the new customer details
       const fetchNewCustomer = async () => {
         try {
@@ -1494,9 +1498,6 @@ export default function POS() {
       };
       
       fetchNewCustomer();
-      
-      // Clear the state to prevent re-selecting on refresh
-      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state?.newCustomerId]);
 
