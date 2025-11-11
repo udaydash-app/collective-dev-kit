@@ -174,6 +174,7 @@ export default function Purchases() {
     const newSupplierId = location.state?.newSupplierId;
     if (newSupplierId) {
       setSelectedSupplier(newSupplierId);
+      setShowNewPurchase(true); // Reopen the dialog
       
       // Fetch the supplier details to show success message
       const fetchNewSupplier = async () => {
