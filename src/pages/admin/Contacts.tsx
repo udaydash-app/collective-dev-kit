@@ -571,7 +571,11 @@ export default function Contacts() {
                     onChange={(e) =>
                       setFormData({ ...formData, opening_balance: e.target.value })
                     }
+                    placeholder="0.00"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Positive = they owe you (A/R), Negative = you owe them (A/P)
+                  </p>
                 </div>
 
                 <div className="col-span-2">
