@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Trash2, Factory } from "lucide-react";
@@ -51,6 +55,7 @@ export default function Production() {
   const [productionDate, setProductionDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState("");
   const [outputs, setOutputs] = useState<OutputItem[]>([]);
+  const [sourceOpen, setSourceOpen] = useState(false);
 
   // Fetch products
   const { data: productsData } = useQuery({
@@ -213,6 +218,7 @@ export default function Production() {
     setProductionDate(new Date().toISOString().split('T')[0]);
     setNotes("");
     setOutputs([]);
+    setSourceOpen(false);
   };
 
   const addOutput = () => {
@@ -400,21 +406,57 @@ export default function Production() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="source">Source {sourceType === 'product' ? 'Product' : 'Variant'}</Label>
-                <Select value={sourceId} onValueChange={setSourceId}>
-                  <SelectTrigger id="source">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getSourceOptions().map((item: any) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {sourceType === 'product' 
-                          ? `${item.name} (Stock: ${item.stock_quantity})`
-                          : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`
-                        }
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={sourceOpen}
+                      className="w-full justify-between"
+                    >
+                      {sourceId
+                        ? (() => {
+                            const item = getSourceOptions().find((i: any) => i.id === sourceId);
+                            return item
+                              ? sourceType === 'product'
+                                ? `${item.name} (Stock: ${item.stock_quantity})`
+                                : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`
+                              : "Select source";
+                          })()
+                        : "Select source"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0 bg-popover z-50">
+                    <Command>
+                      <CommandInput placeholder={`Search ${sourceType}...`} />
+                      <CommandEmpty>No {sourceType} found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {getSourceOptions().map((item: any) => (
+                          <CommandItem
+                            key={item.id}
+                            value={sourceType === 'product' ? item.name : `${item.product.name} ${item.label} ${item.unit}`}
+                            onSelect={() => {
+                              setSourceId(item.id);
+                              setSourceOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                sourceId === item.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {sourceType === 'product'
+                              ? `${item.name} (Stock: ${item.stock_quantity})`
+                              : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`
+                            }
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
