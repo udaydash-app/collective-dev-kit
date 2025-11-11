@@ -32,6 +32,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface QuotationItem {
   productId: string;
@@ -507,13 +508,15 @@ export default function Quotations() {
             <h1 className="text-3xl font-bold">Quotations</h1>
             <p className="text-muted-foreground">Create and manage customer quotations</p>
           </div>
-          <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                New Quotation
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ReturnToPOSButton />
+            <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Quotation
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Quotation</DialogTitle>
@@ -706,6 +709,7 @@ export default function Quotations() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Quotations List */}
