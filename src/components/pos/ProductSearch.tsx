@@ -33,7 +33,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     if (highlightedIndex >= 0 && productRefs.current[highlightedIndex]) {
       productRefs.current[highlightedIndex]?.scrollIntoView({
         block: 'nearest',
-        behavior: 'smooth'
+        behavior: 'auto'
       });
     }
   }, [highlightedIndex]);
@@ -325,7 +325,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
               <Card
                 key={product.id}
                 ref={(el) => (productRefs.current[index] = el)}
-                className={`p-3 flex items-center gap-3 cursor-pointer transition-colors ${
+                className={`p-3 flex items-center gap-3 cursor-pointer ${
                   isHighlighted 
                     ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
                     : 'hover:bg-accent'
