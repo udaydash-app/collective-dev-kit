@@ -310,71 +310,78 @@ export default function Quotations() {
   const handleDownloadPDF = () => {
     if (!selectedQuotation) return;
 
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text('QUOTATION', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`Quotation #: ${selectedQuotation.quotation_number}`, 20, 35);
-    doc.text(`Date: ${format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}`, 20, 42);
-    if (selectedQuotation.valid_until) {
-      doc.text(`Valid Until: ${format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}`, 20, 49);
-    }
-    
-    // Customer details
-    doc.text('Bill To:', 20, 60);
-    doc.text(selectedQuotation.customer_name, 20, 67);
-    if (selectedQuotation.customer_phone) {
-      doc.text(selectedQuotation.customer_phone, 20, 74);
-    }
-    if (selectedQuotation.customer_email) {
-      doc.text(selectedQuotation.customer_email, 20, 81);
-    }
-    
-    // Items table
-    const tableData = selectedQuotation.items.map(item => [
-      item.productName,
-      item.quantity.toString(),
-      formatCurrency(item.price),
-      formatCurrency(item.discount),
-      formatCurrency(item.total)
-    ]);
-    
-    (doc as any).autoTable({
-      startY: 95,
-      head: [['Product', 'Qty', 'Price', 'Discount', 'Total']],
-      body: tableData,
-      theme: 'grid'
-    });
-    
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.text(`Subtotal: ${formatCurrency(selectedQuotation.subtotal)}`, 140, finalY);
-    doc.text(`Tax: ${formatCurrency(selectedQuotation.tax)}`, 140, finalY + 7);
-    doc.setFontSize(12);
-    doc.text(`Total: ${formatCurrency(selectedQuotation.total)}`, 140, finalY + 14);
-    
-    if (selectedQuotation.notes) {
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.text('QUOTATION', 105, 20, { align: 'center' } as any);
+      
       doc.setFontSize(10);
-      doc.text('Notes:', 20, finalY + 25);
-      doc.text(selectedQuotation.notes, 20, finalY + 32);
+      doc.text(`Quotation #: ${selectedQuotation.quotation_number}`, 20, 35);
+      doc.text(`Date: ${format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}`, 20, 42);
+      if (selectedQuotation.valid_until) {
+        doc.text(`Valid Until: ${format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}`, 20, 49);
+      }
+      
+      // Customer details
+      doc.text('Bill To:', 20, 60);
+      doc.text(selectedQuotation.customer_name, 20, 67);
+      if (selectedQuotation.customer_phone) {
+        doc.text(selectedQuotation.customer_phone, 20, 74);
+      }
+      if (selectedQuotation.customer_email) {
+        doc.text(selectedQuotation.customer_email, 20, 81);
+      }
+      
+      // Items table
+      const tableData = selectedQuotation.items.map(item => [
+        item.productName,
+        item.quantity.toString(),
+        formatCurrency(item.price),
+        formatCurrency(item.discount),
+        formatCurrency(item.total)
+      ]);
+      
+      (doc as any).autoTable({
+        startY: 95,
+        head: [['Product', 'Qty', 'Price', 'Discount', 'Total']],
+        body: tableData,
+        theme: 'grid'
+      });
+      
+      // Totals
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.text(`Subtotal: ${formatCurrency(selectedQuotation.subtotal)}`, 140, finalY);
+      doc.text(`Tax: ${formatCurrency(selectedQuotation.tax)}`, 140, finalY + 7);
+      doc.setFontSize(12);
+      doc.text(`Total: ${formatCurrency(selectedQuotation.total)}`, 140, finalY + 14);
+      
+      if (selectedQuotation.notes) {
+        doc.setFontSize(10);
+        doc.text('Notes:', 20, finalY + 25);
+        const splitNotes = doc.splitTextToSize(selectedQuotation.notes, 170);
+        doc.text(splitNotes, 20, finalY + 32);
+      }
+      
+      doc.save(`quotation-${selectedQuotation.quotation_number}.pdf`);
+      toast.success('PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF: ' + error.message);
     }
-    
-    doc.save(`quotation-${selectedQuotation.quotation_number}.pdf`);
-    toast.success('PDF downloaded');
   };
 
   const handleWhatsApp = (quotation: Quotation) => {
     const message = `Hello ${quotation.customer_name},\n\nQuotation #${quotation.quotation_number}\nTotal: ${formatCurrency(quotation.total)}\n\nPlease review the attached quotation.`;
     const phone = quotation.customer_phone?.replace(/\D/g, '');
     
-    if (phone) {
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-    } else {
-      toast.error('No phone number available');
+    if (!phone || phone.length === 0) {
+      toast.error('No phone number available for this customer. Please add a phone number in the customer profile.');
+      return;
     }
+    
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const getStatusBadge = (status: string) => {
@@ -682,62 +689,83 @@ export default function Quotations() {
             
             {selectedQuotation && (
               <div className="space-y-4">
-                <div ref={printRef} className="p-6 bg-white text-black">
-                  <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold">QUOTATION</h2>
-                    <p className="text-sm">#{selectedQuotation.quotation_number}</p>
+                <div ref={printRef} className="mx-auto bg-white text-black" style={{ width: '80mm', maxWidth: '302px', fontSize: '12px', padding: '10mm' }}>
+                  <div className="text-center mb-4 border-b-2 border-black pb-2">
+                    <h2 className="text-xl font-bold">QUOTATION</h2>
+                    <p className="text-xs mt-1">#{selectedQuotation.quotation_number}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div>
+                  <div className="mb-4 text-xs space-y-1">
+                    <div className="border-b border-gray-300 pb-2 mb-2">
                       <p className="font-bold">Bill To:</p>
                       <p>{selectedQuotation.customer_name}</p>
-                      {selectedQuotation.customer_phone && <p>{selectedQuotation.customer_phone}</p>}
-                      {selectedQuotation.customer_email && <p>{selectedQuotation.customer_email}</p>}
+                      {selectedQuotation.customer_phone && <p>Tel: {selectedQuotation.customer_phone}</p>}
+                      {selectedQuotation.customer_email && <p className="break-all">{selectedQuotation.customer_email}</p>}
                     </div>
-                    <div className="text-right">
-                      <p>Date: {format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}</p>
-                      {selectedQuotation.valid_until && (
-                        <p>Valid Until: {format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}</p>
-                      )}
+                    <div className="flex justify-between">
+                      <span>Date:</span>
+                      <span>{format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}</span>
                     </div>
+                    {selectedQuotation.valid_until && (
+                      <div className="flex justify-between">
+                        <span>Valid Until:</span>
+                        <span>{format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedQuotation.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.productName}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{formatCurrency(item.price)}</TableCell>
-                          <TableCell>{formatCurrency(item.discount)}</TableCell>
-                          <TableCell>{formatCurrency(item.total)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div className="mb-4">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-black">
+                          <th className="text-left py-1">Item</th>
+                          <th className="text-center py-1 w-12">Qty</th>
+                          <th className="text-right py-1 w-16">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedQuotation.items.map((item, index) => (
+                          <tr key={index} className="border-b border-gray-300">
+                            <td className="py-2">
+                              <div>{item.productName}</div>
+                              <div className="text-[10px] text-gray-600">
+                                {formatCurrency(item.price)} x {item.quantity}
+                                {item.discount > 0 && ` (-${formatCurrency(item.discount)})`}
+                              </div>
+                            </td>
+                            <td className="text-center py-2">{item.quantity}</td>
+                            <td className="text-right py-2 font-medium">{formatCurrency(item.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                  <div className="mt-6 space-y-2 text-right">
-                    <p>Subtotal: {formatCurrency(selectedQuotation.subtotal)}</p>
-                    <p>Tax: {formatCurrency(selectedQuotation.tax)}</p>
-                    <p className="text-lg font-bold">Total: {formatCurrency(selectedQuotation.total)}</p>
+                  <div className="border-t-2 border-black pt-2 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>{formatCurrency(selectedQuotation.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (18%):</span>
+                      <span>{formatCurrency(selectedQuotation.tax)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-sm border-t border-gray-300 pt-1 mt-1">
+                      <span>TOTAL:</span>
+                      <span>{formatCurrency(selectedQuotation.total)}</span>
+                    </div>
                   </div>
 
                   {selectedQuotation.notes && (
-                    <div className="mt-6">
-                      <p className="font-bold">Notes:</p>
-                      <p>{selectedQuotation.notes}</p>
+                    <div className="mt-4 pt-2 border-t border-gray-300 text-xs">
+                      <p className="font-bold mb-1">Notes:</p>
+                      <p className="text-[10px]">{selectedQuotation.notes}</p>
                     </div>
                   )}
+
+                  <div className="mt-4 pt-2 border-t-2 border-black text-center text-xs">
+                    <p>Thank you for your business!</p>
+                  </div>
                 </div>
 
                 <div className="flex gap-2 justify-end">
