@@ -108,20 +108,26 @@ export default function Quotations() {
     }
   }, [location.state?.newCustomerId]);
 
-  // Fetch quotations
+  // Fetch quotations with contact details
   const { data: quotations = [], isLoading: quotationsLoading } = useQuery({
     queryKey: ['quotations'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotations')
-        .select('*')
+        .select('*, contacts!quotations_contact_id_fkey(phone, email)')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data || []).map(q => ({
-        ...q,
-        items: (q.items as any) as QuotationItem[]
-      })) as Quotation[];
+      return (data || []).map(q => {
+        const contact = (q as any).contacts;
+        return {
+          ...q,
+          items: (q.items as any) as QuotationItem[],
+          // Update phone/email from contact if missing in quotation
+          customer_phone: q.customer_phone || contact?.phone || null,
+          customer_email: q.customer_email || contact?.email || null,
+        };
+      }) as Quotation[];
     }
   });
 
