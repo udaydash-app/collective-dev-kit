@@ -49,6 +49,7 @@ import InventoryLayers from "./pages/admin/InventoryLayers";
 import StockReconciliation from "./pages/admin/StockReconciliation";
 import COGSAnalysis from "./pages/admin/COGSAnalysis";
 import InventoryValuation from "./pages/admin/InventoryValuation";
+import Production from "./pages/admin/Production";
 import StockAging from "./pages/admin/StockAging";
 import ProfitMarginAnalysis from "./pages/admin/ProfitMarginAnalysis";
 import AdminComboOffers from "./pages/admin/ComboOffers";
@@ -149,6 +150,7 @@ const AppContent = () => {
           <Route path="/admin/stock-reconciliation" element={<AdminRoute><StockReconciliation /></AdminRoute>} />
           <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
           <Route path="/admin/inventory-valuation" element={<AdminRoute><InventoryValuation /></AdminRoute>} />
+          <Route path="/admin/production" element={<AdminRoute><Production /></AdminRoute>} />
           <Route path="/admin/stock-aging" element={<AdminRoute><StockAging /></AdminRoute>} />
           <Route path="/admin/profit-margin-analysis" element={<AdminRoute><ProfitMarginAnalysis /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
