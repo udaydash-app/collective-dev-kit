@@ -787,6 +787,8 @@ export default function Quotations() {
               <TableRow>
                 <TableHead>Quotation #</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Valid Until</TableHead>
                 <TableHead>Total</TableHead>
@@ -797,11 +799,11 @@ export default function Quotations() {
             <TableBody>
               {quotationsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={9} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : quotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No quotations yet. Create your first quotation!
                   </TableCell>
                 </TableRow>
@@ -810,6 +812,8 @@ export default function Quotations() {
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">{quotation.quotation_number}</TableCell>
                     <TableCell>{quotation.customer_name}</TableCell>
+                    <TableCell>{quotation.customer_phone || '-'}</TableCell>
+                    <TableCell className="text-sm">{quotation.customer_email || '-'}</TableCell>
                     <TableCell>{format(new Date(quotation.created_at), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>
                       {quotation.valid_until ? format(new Date(quotation.valid_until), 'dd/MM/yyyy') : '-'}
