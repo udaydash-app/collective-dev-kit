@@ -1026,19 +1026,24 @@ export default function Quotations() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={handlePrint}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Print
+                <div className="flex gap-2 justify-between">
+                  <Button variant="outline" onClick={() => setViewMode(false)}>
+                    Return to Quotations
                   </Button>
-                  <Button variant="outline" onClick={handleDownloadPDF}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                  <Button onClick={() => handleWhatsApp(selectedQuotation)}>
-                    <Send className="w-4 h-4 mr-2" />
-                    WhatsApp
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handlePrint}>
+                      <Printer className="w-4 h-4 mr-2" />
+                      Print
+                    </Button>
+                    <Button variant="outline" onClick={handleDownloadPDF}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </Button>
+                    <Button onClick={() => handleWhatsApp(selectedQuotation)}>
+                      <Send className="w-4 h-4 mr-2" />
+                      WhatsApp
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
