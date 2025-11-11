@@ -311,58 +311,159 @@ export default function Quotations() {
     if (!selectedQuotation) return;
 
     try {
-      const doc = new jsPDF();
-      
-      // Header
-      doc.setFontSize(20);
-      doc.text('QUOTATION', 105, 20, { align: 'center' } as any);
-      
-      doc.setFontSize(10);
-      doc.text(`Quotation #: ${selectedQuotation.quotation_number}`, 20, 35);
-      doc.text(`Date: ${format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}`, 20, 42);
-      if (selectedQuotation.valid_until) {
-        doc.text(`Valid Until: ${format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}`, 20, 49);
-      }
-      
-      // Customer details
-      doc.text('Bill To:', 20, 60);
-      doc.text(selectedQuotation.customer_name, 20, 67);
-      if (selectedQuotation.customer_phone) {
-        doc.text(selectedQuotation.customer_phone, 20, 74);
-      }
-      if (selectedQuotation.customer_email) {
-        doc.text(selectedQuotation.customer_email, 20, 81);
-      }
-      
-      // Items table
-      const tableData = selectedQuotation.items.map(item => [
-        item.productName,
-        item.quantity.toString(),
-        formatCurrency(item.price),
-        formatCurrency(item.discount),
-        formatCurrency(item.total)
-      ]);
-      
-      autoTable(doc, {
-        startY: 95,
-        head: [['Product', 'Qty', 'Price', 'Discount', 'Total']],
-        body: tableData,
-        theme: 'grid'
+      // Create thermal receipt sized PDF (80mm width)
+      const doc = new jsPDF({
+        unit: 'mm',
+        format: [80, 297], // 80mm width, 297mm max height (will be trimmed)
+        orientation: 'portrait'
       });
       
-      // Totals
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.text(`Subtotal: ${formatCurrency(selectedQuotation.subtotal)}`, 140, finalY);
-      doc.text(`Tax: ${formatCurrency(selectedQuotation.tax)}`, 140, finalY + 7);
-      doc.setFontSize(12);
-      doc.text(`Total: ${formatCurrency(selectedQuotation.total)}`, 140, finalY + 14);
+      const pageWidth = 80;
+      const margin = 5;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPos = 10;
       
-      if (selectedQuotation.notes) {
-        doc.setFontSize(10);
-        doc.text('Notes:', 20, finalY + 25);
-        const splitNotes = doc.splitTextToSize(selectedQuotation.notes, 170);
-        doc.text(splitNotes, 20, finalY + 32);
+      // Header
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('QUOTATION', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 6;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`#${selectedQuotation.quotation_number}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      
+      // Separator line
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 5;
+      
+      // Customer details
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bill To:', margin, yPos);
+      yPos += 4;
+      
+      doc.setFont('helvetica', 'normal');
+      const customerName = doc.splitTextToSize(selectedQuotation.customer_name, contentWidth);
+      doc.text(customerName, margin, yPos);
+      yPos += customerName.length * 4;
+      
+      if (selectedQuotation.customer_phone) {
+        doc.text(`Tel: ${selectedQuotation.customer_phone}`, margin, yPos);
+        yPos += 4;
       }
+      
+      if (selectedQuotation.customer_email) {
+        const email = doc.splitTextToSize(selectedQuotation.customer_email, contentWidth);
+        doc.text(email, margin, yPos);
+        yPos += email.length * 4;
+      }
+      
+      yPos += 2;
+      
+      // Date info
+      doc.text(`Date: ${format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}`, margin, yPos);
+      yPos += 4;
+      
+      if (selectedQuotation.valid_until) {
+        doc.text(`Valid Until: ${format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}`, margin, yPos);
+        yPos += 4;
+      }
+      
+      yPos += 2;
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 5;
+      
+      // Items
+      doc.setFont('helvetica', 'bold');
+      doc.text('Item', margin, yPos);
+      doc.text('Qty', pageWidth - margin - 20, yPos, { align: 'right' });
+      doc.text('Total', pageWidth - margin, yPos, { align: 'right' });
+      yPos += 1;
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 4;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      
+      selectedQuotation.items.forEach(item => {
+        // Product name
+        const productName = doc.splitTextToSize(item.productName, contentWidth - 15);
+        doc.text(productName, margin, yPos);
+        yPos += productName.length * 3.5;
+        
+        // Price details
+        let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
+        if (item.discount > 0) {
+          priceDetail += ` (-${formatCurrency(item.discount)})`;
+        }
+        doc.text(priceDetail, margin + 2, yPos);
+        
+        // Quantity and total on the same line as price detail
+        doc.text(item.quantity.toString(), pageWidth - margin - 20, yPos, { align: 'right' });
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatCurrency(item.total), pageWidth - margin, yPos, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        
+        yPos += 5;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 3;
+      });
+      
+      yPos += 2;
+      
+      // Totals
+      doc.setFontSize(8);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 4;
+      
+      doc.text('Subtotal:', margin, yPos);
+      doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
+      yPos += 4;
+      
+      doc.text('Tax (18%):', margin, yPos);
+      doc.text(formatCurrency(selectedQuotation.tax), pageWidth - margin, yPos, { align: 'right' });
+      yPos += 4;
+      
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 4;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL:', margin, yPos);
+      doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
+      yPos += 6;
+      
+      // Notes
+      if (selectedQuotation.notes) {
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 4;
+        
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notes:', margin, yPos);
+        yPos += 3;
+        
+        doc.setFont('helvetica', 'normal');
+        const notes = doc.splitTextToSize(selectedQuotation.notes, contentWidth);
+        doc.text(notes, margin, yPos);
+        yPos += notes.length * 3 + 3;
+      }
+      
+      // Footer
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 4;
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       
       doc.save(`quotation-${selectedQuotation.quotation_number}.pdf`);
       toast.success('PDF downloaded successfully');
