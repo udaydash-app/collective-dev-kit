@@ -134,6 +134,7 @@ export default function POS() {
   
   // Track processed customer IDs to prevent re-selecting
   const processedCustomerIdRef = useRef<string | null>(null);
+  const processedProductIdRef = useRef<string | null>(null);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -1500,6 +1501,70 @@ export default function POS() {
       fetchNewCustomer();
     }
   }, [location.state?.newCustomerId]);
+  
+  // Auto-add newly created product from Products page
+  useEffect(() => {
+    const newProductId = location.state?.newProductId;
+    if (newProductId && newProductId !== processedProductIdRef.current) {
+      processedProductIdRef.current = newProductId;
+      
+      // Fetch and add the new product to cart
+      const fetchAndAddProduct = async () => {
+        try {
+          const { data: product, error } = await supabase
+            .from('products')
+            .select(`
+              id,
+              name,
+              price,
+              unit,
+              barcode,
+              image_url,
+              product_variants (
+                id,
+                label,
+                price,
+                unit,
+                is_available,
+                is_default,
+                barcode
+              )
+            `)
+            .eq('id', newProductId)
+            .single();
+          
+          if (error) throw error;
+          
+          if (product) {
+            // Check if product has variants
+            const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+            
+            if (availableVariants.length > 0) {
+              // Product has variants, find default or first available
+              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+              
+              // Add variant to cart
+              const productToAdd = {
+                ...product,
+                selectedVariant: defaultVariant,
+              };
+              addToCartWithCustomPrice(productToAdd);
+            } else {
+              // No variants, add product directly
+              addToCartWithCustomPrice(product);
+            }
+            
+            toast.success(`Added "${product.name}" to cart`);
+          }
+        } catch (error) {
+          console.error('Error fetching new product:', error);
+          toast.error('Failed to add new product to cart');
+        }
+      };
+      
+      fetchAndAddProduct();
+    }
+  }, [location.state?.newProductId]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);

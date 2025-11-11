@@ -100,15 +100,17 @@ export default function Products() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [returnPath, setReturnPath] = useState<string | null>(null);
   const [fromPurchases, setFromPurchases] = useState(false);
+  const [fromPOS, setFromPOS] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchCategories();
     fetchStores();
     
-    // Check if opened from Purchases page
+    // Check if opened from Purchases or POS page
     if (location.state?.openAddDialog) {
       setFromPurchases(location.state?.fromPurchases || false);
+      setFromPOS(location.state?.fromPOS || false);
       handleAdd();
       // Clear the state
       navigate(location.pathname, { replace: true, state: {} });
@@ -445,8 +447,20 @@ export default function Products() {
         }
         
         // Navigate back to POS if that's where we came from
-        if (returnPath) {
-          navigate(returnPath);
+        if (fromPOS && newProduct) {
+          navigate('/admin/pos', { 
+            state: { newProductId: newProduct.id },
+            replace: true 
+          });
+          setFromPOS(false);
+          return;
+        }
+        
+        // Navigate back to POS if that's where we came from (via returnPath)
+        if (returnPath && newProduct) {
+          navigate(returnPath, {
+            state: { newProductId: newProduct.id }
+          });
           setReturnPath(null);
           return;
         }
