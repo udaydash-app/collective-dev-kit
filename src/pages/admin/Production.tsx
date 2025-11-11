@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Plus, Trash2, Factory } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface ProductOption {
   id: string;
@@ -307,10 +308,13 @@ export default function Production() {
             Convert products/variants into smaller units
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Production
-        </Button>
+        <div className="flex items-center gap-2">
+          <ReturnToPOSButton />
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Production
+          </Button>
+        </div>
       </div>
 
       <Card>
