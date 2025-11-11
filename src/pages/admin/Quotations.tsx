@@ -31,7 +31,7 @@ import { format } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface QuotationItem {
   productId: string;
@@ -343,7 +343,7 @@ export default function Quotations() {
         formatCurrency(item.total)
       ]);
       
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 95,
         head: [['Product', 'Qty', 'Price', 'Discount', 'Total']],
         body: tableData,
