@@ -921,14 +921,15 @@ export default function Quotations() {
 
         {/* View Quotation Dialog */}
         <Dialog open={viewMode} onOpenChange={setViewMode}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>Quotation Details</DialogTitle>
             </DialogHeader>
             
             {selectedQuotation && (
-              <div className="space-y-4">
-                <div ref={printRef} className="mx-auto bg-white text-black" style={{ width: '80mm', maxWidth: '302px', fontSize: '12px', padding: '10mm' }}>
+              <>
+                <div className="overflow-y-auto flex-1">
+                  <div ref={printRef} className="mx-auto bg-white text-black" style={{ width: '80mm', maxWidth: '302px', fontSize: '12px', padding: '10mm' }}>
                   {/* Company Header */}
                   <div className="text-center mb-4 pb-3">
                     {companySettings?.logo_url && (
@@ -1025,8 +1026,9 @@ export default function Quotations() {
                     <p>Thank you for your business!</p>
                   </div>
                 </div>
+                </div>
 
-                <div className="flex gap-2 justify-between">
+                <div className="flex gap-2 justify-between pt-4 border-t">
                   <Button variant="outline" onClick={() => setViewMode(false)}>
                     Return to Quotations
                   </Button>
@@ -1045,7 +1047,7 @@ export default function Quotations() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>
