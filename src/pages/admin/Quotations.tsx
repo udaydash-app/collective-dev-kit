@@ -408,29 +408,29 @@ export default function Quotations() {
       let yPos = 10;
       
       // Company Header
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       if (companySettings?.company_name) {
         doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
+        yPos += 5;
       }
       
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       if (companySettings?.company_address) {
         const address = doc.splitTextToSize(companySettings.company_address, contentWidth);
         doc.text(address, pageWidth / 2, yPos, { align: 'center' });
-        yPos += address.length * 3;
+        yPos += address.length * 3.5;
       }
       
       if (companySettings?.company_phone) {
         doc.text(`Tel: ${companySettings.company_phone}`, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 3;
+        yPos += 3.5;
       }
       
       if (companySettings?.company_email) {
         doc.text(companySettings.company_email, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 3;
+        yPos += 3.5;
       }
       
       yPos += 3;
@@ -933,16 +933,16 @@ export default function Quotations() {
                   <div className="text-center mb-3 pb-2">
                     {companySettings?.logo_url && (
                       <div className="flex justify-center mb-2">
-                        <img src={companySettings.logo_url} alt="Company Logo" className="h-16 w-auto object-contain" />
+                        <img src={companySettings.logo_url} alt="Company Logo" className="h-20 w-auto object-contain" />
                       </div>
                     )}
                     {companySettings?.company_name && (
-                      <p className="font-bold text-sm">{companySettings.company_name}</p>
+                      <p className="font-bold text-base">{companySettings.company_name}</p>
                     )}
                     {companySettings?.company_address && (
-                      <p className="text-[10px]">{companySettings.company_address}</p>
+                      <p className="text-xs mt-1">{companySettings.company_address}</p>
                     )}
-                    <div className="text-[10px] space-y-0.5">
+                    <div className="text-xs space-y-0.5 mt-1">
                       {companySettings?.company_phone && <p>Tel: {companySettings.company_phone}</p>}
                       {companySettings?.company_email && <p className="break-all">{companySettings.company_email}</p>}
                     </div>
