@@ -19,7 +19,8 @@ import {
   Megaphone,
   CreditCard,
   Wallet,
-  BadgeDollarSign
+  BadgeDollarSign,
+  FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -371,6 +372,12 @@ export default function AdminDashboard() {
                   <Button variant="outline" className="w-full">
                     <Wallet className="mr-2 h-4 w-4" />
                     Open Cash Register
+                  </Button>
+                </Link>
+                <Link to="/admin/quotations">
+                  <Button variant="outline" className="w-full">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Quotations
                   </Button>
                 </Link>
                 <Button variant="outline" className="w-full">

@@ -65,17 +65,23 @@ export default function Contacts() {
   const [activeTab, setActiveTab] = useState('all');
   const [fromPOS, setFromPOS] = useState(false);
   const [fromPurchases, setFromPurchases] = useState(false);
+  const [fromQuotations, setFromQuotations] = useState(false);
 
-  // Open add dialog if navigated from POS or Purchases
+  // Open add dialog if navigated from POS, Purchases, or Quotations
   useEffect(() => {
-    if (location.state?.openAddDialog) {
+    const returnTo = new URLSearchParams(location.search).get('returnTo');
+    if (returnTo === 'quotations') {
+      setOpen(true);
+      setFromQuotations(true);
+      setFormData(prev => ({ ...prev, is_customer: true }));
+    } else if (location.state?.openAddDialog) {
       setOpen(true);
       setFromPOS(location.state?.fromPOS || false);
       setFromPurchases(location.state?.fromPurchases || false);
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.search, location.pathname, navigate]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -152,6 +158,15 @@ export default function Contacts() {
         setFromPurchases(false);
         navigate('/admin/purchases', { 
           state: { newSupplierId: newContact.id },
+          replace: true 
+        });
+      }
+      
+      // If from Quotations, return to Quotations with new customer ID
+      if (fromQuotations) {
+        setFromQuotations(false);
+        navigate('/admin/quotations', { 
+          state: { newCustomerId: newContact.id },
           replace: true 
         });
       }

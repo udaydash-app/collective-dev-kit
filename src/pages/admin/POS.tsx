@@ -1997,6 +1997,7 @@ export default function POS() {
   const menuSections = {
     sales: [
       { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
+      { icon: FileText, label: 'Quotations', path: '/admin/quotations' },
       { icon: DollarSign, label: 'Pricing Management', path: '/admin/pricing' },
       { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
       { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },

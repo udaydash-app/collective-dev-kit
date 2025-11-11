@@ -1824,6 +1824,74 @@ export type Database = {
           },
         ]
       }
+      quotations: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          discount: number
+          id: string
+          items: Json
+          notes: string | null
+          quotation_number: string
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          discount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          quotation_number: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          discount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          quotation_number?: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           company_address: string | null
@@ -2198,6 +2266,7 @@ export type Database = {
         }[]
       }
       generate_order_number: { Args: never; Returns: string }
+      generate_quotation_number: { Args: never; Returns: string }
       get_suggested_adjustment_cost: {
         Args: { p_product_id: string; p_variant_id?: string }
         Returns: {

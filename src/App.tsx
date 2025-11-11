@@ -57,6 +57,7 @@ import AdminMultiProductBOGO from "./pages/admin/MultiProductBOGO";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
 import AdminOfflineSync from "./pages/admin/OfflineSync";
+import AdminQuotations from "./pages/admin/Quotations";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -160,6 +161,7 @@ const AppContent = () => {
           <Route path="/admin/accounts-receivable" element={<AdminRoute><AdminAccountsReceivable /></AdminRoute>} />
           <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
           <Route path="/admin/offline-sync" element={<AdminRoute><AdminOfflineSync /></AdminRoute>} />
+          <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
