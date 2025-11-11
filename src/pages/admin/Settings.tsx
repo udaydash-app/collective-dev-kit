@@ -11,6 +11,8 @@ import { ArrowLeft, Save, Upload, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { UpdateButton } from "@/components/UpdateButton";
+import { APP_VERSION } from "@/config/version";
 
 interface Settings {
   id: string;
@@ -382,6 +384,25 @@ export default function AdminSettings() {
             )}
           </Button>
         </form>
+
+        {/* Version and Update Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>App Version</CardTitle>
+            <CardDescription>
+              Current version and update management
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Current Version</p>
+                <p className="text-2xl font-bold text-primary">v{APP_VERSION}</p>
+              </div>
+              <UpdateButton />
+            </div>
+          </CardContent>
+        </Card>
       </main>
 
       <BottomNav />
