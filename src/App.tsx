@@ -101,6 +101,27 @@ const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
 
+  // Cache essential data on app startup for offline support
+  React.useEffect(() => {
+    const initOfflineData = async () => {
+      if (!navigator.onLine) {
+        console.log('App started offline, using cached data');
+        return;
+      }
+
+      try {
+        console.log('Caching data for offline use...');
+        const { cacheEssentialData } = await import('@/lib/cacheData');
+        await cacheEssentialData();
+        console.log('Data cached successfully');
+      } catch (error) {
+        console.error('Failed to cache data:', error);
+      }
+    };
+
+    initOfflineData();
+  }, []);
+
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
     typeof window !== 'undefined' && (window as any).electron?.isElectron === true, 
