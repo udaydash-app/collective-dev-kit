@@ -597,17 +597,22 @@ export default function Quotations() {
       return;
     }
     
-    const whatsappUrl = `https://wa.me/${phone}`;
-    console.log('Opening WhatsApp with URL:', whatsappUrl);
+    // Detect if mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
-    // Use anchor element to avoid popup blockers
-    const link = document.createElement('a');
-    link.href = whatsappUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Use whatsapp:// protocol on mobile, web WhatsApp on desktop
+    const whatsappUrl = isMobile 
+      ? `whatsapp://send?phone=${phone}`
+      : `https://web.whatsapp.com/send?phone=${phone}`;
+    
+    console.log('Opening WhatsApp with URL:', whatsappUrl, 'isMobile:', isMobile);
+    
+    // Direct location change works better than window.open for protocol handlers
+    if (isMobile) {
+      window.location.href = whatsappUrl;
+    } else {
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    }
     
     toast.success(`Opening WhatsApp for ${phone}`);
   };
