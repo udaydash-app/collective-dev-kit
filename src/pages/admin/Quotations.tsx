@@ -146,6 +146,21 @@ export default function Quotations() {
     }
   });
 
+  // Fetch company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('company_name, company_email, company_phone, company_address, logo_url')
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch products for search
   const { data: products = [] } = useQuery({
     queryKey: ['products-for-quotation', searchProduct],
@@ -525,13 +540,38 @@ export default function Quotations() {
         yPos += notes.length * 3 + 3;
       }
       
-      // Footer
+      // Footer with company details
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 4;
       
       doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      if (companySettings?.company_name) {
+        doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 3.5;
+      }
+      
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
+      if (companySettings?.company_address) {
+        const address = doc.splitTextToSize(companySettings.company_address, contentWidth);
+        doc.text(address, pageWidth / 2, yPos, { align: 'center' });
+        yPos += address.length * 3;
+      }
+      
+      if (companySettings?.company_phone) {
+        doc.text(`Tel: ${companySettings.company_phone}`, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 3;
+      }
+      
+      if (companySettings?.company_email) {
+        doc.text(companySettings.company_email, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 3;
+      }
+      
+      yPos += 2;
+      doc.setFont('helvetica', 'italic');
       doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       
       doc.save(`quotation-${selectedQuotation.quotation_number}.pdf`);
@@ -955,8 +995,26 @@ export default function Quotations() {
                     </div>
                   )}
 
-                  <div className="mt-4 pt-2 border-t-2 border-black text-center text-xs">
-                    <p>Thank you for your business!</p>
+                  {/* Company Footer */}
+                  <div className="mt-4 pt-3 border-t-2 border-black text-center text-xs space-y-1">
+                    {companySettings?.logo_url && (
+                      <div className="flex justify-center mb-2">
+                        <img src={companySettings.logo_url} alt="Company Logo" className="h-12 w-auto object-contain" />
+                      </div>
+                    )}
+                    {companySettings?.company_name && (
+                      <p className="font-bold">{companySettings.company_name}</p>
+                    )}
+                    {companySettings?.company_address && (
+                      <p className="text-[10px]">{companySettings.company_address}</p>
+                    )}
+                    {companySettings?.company_phone && (
+                      <p className="text-[10px]">Tel: {companySettings.company_phone}</p>
+                    )}
+                    {companySettings?.company_email && (
+                      <p className="text-[10px] break-all">{companySettings.company_email}</p>
+                    )}
+                    <p className="mt-2 text-[10px] italic">Thank you for your business!</p>
                   </div>
                 </div>
 
