@@ -873,7 +873,7 @@ export default function Quotations() {
                           asChild
                         >
                           <a 
-                            href={`https://web.whatsapp.com/send?phone=${quotation.customer_phone?.replace(/\D/g, '')}`}
+                            href="https://web.whatsapp.com"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1040,7 +1040,7 @@ export default function Quotations() {
                       asChild
                     >
                       <a 
-                        href={`https://web.whatsapp.com/send?phone=${selectedQuotation.customer_phone?.replace(/\D/g, '')}`}
+                        href="https://web.whatsapp.com"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
