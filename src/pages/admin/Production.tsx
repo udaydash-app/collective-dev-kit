@@ -59,7 +59,6 @@ export default function Production() {
       const result: any = await supabase
         .from('products')
         .select('id, name, stock_quantity, barcode')
-        .eq('is_active', true)
         .order('name');
       
       if (result.error) throw result.error;
