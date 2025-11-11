@@ -26,16 +26,16 @@ export const BottomNav = () => {
           const Icon = item.icon;
           
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 min-w-[60px] py-2 px-3 rounded-lg transition-colors",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 min-w-[60px] py-2 px-3 rounded-lg",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
               <Icon className="h-5 w-5" />
               <span className="text-xs font-medium">{item.label}</span>
             </Link>

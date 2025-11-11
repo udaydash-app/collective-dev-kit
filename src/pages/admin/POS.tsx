@@ -81,6 +81,7 @@ import { ProductSearch } from '@/components/pos/ProductSearch';
 import { Label } from '@/components/ui/label';
 import { UpdateButton } from '@/components/UpdateButton';
 import { APP_VERSION } from '@/config/version';
+import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -1589,6 +1590,89 @@ export default function POS() {
   const subtotal = calculateSubtotal();
   const cartDiscountAmount = cartDiscountItem ? Math.abs(cartDiscountItem.price) : 0;
   const total = subtotal - cartDiscountAmount;
+
+  // POS Keyboard Shortcuts
+  const posShortcuts: KeyboardShortcut[] = [
+    {
+      key: 'F1',
+      description: 'Cash In',
+      action: () => setShowCashIn(true),
+    },
+    {
+      key: 'F2',
+      description: 'Cash Out',
+      action: () => setShowCashOut(true),
+    },
+    {
+      key: 'F3',
+      description: 'Hold Ticket',
+      action: () => {
+        if (cart.length > 0) {
+          setShowHoldTicket(true);
+        } else {
+          toast.error('No items in cart to hold');
+        }
+      },
+    },
+    {
+      key: 'F4',
+      description: 'Recall Held Ticket',
+      action: () => {
+        if (heldTickets.length > 0) {
+          setShowHoldTicket(true);
+        } else {
+          toast.info('No held tickets available');
+        }
+      },
+    },
+    {
+      key: 'F9',
+      description: 'Process Payment',
+      action: () => {
+        if (cart.length > 0) {
+          handleCheckout();
+        } else {
+          toast.error('No items in cart');
+        }
+      },
+    },
+    {
+      key: 'F12',
+      description: 'Clear Cart',
+      action: () => {
+        if (cart.length > 0) {
+          const confirmed = window.confirm('Are you sure you want to clear the cart?');
+          if (confirmed) {
+            clearCart();
+            setSelectedCustomer(null);
+            toast.info('Cart cleared');
+          }
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      description: 'Close dialogs',
+      action: () => {
+        setShowPayment(false);
+        setShowCashIn(false);
+        setShowCashOut(false);
+        setShowHoldTicket(false);
+        setShowCustomerDialog(false);
+        setShowRefund(false);
+        setShowNotesDialog(false);
+        setVariantSelectorOpen(false);
+        setAssignBarcodeOpen(false);
+        setShowCustomPriceConfirm(false);
+      },
+      preventDefault: false,
+    },
+  ];
+
+  useKeyboardShortcuts({ 
+    shortcuts: posShortcuts,
+    enabled: !showPayment && !showNotesDialog // Disable when typing in modals
+  });
 
   const handleCheckout = () => {
     if (!selectedStoreId) {

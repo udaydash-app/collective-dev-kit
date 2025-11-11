@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { MapPin, Bell } from "lucide-react";
+import { MapPin, Bell, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { LocationDialog } from "./LocationDialog";
 import { LanguageSelector } from "./LanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const Header = () => {
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
@@ -56,6 +62,26 @@ export const Header = () => {
           </Button>
           
           <LanguageSelector />
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => {
+                    const event = new CustomEvent('show-shortcuts');
+                    window.dispatchEvent(event);
+                  }}
+                >
+                  <Keyboard className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Keyboard shortcuts (?)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
           <Link to="/notifications">
             <Button variant="ghost" size="icon">

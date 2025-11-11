@@ -77,6 +77,8 @@ import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { OfflineIndicator } from "./components/OfflineIndicator";
+import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDialog";
+import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
 import PWAInstall from "./pages/PWAInstall";
 
 const queryClient = new QueryClient();
@@ -92,6 +94,9 @@ const App = () => {
 const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
+  
+  // Enable global keyboard shortcuts
+  useGlobalShortcuts();
 
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
@@ -108,6 +113,7 @@ const AppContent = () => {
       <Sonner />
       <OrderStatusNotifications />
       <OfflineIndicator />
+      <KeyboardShortcutsDialog />
       <Router>
         <Routes>
           {/* Customer-facing home */}
