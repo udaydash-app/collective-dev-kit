@@ -32,9 +32,30 @@ export interface PaymentDetail {
   amount: number;
 }
 
+const POS_CART_KEY = 'pos_cart_state';
+const POS_DISCOUNT_KEY = 'pos_discount_state';
+
 export const usePOSTransaction = () => {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState(0);
+  // Load cart from localStorage on mount
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(POS_CART_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error loading cart from localStorage:', error);
+      return [];
+    }
+  });
+  
+  const [discount, setDiscount] = useState(() => {
+    try {
+      const saved = localStorage.getItem(POS_DISCOUNT_KEY);
+      return saved ? parseFloat(saved) : 0;
+    } catch (error) {
+      console.error('Error loading discount from localStorage:', error);
+      return 0;
+    }
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Cache offers to avoid repeated database queries
@@ -46,6 +67,24 @@ export const usePOSTransaction = () => {
   // Debounce timer for offer detection
   const offerDetectionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cartUpdateQueueRef = useRef<CartItem[]>([]);
+  
+  // Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(POS_CART_KEY, JSON.stringify(cart));
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
+  }, [cart]);
+  
+  // Persist discount to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(POS_DISCOUNT_KEY, discount.toString());
+    } catch (error) {
+      console.error('Error saving discount to localStorage:', error);
+    }
+  }, [discount]);
 
   // Load and cache all offers on mount
   useEffect(() => {
@@ -855,6 +894,8 @@ export const usePOSTransaction = () => {
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+    localStorage.removeItem(POS_CART_KEY);
+    localStorage.removeItem(POS_DISCOUNT_KEY);
   };
   
   // Load multiple items directly into cart (for edit mode)
