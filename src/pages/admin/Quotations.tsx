@@ -543,7 +543,6 @@ export default function Quotations() {
   };
 
   const handleWhatsApp = (quotation: Quotation) => {
-    const message = `Hello ${quotation.customer_name},\n\nQuotation #${quotation.quotation_number}\nTotal: ${formatCurrency(quotation.total)}\n\nPlease review the attached quotation.`;
     const phone = quotation.customer_phone?.replace(/\D/g, '');
     
     if (!phone || phone.length === 0) {
@@ -551,7 +550,7 @@ export default function Quotations() {
       return;
     }
     
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/${phone}`, '_blank');
   };
 
   const getStatusBadge = (status: string) => {
