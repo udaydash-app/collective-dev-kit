@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -78,6 +79,8 @@ export default function Quotations() {
   const [editingItem, setEditingItem] = useState<number | null>(null);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [viewMode, setViewMode] = useState(false);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [deleteQuotationId, setDeleteQuotationId] = useState<string | null>(null);
 
   // Auto-select newly created customer from Contacts page
   useEffect(() => {
@@ -180,6 +183,51 @@ export default function Quotations() {
     }
   });
 
+  // Update quotation mutation
+  const updateQuotationMutation = useMutation({
+    mutationFn: async ({ id, quotationData }: { id: string; quotationData: any }) => {
+      const { data, error } = await supabase
+        .from('quotations')
+        .update(quotationData)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success('Quotation updated successfully');
+      resetForm();
+      setShowNewQuotation(false);
+      setEditingQuotation(null);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to update quotation: ' + error.message);
+    }
+  });
+
+  // Delete quotation mutation
+  const deleteQuotationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('quotations')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success('Quotation deleted successfully');
+      setDeleteQuotationId(null);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to delete quotation: ' + error.message);
+    }
+  });
+
   const addProductToQuotation = (product: any, variant?: any) => {
     const price = variant?.price || product.price;
     const name = variant ? `${product.name} - ${variant.name}` : product.name;
@@ -237,11 +285,7 @@ export default function Quotations() {
     const { subtotal, tax, total } = calculateTotals();
     const totalDiscount = quotationItems.reduce((sum, item) => sum + item.discount, 0);
 
-    // Generate quotation number
-    const { data: quotationNumber } = await supabase.rpc('generate_quotation_number');
-
-    const quotationData = {
-      quotation_number: quotationNumber,
+    const quotationData: any = {
       contact_id: selectedContactId,
       customer_name: selectedContact.name,
       customer_email: selectedContact.email,
@@ -256,7 +300,24 @@ export default function Quotations() {
       valid_until: validUntil || null
     };
 
-    createQuotationMutation.mutate(quotationData);
+    if (editingQuotation) {
+      // Update existing quotation
+      updateQuotationMutation.mutate({ id: editingQuotation.id, quotationData });
+    } else {
+      // Create new quotation - generate quotation number
+      const { data: quotationNumber } = await supabase.rpc('generate_quotation_number');
+      quotationData.quotation_number = quotationNumber;
+      createQuotationMutation.mutate(quotationData);
+    }
+  };
+
+  const handleEditQuotation = (quotation: Quotation) => {
+    setEditingQuotation(quotation);
+    setSelectedContactId(quotation.contact_id || '');
+    setQuotationItems(quotation.items);
+    setNotes(quotation.notes || '');
+    setValidUntil(quotation.valid_until || '');
+    setShowNewQuotation(true);
   };
 
   const resetForm = () => {
@@ -265,6 +326,7 @@ export default function Quotations() {
     setNotes('');
     setValidUntil('');
     setSearchProduct('');
+    setEditingQuotation(null);
   };
 
   const handleLoadToCart = async (quotation: Quotation) => {
@@ -519,7 +581,7 @@ export default function Quotations() {
               </DialogTrigger>
             <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Quotation</DialogTitle>
+                <DialogTitle>{editingQuotation ? 'Edit Quotation' : 'Create New Quotation'}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -768,13 +830,29 @@ export default function Quotations() {
                           <Send className="w-4 h-4" />
                         </Button>
                         {quotation.status !== 'converted' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleLoadToCart(quotation)}
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleLoadToCart(quotation)}
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditQuotation(quotation)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteQuotationId(quotation.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -891,6 +969,31 @@ export default function Quotations() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteQuotationId} onOpenChange={() => setDeleteQuotationId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Quotation</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this quotation? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteQuotationId) {
+                    deleteQuotationMutation.mutate(deleteQuotationId);
+                  }
+                }}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
