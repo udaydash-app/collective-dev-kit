@@ -198,9 +198,14 @@ export default function GeneralLedger() {
       if (selectedAccountInfo?.isUnified) {
         const { customerAccountId, supplierAccountId, contactId } = selectedAccountInfo;
         
-        // Fetch contact's opening balance
-        const contact = contacts?.find(c => c.id === contactId);
-        const openingBalance = Number(contact?.opening_balance || 0);
+        // Fetch contact's opening balance directly from database
+        const { data: contactData } = await supabase
+          .from('contacts')
+          .select('opening_balance')
+          .eq('id', contactId)
+          .maybeSingle();
+        
+        const openingBalance = Number(contactData?.opening_balance || 0);
         
         // Fetch current balances for both accounts
         const { data: customerAccount } = await supabase
@@ -313,9 +318,12 @@ export default function GeneralLedger() {
         .maybeSingle();
 
       // Get opening balance from contact if this is a customer/supplier account
-      const contact = contacts?.find(
-        c => c.customer_ledger_account_id === selectedAccount || c.supplier_ledger_account_id === selectedAccount
-      );
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('opening_balance')
+        .or(`customer_ledger_account_id.eq.${selectedAccount},supplier_ledger_account_id.eq.${selectedAccount}`)
+        .maybeSingle();
+      
       const openingBalance = Number(contact?.opening_balance || 0);
 
       return { lines: sortedLines, account: { ...account, opening_balance: openingBalance } };
