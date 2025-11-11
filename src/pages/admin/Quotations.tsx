@@ -589,44 +589,6 @@ export default function Quotations() {
     }
   };
 
-  const handleWhatsApp = (quotation: Quotation) => {
-    const phone = quotation.customer_phone?.replace(/\D/g, '');
-    
-    if (!phone || phone.length === 0) {
-      toast.error('No phone number available for this customer. Please add a phone number in the customer profile.');
-      return;
-    }
-    
-    // Use simple wa.me link - works on both mobile and desktop
-    const whatsappUrl = `https://wa.me/${phone}`;
-    console.log('Opening WhatsApp with URL:', whatsappUrl);
-    console.log('User agent:', navigator.userAgent);
-    
-    // Try to open in new window first
-    const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    
-    // If popup was blocked, provide manual link
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      console.log('Popup blocked, showing manual link');
-      toast.error(
-        <div>
-          <p>Popup blocked. Click to open WhatsApp:</p>
-          <a 
-            href={whatsappUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="underline font-bold"
-          >
-            Open WhatsApp for {phone}
-          </a>
-        </div>,
-        { duration: 10000 }
-      );
-    } else {
-      toast.success(`Opening WhatsApp for ${phone}`);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
       draft: 'secondary',
@@ -908,9 +870,15 @@ export default function Quotations() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleWhatsApp(quotation)}
+                          asChild
                         >
-                          <Send className="w-4 h-4" />
+                          <a 
+                            href={`https://wa.me/${quotation.customer_phone?.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Send className="w-4 h-4" />
+                          </a>
                         </Button>
                         {quotation.status !== 'converted' && (
                           <>
@@ -1068,9 +1036,17 @@ export default function Quotations() {
                       <Download className="w-4 h-4 mr-2" />
                       Download PDF
                     </Button>
-                    <Button onClick={() => handleWhatsApp(selectedQuotation)}>
-                      <Send className="w-4 h-4 mr-2" />
-                      WhatsApp
+                    <Button 
+                      asChild
+                    >
+                      <a 
+                        href={`https://wa.me/${selectedQuotation.customer_phone?.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        WhatsApp
+                      </a>
                     </Button>
                   </div>
                 </div>
