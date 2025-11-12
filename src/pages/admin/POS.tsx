@@ -2543,6 +2543,8 @@ export default function POS() {
   };
 
   const handleKeypadNumber = (value: string) => {
+    console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInput });
+    
     if (keypadMode === 'cartDiscount') {
       setKeypadInput(prev => prev + value);
       return;
@@ -2574,10 +2576,18 @@ export default function POS() {
   };
 
   const handleKeypadCartDiscount = () => {
-    setKeypadMode('cartDiscount');
-    setKeypadInput('');
-    setIsPercentMode(false);
-    setSelectedCartItemId(null);
+    console.log('🔢 Cart Discount clicked:', { currentMode: keypadMode, currentInput: keypadInput });
+    
+    // Only clear input if not already in cartDiscount mode
+    if (keypadMode !== 'cartDiscount') {
+      setKeypadMode('cartDiscount');
+      setKeypadInput('');
+      setIsPercentMode(false);
+      setSelectedCartItemId(null);
+      console.log('✅ Cart Discount mode activated');
+    } else {
+      console.log('ℹ️ Already in Cart Discount mode, keeping input:', keypadInput);
+    }
   };
 
   const handleKeypadPercent = () => {
@@ -2614,7 +2624,10 @@ export default function POS() {
   };
 
   const handleKeypadEnter = () => {
+    console.log('🔢 Enter pressed:', { keypadMode, keypadInput, isPercentMode });
+    
     if (!keypadMode || !keypadInput) {
+      console.log('❌ Missing mode or input:', { keypadMode, keypadInput });
       toast.error('Please select mode and enter a value');
       return;
     }
