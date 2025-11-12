@@ -939,13 +939,30 @@ export default function Quotations() {
                           title={quotation.customer_phone?.trim() ? "Share via WhatsApp" : "No phone number available"}
                           disabled={!quotation.customer_phone?.trim()}
                           onClick={(e) => {
+                            e.preventDefault();
                             const phone = quotation.customer_phone?.replace(/[^0-9]/g, '').trim();
                             if (!phone) {
-                              e.preventDefault();
                               toast.error('No phone number available for this customer');
                               return;
                             }
-                            window.location.href = `https://wa.ms/${phone}`;
+                            
+                            const whatsappUrl = `https://wa.ms/${phone}`;
+                            console.log('Opening WhatsApp URL:', whatsappUrl);
+                            
+                            try {
+                              const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                              if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                                console.error('Popup blocked, trying fallback');
+                                toast.error('Popup blocked. Please allow popups for this site.');
+                                // Fallback: try direct navigation
+                                window.location.href = whatsappUrl;
+                              } else {
+                                console.log('WhatsApp opened successfully');
+                              }
+                            } catch (error) {
+                              console.error('Error opening WhatsApp:', error);
+                              toast.error('Failed to open WhatsApp: ' + (error as Error).message);
+                            }
                           }}
                         >
                           <Send className="w-4 h-4" />
@@ -1118,7 +1135,24 @@ export default function Quotations() {
                           toast.error('No phone number available for this customer');
                           return;
                         }
-                        window.location.href = `https://wa.ms/${phone}`;
+                        
+                        const whatsappUrl = `https://wa.ms/${phone}`;
+                        console.log('Opening WhatsApp URL:', whatsappUrl);
+                        
+                        try {
+                          const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                            console.error('Popup blocked, trying fallback');
+                            toast.error('Popup blocked. Please allow popups for this site.');
+                            // Fallback: try direct navigation
+                            window.location.href = whatsappUrl;
+                          } else {
+                            console.log('WhatsApp opened successfully');
+                          }
+                        } catch (error) {
+                          console.error('Error opening WhatsApp:', error);
+                          toast.error('Failed to open WhatsApp: ' + (error as Error).message);
+                        }
                       }}
                     >
                       <Send className="w-4 h-4 mr-2" />
