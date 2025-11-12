@@ -1990,6 +1990,7 @@ export default function POS() {
       
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
+      setDiscount(0);
       
       // Reset customer selection to walk-in customer
       setSelectedCustomer(null);
@@ -2431,6 +2432,7 @@ export default function POS() {
     
     // Clear cart discount
     setCartDiscountItem(null);
+    setDiscount(0);
     
     toast.success(`Ticket "${ticketName}" held successfully`);
   };
@@ -2668,7 +2670,9 @@ export default function POS() {
         } else {
           toast.success(`Cart discount applied: ${formatCurrency(value)}`);
         }
-        // Add or update cart discount as a special item
+        // Update the discount state for transaction processing
+        setDiscount(cartDiscountAmount);
+        // Add or update cart discount as a special item for display
         setCartDiscountItem({
           id: 'cart-discount',
           name: 'Cart Discount',
@@ -2778,6 +2782,7 @@ export default function POS() {
             onRemove={(id) => {
               if (id === 'cart-discount') {
                 setCartDiscountItem(null);
+                setDiscount(0);
                 toast.success('Cart discount removed');
               } else {
                 removeFromCart(id);
@@ -2786,6 +2791,7 @@ export default function POS() {
             onClear={() => {
               clearCart();
               setCartDiscountItem(null);
+              setDiscount(0);
             }}
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
@@ -3420,6 +3426,7 @@ export default function POS() {
         onRefundComplete={() => {
           clearCart();
           setCartDiscountItem(null);
+          setDiscount(0);
           queryClient.invalidateQueries({ queryKey: ['pos-products'] });
         }}
       />
