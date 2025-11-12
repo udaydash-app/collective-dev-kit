@@ -946,7 +946,8 @@ export default function Quotations() {
                               return;
                             }
                             
-                            const whatsappUrl = `https://wa.ms/${phone}`;
+                            // Use wa.me (official WhatsApp link) instead of wa.ms
+                            const whatsappUrl = `https://wa.me/${phone}`;
                             console.log('Opening WhatsApp URL:', whatsappUrl);
                             
                             try {
@@ -1136,7 +1137,8 @@ export default function Quotations() {
                           return;
                         }
                         
-                        const whatsappUrl = `https://wa.ms/${phone}`;
+                        // Use wa.me (official WhatsApp link) instead of wa.ms
+                        const whatsappUrl = `https://wa.me/${phone}`;
                         console.log('Opening WhatsApp URL:', whatsappUrl);
                         
                         try {
