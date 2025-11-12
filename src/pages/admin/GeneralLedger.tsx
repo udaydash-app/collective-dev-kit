@@ -676,7 +676,9 @@ export default function GeneralLedger() {
               ) : (
                 <>
                   {/* Opening Balance Row */}
-                  {(ledgerData?.account as any)?.opening_balance && Number((ledgerData?.account as any)?.opening_balance) !== 0 && (
+                  {(ledgerData?.account as any)?.opening_balance !== undefined && 
+                   (ledgerData?.account as any)?.opening_balance !== null && 
+                   Number((ledgerData?.account as any)?.opening_balance) !== 0 && (
                     <TableRow className="bg-muted/50">
                       <TableCell colSpan={4} className="font-semibold">
                         Opening Balance (as of {startDate})
