@@ -126,6 +126,7 @@ export default function POS() {
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
   const [keypadInput, setKeypadInput] = useState<string>('');
+  const keypadInputRef = useRef<string>(''); // Persist across re-renders
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -2540,29 +2541,28 @@ export default function POS() {
     if (itemId === 'cart-discount') return;
     console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
+    keypadInputRef.current = '';
     setKeypadInput('');
   };
 
   const handleKeypadNumber = (value: string) => {
-    console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInput });
+    console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInputRef.current });
     
     if (keypadMode === 'cartDiscount') {
-      setKeypadInput(prev => {
-        const newValue = prev + value;
-        console.log('📝 Cart Discount input updated:', { prev, value, newValue });
-        return newValue;
-      });
+      const newValue = keypadInputRef.current + value;
+      keypadInputRef.current = newValue;
+      setKeypadInput(newValue);
+      console.log('📝 Cart Discount input updated:', { prev: keypadInput, value, newValue });
       return;
     }
     if (!selectedCartItemId) {
       toast.error('Please select a product from the cart first');
       return;
     }
-    setKeypadInput(prev => {
-      const newValue = prev + value;
-      console.log('📝 Regular input updated:', { prev, value, newValue });
-      return newValue;
-    });
+    const newValue = keypadInputRef.current + value;
+    keypadInputRef.current = newValue;
+    setKeypadInput(newValue);
+    console.log('📝 Regular input updated:', { prev: keypadInput, value, newValue });
   };
 
   const handleKeypadQty = () => {
@@ -2572,6 +2572,7 @@ export default function POS() {
     }
     console.log('🔢 QTY mode activated, clearing input');
     setKeypadMode('qty');
+    keypadInputRef.current = '';
     setKeypadInput('');
   };
 
@@ -2581,22 +2582,24 @@ export default function POS() {
       return;
     }
     setKeypadMode('discount');
+    keypadInputRef.current = '';
     setKeypadInput('');
     setIsPercentMode(false);
   };
 
   const handleKeypadCartDiscount = () => {
-    console.log('🔢 Cart Discount clicked:', { currentMode: keypadMode, currentInput: keypadInput });
+    console.log('🔢 Cart Discount clicked:', { currentMode: keypadMode, currentInput: keypadInputRef.current });
     
     // Only clear input if not already in cartDiscount mode
     if (keypadMode !== 'cartDiscount') {
       setKeypadMode('cartDiscount');
+      keypadInputRef.current = '';
       setKeypadInput('');
       setIsPercentMode(false);
       setSelectedCartItemId(null);
       console.log('✅ Cart Discount mode activated');
     } else {
-      console.log('ℹ️ Already in Cart Discount mode, keeping input:', keypadInput);
+      console.log('ℹ️ Already in Cart Discount mode, keeping input:', keypadInputRef.current);
     }
   };
 
@@ -2622,11 +2625,13 @@ export default function POS() {
       return;
     }
     setKeypadMode('price');
+    keypadInputRef.current = '';
     setKeypadInput('');
   };
 
   const handleKeypadClear = () => {
     console.log('🧹 CLEAR button pressed');
+    keypadInputRef.current = '';
     setKeypadInput('');
     setIsPercentMode(false);
     if (keypadMode === 'cartDiscount') {
@@ -2635,15 +2640,15 @@ export default function POS() {
   };
 
   const handleKeypadEnter = () => {
-    console.log('🔢 Enter pressed:', { keypadMode, keypadInput, isPercentMode });
+    console.log('🔢 Enter pressed:', { keypadMode, keypadInput: keypadInputRef.current, isPercentMode });
     
-    if (!keypadMode || !keypadInput) {
-      console.log('❌ Missing mode or input:', { keypadMode, keypadInput });
+    if (!keypadMode || !keypadInputRef.current) {
+      console.log('❌ Missing mode or input:', { keypadMode, keypadInput: keypadInputRef.current });
       toast.error('Please select mode and enter a value');
       return;
     }
-
-    const value = parseFloat(keypadInput);
+    
+    const value = parseFloat(keypadInputRef.current);
     if (isNaN(value) || value < 0) {
       toast.error('Invalid value');
       return;
@@ -2708,6 +2713,7 @@ export default function POS() {
     }
 
     console.log('✅ Enter completed, clearing keypad input');
+    keypadInputRef.current = '';
     setKeypadInput('');
     setKeypadMode(null);
     setIsPercentMode(false);
