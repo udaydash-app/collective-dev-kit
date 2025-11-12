@@ -89,7 +89,8 @@ if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => {
     console.log('[AUTO-UPDATE] Checking for updates...');
     console.log('[AUTO-UPDATE] Current version:', app.getVersion());
-    console.log('[AUTO-UPDATE] Update URL:', autoUpdater.getFeedURL());
+    console.log('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL());
+    console.log('[AUTO-UPDATE] Looking for releases at: https://github.com/udaydash-app/collective-dev-kit/releases');
   });
 
   autoUpdater.on('update-available', (info) => {
@@ -135,9 +136,18 @@ if (autoUpdater) {
 
   autoUpdater.on('error', (err) => {
     console.error('[AUTO-UPDATE] Error occurred:', err.message);
+    console.error('[AUTO-UPDATE] Error code:', err.code);
     console.error('[AUTO-UPDATE] Full error:', err);
-    console.error('[AUTO-UPDATE] Stack:', err.stack);
-    // Show error dialog for better debugging
+    
+    // If it's a 404, it means no releases exist yet
+    if (err.message.includes('404')) {
+      console.log('[AUTO-UPDATE] No releases found on GitHub yet. Please create a release first.');
+      console.log('[AUTO-UPDATE] Visit: https://github.com/udaydash-app/collective-dev-kit/releases');
+      // Don't show error dialog for 404 - it's expected when no releases exist
+      return;
+    }
+    
+    // Show error dialog only for unexpected errors
     dialog.showMessageBox({
       type: 'error',
       title: 'Update Check Error',
