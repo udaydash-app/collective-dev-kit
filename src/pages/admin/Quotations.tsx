@@ -506,23 +506,28 @@ export default function Quotations() {
       
       // Items
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
       doc.text('Item', margin, yPos);
       doc.text('Qty', pageWidth - margin - 20, yPos, { align: 'right' });
       doc.text('Total', pageWidth - margin, yPos, { align: 'right' });
       yPos += 1;
+      doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 4;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       
       selectedQuotation.items.forEach(item => {
-        // Product name
+        // Product name - bold
+        doc.setFont('helvetica', 'bold');
         const productName = doc.splitTextToSize(item.productName, contentWidth - 15);
         doc.text(productName, margin, yPos);
-        yPos += productName.length * 3.5;
+        yPos += productName.length * 4;
         
-        // Price details
+        // Price details - normal weight, slightly larger
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
         let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
         if (item.discount > 0) {
           priceDetail += ` (-${formatCurrency(item.discount)})`;
@@ -530,42 +535,50 @@ export default function Quotations() {
         doc.text(priceDetail, margin + 2, yPos);
         
         // Quantity and total on the same line as price detail
+        doc.setFont('helvetica', 'normal');
         doc.text(item.quantity.toString(), pageWidth - margin - 20, yPos, { align: 'right' });
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
         doc.text(formatCurrency(item.total), pageWidth - margin, yPos, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         
         yPos += 5;
-        doc.setDrawColor(200, 200, 200);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
         doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 3;
+        yPos += 4;
       });
       
       yPos += 2;
       
       // Totals
-      doc.setFontSize(8);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 4;
+      yPos += 5;
       
       doc.text('Subtotal:', margin, yPos);
+      doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 4;
+      yPos += 5;
       
+      doc.setFont('helvetica', 'normal');
       doc.text('Tax (18%):', margin, yPos);
+      doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.tax), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 4;
+      yPos += 5;
       
+      doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 4;
+      yPos += 5;
       
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', margin, yPos);
       doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 6;
+      yPos += 7;
       
       // Notes
       if (selectedQuotation.notes) {
@@ -938,7 +951,26 @@ export default function Quotations() {
             {selectedQuotation && (
               <>
                 <div className="overflow-y-auto flex-1">
-                  <div ref={printRef} className="mx-auto bg-white text-black" style={{ width: '80mm', maxWidth: '302px', fontSize: '12px', padding: '10mm' }}>
+                  <div ref={printRef} className="mx-auto bg-white text-black print:bg-white print:text-black" style={{ width: '80mm', maxWidth: '302px', fontSize: '12px', padding: '10mm' }}>
+                    <style>{`
+                      @media print {
+                        * {
+                          -webkit-print-color-adjust: exact !important;
+                          print-color-adjust: exact !important;
+                          color-adjust: exact !important;
+                        }
+                        body {
+                          background: white !important;
+                          color: black !important;
+                        }
+                        .text-gray-600, .text-gray-300 {
+                          color: #000 !important;
+                        }
+                        table, th, td {
+                          color: black !important;
+                        }
+                      }
+                    `}</style>
                   {/* Company Header */}
                   <div className="text-center mb-4 pb-3">
                     {companySettings?.logo_url && (
@@ -947,35 +979,35 @@ export default function Quotations() {
                       </div>
                     )}
                     {companySettings?.company_name && (
-                      <p className="font-bold text-lg">{companySettings.company_name}</p>
+                      <p className="font-bold text-lg print:text-black">{companySettings.company_name}</p>
                     )}
                     {companySettings?.company_address && (
-                      <p className="text-sm mt-1">{companySettings.company_address}</p>
+                      <p className="text-sm mt-1 print:text-black">{companySettings.company_address}</p>
                     )}
                     <div className="text-sm space-y-0.5 mt-1">
-                      {companySettings?.company_phone && <p>Tel: {companySettings.company_phone}</p>}
-                      {companySettings?.company_email && <p className="break-all">{companySettings.company_email}</p>}
+                      {companySettings?.company_phone && <p className="print:text-black">Tel: {companySettings.company_phone}</p>}
+                      {companySettings?.company_email && <p className="break-all print:text-black">{companySettings.company_email}</p>}
                     </div>
                   </div>
 
                   <div className="text-center mb-4 border-t-2 border-b-2 border-black py-2">
-                    <h2 className="text-xl font-bold">QUOTATION</h2>
-                    <p className="text-xs mt-1">#{selectedQuotation.quotation_number}</p>
+                    <h2 className="text-xl font-bold print:text-black">QUOTATION</h2>
+                    <p className="text-xs mt-1 print:text-black">#{selectedQuotation.quotation_number}</p>
                   </div>
 
                   <div className="mb-4 text-xs space-y-1">
-                    <div className="border-b border-gray-300 pb-2 mb-2">
-                      <p className="font-bold">Bill To:</p>
-                      <p>{selectedQuotation.customer_name}</p>
-                      {selectedQuotation.customer_phone && <p>Tel: {selectedQuotation.customer_phone}</p>}
-                      {selectedQuotation.customer_email && <p className="break-all">{selectedQuotation.customer_email}</p>}
+                    <div className="border-b border-black pb-2 mb-2">
+                      <p className="font-bold print:text-black">Bill To:</p>
+                      <p className="print:text-black">{selectedQuotation.customer_name}</p>
+                      {selectedQuotation.customer_phone && <p className="print:text-black">Tel: {selectedQuotation.customer_phone}</p>}
+                      {selectedQuotation.customer_email && <p className="break-all print:text-black">{selectedQuotation.customer_email}</p>}
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between print:text-black">
                       <span>Date:</span>
                       <span>{format(new Date(selectedQuotation.created_at), 'dd/MM/yyyy')}</span>
                     </div>
                     {selectedQuotation.valid_until && (
-                      <div className="flex justify-between">
+                      <div className="flex justify-between print:text-black">
                         <span>Valid Until:</span>
                         <span>{format(new Date(selectedQuotation.valid_until), 'dd/MM/yyyy')}</span>
                       </div>
@@ -986,23 +1018,23 @@ export default function Quotations() {
                     <table className="w-full text-xs border-collapse">
                       <thead>
                         <tr className="border-b-2 border-black">
-                          <th className="text-left py-1">Item</th>
-                          <th className="text-center py-1 w-12">Qty</th>
-                          <th className="text-right py-1 w-16">Total</th>
+                          <th className="text-left py-1 print:text-black">Item</th>
+                          <th className="text-center py-1 w-12 print:text-black">Qty</th>
+                          <th className="text-right py-1 w-16 print:text-black">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedQuotation.items.map((item, index) => (
-                          <tr key={index} className="border-b border-gray-300">
+                          <tr key={index} className="border-b border-black">
                             <td className="py-2">
-                              <div>{item.productName}</div>
-                              <div className="text-[10px] text-gray-600">
+                              <div className="font-medium print:text-black">{item.productName}</div>
+                              <div className="text-[10px] print:text-black">
                                 {formatCurrency(item.price)} x {item.quantity}
                                 {item.discount > 0 && ` (-${formatCurrency(item.discount)})`}
                               </div>
                             </td>
-                            <td className="text-center py-2">{item.quantity}</td>
-                            <td className="text-right py-2 font-medium">{formatCurrency(item.total)}</td>
+                            <td className="text-center py-2 print:text-black">{item.quantity}</td>
+                            <td className="text-right py-2 font-bold print:text-black">{formatCurrency(item.total)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1010,29 +1042,29 @@ export default function Quotations() {
                   </div>
 
                   <div className="border-t-2 border-black pt-2 space-y-1 text-xs">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between print:text-black">
                       <span>Subtotal:</span>
-                      <span>{formatCurrency(selectedQuotation.subtotal)}</span>
+                      <span className="font-medium">{formatCurrency(selectedQuotation.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between print:text-black">
                       <span>Tax (18%):</span>
-                      <span>{formatCurrency(selectedQuotation.tax)}</span>
+                      <span className="font-medium">{formatCurrency(selectedQuotation.tax)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-sm border-t border-gray-300 pt-1 mt-1">
+                    <div className="flex justify-between font-bold text-sm border-t border-black pt-1 mt-1 print:text-black">
                       <span>TOTAL:</span>
                       <span>{formatCurrency(selectedQuotation.total)}</span>
                     </div>
                   </div>
 
                   {selectedQuotation.notes && (
-                    <div className="mt-4 pt-2 border-t border-gray-300 text-xs">
-                      <p className="font-bold mb-1">Notes:</p>
-                      <p className="text-[10px]">{selectedQuotation.notes}</p>
+                    <div className="mt-4 pt-2 border-t border-black text-xs">
+                      <p className="font-bold mb-1 print:text-black">Notes:</p>
+                      <p className="text-[10px] print:text-black">{selectedQuotation.notes}</p>
                     </div>
                   )}
 
                   <div className="mt-4 pt-2 border-t-2 border-black text-center text-xs">
-                    <p>Thank you for your business!</p>
+                    <p className="print:text-black">Thank you for your business!</p>
                   </div>
                 </div>
                 </div>
