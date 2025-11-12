@@ -935,15 +935,22 @@ export default function Quotations() {
                           variant="ghost"
                           size="icon"
                           asChild
-                          title="Share via WhatsApp"
+                          title={quotation.customer_phone ? "Share via WhatsApp" : "No phone number available"}
+                          disabled={!quotation.customer_phone}
                         >
-                          <a 
-                            href={`https://wa.me/${quotation.customer_phone?.replace(/[^0-9]/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Send className="w-4 h-4" />
-                          </a>
+                          {quotation.customer_phone ? (
+                            <a 
+                              href={`https://wa.me/${quotation.customer_phone.replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Send className="w-4 h-4" />
+                            </a>
+                          ) : (
+                            <span>
+                              <Send className="w-4 h-4" />
+                            </span>
+                          )}
                         </Button>
                         <Button
                           variant="ghost"
@@ -1103,18 +1110,23 @@ export default function Quotations() {
                       <Download className="w-4 h-4 mr-2" />
                       Download PDF
                     </Button>
-                    <Button 
-                      asChild
-                    >
-                      <a 
-                        href={`https://wa.me/${selectedQuotation.customer_phone?.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                    {selectedQuotation.customer_phone ? (
+                      <Button asChild>
+                        <a 
+                          href={`https://wa.me/${selectedQuotation.customer_phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          WhatsApp
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button disabled title="No phone number available">
                         <Send className="w-4 h-4 mr-2" />
                         WhatsApp
-                      </a>
-                    </Button>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </>
