@@ -2541,8 +2541,12 @@ export default function POS() {
     // Don't allow selecting cart discount item
     if (itemId === 'cart-discount') return;
     
-    // Don't clear input or change selection when in cart discount mode
-    if (keypadMode === 'cartDiscount') return;
+    // Don't clear input when in any keypad input mode
+    if (keypadMode === 'cartDiscount' || keypadMode === 'qty' || keypadMode === 'discount' || keypadMode === 'price') {
+      console.log('🎯 Cart item selected in input mode, keeping input');
+      setSelectedCartItemId(itemId);
+      return;
+    }
     
     console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
