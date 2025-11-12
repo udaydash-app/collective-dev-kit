@@ -2543,29 +2543,21 @@ export default function POS() {
     console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadNumber = (value: string) => {
     console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInputRef.current });
     
-    if (keypadMode === 'cartDiscount') {
-      const newValue = keypadInputRef.current + value;
-      keypadInputRef.current = newValue;
-      setKeypadInput(newValue);
-      setKeypadRenderKey(prev => prev + 1); // Force re-render
-      console.log('📝 Cart Discount input updated:', { prev: keypadInput, value, newValue });
-      return;
-    }
-    if (!selectedCartItemId) {
+    const newValue = keypadInputRef.current + value;
+    keypadInputRef.current = newValue;
+    setKeypadRenderKey(prev => prev + 1); // Force re-render to show new value
+    console.log('📝 Input updated to:', newValue);
+    
+    if (keypadMode !== 'cartDiscount' && !selectedCartItemId) {
       toast.error('Please select a product from the cart first');
       return;
     }
-    const newValue = keypadInputRef.current + value;
-    keypadInputRef.current = newValue;
-    setKeypadInput(newValue);
-    setKeypadRenderKey(prev => prev + 1); // Force re-render
-    console.log('📝 Regular input updated:', { prev: keypadInput, value, newValue });
   };
 
   const handleKeypadQty = () => {
@@ -2576,7 +2568,7 @@ export default function POS() {
     console.log('🔢 QTY mode activated, clearing input');
     setKeypadMode('qty');
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadDiscount = () => {
@@ -2586,7 +2578,7 @@ export default function POS() {
     }
     setKeypadMode('discount');
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
     setIsPercentMode(false);
   };
 
@@ -2597,9 +2589,9 @@ export default function POS() {
     if (keypadMode !== 'cartDiscount') {
       setKeypadMode('cartDiscount');
       keypadInputRef.current = '';
-      setKeypadInput('');
       setIsPercentMode(false);
       setSelectedCartItemId(null);
+      setKeypadRenderKey(prev => prev + 1);
       console.log('✅ Cart Discount mode activated');
     } else {
       console.log('ℹ️ Already in Cart Discount mode, keeping input:', keypadInputRef.current);
@@ -2629,13 +2621,13 @@ export default function POS() {
     }
     setKeypadMode('price');
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadClear = () => {
     console.log('🧹 CLEAR button pressed');
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
     setIsPercentMode(false);
     if (keypadMode === 'cartDiscount') {
       setKeypadMode(null);
@@ -2717,7 +2709,7 @@ export default function POS() {
 
     console.log('✅ Enter completed, clearing keypad input');
     keypadInputRef.current = '';
-    setKeypadInput('');
+    setKeypadRenderKey(prev => prev + 1);
     setKeypadMode(null);
     setIsPercentMode(false);
   };
