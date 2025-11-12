@@ -64,7 +64,7 @@ export default function AccountsPayable() {
         })
       );
 
-      return contactsWithBalance.filter(c => c.balance < 0); // Negative balance means we owe them
+      return contactsWithBalance.filter(c => c.balance > 0); // Positive balance in liability account means we owe them
     }
   });
 
@@ -74,7 +74,7 @@ export default function AccountsPayable() {
     p.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalOutstanding = payables?.reduce((sum, p) => sum + Math.abs(Number(p.balance)), 0) || 0;
+  const totalOutstanding = payables?.reduce((sum, p) => sum + Number(p.balance), 0) || 0;
 
   const handlePrint = () => {
     window.print();
@@ -154,7 +154,7 @@ export default function AccountsPayable() {
                     <TableCell>{payable.phone || '-'}</TableCell>
                     <TableCell>{payable.email || '-'}</TableCell>
                     <TableCell className="text-right font-semibold text-destructive">
-                      {formatCurrency(Math.abs(payable.balance))}
+                      {formatCurrency(payable.balance)}
                     </TableCell>
                   </TableRow>
                 ))}
