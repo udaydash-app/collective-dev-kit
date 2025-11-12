@@ -506,58 +506,50 @@ export default function Quotations() {
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 5;
       
-      // Items
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text('Item', margin, yPos);
-      doc.text('Qty', pageWidth - margin - 20, yPos, { align: 'right' });
-      doc.text('Total', pageWidth - margin, yPos, { align: 'right' });
-      yPos += 1;
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 4;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      
-      selectedQuotation.items.forEach(item => {
-        // Check if we need a new page
-        if (yPos > pageHeight - 40) {
-          doc.addPage();
-          yPos = 20;
-        }
-        
-        // Product name - bold
-        doc.setFont('helvetica', 'bold');
-        const productName = doc.splitTextToSize(item.productName, contentWidth - 40);
-        doc.text(productName, margin, yPos);
-        yPos += productName.length * 5;
-        
-        // Price details - normal weight
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
+      // Items table using autoTable
+      const tableData = selectedQuotation.items.map(item => {
         let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
         if (item.discount > 0) {
-          priceDetail += ` (-${formatCurrency(item.discount)})`;
+          priceDetail += `\n(-${formatCurrency(item.discount)})`;
         }
-        doc.text(priceDetail, margin + 3, yPos);
-        
-        // Quantity and total on the same line as price detail
-        doc.setFont('helvetica', 'normal');
-        doc.text(item.quantity.toString(), pageWidth - margin - 40, yPos, { align: 'right' });
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(formatCurrency(item.total), pageWidth - margin, yPos, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        
-        yPos += 6;
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.2);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 5;
+        return [
+          item.productName,
+          priceDetail,
+          item.quantity.toString(),
+          formatCurrency(item.total)
+        ];
+      });
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Item', 'Price Details', 'Qty', 'Total']],
+        body: tableData,
+        theme: 'plain',
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fontStyle: 'bold',
+          fontSize: 8,
+          fillColor: [245, 245, 245],
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto' }, // Item name - flexible
+          1: { cellWidth: 30, halign: 'left' }, // Price details
+          2: { cellWidth: 15, halign: 'right' }, // Quantity
+          3: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }, // Total
+        },
+        margin: { left: margin, right: margin },
+        didParseCell: function(data) {
+          // Make product names bold
+          if (data.section === 'body' && data.column.index === 0) {
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
       });
       
-      yPos += 2;
+      yPos = (doc as any).lastAutoTable.finalY + 5;
       
       // Check if we need a new page for totals
       if (yPos > pageHeight - 60) {
