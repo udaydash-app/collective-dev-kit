@@ -3283,6 +3283,22 @@ export default function POS() {
         <div className="flex gap-2 p-2 border-t bg-background">
           {/* Numeric Keypad - left side */}
           <div className="flex-1">
+            {/* Keypad Input Display */}
+            <div className="mb-2 p-3 bg-card border rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-muted-foreground">
+                  {keypadMode === 'qty' && 'QUANTITY'}
+                  {keypadMode === 'discount' && 'DISCOUNT'}
+                  {keypadMode === 'price' && 'CUSTOM PRICE'}
+                  {keypadMode === 'cartDiscount' && 'CART DISCOUNT'}
+                  {!keypadMode && 'SELECT MODE'}
+                  {isPercentMode && keypadMode && ' (%)'}
+                </div>
+                <div className="text-2xl font-bold text-primary min-w-[100px] text-right">
+                  {keypadInput || '0'}
+                </div>
+              </div>
+            </div>
             <NumericKeypad
               onNumberClick={handleKeypadNumber}
               onQtyClick={handleKeypadQty}
