@@ -417,19 +417,19 @@ export default function Quotations() {
       
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 15;
+      const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
       let yPos = 10;
       
       // Company Header
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       if (companySettings?.company_name) {
         doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 6;
+        yPos += 5;
       }
       
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       if (companySettings?.company_address) {
         const address = doc.splitTextToSize(companySettings.company_address, contentWidth);
@@ -454,12 +454,12 @@ export default function Quotations() {
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 5;
       
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('QUOTATION', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 6;
+      yPos += 5;
       
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(`#${selectedQuotation.quotation_number}`, pageWidth / 2, yPos, { align: 'center' });
       yPos += 2;
@@ -470,7 +470,7 @@ export default function Quotations() {
       yPos += 5;
       
       // Customer details
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
       doc.text('Bill To:', margin, yPos);
       yPos += 4;
@@ -508,7 +508,7 @@ export default function Quotations() {
       
       // Items
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.text('Item', margin, yPos);
       doc.text('Qty', pageWidth - margin - 20, yPos, { align: 'right' });
       doc.text('Total', pageWidth - margin, yPos, { align: 'right' });
@@ -518,7 +518,7 @@ export default function Quotations() {
       yPos += 4;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       
       selectedQuotation.items.forEach(item => {
         // Check if we need a new page
@@ -535,7 +535,7 @@ export default function Quotations() {
         
         // Price details - normal weight
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(7);
         let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
         if (item.discount > 0) {
           priceDetail += ` (-${formatCurrency(item.discount)})`;
@@ -546,7 +546,7 @@ export default function Quotations() {
         doc.setFont('helvetica', 'normal');
         doc.text(item.quantity.toString(), pageWidth - margin - 40, yPos, { align: 'right' });
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(8);
         doc.text(formatCurrency(item.total), pageWidth - margin, yPos, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         
@@ -566,33 +566,33 @@ export default function Quotations() {
       }
       
       // Totals
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 7;
+      yPos += 6;
       
       doc.text('Subtotal:', margin, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 6;
+      yPos += 5;
       
       doc.setFont('helvetica', 'normal');
       doc.text('Tax (18%):', margin, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.tax), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 6;
+      yPos += 5;
       
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
+      yPos += 5;
       
-      doc.setFontSize(12);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', margin, yPos);
       doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 8;
+      yPos += 7;
       
       // Notes
       if (selectedQuotation.notes) {
@@ -606,15 +606,16 @@ export default function Quotations() {
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 5;
         
-        doc.setFontSize(10);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.text('Notes:', margin, yPos);
-        yPos += 5;
+        yPos += 4;
         
+        doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         const notes = doc.splitTextToSize(selectedQuotation.notes, contentWidth);
         doc.text(notes, margin, yPos);
-        yPos += notes.length * 5 + 5;
+        yPos += notes.length * 4 + 5;
       }
       
       // Footer
@@ -622,7 +623,7 @@ export default function Quotations() {
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 4;
       
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'italic');
       doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       
