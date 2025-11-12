@@ -14,8 +14,9 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Trash2, Factory } from "lucide-react";
+import { Plus, Trash2, Factory, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface ProductOption {
@@ -48,6 +49,8 @@ interface OutputItem {
 export default function Production() {
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingProduction, setEditingProduction] = useState<any>(null);
+  const [deleteProductionId, setDeleteProductionId] = useState<string | null>(null);
   
   // Form state
   const [sourceType, setSourceType] = useState<'product' | 'variant'>('product');
@@ -212,6 +215,28 @@ export default function Production() {
     },
   });
 
+  // Delete production mutation
+  const deleteProductionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('productions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Production record deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['productions'] });
+      queryClient.invalidateQueries({ queryKey: ['products-for-production'] });
+      queryClient.invalidateQueries({ queryKey: ['variants-for-production'] });
+      setDeleteProductionId(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete production: ${error.message}`);
+    },
+  });
+
   const resetForm = () => {
     setSourceType('product');
     setSourceId("");
@@ -220,6 +245,7 @@ export default function Production() {
     setNotes("");
     setOutputs([]);
     setSourceOpen(false);
+    setEditingProduction(null);
   };
 
   const addOutput = () => {
@@ -339,6 +365,7 @@ export default function Production() {
                   <TableHead>Quantity Used</TableHead>
                   <TableHead>Outputs</TableHead>
                   <TableHead>Notes</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -359,6 +386,18 @@ export default function Production() {
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
                       {production.notes || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteProductionId(production.id)}
+                          title="Delete Production"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -596,6 +635,32 @@ export default function Production() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteProductionId} onOpenChange={() => setDeleteProductionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Production Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this production record? This action cannot be undone.
+              Note: This will not restore the stock quantities.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteProductionId) {
+                  deleteProductionMutation.mutate(deleteProductionId);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
