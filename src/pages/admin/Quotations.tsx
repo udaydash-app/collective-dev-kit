@@ -946,23 +946,23 @@ export default function Quotations() {
                               return;
                             }
                             
-                            // Use wa.me (official WhatsApp link) instead of wa.ms
+                            // Use wa.me (official WhatsApp link)
                             const whatsappUrl = `https://wa.me/${phone}`;
                             console.log('Opening WhatsApp URL:', whatsappUrl);
                             
                             try {
-                              const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                              if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                console.error('Popup blocked, trying fallback');
-                                toast.error('Popup blocked. Please allow popups for this site.');
-                                // Fallback: try direct navigation
-                                window.location.href = whatsappUrl;
+                              // Try to open in parent/top window to escape iframe restrictions
+                              if (window.top && window.top !== window.self) {
+                                // We're in an iframe, open in parent
+                                window.top.open(whatsappUrl, '_blank');
                               } else {
-                                console.log('WhatsApp opened successfully');
+                                // Normal window, use regular open
+                                window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
                               }
                             } catch (error) {
                               console.error('Error opening WhatsApp:', error);
-                              toast.error('Failed to open WhatsApp: ' + (error as Error).message);
+                              // Final fallback: navigate in current window
+                              window.location.href = whatsappUrl;
                             }
                           }}
                         >
@@ -1137,23 +1137,23 @@ export default function Quotations() {
                           return;
                         }
                         
-                        // Use wa.me (official WhatsApp link) instead of wa.ms
+                        // Use wa.me (official WhatsApp link)
                         const whatsappUrl = `https://wa.me/${phone}`;
                         console.log('Opening WhatsApp URL:', whatsappUrl);
                         
                         try {
-                          const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                            console.error('Popup blocked, trying fallback');
-                            toast.error('Popup blocked. Please allow popups for this site.');
-                            // Fallback: try direct navigation
-                            window.location.href = whatsappUrl;
+                          // Try to open in parent/top window to escape iframe restrictions
+                          if (window.top && window.top !== window.self) {
+                            // We're in an iframe, open in parent
+                            window.top.open(whatsappUrl, '_blank');
                           } else {
-                            console.log('WhatsApp opened successfully');
+                            // Normal window, use regular open
+                            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
                           }
                         } catch (error) {
                           console.error('Error opening WhatsApp:', error);
-                          toast.error('Failed to open WhatsApp: ' + (error as Error).message);
+                          // Final fallback: navigate in current window
+                          window.location.href = whatsappUrl;
                         }
                       }}
                     >
