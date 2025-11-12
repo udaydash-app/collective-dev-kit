@@ -408,14 +408,16 @@ export default function Quotations() {
 
     try {
       // Create thermal receipt sized PDF (80mm width)
+      // Create A4 PDF with proper margins
       const doc = new jsPDF({
         unit: 'mm',
-        format: [80, 297], // 80mm width, 297mm max height (will be trimmed)
+        format: 'a4',
         orientation: 'portrait'
       });
       
-      const pageWidth = 80;
-      const margin = 5;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
       let yPos = 10;
       
@@ -516,85 +518,103 @@ export default function Quotations() {
       yPos += 4;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(10);
       
       selectedQuotation.items.forEach(item => {
+        // Check if we need a new page
+        if (yPos > pageHeight - 40) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
         // Product name - bold
         doc.setFont('helvetica', 'bold');
-        const productName = doc.splitTextToSize(item.productName, contentWidth - 15);
+        const productName = doc.splitTextToSize(item.productName, contentWidth - 40);
         doc.text(productName, margin, yPos);
-        yPos += productName.length * 4;
+        yPos += productName.length * 5;
         
-        // Price details - normal weight, slightly larger
+        // Price details - normal weight
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
+        doc.setFontSize(9);
         let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
         if (item.discount > 0) {
           priceDetail += ` (-${formatCurrency(item.discount)})`;
         }
-        doc.text(priceDetail, margin + 2, yPos);
+        doc.text(priceDetail, margin + 3, yPos);
         
         // Quantity and total on the same line as price detail
         doc.setFont('helvetica', 'normal');
-        doc.text(item.quantity.toString(), pageWidth - margin - 20, yPos, { align: 'right' });
+        doc.text(item.quantity.toString(), pageWidth - margin - 40, yPos, { align: 'right' });
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
+        doc.setFontSize(10);
         doc.text(formatCurrency(item.total), pageWidth - margin, yPos, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         
-        yPos += 5;
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.3);
+        yPos += 6;
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
         doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 4;
+        yPos += 5;
       });
       
       yPos += 2;
       
+      // Check if we need a new page for totals
+      if (yPos > pageHeight - 60) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
       // Totals
-      doc.setFontSize(9);
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
+      yPos += 7;
       
       doc.text('Subtotal:', margin, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 5;
+      yPos += 6;
       
       doc.setFont('helvetica', 'normal');
       doc.text('Tax (18%):', margin, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.tax), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 5;
+      yPos += 6;
       
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
+      yPos += 6;
       
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', margin, yPos);
       doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 7;
+      yPos += 8;
       
       // Notes
       if (selectedQuotation.notes) {
+        // Check if we need a new page for notes
+        if (yPos > pageHeight - 40) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
         doc.setLineWidth(0.5);
         doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 4;
+        yPos += 5;
         
-        doc.setFontSize(7);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('Notes:', margin, yPos);
-        yPos += 3;
+        yPos += 5;
         
         doc.setFont('helvetica', 'normal');
         const notes = doc.splitTextToSize(selectedQuotation.notes, contentWidth);
         doc.text(notes, margin, yPos);
-        yPos += notes.length * 3 + 3;
+        yPos += notes.length * 5 + 5;
       }
       
       // Footer
@@ -917,7 +937,7 @@ export default function Quotations() {
                           title="Share via WhatsApp"
                         >
                           <a 
-                            href="https://web.whatsapp.com"
+                            href={`https://wa.me/${quotation.customer_phone?.replace(/[^0-9]/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1086,7 +1106,7 @@ export default function Quotations() {
                       asChild
                     >
                       <a 
-                        href="https://web.whatsapp.com"
+                        href={`https://wa.me/${selectedQuotation.customer_phone?.replace(/[^0-9]/g, '')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
