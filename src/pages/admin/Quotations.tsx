@@ -508,35 +508,42 @@ export default function Quotations() {
       // Items table using autoTable
       autoTable(doc, {
         startY: yPos,
-        head: [['Item', 'Price', 'Disc.', 'Qty', 'Total']],
+        head: [['Item', 'Unit Price', 'Discount', 'Qty', 'Total']],
         body: selectedQuotation.items.map((item: any) => [
           item.productName,
           formatCurrency(item.price),
-          item.discount > 0 ? formatCurrency(item.discount) : '-',
+          item.discount > 0 ? `-${formatCurrency(item.discount)}` : '0',
           item.quantity.toString(),
           formatCurrency(item.total)
         ]),
-        theme: 'plain',
+        theme: 'striped',
         styles: {
-          fontSize: 10,
-          cellPadding: 3,
+          fontSize: 9,
+          cellPadding: 4,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
         },
         headStyles: {
           fontStyle: 'bold',
-          fontSize: 11,
-          fillColor: [245, 245, 245],
+          fontSize: 9,
+          fillColor: [41, 128, 185],
+          textColor: [255, 255, 255],
+          halign: 'center',
         },
         columnStyles: {
-          0: { cellWidth: 'auto', fontStyle: 'bold' }, // Item name - flexible, bold
-          1: { cellWidth: 28, halign: 'right' }, // Price
-          2: { cellWidth: 22, halign: 'right' }, // Discount
+          0: { cellWidth: 'auto', halign: 'left' }, // Item name
+          1: { cellWidth: 25, halign: 'right' }, // Unit Price
+          2: { cellWidth: 25, halign: 'right' }, // Discount
           3: { cellWidth: 15, halign: 'center' }, // Quantity
-          4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }, // Total
+          4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }, // Total
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250]
         },
         margin: { left: margin, right: margin }
       });
       
-      yPos = (doc as any).lastAutoTable.finalY + 5;
+      yPos = (doc as any).lastAutoTable.finalY + 8;
       
       // Check if we need a new page for totals
       if (yPos > pageHeight - 60) {
@@ -544,36 +551,37 @@ export default function Quotations() {
         yPos = 20;
       }
       
-      // Totals
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 7;
+      // Totals section with better spacing
+      const totalsX = pageWidth - margin - 50;
       
-      doc.text('Subtotal:', margin, yPos);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Subtotal:', totalsX, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
       yPos += 6;
       
       if (selectedQuotation.discount > 0) {
         doc.setFont('helvetica', 'normal');
-        doc.text('Discount:', margin, yPos);
+        doc.text('Total Discount:', totalsX, yPos);
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(220, 53, 69); // Red color for discount
         doc.text(`-${formatCurrency(selectedQuotation.discount)}`, pageWidth - margin, yPos, { align: 'right' });
+        doc.setTextColor(0, 0, 0); // Reset to black
         yPos += 6;
       }
       
+      // Total line
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
+      doc.line(totalsX - 5, yPos, pageWidth - margin, yPos);
+      yPos += 7;
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('TOTAL:', margin, yPos);
+      doc.text('TOTAL:', totalsX, yPos);
       doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 8;
+      yPos += 10;
       
       // Notes
       if (selectedQuotation.notes) {
