@@ -938,7 +938,7 @@ export default function Quotations() {
                               toast.error('No phone number available for this customer');
                               return;
                             }
-                            window.open(`https://wa.me/${phone}`, '_blank');
+                            window.open(`https://wa.ms/${phone}`, '_blank');
                           }}
                         >
                           <Send className="w-4 h-4" />
@@ -1111,7 +1111,7 @@ export default function Quotations() {
                           toast.error('No phone number available for this customer');
                           return;
                         }
-                        window.open(`https://wa.me/${phone}`, '_blank');
+                        window.open(`https://wa.ms/${phone}`, '_blank');
                       }}
                     >
                       <Send className="w-4 h-4 mr-2" />
