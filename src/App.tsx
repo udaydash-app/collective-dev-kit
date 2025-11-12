@@ -110,16 +110,30 @@ const AppContent = () => {
       }
 
       try {
-        console.log('Caching data for offline use...');
-        const { cacheEssentialData } = await import('@/lib/cacheData');
-        await cacheEssentialData();
-        console.log('Data cached successfully');
+        const { cacheEssentialData, getLastCacheTime, isCacheStale } = await import('@/lib/cacheData');
+        const lastCache = getLastCacheTime();
+        
+        if (!lastCache) {
+          // First time setup - cache all data
+          console.log('First time setup: Caching all data for offline use...');
+          await cacheEssentialData(false);
+          console.log('Initial data cache completed');
+        } else if (isCacheStale(24)) {
+          // Refresh stale cache (older than 24 hours)
+          console.log('Cache is stale, refreshing data...');
+          await cacheEssentialData(false);
+          console.log('Cache refreshed successfully');
+        } else {
+          console.log('Cache is fresh, no update needed');
+        }
       } catch (error) {
         console.error('Failed to cache data:', error);
       }
     };
 
-    initOfflineData();
+    // Run initialization after a short delay to let app mount
+    const timer = setTimeout(initOfflineData, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Use HashRouter for Electron, BrowserRouter for web
