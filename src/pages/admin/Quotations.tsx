@@ -284,11 +284,11 @@ export default function Quotations() {
   };
 
   const calculateTotals = () => {
-    const subtotal = quotationItems.reduce((sum, item) => sum + item.total, 0);
-    const tax = subtotal * 0.18; // 18% tax
-    const total = subtotal + tax;
+    const subtotal = quotationItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = quotationItems.reduce((sum, item) => sum + item.discount, 0);
+    const total = subtotal - discount;
     
-    return { subtotal, tax, total };
+    return { subtotal, discount, total };
   };
 
   const handleSaveQuotation = async (status: 'draft' | 'sent' = 'draft') => {
@@ -303,8 +303,7 @@ export default function Quotations() {
       return;
     }
 
-    const { subtotal, tax, total } = calculateTotals();
-    const totalDiscount = quotationItems.reduce((sum, item) => sum + item.discount, 0);
+    const { subtotal, discount, total } = calculateTotals();
 
     const quotationData: any = {
       contact_id: selectedContactId,
@@ -313,8 +312,8 @@ export default function Quotations() {
       customer_phone: selectedContact.phone,
       items: quotationItems,
       subtotal,
-      discount: totalDiscount,
-      tax,
+      discount,
+      tax: 0, // Tax removed, keeping field for backward compatibility
       total,
       notes,
       status,
@@ -570,11 +569,13 @@ export default function Quotations() {
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
       yPos += 5;
       
-      doc.setFont('helvetica', 'normal');
-      doc.text('Tax (18%):', margin, yPos);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(selectedQuotation.tax), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 5;
+      if (selectedQuotation.discount > 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.text('Discount:', margin, yPos);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`-${formatCurrency(selectedQuotation.discount)}`, pageWidth - margin, yPos, { align: 'right' });
+        yPos += 5;
+      }
       
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
@@ -639,7 +640,7 @@ export default function Quotations() {
     return <Badge variant={variants[status] || 'default'}>{status.toUpperCase()}</Badge>;
   };
 
-  const { subtotal, tax, total } = calculateTotals();
+  const { subtotal, discount, total } = calculateTotals();
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
@@ -812,10 +813,12 @@ export default function Quotations() {
                         <span>Subtotal:</span>
                         <span className="font-medium">{formatCurrency(subtotal)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Tax (18%):</span>
-                        <span className="font-medium">{formatCurrency(tax)}</span>
-                      </div>
+                      {discount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Discount:</span>
+                          <span className="font-medium">-{formatCurrency(discount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-lg font-bold">
                         <span>Total:</span>
                         <span>{formatCurrency(total)}</span>
@@ -1062,10 +1065,12 @@ export default function Quotations() {
                       <span>Subtotal:</span>
                       <span className="font-medium">{formatCurrency(selectedQuotation.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between print:text-black">
-                      <span>Tax (18%):</span>
-                      <span className="font-medium">{formatCurrency(selectedQuotation.tax)}</span>
-                    </div>
+                    {selectedQuotation.discount > 0 && (
+                      <div className="flex justify-between print:text-black">
+                        <span>Discount:</span>
+                        <span className="font-medium">-{formatCurrency(selectedQuotation.discount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-sm border-t border-black pt-1 mt-1 print:text-black">
                       <span>TOTAL:</span>
                       <span>{formatCurrency(selectedQuotation.total)}</span>
