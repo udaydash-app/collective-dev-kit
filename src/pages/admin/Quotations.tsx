@@ -406,7 +406,18 @@ export default function Quotations() {
     if (!selectedQuotation) return;
 
     try {
-      // Create thermal receipt sized PDF (80mm width)
+      // PDF-specific currency formatter to avoid line breaks
+      const formatCurrencyPDF = (amount: number | null | undefined): string => {
+        const value = amount ?? 0;
+        // Use comma separator instead of space to avoid line breaks
+        const hasDecimals = value % 1 !== 0;
+        const formatted = value.toLocaleString('en-US', {
+          minimumFractionDigits: hasDecimals ? 2 : 0,
+          maximumFractionDigits: 2
+        });
+        return `${formatted} FCFA`;
+      };
+
       // Create A4 PDF with proper margins
       const doc = new jsPDF({
         unit: 'mm',
@@ -511,10 +522,10 @@ export default function Quotations() {
         head: [['Item', 'Unit Price', 'Discount', 'Qty', 'Total']],
         body: selectedQuotation.items.map((item: any) => [
           item.productName,
-          formatCurrency(item.price),
-          item.discount > 0 ? `-${formatCurrency(item.discount)}` : '0',
+          formatCurrencyPDF(item.price),
+          item.discount > 0 ? `-${formatCurrencyPDF(item.discount)}` : '0',
           item.quantity.toString(),
-          formatCurrency(item.total)
+          formatCurrencyPDF(item.total)
         ]),
         theme: 'striped',
         styles: {
@@ -558,7 +569,7 @@ export default function Quotations() {
       doc.setFont('helvetica', 'normal');
       doc.text('Subtotal:', totalsX, yPos);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
+      doc.text(formatCurrencyPDF(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
       yPos += 6;
       
       if (selectedQuotation.discount > 0) {
@@ -566,7 +577,7 @@ export default function Quotations() {
         doc.text('Total Discount:', totalsX, yPos);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(220, 53, 69); // Red color for discount
-        doc.text(`-${formatCurrency(selectedQuotation.discount)}`, pageWidth - margin, yPos, { align: 'right' });
+        doc.text(`-${formatCurrencyPDF(selectedQuotation.discount)}`, pageWidth - margin, yPos, { align: 'right' });
         doc.setTextColor(0, 0, 0); // Reset to black
         yPos += 6;
       }
@@ -580,7 +591,7 @@ export default function Quotations() {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', totalsX, yPos);
-      doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
+      doc.text(formatCurrencyPDF(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
       yPos += 10;
       
       // Notes
