@@ -351,10 +351,12 @@ export default function Quotations() {
   };
 
   const handleLoadToCart = async (quotation: Quotation) => {
+    const loadingToast = toast.loading('Loading quotation to cart...');
     try {
       // Clear existing cart first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        toast.dismiss(loadingToast);
         toast.error('Please login to continue');
         return;
       }
@@ -380,9 +382,19 @@ export default function Quotations() {
         .update({ status: 'converted' })
         .eq('id', quotation.id);
 
-      toast.success('Quotation loaded to cart');
-      navigate('/admin/pos');
+      // Invalidate cart queries to ensure fresh data
+      await queryClient.invalidateQueries({ queryKey: ['cart-items'] });
+      await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+
+      toast.dismiss(loadingToast);
+      toast.success('Quotation loaded to cart successfully');
+      
+      // Navigate to POS after a small delay to ensure data is ready
+      setTimeout(() => {
+        navigate('/admin/pos');
+      }, 300);
     } catch (error: any) {
+      toast.dismiss(loadingToast);
       toast.error('Failed to load to cart: ' + error.message);
     }
   };
@@ -864,13 +876,32 @@ export default function Quotations() {
                             setSelectedQuotation(quotation);
                             setViewMode(true);
                           }}
+                          title="View Details"
                         >
                           <FileText className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleEditQuotation(quotation)}
+                          title="Edit Quotation"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleLoadToCart(quotation)}
+                          title="Load to Cart"
+                          disabled={quotation.status === 'converted'}
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           asChild
+                          title="Share via WhatsApp"
                         >
                           <a 
                             href="https://web.whatsapp.com"
@@ -880,31 +911,14 @@ export default function Quotations() {
                             <Send className="w-4 h-4" />
                           </a>
                         </Button>
-                        {quotation.status !== 'converted' && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleLoadToCart(quotation)}
-                            >
-                              <ShoppingCart className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditQuotation(quotation)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteQuotationId(quotation.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteQuotationId(quotation.id)}
+                          title="Delete Quotation"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
