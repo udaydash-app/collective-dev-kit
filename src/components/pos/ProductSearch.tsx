@@ -325,7 +325,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
               <Card
                 key={product.id}
                 ref={(el) => (productRefs.current[index] = el)}
-                className={`p-3 flex items-center gap-3 cursor-pointer ${
+                className={`p-3 flex items-center gap-3 cursor-pointer transition-none ${
                   isHighlighted 
                     ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
                     : 'hover:bg-accent'
