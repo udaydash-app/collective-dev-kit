@@ -934,23 +934,19 @@ export default function Quotations() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          asChild
-                          title={quotation.customer_phone ? "Share via WhatsApp" : "No phone number available"}
-                          disabled={!quotation.customer_phone}
+                          title={quotation.customer_phone?.trim() ? "Share via WhatsApp" : "No phone number available"}
+                          disabled={!quotation.customer_phone?.trim()}
+                          onClick={(e) => {
+                            const phone = quotation.customer_phone?.replace(/[^0-9]/g, '').trim();
+                            if (!phone) {
+                              e.preventDefault();
+                              toast.error('No phone number available for this customer');
+                              return;
+                            }
+                            window.open(`https://wa.me/${phone}`, '_blank');
+                          }}
                         >
-                          {quotation.customer_phone ? (
-                            <a 
-                              href={`https://wa.me/${quotation.customer_phone.replace(/[^0-9]/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Send className="w-4 h-4" />
-                            </a>
-                          ) : (
-                            <span>
-                              <Send className="w-4 h-4" />
-                            </span>
-                          )}
+                          <Send className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -1110,23 +1106,20 @@ export default function Quotations() {
                       <Download className="w-4 h-4 mr-2" />
                       Download PDF
                     </Button>
-                    {selectedQuotation.customer_phone ? (
-                      <Button asChild>
-                        <a 
-                          href={`https://wa.me/${selectedQuotation.customer_phone.replace(/[^0-9]/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Send className="w-4 h-4 mr-2" />
-                          WhatsApp
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button disabled title="No phone number available">
-                        <Send className="w-4 h-4 mr-2" />
-                        WhatsApp
-                      </Button>
-                    )}
+                    <Button
+                      disabled={!selectedQuotation.customer_phone?.trim()}
+                      onClick={() => {
+                        const phone = selectedQuotation.customer_phone?.replace(/[^0-9]/g, '').trim();
+                        if (!phone) {
+                          toast.error('No phone number available for this customer');
+                          return;
+                        }
+                        window.open(`https://wa.me/${phone}`, '_blank');
+                      }}
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      WhatsApp
+                    </Button>
                   </div>
                 </div>
               </>
