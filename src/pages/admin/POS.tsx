@@ -2546,14 +2546,22 @@ export default function POS() {
     console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInput });
     
     if (keypadMode === 'cartDiscount') {
-      setKeypadInput(prev => prev + value);
+      setKeypadInput(prev => {
+        const newValue = prev + value;
+        console.log('📝 Cart Discount input updated:', { prev, value, newValue });
+        return newValue;
+      });
       return;
     }
     if (!selectedCartItemId) {
       toast.error('Please select a product from the cart first');
       return;
     }
-    setKeypadInput(prev => prev + value);
+    setKeypadInput(prev => {
+      const newValue = prev + value;
+      console.log('📝 Regular input updated:', { prev, value, newValue });
+      return newValue;
+    });
   };
 
   const handleKeypadQty = () => {
@@ -3295,7 +3303,11 @@ export default function POS() {
                   {isPercentMode && keypadMode && ' (%)'}
                 </div>
                 <div className="text-2xl font-bold text-primary min-w-[100px] text-right">
-                  {keypadInput || '0'}
+                  {(() => {
+                    const displayValue = keypadInput || '0';
+                    console.log('🖥️ Display rendering:', { keypadMode, keypadInput, displayValue });
+                    return displayValue;
+                  })()}
                 </div>
               </div>
             </div>
