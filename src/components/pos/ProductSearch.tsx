@@ -312,40 +312,50 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       )}
 
       {products && products.length > 0 && (
-        <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-          {products.map((product, index) => {
-            const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
-            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-            const displayPrice = availableVariants.length > 0 
-              ? defaultVariant?.price 
-              : product.price;
-            const isHighlighted = index === highlightedIndex;
+        <Card className="max-h-[400px] overflow-hidden">
+          <div className="overflow-y-auto max-h-[400px]">
+            <div className="min-w-full">
+              {/* Header Row */}
+              <div className="grid grid-cols-[120px_1fr_100px_80px] gap-2 px-3 py-2 bg-muted/50 border-b sticky top-0 z-10">
+                <div className="font-semibold text-xs">Barcode</div>
+                <div className="font-semibold text-xs">Product Name</div>
+                <div className="font-semibold text-xs text-right">Price</div>
+                <div className="font-semibold text-xs text-right">Stock</div>
+              </div>
+              
+              {/* Data Rows */}
+              {products.map((product, index) => {
+                const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+                const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+                const displayPrice = availableVariants.length > 0 
+                  ? defaultVariant?.price 
+                  : product.price;
+                const displayStock = availableVariants.length > 0
+                  ? defaultVariant?.quantity || 0
+                  : product.stock_quantity || 0;
+                const isHighlighted = index === highlightedIndex;
 
-            return (
-              <Card
-                key={product.id}
-                ref={(el) => (productRefs.current[index] = el)}
-                className={`p-3 flex items-center gap-3 cursor-pointer transition-none ${
-                  isHighlighted 
-                    ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
-                    : 'hover:bg-accent'
-                }`}
-                onClick={() => handleProductSelect(product, true)}
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{product.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {product.barcode || 'No barcode'}
-                    {availableVariants.length > 0 && ` • ${availableVariants.length} variants`}
-                  </p>
-                </div>
-                <p className="font-bold text-primary">
-                  {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
-                </p>
-              </Card>
-            );
-          })}
-        </div>
+                return (
+                  <div
+                    key={product.id}
+                    ref={(el) => (productRefs.current[index] = el)}
+                    className={`grid grid-cols-[120px_1fr_100px_80px] gap-2 px-3 py-2 cursor-pointer transition-none border-b last:border-b-0 ${
+                      isHighlighted 
+                        ? 'bg-primary/10 border-l-2 border-l-primary' 
+                        : 'hover:bg-accent'
+                    }`}
+                    onClick={() => handleProductSelect(product, true)}
+                  >
+                    <div className="text-sm truncate">{product.barcode || '-'}</div>
+                    <div className="text-sm font-medium truncate">{product.name}</div>
+                    <div className="text-sm font-semibold text-right">{displayPrice ? formatCurrency(Number(displayPrice)) : '-'}</div>
+                    <div className="text-sm text-right">{displayStock}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
       )}
 
       {searchTerm && products && products.length === 0 && (
