@@ -2540,6 +2540,10 @@ export default function POS() {
   const handleSelectCartItem = (itemId: string) => {
     // Don't allow selecting cart discount item
     if (itemId === 'cart-discount') return;
+    
+    // Don't clear input or change selection when in cart discount mode
+    if (keypadMode === 'cartDiscount') return;
+    
     console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
     keypadInputRef.current = '';
