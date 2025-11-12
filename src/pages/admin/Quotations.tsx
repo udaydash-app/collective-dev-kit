@@ -1068,14 +1068,6 @@ export default function Quotations() {
                   </div>
                 </div>
                 </div>
-                    </div>
-                  )}
-
-                  <div className="mt-4 pt-2 border-t-2 border-black text-center text-xs">
-                    <p>Thank you for your business!</p>
-                  </div>
-                </div>
-                </div>
 
                 <div className="flex gap-2 justify-between pt-4 border-t">
                   <Button variant="outline" onClick={() => setViewMode(false)}>
