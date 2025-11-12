@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -63,6 +69,8 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [periodFilter, setPeriodFilter] = useState<string>("this_month");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -125,13 +133,18 @@ export default function AdminOrders() {
         return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
       case 'this_month':
         return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'custom':
+        if (startDate && endDate) {
+          return { start: startOfDay(startDate), end: endOfDay(endDate) };
+        }
+        return null;
       default:
         return null;
     }
   };
 
   const { data: orders, isLoading, error: queryError } = useQuery({
-    queryKey: ['admin-orders', statusFilter, periodFilter],
+    queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate],
     queryFn: async () => {
       const dateRange = getDateRange();
       
@@ -1153,8 +1166,45 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="this_week">This Week</SelectItem>
                   <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
+              {periodFilter === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {startDate && endDate ? (
+                        `${formatDate(startDate)} - ${formatDate(endDate)}`
+                      ) : (
+                        <span>Pick date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Start Date</label>
+                        <CalendarComponent
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          initialFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">End Date</label>
+                        <CalendarComponent
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          disabled={(date) => startDate ? date < startDate : false}
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
