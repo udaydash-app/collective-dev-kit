@@ -127,6 +127,7 @@ export default function POS() {
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
   const [keypadInput, setKeypadInput] = useState<string>('');
   const keypadInputRef = useRef<string>(''); // Persist across re-renders
+  const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -2552,6 +2553,7 @@ export default function POS() {
       const newValue = keypadInputRef.current + value;
       keypadInputRef.current = newValue;
       setKeypadInput(newValue);
+      setKeypadRenderKey(prev => prev + 1); // Force re-render
       console.log('📝 Cart Discount input updated:', { prev: keypadInput, value, newValue });
       return;
     }
@@ -2562,6 +2564,7 @@ export default function POS() {
     const newValue = keypadInputRef.current + value;
     keypadInputRef.current = newValue;
     setKeypadInput(newValue);
+    setKeypadRenderKey(prev => prev + 1); // Force re-render
     console.log('📝 Regular input updated:', { prev: keypadInput, value, newValue });
   };
 
@@ -3302,7 +3305,7 @@ export default function POS() {
           {/* Numeric Keypad - left side */}
           <div className="flex-1">
             {/* Keypad Input Display */}
-            <div className="mb-2 p-3 bg-card border rounded-lg">
+            <div key={keypadRenderKey} className="mb-2 p-3 bg-card border rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-muted-foreground">
                   {keypadMode === 'qty' && 'QUANTITY'}
@@ -3313,11 +3316,7 @@ export default function POS() {
                   {isPercentMode && keypadMode && ' (%)'}
                 </div>
                 <div className="text-2xl font-bold text-primary min-w-[100px] text-right">
-                  {(() => {
-                    const displayValue = keypadInput || '0';
-                    console.log('🖥️ Display rendering:', { keypadMode, keypadInput, displayValue });
-                    return displayValue;
-                  })()}
+                  {keypadInputRef.current || '0'}
                 </div>
               </div>
             </div>
