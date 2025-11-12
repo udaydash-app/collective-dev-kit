@@ -506,46 +506,34 @@ export default function Quotations() {
       yPos += 5;
       
       // Items table using autoTable
-      const tableData = selectedQuotation.items.map(item => {
-        let priceDetail = `${formatCurrency(item.price)} x ${item.quantity}`;
-        if (item.discount > 0) {
-          priceDetail += `\n(-${formatCurrency(item.discount)})`;
-        }
-        return [
-          item.productName,
-          priceDetail,
-          item.quantity.toString(),
-          formatCurrency(item.total)
-        ];
-      });
-
       autoTable(doc, {
         startY: yPos,
-        head: [['Item', 'Price Details', 'Qty', 'Total']],
-        body: tableData,
+        head: [['Item', 'Price', 'Disc.', 'Qty', 'Total']],
+        body: selectedQuotation.items.map((item: any) => [
+          item.productName,
+          formatCurrency(item.price),
+          item.discount > 0 ? formatCurrency(item.discount) : '-',
+          item.quantity.toString(),
+          formatCurrency(item.total)
+        ]),
         theme: 'plain',
         styles: {
-          fontSize: 7,
-          cellPadding: 2,
+          fontSize: 10,
+          cellPadding: 3,
         },
         headStyles: {
           fontStyle: 'bold',
-          fontSize: 8,
+          fontSize: 11,
           fillColor: [245, 245, 245],
         },
         columnStyles: {
-          0: { cellWidth: 'auto' }, // Item name - flexible
-          1: { cellWidth: 30, halign: 'left' }, // Price details
-          2: { cellWidth: 15, halign: 'right' }, // Quantity
-          3: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }, // Total
+          0: { cellWidth: 'auto', fontStyle: 'bold' }, // Item name - flexible, bold
+          1: { cellWidth: 28, halign: 'right' }, // Price
+          2: { cellWidth: 22, halign: 'right' }, // Discount
+          3: { cellWidth: 15, halign: 'center' }, // Quantity
+          4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }, // Total
         },
-        margin: { left: margin, right: margin },
-        didParseCell: function(data) {
-          // Make product names bold
-          if (data.section === 'body' && data.column.index === 0) {
-            data.cell.styles.fontStyle = 'bold';
-          }
-        }
+        margin: { left: margin, right: margin }
       });
       
       yPos = (doc as any).lastAutoTable.finalY + 5;
@@ -557,35 +545,35 @@ export default function Quotations() {
       }
       
       // Totals
-      doc.setFontSize(9);
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
+      yPos += 7;
       
       doc.text('Subtotal:', margin, yPos);
       doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(selectedQuotation.subtotal), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 5;
+      yPos += 6;
       
       if (selectedQuotation.discount > 0) {
         doc.setFont('helvetica', 'normal');
         doc.text('Discount:', margin, yPos);
         doc.setFont('helvetica', 'bold');
         doc.text(`-${formatCurrency(selectedQuotation.discount)}`, pageWidth - margin, yPos, { align: 'right' });
-        yPos += 5;
+        yPos += 6;
       }
       
       doc.setLineWidth(0.5);
       doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
+      yPos += 6;
       
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', margin, yPos);
       doc.text(formatCurrency(selectedQuotation.total), pageWidth - margin, yPos, { align: 'right' });
-      yPos += 7;
+      yPos += 8;
       
       // Notes
       if (selectedQuotation.notes) {
@@ -599,16 +587,16 @@ export default function Quotations() {
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 5;
         
-        doc.setFontSize(8);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('Notes:', margin, yPos);
-        yPos += 4;
+        yPos += 5;
         
-        doc.setFontSize(7);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         const notes = doc.splitTextToSize(selectedQuotation.notes, contentWidth);
         doc.text(notes, margin, yPos);
-        yPos += notes.length * 4 + 5;
+        yPos += notes.length * 5 + 6;
       }
       
       // Footer
@@ -616,7 +604,7 @@ export default function Quotations() {
       doc.line(margin, yPos, pageWidth - margin, yPos);
       yPos += 4;
       
-      doc.setFontSize(7);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'italic');
       doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       
