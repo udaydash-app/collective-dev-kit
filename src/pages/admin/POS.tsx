@@ -2538,6 +2538,7 @@ export default function POS() {
   const handleSelectCartItem = (itemId: string) => {
     // Don't allow selecting cart discount item
     if (itemId === 'cart-discount') return;
+    console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
     setKeypadInput('');
   };
@@ -2569,6 +2570,7 @@ export default function POS() {
       toast.error('Please select a product from the cart first');
       return;
     }
+    console.log('🔢 QTY mode activated, clearing input');
     setKeypadMode('qty');
     setKeypadInput('');
   };
@@ -2624,6 +2626,7 @@ export default function POS() {
   };
 
   const handleKeypadClear = () => {
+    console.log('🧹 CLEAR button pressed');
     setKeypadInput('');
     setIsPercentMode(false);
     if (keypadMode === 'cartDiscount') {
@@ -2701,9 +2704,10 @@ export default function POS() {
           quantity: 1,
           itemDiscount: 0,
         });
-        break;
+      break;
     }
 
+    console.log('✅ Enter completed, clearing keypad input');
     setKeypadInput('');
     setKeypadMode(null);
     setIsPercentMode(false);
