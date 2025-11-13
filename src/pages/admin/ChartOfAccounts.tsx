@@ -280,16 +280,16 @@ export default function ChartOfAccounts() {
                     </span>
                   </Label>
                   <Select
-                    value={formData.parent_account_id}
+                    value={formData.parent_account_id || 'none'}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, parent_account_id: value })
+                      setFormData({ ...formData, parent_account_id: value === 'none' ? '' : value })
                     }
                   >
                     <SelectTrigger id="parent_account">
                       <SelectValue placeholder="None (Top Level Account)" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      <SelectItem value="">None (Top Level Account)</SelectItem>
+                      <SelectItem value="none">None (Top Level Account)</SelectItem>
                       {accounts
                         ?.filter(a => a.id !== editingAccount?.id)
                         .sort((a, b) => a.account_code.localeCompare(b.account_code))
