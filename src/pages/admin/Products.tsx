@@ -101,21 +101,25 @@ export default function Products() {
   const [returnPath, setReturnPath] = useState<string | null>(null);
   const [fromPurchases, setFromPurchases] = useState(false);
   const [fromPOS, setFromPOS] = useState(false);
+  const [hasProcessedOpenDialog, setHasProcessedOpenDialog] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchCategories();
     fetchStores();
-    
-    // Check if opened from Purchases or POS page
-    if (location.state?.openAddDialog) {
+  }, []);
+
+  // Handle opening add dialog after data is loaded
+  useEffect(() => {
+    if (location.state?.openAddDialog && stores.length > 0 && !loading && !hasProcessedOpenDialog) {
       setFromPurchases(location.state?.fromPurchases || false);
       setFromPOS(location.state?.fromPOS || false);
       handleAdd();
-      // Clear the state
+      setHasProcessedOpenDialog(true);
+      // Clear the state to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, []);
+  }, [stores.length, loading, hasProcessedOpenDialog]);
 
   const fetchProducts = async () => {
     try {
