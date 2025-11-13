@@ -28,6 +28,51 @@ interface PurchaseItem {
   variant_label?: string;
 }
 
+// State preservation helpers for navigating to add new product
+const PURCHASE_FORM_STATE_KEY = 'purchaseFormState';
+const STATE_EXPIRY_HOURS = 1;
+
+interface SavedPurchaseFormState {
+  items: PurchaseItem[];
+  selectedSupplier: string;
+  selectedStore: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes: string;
+  timestamp: number;
+}
+
+const savePurchaseFormState = (state: Omit<SavedPurchaseFormState, 'timestamp'>) => {
+  const stateWithTimestamp: SavedPurchaseFormState = {
+    ...state,
+    timestamp: Date.now(),
+  };
+  sessionStorage.setItem(PURCHASE_FORM_STATE_KEY, JSON.stringify(stateWithTimestamp));
+};
+
+const restorePurchaseFormState = (): SavedPurchaseFormState | null => {
+  const saved = sessionStorage.getItem(PURCHASE_FORM_STATE_KEY);
+  if (!saved) return null;
+  
+  try {
+    const state: SavedPurchaseFormState = JSON.parse(saved);
+    // Check if state is expired (older than 1 hour)
+    const isExpired = Date.now() - state.timestamp > STATE_EXPIRY_HOURS * 60 * 60 * 1000;
+    if (isExpired) {
+      clearPurchaseFormState();
+      return null;
+    }
+    return state;
+  } catch (error) {
+    console.error('Error restoring purchase form state:', error);
+    return null;
+  }
+};
+
+const clearPurchaseFormState = () => {
+  sessionStorage.removeItem(PURCHASE_FORM_STATE_KEY);
+};
+
 export default function Purchases() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -134,7 +179,7 @@ export default function Purchases() {
     enabled: showProductSearch && searchTerm.length > 0,
   });
 
-  // Auto-select newly created product from Products page
+  // Auto-select newly created product from Products page and restore form state
   useEffect(() => {
     const newProductId = location.state?.newProductId;
     if (newProductId) {
@@ -158,13 +203,38 @@ export default function Purchases() {
           .single();
         
         if (product) {
-          addProductToItems(product);
-          toast.success(`"${product.name}" added to purchase`);
+          // Restore saved form state if available
+          const savedState = restorePurchaseFormState();
+          
+          if (savedState) {
+            // Restore all form fields
+            setSelectedSupplier(savedState.selectedSupplier);
+            setSelectedStore(savedState.selectedStore);
+            setPaymentStatus(savedState.paymentStatus);
+            setPaymentMethod(savedState.paymentMethod);
+            setNotes(savedState.notes);
+            setItems(savedState.items);
+            
+            // Add the newly created product to the restored items
+            addProductToItems(product);
+            
+            // Reopen the purchase dialog
+            setShowNewPurchase(true);
+            
+            // Clear the saved state after restoration
+            clearPurchaseFormState();
+            
+            toast.success(`"${product.name}" added to purchase`);
+          } else {
+            // No saved state, just add the product normally
+            addProductToItems(product);
+            toast.success(`"${product.name}" added to purchase`);
+          }
         }
       };
       
       fetchNewProduct();
-      // Clear the state
+      // Clear the navigation state
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state?.newProductId]);
@@ -370,6 +440,8 @@ export default function Purchases() {
     setPaymentMethod('');
     setNotes('');
     setItems([]);
+    // Clear any saved form state
+    clearPurchaseFormState();
   };
 
   const addProductToItems = (product: any, variant?: any) => {
@@ -693,7 +765,16 @@ export default function Purchases() {
       </main>
 
       {/* New Purchase Dialog */}
-      <Dialog open={showNewPurchase} onOpenChange={setShowNewPurchase}>
+      <Dialog 
+        open={showNewPurchase} 
+        onOpenChange={(open) => {
+          setShowNewPurchase(open);
+          // Clear saved state if dialog is being closed
+          if (!open) {
+            clearPurchaseFormState();
+          }
+        }}
+      >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
@@ -900,7 +981,10 @@ export default function Purchases() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setShowNewPurchase(false)}
+                onClick={() => {
+                  clearPurchaseFormState();
+                  setShowNewPurchase(false);
+                }}
                 className="flex-1"
               >
                 Cancel
@@ -1121,6 +1205,16 @@ export default function Purchases() {
               <Button
                 variant="default"
                 onClick={() => {
+                  // Save current form state before navigating
+                  savePurchaseFormState({
+                    items,
+                    selectedSupplier,
+                    selectedStore,
+                    paymentStatus,
+                    paymentMethod,
+                    notes,
+                  });
+                  
                   setShowProductSearch(false);
                   navigate('/admin/products', { state: { openAddDialog: true, fromPurchases: true } });
                 }}
