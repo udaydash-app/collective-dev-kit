@@ -167,9 +167,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           <p className="text-sm">Payment Method: {paymentMethod.toUpperCase()}</p>
         </div>
 
-        {customerName && customerName !== 'Walk-in Customer' && customerBalance !== undefined && (
+        {customerBalance !== undefined && customerBalance !== null && (
           <div className="border-t border-dashed border-black pt-2 mb-2">
-            <p className="text-sm font-bold">Customer Balance: {formatCurrency(customerBalance)}</p>
+            <p className="text-sm font-bold">Current Balance: {formatCurrency(customerBalance)}</p>
           </div>
         )}
 
