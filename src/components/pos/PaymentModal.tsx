@@ -47,6 +47,7 @@ interface PaymentModalProps {
     storeName?: string;
     logoUrl?: string;
     supportPhone?: string;
+    isUnifiedBalance?: boolean;
   };
 }
 
@@ -218,7 +219,13 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     message += `Payment: ${transactionData.paymentMethod}\n`;
     if (customerBalance !== undefined && customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Current Balance: ${formatCurrency(customerBalance)}*\n`;
+      const balanceLabel = selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer 
+        ? '*Unified Balance:*' 
+        : '*Current Balance:*';
+      message += `${balanceLabel} ${formatCurrency(customerBalance)}\n`;
+      if (selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer) {
+        message += `_(Combined customer & supplier account)_\n`;
+      }
     }
     if (transactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -584,6 +591,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               logoUrl={transactionData.logoUrl}
               supportPhone={transactionData.supportPhone}
               customerBalance={customerBalance}
+              isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
             />
           )}
         </div>
