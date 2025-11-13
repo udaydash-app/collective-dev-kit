@@ -29,7 +29,7 @@ jobs:
         run: npm run build
 
       - name: Build Electron app
-        run: npm run electron:build
+        run: npm run electron:build -- --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -61,7 +61,7 @@ jobs:
         run: npm run build
 
       - name: Build Electron app
-        run: npm run electron:build
+        run: npm run electron:build -- --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
