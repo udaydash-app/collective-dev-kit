@@ -2041,6 +2041,7 @@ export default function POS() {
       // Fetch customer name and balance if customer_id exists (unified if both customer and supplier)
       let customerName = undefined;
       let customerBalance = undefined;
+      let isUnifiedBalance = false;
       if (transaction.customer_id) {
         const { data: contact } = await supabase
           .from('contacts')
@@ -2050,6 +2051,7 @@ export default function POS() {
 
         if (contact) {
           customerName = contact.name;
+          isUnifiedBalance = contact.is_customer && contact.is_supplier;
           
           let totalBalance = 0;
 
@@ -2127,8 +2129,9 @@ export default function POS() {
         paymentMethod: transaction.payment_method || 'Cash',
         cashierName: currentCashSession?.cashier_name || 'Cashier',
         customerName,
-        customerBalance,
-        storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
+          customerBalance,
+          isUnifiedBalance,
+          storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
         logoUrl: settings?.logo_url,
         supportPhone: settings?.company_phone,
       };
@@ -2221,7 +2224,13 @@ export default function POS() {
     message += `Payment: ${lastTransactionData.paymentMethod}\n`;
     if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Current Balance: ${formatCurrency(lastTransactionData.customerBalance)}*\n`;
+      const balanceLabel = lastTransactionData.isUnifiedBalance 
+        ? '*Unified Balance:*' 
+        : '*Current Balance:*';
+      message += `${balanceLabel} ${formatCurrency(lastTransactionData.customerBalance)}\n`;
+      if (lastTransactionData.isUnifiedBalance) {
+        message += `_(Combined customer & supplier account)_\n`;
+      }
     }
     if (lastTransactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -3653,6 +3662,7 @@ export default function POS() {
               cashierName={lastTransactionData.cashierName}
               customerName={lastTransactionData.customerName}
               customerBalance={lastTransactionData.customerBalance}
+              isUnifiedBalance={lastTransactionData.isUnifiedBalance}
               storeName={lastTransactionData.storeName}
               logoUrl={lastTransactionData.logoUrl}
               supportPhone={lastTransactionData.supportPhone}
