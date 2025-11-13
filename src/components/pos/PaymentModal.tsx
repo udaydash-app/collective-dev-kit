@@ -216,9 +216,9 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
     message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
     message += `Payment: ${transactionData.paymentMethod}\n`;
-    if (selectedCustomerData && customerBalance !== undefined) {
+    if (customerBalance !== undefined && customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `Customer Balance: ${formatCurrency(customerBalance)}\n`;
+      message += `*Current Balance: ${formatCurrency(customerBalance)}*\n`;
     }
     if (transactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;

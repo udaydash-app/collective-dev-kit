@@ -2219,9 +2219,9 @@ export default function POS() {
     }
     message += `\n*TOTAL: ${formatCurrency(lastTransactionData.total)}*\n\n`;
     message += `Payment: ${lastTransactionData.paymentMethod}\n`;
-    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerName) {
+    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Customer Balance: ${formatCurrency(lastTransactionData.customerBalance)}*\n`;
+      message += `*Current Balance: ${formatCurrency(lastTransactionData.customerBalance)}*\n`;
     }
     if (lastTransactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
