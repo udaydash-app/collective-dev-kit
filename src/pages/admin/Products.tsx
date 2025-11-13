@@ -935,7 +935,19 @@ export default function Products() {
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground py-2">
-                        {product.barcode || '-'}
+                        {product.barcode ? (
+                          (() => {
+                            const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
+                            if (barcodes.length === 1) {
+                              return barcodes[0];
+                            }
+                            return (
+                              <span title={barcodes.join(', ')}>
+                                {barcodes[0]} <span className="text-[10px] text-primary">+{barcodes.length - 1}</span>
+                              </span>
+                            );
+                          })()
+                        ) : '-'}
                       </TableCell>
                       <TableCell className="text-xs py-2">
                         {product.categories?.name || '-'}
@@ -1487,14 +1499,15 @@ export default function Products() {
                               </div>
                             </div>
                             <div>
-                              <Label className="text-[10px] font-medium">Barcode</Label>
+                              <Label className="text-[10px] font-medium">Barcode(s)</Label>
                               <Input
                                 type="text"
                                 value={variant.barcode || ''}
                                 onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
                                 className="h-8 text-xs"
-                                placeholder="Variant barcode"
+                                placeholder="Barcode(s), comma-separated"
                               />
+                              <p className="text-[9px] text-muted-foreground mt-0.5">Separate with commas</p>
                             </div>
                           </CardContent>
                         </Card>
@@ -1571,15 +1584,16 @@ export default function Products() {
                       </div>
                       
                       <div>
-                        <Label htmlFor="barcode" className="text-xs">Barcode</Label>
+                        <Label htmlFor="barcode" className="text-xs">Barcode(s)</Label>
                         <Input
                           id="barcode"
                           name="barcode"
                           type="text"
                           defaultValue={(editingProduct as any).barcode || ''}
-                          placeholder="Product barcode"
+                          placeholder="Enter barcode(s), separate with comma for multiple"
                           className="h-9 text-sm"
                         />
+                        <p className="text-[10px] text-muted-foreground mt-1">Separate multiple barcodes with commas (e.g., 123456,789012)</p>
                       </div>
                     </div>
                   </CardContent>

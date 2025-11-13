@@ -159,6 +159,12 @@ export default function BarcodeManagement() {
     return generatedBarcodes.get(key) || item.barcode || generateBarcode(item.id);
   };
 
+  const getBarcodeValues = (item: SelectedItem): string[] => {
+    const barcodeValue = getBarcodeValue(item);
+    // Split by comma and trim whitespace
+    return barcodeValue.split(',').map(b => b.trim()).filter(b => b.length > 0);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-xl mx-auto p-6 space-y-6">
@@ -318,7 +324,7 @@ export default function BarcodeManagement() {
             <CardContent>
               <div ref={printRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {selectedItems.map((item) => {
-                  const barcodeValue = getBarcodeValue(item);
+                  const barcodeValues = getBarcodeValues(item);
                   return (
                     <div
                       key={`${item.type}-${item.id}`}
@@ -328,15 +334,22 @@ export default function BarcodeManagement() {
                       {item.variantLabel && (
                         <p className="text-xs text-muted-foreground">{item.variantLabel}</p>
                       )}
-                      <div className="flex justify-center">
-                        <Barcode
-                          value={barcodeValue}
-                          width={1.5}
-                          height={50}
-                          fontSize={12}
-                          background="#ffffff"
-                        />
-                      </div>
+                      {barcodeValues.map((barcodeValue, index) => (
+                        <div key={index} className="flex flex-col items-center gap-1">
+                          {barcodeValues.length > 1 && (
+                            <p className="text-[10px] text-muted-foreground">Barcode {index + 1}</p>
+                          )}
+                          <div className="flex justify-center">
+                            <Barcode
+                              value={barcodeValue}
+                              width={1.5}
+                              height={50}
+                              fontSize={12}
+                              background="#ffffff"
+                            />
+                          </div>
+                        </div>
+                      ))}
                       <p className="text-sm font-medium">${item.price}</p>
                     </div>
                   );

@@ -72,12 +72,15 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       const { data, error } = await query.limit(20);
       if (error) throw error;
       
-      // If search term looks like a barcode, also check variant barcodes
+      // If search term looks like a barcode, check variant barcodes (supporting comma-separated barcodes)
       if (searchTerm && data) {
         const enhancedData = data.map(product => {
-          const matchingVariant = product.product_variants?.find((v: any) => 
-            v.barcode && v.barcode.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          const matchingVariant = product.product_variants?.find((v: any) => {
+            if (!v.barcode) return false;
+            // Split barcode by comma and check if any matches
+            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+            return barcodes.some((b: string) => b.includes(searchTerm.toLowerCase()));
+          });
           return {
             ...product,
             _matchingVariant: matchingVariant
@@ -174,6 +177,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       // First priority: Check if barcode matches any product variant
       // This ensures variant-specific barcodes are matched first
+      // Fetch all available variants and filter in JS to support comma-separated barcodes
       const { data: variantMatch, error: variantError } = await supabase
         .from('product_variants')
         .select(`
@@ -205,33 +209,38 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             )
           )
         `)
-        .ilike('barcode', barcode)
         .eq('is_available', true)
-        .eq('products.is_available', true);
+        .eq('products.is_available', true)
+        .not('barcode', 'is', null);
+      
+      // Filter to find exact match in comma-separated barcodes
+      const matchedVariant = variantMatch?.find((v: any) => {
+        if (!v.barcode) return false;
+        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.includes(barcode.toLowerCase());
+      });
       
       console.log('🎯 Variant match query result:', { 
-        found: variantMatch?.length || 0, 
-        data: variantMatch,
+        found: matchedVariant ? 1 : 0, 
+        data: matchedVariant,
         error: variantError 
       });
 
-      // Use maybeSingle() only if we found exactly one match
-      const singleVariantMatch = variantMatch && variantMatch.length === 1 ? variantMatch[0] : null;
-
-      if (singleVariantMatch?.product) {
+      if (matchedVariant?.product) {
         console.log('✅ Found variant match, adding directly to cart');
-        console.log('Matched variant:', singleVariantMatch.label, 'Barcode:', singleVariantMatch.barcode);
+        console.log('Matched variant:', matchedVariant.label, 'Barcode:', matchedVariant.barcode);
         // Found variant with this barcode - add directly to cart with this variant selected
         onProductSelect({
-          ...singleVariantMatch.product,
-          price: singleVariantMatch.price,
-          selectedVariant: singleVariantMatch,
+          ...matchedVariant.product,
+          price: matchedVariant.price,
+          selectedVariant: matchedVariant,
         });
         setSearchTerm('');
         return;
       }
 
       // Second priority: Check if barcode matches product's main barcode
+      // Fetch all products and filter in JS to support comma-separated barcodes
       const { data: productMatch, error: productError } = await supabase
         .from('products')
         .select(`
@@ -253,22 +262,27 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             barcode
           )
         `)
-        .ilike('barcode', barcode)
-        .eq('is_available', true);
+        .eq('is_available', true)
+        .not('barcode', 'is', null);
       
-      console.log('🎯 Product match query result:', { 
-        found: productMatch?.length || 0,
-        data: productMatch,
-        error: productError 
+      // Filter to find exact match in comma-separated barcodes
+      const matchedProduct = productMatch?.find((p: any) => {
+        if (!p.barcode) return false;
+        const barcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.includes(barcode.toLowerCase());
       });
       
-      const singleProductMatch = productMatch && productMatch.length === 1 ? productMatch[0] : null;
+      console.log('🎯 Product match query result:', { 
+        found: matchedProduct ? 1 : 0,
+        data: matchedProduct,
+        error: productError 
+      });
 
-      if (singleProductMatch) {
+      if (matchedProduct) {
         console.log('✅ Found product match, adding to cart');
-        console.log('Product barcode:', singleProductMatch.barcode);
+        console.log('Product barcode:', matchedProduct.barcode);
         // Found product barcode match - add with default variant if available
-        handleProductSelect(singleProductMatch);
+        handleProductSelect(matchedProduct);
         return;
       }
 
