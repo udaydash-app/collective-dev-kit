@@ -213,10 +213,35 @@ export default function Purchases() {
             setPaymentStatus(savedState.paymentStatus);
             setPaymentMethod(savedState.paymentMethod);
             setNotes(savedState.notes);
-            setItems(savedState.items);
             
             // Add the newly created product to the restored items
-            addProductToItems(product);
+            const unitCost = product.cost_price || product.price;
+            const newItem: PurchaseItem = {
+              product_id: product.id,
+              quantity: 1,
+              unit_cost: Number(unitCost),
+              total_cost: Number(unitCost),
+              product_name: product.name,
+            };
+            
+            // Check if product already exists in saved items
+            const existingIndex = savedState.items.findIndex(
+              item => item.product_id === product.id && !item.variant_id
+            );
+            
+            let updatedItems: PurchaseItem[];
+            if (existingIndex >= 0) {
+              // Increment quantity if product exists
+              updatedItems = [...savedState.items];
+              updatedItems[existingIndex].quantity += 1;
+              updatedItems[existingIndex].total_cost = 
+                updatedItems[existingIndex].quantity * updatedItems[existingIndex].unit_cost;
+            } else {
+              // Add new item
+              updatedItems = [...savedState.items, newItem];
+            }
+            
+            setItems(updatedItems);
             
             // Reopen the purchase dialog
             setShowNewPurchase(true);
