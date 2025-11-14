@@ -94,12 +94,13 @@ if (autoUpdater) {
         
         // Show download progress dialog
         downloadProgressWindow = new BrowserWindow({
-          width: 400,
-          height: 150,
+          width: 500,
+          height: 220,
           frame: false,
           resizable: false,
           alwaysOnTop: true,
           center: true,
+          transparent: false,
           webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -111,29 +112,52 @@ if (autoUpdater) {
           <html>
             <head>
               <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
                 body {
                   margin: 0;
-                  padding: 20px;
-                  font-family: Arial, sans-serif;
-                  background: #f5f5f5;
+                  padding: 0;
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                  background: #ffffff;
                   display: flex;
-                  flex-direction: column;
+                  align-items: center;
                   justify-content: center;
                   height: 100vh;
                 }
                 .container {
-                  background: white;
-                  padding: 20px;
-                  border-radius: 8px;
-                  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                  width: 100%;
+                  height: 100%;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  padding: 30px;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  position: relative;
                 }
-                h3 { margin: 0 0 15px 0; color: #333; }
+                .content {
+                  background: white;
+                  padding: 25px;
+                  border-radius: 12px;
+                  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                }
+                h3 { 
+                  margin: 0 0 8px 0; 
+                  color: #1a1a1a;
+                  font-size: 18px;
+                  font-weight: 600;
+                }
+                .status { 
+                  margin: 0 0 20px 0; 
+                  color: #666;
+                  font-size: 13px;
+                }
                 .progress-bar {
                   width: 100%;
-                  height: 24px;
-                  background: #e0e0e0;
-                  border-radius: 12px;
+                  height: 32px;
+                  background: #f0f0f0;
+                  border-radius: 16px;
                   overflow: hidden;
+                  position: relative;
+                  margin-bottom: 12px;
                 }
                 .progress-fill {
                   height: 100%;
@@ -143,16 +167,52 @@ if (autoUpdater) {
                   align-items: center;
                   justify-content: center;
                   color: white;
-                  font-weight: bold;
+                  font-weight: 600;
+                  font-size: 13px;
+                  min-width: 40px;
+                }
+                .details {
+                  display: flex;
+                  justify-content: space-between;
                   font-size: 12px;
+                  color: #666;
+                }
+                .speed { font-weight: 500; }
+                .cancel-btn {
+                  position: absolute;
+                  top: 15px;
+                  right: 15px;
+                  background: rgba(255,255,255,0.2);
+                  border: none;
+                  color: white;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 14px;
+                  cursor: pointer;
+                  font-size: 18px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  transition: background 0.2s;
+                }
+                .cancel-btn:hover {
+                  background: rgba(255,255,255,0.3);
                 }
               </style>
             </head>
             <body>
               <div class="container">
-                <h3>Downloading Update...</h3>
-                <div class="progress-bar">
-                  <div class="progress-fill" id="progress" style="width: 0%">0%</div>
+                <button class="cancel-btn" onclick="window.close()">×</button>
+                <div class="content">
+                  <h3>Downloading Update</h3>
+                  <p class="status" id="status">Preparing download...</p>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="progress" style="width: 0%">0%</div>
+                  </div>
+                  <div class="details">
+                    <span id="speed" class="speed">Speed: Calculating...</span>
+                    <span id="transferred">0 MB / 0 MB</span>
+                  </div>
                 </div>
               </div>
             </body>
@@ -169,16 +229,25 @@ if (autoUpdater) {
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    let message = `[AUTO-UPDATE] Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent.toFixed(2)}%`;
-    console.log(message);
+    const percent = progressObj.percent.toFixed(2);
+    const speedMBps = (progressObj.bytesPerSecond / 1024 / 1024).toFixed(2);
+    const transferredMB = (progressObj.transferred / 1024 / 1024).toFixed(2);
+    const totalMB = (progressObj.total / 1024 / 1024).toFixed(2);
+    
+    console.log(`[AUTO-UPDATE] Download ${percent}% - Speed: ${speedMBps} MB/s - ${transferredMB}/${totalMB} MB`);
     
     // Update progress window
     if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
-      const percent = Math.round(progressObj.percent);
+      const roundedPercent = Math.round(progressObj.percent);
       downloadProgressWindow.webContents.executeJavaScript(`
-        document.getElementById('progress').style.width = '${percent}%';
-        document.getElementById('progress').textContent = '${percent}%';
-      `);
+        document.getElementById('progress').style.width = '${roundedPercent}%';
+        document.getElementById('progress').textContent = '${roundedPercent}%';
+        document.getElementById('speed').textContent = 'Speed: ${speedMBps} MB/s';
+        document.getElementById('transferred').textContent = '${transferredMB} MB / ${totalMB} MB';
+        document.getElementById('status').textContent = 'Downloading... ${roundedPercent}% complete';
+      `).catch(() => {
+        // Window might be closed
+      });
     }
     BrowserWindow.getAllWindows()[0]?.webContents.send('download-progress', progressObj);
   });
