@@ -997,6 +997,33 @@ export default function POS() {
     staleTime: 0
   });
 
+  // Real-time subscription for journal entries
+  useEffect(() => {
+    if (!currentCashSession) return;
+
+    const channel = supabase
+      .channel('journal-entries-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'journal_entries'
+        },
+        () => {
+          // Refetch all journal entry queries when new entries are created
+          queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentCashSession, queryClient]);
+
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
   const journalCashEffect = cashJournalEntries
     ?.reduce((sum, entry) => {
