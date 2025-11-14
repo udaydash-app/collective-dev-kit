@@ -616,7 +616,11 @@ export default function POS() {
           phone,
           email,
           customer_ledger_account_id,
-          accounts!customer_ledger_account_id (
+          supplier_ledger_account_id,
+          customer_account:accounts!customer_ledger_account_id (
+            current_balance
+          ),
+          supplier_account:accounts!supplier_ledger_account_id (
             current_balance
           )
         `)
@@ -628,12 +632,18 @@ export default function POS() {
         return [];
       }
 
-      // Filter and format customers with positive balances
+      // Calculate unified balance: customer balance (what they owe) - supplier balance (what we owe them)
       const customersWithBalance = (data || [])
-        .map(customer => ({
-          ...customer,
-          balance: customer.accounts?.current_balance || 0
-        }))
+        .map(customer => {
+          const customerBalance = customer.customer_account?.current_balance || 0;
+          const supplierBalance = customer.supplier_account?.current_balance || 0;
+          const unifiedBalance = customerBalance - supplierBalance;
+          
+          return {
+            ...customer,
+            balance: unifiedBalance
+          };
+        })
         .filter(customer => customer.balance > 0)
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
