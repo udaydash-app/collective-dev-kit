@@ -3432,22 +3432,18 @@ export default function POS() {
                       {topCreditCustomers.map((customer: any) => (
                         <Card 
                           key={customer.id} 
-                          className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
-                          onClick={() => {
-                            setSelectedCustomer(customer);
-                            setShowCustomerDialog(false);
-                            toast.success(`Customer selected: ${customer.name}`);
-                          }}
+                          className="p-2"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium truncate">{customer.name}</p>
                               {customer.phone && (
                                 <p className="text-[10px] text-muted-foreground truncate">{customer.phone}</p>
                               )}
                             </div>
-                            <div className="text-right ml-2">
-                              <p className="text-xs font-bold text-red-600 dark:text-red-400">
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[10px] text-muted-foreground">Balance</p>
+                              <p className="text-sm font-bold text-red-600 dark:text-red-400">
                                 {formatCurrency(customer.balance)}
                               </p>
                             </div>
