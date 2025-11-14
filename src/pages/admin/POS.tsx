@@ -632,16 +632,20 @@ export default function POS() {
         return [];
       }
 
-      // Calculate unified balance: customer balance (what they owe) - supplier balance (what we owe them)
+      // Calculate unified balance only when customer is also a supplier
       const customersWithBalance = (data || [])
         .map(customer => {
           const customerBalance = customer.customer_account?.current_balance || 0;
           const supplierBalance = customer.supplier_account?.current_balance || 0;
-          const unifiedBalance = customerBalance - supplierBalance;
+          
+          // Only calculate unified balance if customer is also a supplier (has supplier account)
+          const balance = customer.supplier_ledger_account_id 
+            ? customerBalance - supplierBalance 
+            : customerBalance;
           
           return {
             ...customer,
-            balance: unifiedBalance
+            balance
           };
         })
         .filter(customer => customer.balance > 0)
