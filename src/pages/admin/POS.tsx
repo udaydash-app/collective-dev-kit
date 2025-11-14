@@ -647,7 +647,7 @@ export default function POS() {
         (accounts || []).map(acc => [acc.id, acc.current_balance])
       );
 
-      // Calculate unified balance for each contact
+      // Calculate balance for each contact (no filtering by positive/negative)
       const customersWithBalance = contacts
         .map(contact => {
           const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
@@ -655,7 +655,8 @@ export default function POS() {
             ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
             : 0;
           
-          // Only calculate unified balance if customer is also a supplier
+          // For regular customers: show customer balance (positive or negative)
+          // For dual-role customers: show unified balance (customer - supplier, positive or negative)
           const displayBalance = contact.supplier_ledger_account_id 
             ? customerBalance - supplierBalance 
             : customerBalance;
