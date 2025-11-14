@@ -879,6 +879,7 @@ export default function POS() {
                !ref.startsWith('SPM-') && 
                !ref.startsWith('PMT-') &&
                !ref.startsWith('OB-') &&
+               !ref.startsWith('CASHREG-') &&
                !ref.endsWith('-PMT');
       });
       
@@ -902,6 +903,7 @@ export default function POS() {
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
 
       // Get ALL journal entries (including credit sales) created during the session
+      // Exclude cash register opening entries
       const { data, error: queryError } = await supabase
         .from('journal_entries')
         .select(`
@@ -917,6 +919,7 @@ export default function POS() {
         .eq('status', 'posted')
         .gte('created_at', sessionStart)
         .lte('created_at', sessionEnd)
+        .not('reference', 'ilike', 'CASHREG%')
         .order('created_at', { ascending: false });
       
       console.log('Display journal entries query result:', { 
@@ -979,6 +982,7 @@ export default function POS() {
                !ref.startsWith('SPM-') && 
                !ref.startsWith('PMT-') &&
                !ref.startsWith('OB-') &&
+               !ref.startsWith('CASHREG-') &&
                !ref.endsWith('-PMT');
       });
       
