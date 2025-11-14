@@ -608,7 +608,7 @@ export default function POS() {
     queryFn: async () => {
       if (!selectedStoreId) return [];
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('contacts')
         .select(`
           id,
@@ -616,14 +616,17 @@ export default function POS() {
           phone,
           email,
           customer_ledger_account_id,
-          accounts!contacts_customer_ledger_account_id_fkey (
+          accounts!customer_ledger_account_id (
             current_balance
           )
         `)
         .eq('is_customer', true)
-        .not('customer_ledger_account_id', 'is', null)
-        .order('accounts.current_balance', { ascending: false })
-        .limit(10);
+        .not('customer_ledger_account_id', 'is', null);
+
+      if (error) {
+        console.error('Error fetching credit customers:', error);
+        return [];
+      }
 
       // Filter and format customers with positive balances
       const customersWithBalance = (data || [])
@@ -632,7 +635,8 @@ export default function POS() {
           balance: customer.accounts?.current_balance || 0
         }))
         .filter(customer => customer.balance > 0)
-        .sort((a, b) => b.balance - a.balance);
+        .sort((a, b) => b.balance - a.balance)
+        .slice(0, 10);
 
       return customersWithBalance;
     },
