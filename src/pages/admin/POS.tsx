@@ -788,6 +788,58 @@ export default function POS() {
     staleTime: 0
   });
 
+  // Fetch ALL journal entries for display (including payment receipts) - separate from calculation entries
+  const { data: displayJournalEntries, isLoading: displayJournalLoading } = useQuery({
+    queryKey: ['session-display-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryFn: async () => {
+      if (!currentCashSession) {
+        return [];
+      }
+      
+      // Get both cash and mobile money account IDs
+      const { data: cashAccount } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('account_code', '1010')
+        .single();
+      
+      const { data: mobileMoneyAccount } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('account_code', '1015')
+        .single();
+      
+      const accountIds = [cashAccount?.id, mobileMoneyAccount?.id].filter(Boolean);
+      
+      if (accountIds.length === 0) {
+        return [];
+      }
+      
+      // Get the session timestamp range
+      const sessionStart = currentCashSession.opened_at;
+      const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
+
+      // Get ALL journal entry lines from posted entries created during the session
+      const { data, error: queryError } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner(status, entry_date, created_at, reference, description)
+        `)
+        .in('account_id', accountIds)
+        .eq('journal_entries.status', 'posted')
+        .gte('journal_entries.created_at', sessionStart)
+        .lte('journal_entries.created_at', sessionEnd)
+        .order('created_at', { foreignTable: 'journal_entries', ascending: false });
+      
+      return data || [];
+    },
+    enabled: !!currentCashSession,
+    refetchOnMount: 'always',
+    staleTime: 0
+  });
+
   // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
     queryKey: ['session-mobile-money-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
@@ -3029,11 +3081,11 @@ export default function POS() {
                 <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
               </div>
               
-              {cashJournalLoading ? (
+              {displayJournalLoading ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
-              ) : cashJournalEntries && cashJournalEntries.length > 0 ? (
+              ) : displayJournalEntries && displayJournalEntries.length > 0 ? (
                 <div className="space-y-1.5">
-                  {cashJournalEntries.slice(0, 10).map((entry: any, index: number) => {
+                  {displayJournalEntries.slice(0, 10).map((entry: any, index: number) => {
                     const debit = parseFloat(entry.debit_amount?.toString() || '0');
                     const credit = parseFloat(entry.credit_amount?.toString() || '0');
                     const amount = debit > 0 ? debit : credit;
