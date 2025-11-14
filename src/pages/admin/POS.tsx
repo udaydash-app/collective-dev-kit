@@ -608,68 +608,68 @@ export default function POS() {
     queryFn: async () => {
       if (!selectedStoreId) return [];
 
-      const { data, error } = await supabase
+      // First, get all customer contacts
+      const { data: contacts, error: contactsError } = await supabase
         .from('contacts')
-        .select(`
-          id,
-          name,
-          phone,
-          email,
-          customer_ledger_account_id,
-          supplier_ledger_account_id,
-          customer_account:accounts!contacts_customer_ledger_account_id_fkey (
-            current_balance
-          ),
-          supplier_account:accounts!contacts_supplier_ledger_account_id_fkey (
-            current_balance
-          )
-        `)
+        .select('id, name, phone, email, customer_ledger_account_id, supplier_ledger_account_id')
         .eq('is_customer', true)
-        .not('customer_ledger_account_id', 'is', null);
+        .not('customer_ledger_account_id', 'is', null)
+        .order('name');
 
-      if (error) {
-        console.error('Error fetching credit customers:', error);
+      if (contactsError) {
+        console.error('Error fetching contacts:', contactsError);
         return [];
       }
 
-      console.log('Raw credit customers data:', data);
+      if (!contacts || contacts.length === 0) {
+        return [];
+      }
 
-      // Calculate unified balance only when customer is also a supplier
-      const customersWithBalance = (data || [])
-        .map(customer => {
-          const customerBalance = customer.customer_account?.current_balance || 0;
-          const supplierBalance = customer.supplier_account?.current_balance || 0;
+      // Get all account IDs (both customer and supplier)
+      const accountIds = [
+        ...contacts.map(c => c.customer_ledger_account_id).filter(Boolean),
+        ...contacts.map(c => c.supplier_ledger_account_id).filter(Boolean)
+      ];
+
+      // Fetch all accounts in one query
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('id, current_balance')
+        .in('id', accountIds);
+
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+        return [];
+      }
+
+      // Create a map of account balances
+      const accountBalanceMap = new Map(
+        (accounts || []).map(acc => [acc.id, acc.current_balance])
+      );
+
+      // Calculate unified balance for each contact
+      const customersWithBalance = contacts
+        .map(contact => {
+          const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
+          const supplierBalance = contact.supplier_ledger_account_id 
+            ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
+            : 0;
           
-          console.log(`Customer ${customer.name}:`, {
-            customerBalance,
-            supplierBalance,
-            hasSupplierAccount: !!customer.supplier_ledger_account_id,
-            customer_account: customer.customer_account,
-            supplier_account: customer.supplier_account
-          });
-          
-          // Only calculate unified balance if customer is also a supplier (has supplier account)
-          const displayBalance = customer.supplier_ledger_account_id 
+          // Only calculate unified balance if customer is also a supplier
+          const displayBalance = contact.supplier_ledger_account_id 
             ? customerBalance - supplierBalance 
             : customerBalance;
-          
+
           return {
-            ...customer,
+            ...contact,
             balance: displayBalance,
-            customerBalance // Keep original for filtering
+            customerBalance
           };
         })
-        .filter(customer => {
-          const shouldShow = customer.customerBalance > 0;
-          if (!shouldShow && customer.supplier_ledger_account_id) {
-            console.log(`Filtering out dual-role customer ${customer.name}: customerBalance=${customer.customerBalance}`);
-          }
-          return shouldShow;
-        })
+        .filter(customer => customer.customerBalance > 0)
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
 
-      console.log('Filtered credit customers:', customersWithBalance);
       return customersWithBalance;
     },
     enabled: !!selectedStoreId,
