@@ -2536,6 +2536,13 @@ export default function POS() {
 
   const handleLogout = async () => {
     try {
+      // Clear cart before logout
+      clearCart();
+      setDiscount(0);
+      setCartDiscountItem(null);
+      localStorage.removeItem('pos_cart_state');
+      localStorage.removeItem('pos_discount_state');
+      
       await supabase.auth.signOut();
       toast.success('Logged out successfully');
       navigate('/pos-login');
@@ -3013,196 +3020,65 @@ export default function POS() {
           </div>
         )}
 
-        {/* Dashboard/Analytics or Products Grid - Scrollable */}
+        {/* Recent Journal Entries or Products Grid - Scrollable */}
         <div className="flex-1 overflow-y-auto p-2 pb-0">
-          {/* Show Dashboard when no category/search selected */}
           {!selectedCategory && !searchTerm ? (
-            <>
-              {/* Date Range Selector */}
-              <div className="mb-2 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-                    <SelectTrigger className="h-7 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
-                      <SelectItem value="custom">Custom Period</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {dateRange === 'custom' && (
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="h-7 text-xs"
-                      placeholder="Start Date"
-                    />
-                    <span className="text-xs text-muted-foreground">to</span>
-                    <Input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="h-7 text-xs"
-                      placeholder="End Date"
-                    />
-                  </div>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
               </div>
-
-              {/* Analytics Cards Grid - Compact Version */}
-              <div className="space-y-1.5">
-                {/* Sales Overview Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('sales')}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div className="p-0.5 rounded bg-emerald-500/20">
-                          <BarChart3 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              
+              {cashJournalLoading ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
+              ) : cashJournalEntries && cashJournalEntries.length > 0 ? (
+                <div className="space-y-1.5">
+                  {cashJournalEntries.slice(0, 10).map((entry: any, index: number) => {
+                    const debit = parseFloat(entry.debit_amount?.toString() || '0');
+                    const credit = parseFloat(entry.credit_amount?.toString() || '0');
+                    const amount = debit > 0 ? debit : credit;
+                    const type = debit > 0 ? 'Debit' : 'Credit';
+                    
+                    return (
+                      <Card key={index} className="p-2 hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={cn(
+                                "text-xs font-medium px-1.5 py-0.5 rounded",
+                                debit > 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                              )}>
+                                {type}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(entry.journal_entries.created_at), 'MMM dd, HH:mm')}
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium truncate">{entry.journal_entries.reference}</p>
+                            {entry.journal_entries.description && (
+                              <p className="text-xs text-muted-foreground truncate">{entry.journal_entries.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right ml-2">
+                            <p className={cn(
+                              "text-sm font-bold",
+                              debit > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                            )}>
+                              {debit > 0 ? '+' : '-'}{formatCurrency(amount)}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-semibold text-emerald-900 dark:text-emerald-100">Sales</span>
-                      </div>
-                      <p className="text-base font-bold text-emerald-900 dark:text-emerald-100 mb-0.5 truncate">
-                        {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
-                      </p>
-                      <div className="flex gap-2 text-[8px]">
-                        <span className="text-emerald-700 dark:text-emerald-300">💵 {formatCurrency(analyticsData?.cashSales || 0)}</span>
-                        <span className="text-emerald-700 dark:text-emerald-300">💳 {formatCurrency(analyticsData?.creditSales || 0)}</span>
-                        {(analyticsData?.mobileMoneySales || 0) > 0 && (
-                          <span className="text-emerald-700 dark:text-emerald-300">📱 {formatCurrency(analyticsData?.mobileMoneySales || 0)}</span>
-                        )}
-                      </div>
-                    </div>
-                    {analyticsData?.paymentMethodData && analyticsData.paymentMethodData.length > 0 && (
-                      <div className="w-14 h-14 flex-shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={analyticsData.paymentMethodData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={8}
-                              outerRadius={20}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {analyticsData.paymentMethodData.map((_: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={['#22C55E', '#3B82F6', '#F59E0B'][index % 3]} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Top Products Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('products')}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-0.5 rounded bg-amber-500/20">
-                      <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-amber-900 dark:text-amber-100">Top Product</span>
-                  </div>
-                  {analyticsData?.topItem ? (
-                    <>
-                      <p className="text-xs font-bold text-amber-900 dark:text-amber-100 mb-0.5 truncate">
-                        {analyticsData.topItem.name}
-                      </p>
-                      <div className="flex items-center justify-between text-[9px] mb-1">
-                        <span className="text-amber-700 dark:text-amber-300">Qty: {analyticsData.topItem.quantity}</span>
-                        <span className="font-semibold text-amber-900 dark:text-amber-100">{formatCurrency(analyticsData.topItem.revenue)}</span>
-                      </div>
-                      {analyticsData?.topProducts && analyticsData.topProducts.length > 0 && (
-                        <div className="h-10 -mx-1">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.topProducts.slice(0, 3)}>
-                              <Bar dataKey="revenue" fill="#F59E0B" radius={[2, 2, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-amber-700 dark:text-amber-300">No data</p>
-                  )}
-                </Card>
-
-                {/* Top Customers Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('customers')}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-0.5 rounded bg-purple-500/20">
-                      <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-purple-900 dark:text-purple-100">Top Customer</span>
-                  </div>
-                  {analyticsData?.topCustomer ? (
-                    <>
-                      <p className="text-xs font-bold text-purple-900 dark:text-purple-100 mb-0.5 truncate">
-                        {analyticsData.topCustomer.name}
-                      </p>
-                      <div className="flex items-center justify-between text-[9px] mb-1">
-                        <span className="text-purple-700 dark:text-purple-300">{analyticsData.topCustomer.count} orders</span>
-                        <span className="font-semibold text-purple-900 dark:text-purple-100">{formatCurrency(analyticsData.topCustomer.total)}</span>
-                      </div>
-                      {analyticsData?.topCustomers && analyticsData.topCustomers.length > 0 && (
-                        <div className="h-10 -mx-1">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.topCustomers.slice(0, 3)}>
-                              <Bar dataKey="total" fill="#8B5CF6" radius={[2, 2, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-purple-700 dark:text-purple-300">No data</p>
-                  )}
-                </Card>
-
-                {/* Quick Stats Row - Compact */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Card className="p-1.5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <ReceiptIcon className="h-2.5 w-2.5 text-slate-600 dark:text-slate-400" />
-                      <span className="text-[9px] font-medium text-slate-900 dark:text-slate-100">Transactions</span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {analyticsData?.totalTransactions || 0}
-                    </p>
-                  </Card>
-
-                  <Card className="p-1.5 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <TrendingUp className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-[9px] font-medium text-indigo-900 dark:text-indigo-100">Avg Sale</span>
-                    </div>
-                    <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 truncate">
-                      {analyticsData?.totalTransactions 
-                        ? formatCurrency(((analyticsData.cashSales || 0) + (analyticsData.creditSales || 0) + (analyticsData.mobileMoneySales || 0)) / analyticsData.totalTransactions)
-                        : formatCurrency(0)
-                      }
-                    </p>
-                  </Card>
+                      </Card>
+                    );
+                  })}
                 </div>
-              </div>
-            </>
+              ) : (
+                <Card className="p-4 text-center">
+                  <BookOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                  <p className="text-sm text-muted-foreground">No journal entries for this session</p>
+                </Card>
+              )}
+            </div>
           ) : (
             <>
               {/* Breadcrumb */}
@@ -3277,29 +3153,19 @@ export default function POS() {
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="h-7 px-3 text-xs"
+                    className="h-7 w-20 text-xs"
                   >
-                    Prev
+                    Previous
                   </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        className="w-7 h-7 text-xs p-0"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  </div>
+                  <span className="text-xs text-muted-foreground px-2">
+                    {currentPage} / {totalPages}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="h-7 px-3 text-xs"
+                    className="h-7 w-20 text-xs"
                   >
                     Next
                   </Button>
@@ -3308,6 +3174,103 @@ export default function POS() {
             </>
           )}
         </div>
+
+        {/* Dashboard Analytics - Fixed Above Keypad */}
+        {!selectedCategory && !searchTerm && (
+          <div className="border-t bg-background p-2 max-h-[280px] overflow-y-auto">
+            {/* Date Range Selector */}
+            <div className="mb-2 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="custom">Custom Period</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {dateRange === 'custom' && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="h-7 text-xs"
+                    placeholder="Start Date"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="h-7 text-xs"
+                    placeholder="End Date"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Analytics Cards Grid - Compact Version */}
+            <div className="grid grid-cols-3 gap-1.5">
+              {/* Sales Overview Card - Compact */}
+              <Card className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="p-0.5 rounded bg-emerald-500/20">
+                        <BarChart3 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-900 dark:text-emerald-100">Sales</span>
+                    </div>
+                    <p className="text-base font-bold text-emerald-900 dark:text-emerald-100 truncate">
+                      {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Top Product Card - Compact */}
+              <Card className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="p-0.5 rounded bg-blue-500/20">
+                        <Award className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-blue-900 dark:text-blue-100">Top Product</span>
+                    </div>
+                    <p className="text-[10px] font-medium text-blue-900 dark:text-blue-100 truncate">
+                      {analyticsData?.topProducts?.[0]?.name || analyticsData?.topItem?.name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Top Customer Card - Compact */}
+              <Card className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="p-0.5 rounded bg-purple-500/20">
+                        <Users className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-purple-900 dark:text-purple-100">Top Customer</span>
+                    </div>
+                    <p className="text-[10px] font-medium text-purple-900 dark:text-purple-100 truncate">
+                      {analyticsData?.topCustomers?.[0]?.name || analyticsData?.topCustomer?.name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Numeric Keypad and Quick Actions - Fixed at Bottom */}
         <div className="flex gap-2 p-2 border-t bg-background">
