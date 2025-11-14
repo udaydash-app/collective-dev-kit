@@ -100,7 +100,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-background pb-20">
       <Header />
       
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6 pointer-events-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>

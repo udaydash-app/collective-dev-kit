@@ -219,9 +219,3 @@
     @apply focus:ring-2 focus:ring-primary/20 focus:border-primary;
   }
 }
-
-/* Disable all transitions and animations globally for maximum speed */
-* {
-  transition: none !important;
-  animation-duration: 0s !important;
-}
