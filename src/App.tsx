@@ -79,6 +79,7 @@ import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDialog";
 import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useAdminShortcuts } from "./hooks/useAdminShortcuts";
 import PWAInstall from "./pages/PWAInstall";
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ const App = () => {
 // Component that uses router hooks - must be inside Router
 const RouterContent = () => {
   useGlobalShortcuts();
+  useAdminShortcuts();
   return null;
 };
 

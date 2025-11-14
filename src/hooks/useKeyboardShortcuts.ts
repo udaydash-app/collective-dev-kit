@@ -58,6 +58,7 @@ export const useGlobalShortcuts = () => {
   const navigate = useNavigate();
 
   const shortcuts: KeyboardShortcut[] = [
+    // Customer navigation
     {
       key: 'k',
       ctrlKey: true,
@@ -128,6 +129,35 @@ export const useGlobalShortcuts = () => {
         const event = new CustomEvent('show-shortcuts');
         window.dispatchEvent(event);
       },
+    },
+    // Arrow key navigation
+    {
+      key: 'ArrowUp',
+      description: 'Navigate up in lists',
+      action: () => {
+        const focusable = document.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        );
+        const currentIndex = Array.from(focusable).indexOf(document.activeElement as HTMLElement);
+        if (currentIndex > 0) {
+          focusable[currentIndex - 1].focus();
+        }
+      },
+      preventDefault: false,
+    },
+    {
+      key: 'ArrowDown',
+      description: 'Navigate down in lists',
+      action: () => {
+        const focusable = document.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        );
+        const currentIndex = Array.from(focusable).indexOf(document.activeElement as HTMLElement);
+        if (currentIndex < focusable.length - 1 && currentIndex >= 0) {
+          focusable[currentIndex + 1].focus();
+        }
+      },
+      preventDefault: false,
     },
   ];
 
