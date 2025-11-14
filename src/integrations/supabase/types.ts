@@ -2381,6 +2381,18 @@ export type Database = {
           weighted_avg_cost: number
         }[]
       }
+      get_top_credit_customers: {
+        Args: { limit_count?: number }
+        Returns: {
+          balance: number
+          customer_balance: number
+          email: string
+          id: string
+          name: string
+          phone: string
+          supplier_balance: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

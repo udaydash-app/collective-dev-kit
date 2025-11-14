@@ -61,6 +61,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const completeSaleButtonRef = useRef<HTMLButtonElement>(null);
 
   // Pre-fill customer if passed from POS
   useEffect(() => {
@@ -335,6 +336,17 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     onClose();
   };
 
+  // Auto-focus Complete Sale button when dialog opens
+  useEffect(() => {
+    if (isOpen && completeSaleButtonRef.current) {
+      // Delay focus slightly to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        completeSaleButtonRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -502,6 +514,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               Cancel
             </Button>
             <Button
+              ref={completeSaleButtonRef}
               onClick={handleConfirm}
               disabled={
                 isProcessing ||
