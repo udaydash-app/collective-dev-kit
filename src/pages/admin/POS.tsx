@@ -835,7 +835,7 @@ export default function POS() {
 
   // Fetch journal entries affecting cash account for the session period (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
   const { data: cashJournalEntries, isLoading: cashJournalLoading, error: cashJournalError } = useQuery({
-    queryKey: ['session-cash-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-cash-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       if (!currentCashSession) {
         return [];
@@ -892,7 +892,7 @@ export default function POS() {
 
   // Fetch ALL journal entries for display (including payment receipts) - separate from calculation entries
   const { data: displayJournalEntries, isLoading: displayJournalLoading } = useQuery({
-    queryKey: ['session-display-journal-entries', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-display-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       if (!currentCashSession) {
         return [];
@@ -938,7 +938,7 @@ export default function POS() {
 
   // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
-    queryKey: ['session-mobile-money-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-mobile-money-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       if (!currentCashSession) {
         return [];
