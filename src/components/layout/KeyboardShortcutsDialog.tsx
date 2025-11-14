@@ -16,32 +16,43 @@ interface Shortcut {
 }
 
 const shortcuts: Shortcut[] = [
-  // Navigation
-  { keys: ['Ctrl', 'K'], description: 'Open search', category: 'Navigation' },
-  { keys: ['Ctrl', 'H'], description: 'Go to home', category: 'Navigation' },
-  { keys: ['Ctrl', 'Shift', 'C'], description: 'Go to cart', category: 'Navigation' },
-  { keys: ['Ctrl', 'O'], description: 'Go to orders', category: 'Navigation' },
-  { keys: ['Ctrl', 'P'], description: 'Go to profile', category: 'Navigation' },
+  // Customer Navigation
+  { keys: ['Ctrl', 'K'], description: 'Open search', category: 'Customer Navigation' },
+  { keys: ['Ctrl', 'H'], description: 'Go to home', category: 'Customer Navigation' },
+  { keys: ['Ctrl', 'Shift', 'C'], description: 'Go to cart', category: 'Customer Navigation' },
+  { keys: ['Ctrl', 'O'], description: 'Go to orders', category: 'Customer Navigation' },
+  { keys: ['Ctrl', 'P'], description: 'Go to profile', category: 'Customer Navigation' },
+  
+  // Admin Navigation
+  { keys: ['Ctrl', 'Shift', 'D'], description: 'Admin Dashboard', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'P'], description: 'Point of Sale', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'O'], description: 'Admin Orders', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'I'], description: 'Products Management', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'U'], description: 'Purchases & Stock', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'A'], description: 'Analytics', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'S'], description: 'Settings', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'G'], description: 'General Ledger', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'R'], description: 'Accounts Receivable', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'Shift', 'Y'], description: 'Accounts Payable', category: 'Admin Navigation' },
+  { keys: ['Ctrl', 'B'], description: 'Barcode Management', category: 'Admin Navigation' },
+  { keys: ['Alt', 'Q'], description: 'Quotations', category: 'Admin Navigation' },
   
   // General
   { keys: ['Escape'], description: 'Close dialog/modal', category: 'General' },
   { keys: ['Enter'], description: 'Submit form/Confirm', category: 'General' },
-  { keys: ['Tab'], description: 'Next field', category: 'General' },
-  { keys: ['Shift', 'Tab'], description: 'Previous field', category: 'General' },
+  { keys: ['Tab'], description: 'Next field/element', category: 'General' },
+  { keys: ['Shift', 'Tab'], description: 'Previous field/element', category: 'General' },
   { keys: ['?'], description: 'Show this help', category: 'General' },
+  { keys: ['↑', '↓'], description: 'Navigate items', category: 'General' },
+  { keys: ['←', '→'], description: 'Navigate tabs/sections', category: 'General' },
   
   // POS System
-  { keys: ['F1'], description: 'Cash In', category: 'POS' },
-  { keys: ['F2'], description: 'Cash Out', category: 'POS' },
-  { keys: ['F3'], description: 'Hold Ticket', category: 'POS' },
-  { keys: ['F4'], description: 'Recall Ticket', category: 'POS' },
-  { keys: ['F9'], description: 'Process Payment', category: 'POS' },
-  { keys: ['F12'], description: 'Clear Cart', category: 'POS' },
-  
-  // Lists & Selection
-  { keys: ['↑'], description: 'Previous item', category: 'Lists' },
-  { keys: ['↓'], description: 'Next item', category: 'Lists' },
-  { keys: ['Enter'], description: 'Select highlighted item', category: 'Lists' },
+  { keys: ['F1'], description: 'Cash In', category: 'POS System' },
+  { keys: ['F2'], description: 'Cash Out', category: 'POS System' },
+  { keys: ['F3'], description: 'Hold Ticket', category: 'POS System' },
+  { keys: ['F4'], description: 'Recall Ticket', category: 'POS System' },
+  { keys: ['F9'], description: 'Process Payment', category: 'POS System' },
+  { keys: ['F12'], description: 'Clear Cart', category: 'POS System' },
 ];
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;

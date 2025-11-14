@@ -133,7 +133,7 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card tabIndex={0} className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card tabIndex={0} className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Transactions</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card tabIndex={0} className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Products</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
@@ -167,17 +167,17 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalProducts || 0}</div>
               <div className="flex flex-col gap-1 mt-2">
-                <Link to="/admin/products">
-                  <p className="text-xs text-primary hover:underline">Manage products</p>
+                <Link to="/admin/products" tabIndex={0} className="focus:outline-none">
+                  <p className="text-xs text-primary hover:underline focus:underline">Manage products</p>
                 </Link>
-                <Link to="/admin/categories">
-                  <p className="text-xs text-primary hover:underline">Manage categories</p>
+                <Link to="/admin/categories" tabIndex={0} className="focus:outline-none">
+                  <p className="text-xs text-primary hover:underline focus:underline">Manage categories</p>
                 </Link>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card tabIndex={0} className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -302,85 +302,85 @@ export default function AdminDashboard() {
                 <CardDescription>Configure app settings and company information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Link to="/admin/settings">
+                <Link to="/admin/settings" tabIndex={0}>
                   <Button className="w-full">
                     <Settings className="mr-2 h-4 w-4" />
                     Company Settings
                   </Button>
                 </Link>
-                <Link to="/admin/pos">
+                <Link to="/admin/pos" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Point of Sale
                   </Button>
                 </Link>
-                <Link to="/admin/purchases">
+                <Link to="/admin/purchases" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Purchases & Stock
                   </Button>
                 </Link>
-                <Link to="/admin/orders">
+                <Link to="/admin/orders" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <ShoppingCart className="mr-2 h-4 w-4" />
                     Manage Orders
                   </Button>
                 </Link>
-                <Link to="/admin/products">
+                <Link to="/admin/products" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Manage Products
                   </Button>
                 </Link>
-                <Link to="/admin/pricing">
+                <Link to="/admin/pricing" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <BadgeDollarSign className="mr-2 h-4 w-4" />
                     Pricing Management
                   </Button>
                 </Link>
-                <Link to="/admin/stock-and-price">
+                <Link to="/admin/stock-and-price" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Stock & Price List
                   </Button>
                 </Link>
-                <Link to="/admin/import-products">
+                <Link to="/admin/import-products" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Package className="mr-2 h-4 w-4" />
                     Import Products
                   </Button>
                 </Link>
-                <Link to="/admin/categories">
+                <Link to="/admin/categories" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Tags className="mr-2 h-4 w-4" />
                     Manage Categories
                   </Button>
                 </Link>
-                <Link to="/admin/offers">
+                <Link to="/admin/offers" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Tag className="mr-2 h-4 w-4" />
                     Manage Offers
                   </Button>
                 </Link>
-                <Link to="/admin/announcements">
+                <Link to="/admin/announcements" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Megaphone className="mr-2 h-4 w-4" />
                     Manage Announcements
                   </Button>
                 </Link>
-                <Link to="/admin/open-cash-register">
+                <Link to="/admin/open-cash-register" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <Wallet className="mr-2 h-4 w-4" />
                     Open Cash Register
                   </Button>
                 </Link>
-                <Link to="/admin/quotations">
+                <Link to="/admin/quotations" tabIndex={0}>
                   <Button variant="outline" className="w-full">
                     <FileText className="mr-2 h-4 w-4" />
                     Quotations
                   </Button>
                 </Link>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" tabIndex={0}>
                   <Users className="mr-2 h-4 w-4" />
                   User Management
                 </Button>
