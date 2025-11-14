@@ -3112,55 +3112,11 @@ export default function POS() {
         {/* Recent Journal Entries or Products Grid - Flexible scrollable container */}
         <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
-            <div className="space-y-3">
-              {/* Top Credit Customers Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold">Top Credit Customers</h3>
-                </div>
-                
-                {creditCustomersLoading ? (
-                  <div className="text-center py-4 text-muted-foreground text-sm">Loading customers...</div>
-                ) : topCreditCustomers && topCreditCustomers.length > 0 ? (
-                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
-                    {topCreditCustomers.map((customer: any) => (
-                      <Card 
-                        key={customer.id} 
-                        className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setShowCustomerDialog(false);
-                          toast.success(`Customer selected: ${customer.name}`);
-                        }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{customer.name}</p>
-                            {customer.phone && (
-                              <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>
-                            )}
-                          </div>
-                          <div className="text-right ml-2">
-                            <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                              {formatCurrency(customer.balance)}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground text-sm">No credit customers found</div>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
               </div>
-
-              {/* Recent Journal Entries Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
-                </div>
               
               {displayJournalLoading ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
@@ -3211,7 +3167,6 @@ export default function POS() {
                   <p className="text-sm text-muted-foreground">No journal entries for this session</p>
                 </Card>
               )}
-              </div>
             </div>
           ) : (
             <>
@@ -3457,6 +3412,48 @@ export default function POS() {
                       </div>
                     </div>
                   </Card>
+                </div>
+                
+                {/* Top Credit Customers Section */}
+                <div className="border-t pt-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-xs font-semibold">Top Credit Customers</h3>
+                  </div>
+                  
+                  {creditCustomersLoading ? (
+                    <div className="text-center py-3 text-muted-foreground text-xs">Loading...</div>
+                  ) : topCreditCustomers && topCreditCustomers.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                      {topCreditCustomers.map((customer: any) => (
+                        <Card 
+                          key={customer.id} 
+                          className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setShowCustomerDialog(false);
+                            toast.success(`Customer selected: ${customer.name}`);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{customer.name}</p>
+                              {customer.phone && (
+                                <p className="text-[10px] text-muted-foreground truncate">{customer.phone}</p>
+                              )}
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className="text-xs font-bold text-red-600 dark:text-red-400">
+                                {formatCurrency(customer.balance)}
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-3 text-muted-foreground text-xs">No credit customers</div>
+                  )}
                 </div>
               </div>
             )}
