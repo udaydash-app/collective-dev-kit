@@ -639,16 +639,17 @@ export default function POS() {
           const supplierBalance = customer.supplier_account?.current_balance || 0;
           
           // Only calculate unified balance if customer is also a supplier (has supplier account)
-          const balance = customer.supplier_ledger_account_id 
+          const displayBalance = customer.supplier_ledger_account_id 
             ? customerBalance - supplierBalance 
             : customerBalance;
           
           return {
             ...customer,
-            balance
+            balance: displayBalance,
+            customerBalance // Keep original for filtering
           };
         })
-        .filter(customer => customer.balance > 0)
+        .filter(customer => customer.customerBalance > 0) // Filter by customer balance, not unified
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
 
