@@ -6,6 +6,7 @@ import logo from "@/assets/logo.png";
 import { LocationDialog } from "./LocationDialog";
 import { LanguageSelector } from "./LanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
+import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 import {
   Tooltip,
   TooltipContent,
@@ -66,21 +67,25 @@ export const Header = () => {
             
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => {
-                      const event = new CustomEvent('show-shortcuts');
-                      window.dispatchEvent(event);
-                    }}
-                  >
-                    <Keyboard className="h-5 w-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Keyboard shortcuts (?)</p>
-                </TooltipContent>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => {
+                    const event = new CustomEvent('show-shortcuts');
+                    window.dispatchEvent(event);
+                  }}
+                  className="relative"
+                >
+                  <Keyboard className="h-5 w-5" />
+                  <span className="absolute -bottom-1 -right-1">
+                    <KeyboardBadge keys="?" className="scale-75" />
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Keyboard shortcuts</p>
+              </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             
