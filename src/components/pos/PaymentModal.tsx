@@ -59,7 +59,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const completeSaleButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -313,7 +312,14 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     setIsProcessing(true);
     try {
       await onConfirm(payments, totalPaid);
-      setShowPrintDialog(true);
+      // After payment completion, print directly without showing dialog
+      handlePrint();
+      // Reset and close
+      setPayments([{ id: '1', method: 'cash', amount: total }]);
+      setCashReceived("");
+      setSelectedCustomer("");
+      setCustomerSearch("");
+      onClose();
     } catch (error) {
       console.error("Payment processing error:", error);
       toast.error("There was an error processing the payment", {
@@ -324,17 +330,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
   };
 
-  const handleClosePrintDialog = async (shouldPrint: boolean) => {
-    if (shouldPrint) {
-      handlePrint();
-    }
-    setShowPrintDialog(false);
-    setPayments([{ id: '1', method: 'cash', amount: total }]);
-    setCashReceived("");
-    setSelectedCustomer("");
-    setCustomerSearch("");
-    onClose();
-  };
 
   // Auto-focus Complete Sale button when dialog opens
   useEffect(() => {
@@ -528,57 +523,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           </div>
         </div>
       </DialogContent>
-
-      <AlertDialog open={showPrintDialog} onOpenChange={() => {}}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Receipt Options</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sale completed successfully! Choose how to handle the receipt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex flex-col gap-2 py-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handlePrint();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print Receipt
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handleSavePDF();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <FileDown className="w-4 h-4 mr-2" />
-              Save as PDF
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handleSendWhatsApp();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Send via WhatsApp
-            </Button>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => handleClosePrintDialog(false)}>
-              Close
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Hidden receipt for printing */}
       <div className="fixed -left-[9999px] top-0 bg-white">
