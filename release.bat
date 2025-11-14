@@ -32,7 +32,7 @@ echo.
 
 REM Step 3: Install dependencies
 echo Step 3: Installing dependencies...
-call npm install
+call npm install --legacy-peer-deps
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to install dependencies!
     exit /b 1
