@@ -98,6 +98,6 @@ Write-Host "   - Global Market POS-$Version-ia32.exe" -ForegroundColor Gray
 Write-Host "   - Global Market POS-$Version-Portable.exe" -ForegroundColor Gray
 Write-Host "   - latest.yml (for auto-update)" -ForegroundColor Gray
 Write-Host ""
-Write-Host "Build artifacts are also available in: .\release\" -ForegroundColor Cyan
+Write-Host "Build artifacts are also available in release folder" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Auto-update will work for users on version 1.0.0 or higher!" -ForegroundColor Green
+Write-Host "Auto-update will work for users on version 1.0.0 or higher" -ForegroundColor Green
