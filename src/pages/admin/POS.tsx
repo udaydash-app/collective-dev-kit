@@ -621,9 +621,16 @@ export default function POS() {
         return [];
       }
 
+      console.log('Fetched contacts:', contacts);
+
       if (!contacts || contacts.length === 0) {
+        console.log('No contacts found');
         return [];
       }
+
+      // Log dual-role customers
+      const dualRoleContacts = contacts.filter(c => c.supplier_ledger_account_id);
+      console.log('Dual-role customers found:', dualRoleContacts);
 
       // Get all account IDs (both customer and supplier)
       const accountIds = [
@@ -646,6 +653,9 @@ export default function POS() {
       const accountBalanceMap = new Map(
         (accounts || []).map(acc => [acc.id, acc.current_balance])
       );
+
+      console.log('Account balances fetched:', accounts);
+      console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
 
       // Calculate balance for each contact (no filtering by positive/negative)
       const customersWithBalance = contacts
@@ -670,6 +680,9 @@ export default function POS() {
         })
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
+
+      console.log('Final customers with balance:', customersWithBalance);
+      console.log('Dual-role in final list:', customersWithBalance.filter(c => c.isDualRole));
 
       return customersWithBalance;
     },
