@@ -46,7 +46,7 @@ export const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-card border-b border-border pointer-events-none">
+      <header className="sticky top-0 z-20 bg-card border-b border-border pointer-events-none">
         <div className="flex items-center justify-between h-14 px-4 max-w-screen-xl mx-auto gap-2 pointer-events-auto">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
             <img src={companyLogo} alt={companyName} className="h-14 w-auto" />
