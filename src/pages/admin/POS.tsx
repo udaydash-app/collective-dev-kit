@@ -667,11 +667,6 @@ export default function POS() {
             isDualRole: !!contact.supplier_ledger_account_id
           };
         })
-        .filter(customer => {
-          // For dual-role customers, always show them (regardless of balance)
-          // For regular customers, show only if customer balance is positive
-          return customer.isDualRole || customer.customerBalance > 0;
-        })
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
 
