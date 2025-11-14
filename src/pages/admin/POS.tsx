@@ -897,49 +897,33 @@ export default function POS() {
         return [];
       }
       
-      // Get both cash and mobile money account IDs
-      const { data: cashAccount } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('account_code', '1010')
-        .single();
-      
-      const { data: mobileMoneyAccount } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('account_code', '1015')
-        .single();
-      
-      const accountIds = [cashAccount?.id, mobileMoneyAccount?.id].filter(Boolean);
-      
-      if (accountIds.length === 0) {
-        return [];
-      }
-      
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
 
-      // Get ALL journal entry lines from posted entries created during the session
+      // Get ALL journal entries (including credit sales) created during the session
       const { data, error: queryError } = await supabase
-        .from('journal_entry_lines')
+        .from('journal_entries')
         .select(`
-          debit_amount,
-          credit_amount,
-          journal_entries!inner(status, entry_date, created_at, reference, description)
+          id,
+          reference,
+          description,
+          entry_date,
+          created_at,
+          total_debit,
+          total_credit,
+          status
         `)
-        .in('account_id', accountIds)
-        .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.created_at', sessionStart)
-        .lte('journal_entries.created_at', sessionEnd)
-        .order('created_at', { foreignTable: 'journal_entries', ascending: false });
+        .eq('status', 'posted')
+        .gte('created_at', sessionStart)
+        .lte('created_at', sessionEnd)
+        .order('created_at', { ascending: false });
       
       console.log('Display journal entries query result:', { 
         data, 
         error: queryError, 
         sessionStart, 
-        sessionEnd, 
-        accountIds 
+        sessionEnd
       });
       
       return data || [];
@@ -3245,37 +3229,28 @@ export default function POS() {
               ) : displayJournalEntries && displayJournalEntries.length > 0 ? (
                 <div className="space-y-1.5">
                   {displayJournalEntries.slice(0, 10).map((entry: any, index: number) => {
-                    const debit = parseFloat(entry.debit_amount?.toString() || '0');
-                    const credit = parseFloat(entry.credit_amount?.toString() || '0');
-                    const amount = debit > 0 ? debit : credit;
-                    const type = debit > 0 ? 'Debit' : 'Credit';
+                    const amount = parseFloat(entry.total_debit?.toString() || '0');
                     
                     return (
                       <Card key={index} className="p-2 hover:bg-accent/50 transition-colors">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className={cn(
-                                "text-xs font-medium px-1.5 py-0.5 rounded",
-                                debit > 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                              )}>
-                                {type}
+                              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                                Transaction
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(entry.journal_entries.created_at), 'MMM dd, HH:mm')}
+                                {format(new Date(entry.created_at), 'MMM dd, HH:mm')}
                               </span>
                             </div>
-                            <p className="text-xs font-medium truncate">{entry.journal_entries.reference}</p>
-                            {entry.journal_entries.description && (
-                              <p className="text-xs text-muted-foreground truncate">{entry.journal_entries.description}</p>
+                            <p className="text-xs font-medium truncate">{entry.reference}</p>
+                            {entry.description && (
+                              <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
                             )}
                           </div>
                           <div className="text-right ml-2">
-                            <p className={cn(
-                              "text-sm font-bold",
-                              debit > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                            )}>
-                              {debit > 0 ? '+' : '-'}{formatCurrency(amount)}
+                            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(amount)}
                             </p>
                           </div>
                         </div>
