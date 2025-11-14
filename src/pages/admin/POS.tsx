@@ -677,14 +677,27 @@ export default function POS() {
             customerBalance,
             isDualRole: !!contact.supplier_ledger_account_id
           };
-        })
-        .sort((a, b) => b.balance - a.balance)
-        .slice(0, 10);
+        });
 
-      console.log('Final customers with balance:', customersWithBalance);
-      console.log('Dual-role in final list:', customersWithBalance.filter(c => c.isDualRole));
+      // Separate dual-role and regular customers
+      const dualRoleCustomers = customersWithBalance
+        .filter(c => c.isDualRole)
+        .sort((a, b) => b.balance - a.balance);
+      
+      const regularCustomers = customersWithBalance
+        .filter(c => !c.isDualRole)
+        .sort((a, b) => b.balance - a.balance);
 
-      return customersWithBalance;
+      // Prioritize dual-role customers, then fill with regular customers
+      const finalList = [
+        ...dualRoleCustomers,
+        ...regularCustomers
+      ].slice(0, 10);
+
+      console.log('Final customers with balance:', finalList);
+      console.log('Dual-role in final list:', finalList.filter(c => c.isDualRole));
+
+      return finalList;
     },
     enabled: !!selectedStoreId,
   });
