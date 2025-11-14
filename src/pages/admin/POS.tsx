@@ -3020,8 +3020,8 @@ export default function POS() {
           </div>
         )}
 
-        {/* Recent Journal Entries or Products Grid - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-2 pb-0">
+        {/* Recent Journal Entries or Products Grid - Scrollable with limited height */}
+        <div className="max-h-[200px] overflow-y-auto p-2 pb-0">
           {!selectedCategory && !searchTerm ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-2">
@@ -3158,7 +3158,7 @@ export default function POS() {
                     Previous
                   </Button>
                   <span className="text-xs text-muted-foreground px-2">
-                    {currentPage} / {totalPages}
+                    Page {currentPage} of {totalPages}
                   </span>
                   <Button
                     variant="outline"
@@ -3175,8 +3175,8 @@ export default function POS() {
           )}
         </div>
 
-        {/* Recent Journal Entries or Products Grid - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-2 pb-0">
+        {/* Keypad, Actions & Dashboard Section - Always Visible */}
+        <div className="flex-shrink-0 p-2 pt-0">
           <div className="flex gap-4">
             {/* Numeric Keypad - left side */}
             <div className="flex-1">
