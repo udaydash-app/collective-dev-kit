@@ -3212,8 +3212,27 @@ export default function POS() {
             />
           </div>
 
+          {/* Quick Actions Grid - middle */}
+          <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
+            {quickActions.map((action, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                className={cn(
+                  "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
+                  action.color,
+                  "hover:opacity-90"
+                )}
+                onClick={action.action}
+              >
+                <action.icon className="h-4 w-4 mb-0.5" />
+                <span className="text-[10px] text-center leading-tight">{action.label}</span>
+              </Button>
+            ))}
+          </div>
+
           {/* Dashboard Analytics - right side */}
-          {!selectedCategory && !searchTerm ? (
+          {!selectedCategory && !searchTerm && (
             <div className="flex-shrink-0 w-[420px] space-y-2">
               {/* Date Range Selector */}
               <div className="flex items-center gap-1.5">
@@ -3276,8 +3295,11 @@ export default function POS() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-xs font-semibold text-blue-900 dark:text-blue-100 block mb-1">Top Product</span>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
-                        {analyticsData?.topProducts?.[0]?.name || analyticsData?.topItem?.name || 'N/A'}
+                      <p className="text-sm font-bold text-blue-900 dark:text-blue-100 truncate">
+                        {analyticsData?.topProducts?.[0]?.name || 'N/A'}
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        {analyticsData?.topProducts?.[0]?.quantity || 0} sold
                       </p>
                     </div>
                   </div>
@@ -3291,32 +3313,16 @@ export default function POS() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-xs font-semibold text-purple-900 dark:text-purple-100 block mb-1">Top Customer</span>
-                      <p className="text-sm font-medium text-purple-900 dark:text-purple-100 truncate">
-                        {analyticsData?.topCustomers?.[0]?.name || analyticsData?.topCustomer?.name || 'N/A'}
+                      <p className="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">
+                        {analyticsData?.topCustomers?.[0]?.name || 'N/A'}
+                      </p>
+                      <p className="text-xs text-purple-700 dark:text-purple-300">
+                        {formatCurrency(analyticsData?.topCustomers?.[0]?.total || 0)}
                       </p>
                     </div>
                   </div>
                 </Card>
               </div>
-            </div>
-          ) : (
-            /* Quick Actions Grid - when browsing products */
-            <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className={cn(
-                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
-                    action.color,
-                    "hover:opacity-90"
-                  )}
-                  onClick={action.action}
-                >
-                  <action.icon className="h-4 w-4 mb-0.5" />
-                  <span className="text-[10px] text-center leading-tight">{action.label}</span>
-                </Button>
-              ))}
             </div>
           )}
         </div>
