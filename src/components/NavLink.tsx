@@ -22,7 +22,7 @@ export const NavLink = ({
   return (
     <Link
       to={to}
-      className={cn(className, isActive && activeClassName)}
+      className={cn("pointer-events-auto cursor-pointer", className, isActive && activeClassName)}
       {...props}
     >
       {children}
