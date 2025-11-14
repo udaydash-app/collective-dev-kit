@@ -66,7 +66,8 @@ export default function AccountsReceivable() {
         })
       );
 
-      return contactsWithBalance.filter(c => c.balance > 0);
+      // Show all customers with non-zero balances (positive = they owe us, negative = we owe them)
+      return contactsWithBalance.filter(c => c.balance !== 0);
     }
   });
 
@@ -76,7 +77,9 @@ export default function AccountsReceivable() {
     r.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalOutstanding = receivables?.reduce((sum, r) => sum + Number(r.balance), 0) || 0;
+  const totalReceivable = receivables?.filter(r => r.balance > 0).reduce((sum, r) => sum + Number(r.balance), 0) || 0;
+  const totalPayable = Math.abs(receivables?.filter(r => r.balance < 0).reduce((sum, r) => sum + Number(r.balance), 0) || 0);
+  const netBalance = totalReceivable - totalPayable;
 
   const handlePrint = () => {
     window.print();
@@ -103,14 +106,24 @@ export default function AccountsReceivable() {
           <CardTitle>Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Customers with Outstanding</p>
+              <p className="text-sm text-muted-foreground">Total Customers</p>
               <p className="text-2xl font-bold">{receivables?.length || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Outstanding Amount</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding)}</p>
+              <p className="text-sm text-muted-foreground">Total Receivable (They Owe Us)</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalReceivable)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Payable (We Owe Them)</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(totalPayable)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Net Balance</p>
+              <p className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(netBalance)}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -151,21 +164,24 @@ export default function AccountsReceivable() {
                     <TableCell className="font-medium">
                       {receivable.name}
                       {receivable.isUnified && (
-                        <span className="ml-2 text-xs text-muted-foreground">(Unified)</span>
+                        <span className="ml-2 text-xs text-muted-foreground">(Dual Role)</span>
                       )}
                     </TableCell>
                     <TableCell>{receivable.phone || '-'}</TableCell>
                     <TableCell>{receivable.email || '-'}</TableCell>
                     <TableCell className="text-right">{formatCurrency(receivable.credit_limit)}</TableCell>
-                    <TableCell className="text-right font-semibold text-destructive">
-                      {formatCurrency(receivable.balance)}
+                    <TableCell className={`text-right font-semibold ${receivable.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {receivable.balance >= 0 ? formatCurrency(receivable.balance) : `(${formatCurrency(Math.abs(receivable.balance))})`}
+                      <span className="ml-1 text-xs text-muted-foreground block">
+                        {receivable.balance >= 0 ? 'Receivable' : 'Payable'}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold">
-                  <TableCell colSpan={4} className="text-right">Total Outstanding:</TableCell>
-                  <TableCell className="text-right text-destructive">
-                    {formatCurrency(totalOutstanding)}
+                  <TableCell colSpan={4} className="text-right">Net Balance:</TableCell>
+                  <TableCell className={`text-right ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(netBalance)}
                   </TableCell>
                 </TableRow>
               </TableBody>
