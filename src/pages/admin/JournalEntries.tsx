@@ -89,6 +89,9 @@ export default function JournalEntries() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  
+  // Search filter state
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: accounts } = useQuery({
     queryKey: ['accounts-active'],
@@ -335,28 +338,55 @@ export default function JournalEntries() {
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  // Filter journal entries by date range
+  // Filter journal entries by date range and search query
   const filteredEntries = journalEntries?.filter((entry: any) => {
-    if (!startDate && !endDate) return true;
-    
-    const entryDate = startOfDay(new Date(entry.entry_date));
-    
-    if (startDate && endDate) {
-      return isWithinInterval(entryDate, {
-        start: startOfDay(startDate),
-        end: endOfDay(endDate)
-      });
+    // Date filter
+    let passesDateFilter = true;
+    if (startDate || endDate) {
+      const entryDate = startOfDay(new Date(entry.entry_date));
+      
+      if (startDate && endDate) {
+        passesDateFilter = isWithinInterval(entryDate, {
+          start: startOfDay(startDate),
+          end: endOfDay(endDate)
+        });
+      } else if (startDate) {
+        passesDateFilter = entryDate >= startOfDay(startDate);
+      } else if (endDate) {
+        passesDateFilter = entryDate <= endOfDay(endDate);
+      }
     }
     
-    if (startDate) {
-      return entryDate >= startOfDay(startDate);
+    // Search filter
+    let passesSearchFilter = true;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      
+      // Search in entry fields
+      const matchesEntry = 
+        entry.entry_number?.toLowerCase().includes(query) ||
+        entry.description?.toLowerCase().includes(query) ||
+        entry.reference?.toLowerCase().includes(query) ||
+        entry.notes?.toLowerCase().includes(query) ||
+        entry.status?.toLowerCase().includes(query) ||
+        entry.entry_date?.toLowerCase().includes(query) ||
+        entry.transaction_amount?.toString().includes(query) ||
+        entry.total_debit?.toString().includes(query) ||
+        entry.total_credit?.toString().includes(query);
+      
+      // Search in journal entry lines (account codes, account names, descriptions)
+      const matchesLines = entry.journal_entry_lines?.some((line: any) => 
+        line.description?.toLowerCase().includes(query) ||
+        line.accounts?.account_code?.toLowerCase().includes(query) ||
+        line.accounts?.account_name?.toLowerCase().includes(query) ||
+        line.debit_amount?.toString().includes(query) ||
+        line.credit_amount?.toString().includes(query)
+      );
+      
+      passesSearchFilter = matchesEntry || matchesLines;
     }
     
-    if (endDate) {
-      return entryDate <= endOfDay(endDate);
-    }
-    
-    return true;
+    return passesDateFilter && passesSearchFilter;
   });
 
   return (
@@ -615,81 +645,96 @@ export default function JournalEntries() {
         </div>
       </div>
 
-      {/* Date Filters */}
+      {/* Filters */}
       <Card className="p-4">
-        <div className="flex items-end gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <Label>Start Date</Label>
-            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={(date) => {
-                    setStartDate(date);
-                    setStartDateOpen(false);
-                  }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+        <div className="space-y-4">
+          {/* Search Filter */}
+          <div>
+            <Label>Search</Label>
+            <Input
+              placeholder="Search by entry number, description, reference, account, status, or any field..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
+            />
           </div>
+          
+          {/* Date Filters */}
+          <div className="flex items-end gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <Label>Start Date</Label>
+              <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => {
+                      setStartDate(date);
+                      setStartDateOpen(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          <div className="flex-1 min-w-[200px]">
-            <Label>End Date</Label>
-            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={(date) => {
-                    setEndDate(date);
-                    setEndDateOpen(false);
-                  }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="flex-1 min-w-[200px]">
+              <Label>End Date</Label>
+              <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(date) => {
+                      setEndDate(date);
+                      setEndDateOpen(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {(startDate || endDate || searchQuery) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStartDate(undefined);
+                  setEndDate(undefined);
+                  setSearchQuery('');
+                }}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
           </div>
-
-          {(startDate || endDate) && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStartDate(undefined);
-                setEndDate(undefined);
-              }}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Clear Filters
-            </Button>
-          )}
         </div>
       </Card>
 
@@ -717,7 +762,7 @@ export default function JournalEntries() {
             ) : filteredEntries?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">
-                  {startDate || endDate ? 'No journal entries found for the selected date range' : 'No journal entries found'}
+                  {startDate || endDate || searchQuery ? 'No journal entries found for the selected filters' : 'No journal entries found'}
                 </TableCell>
               </TableRow>
             ) : (
