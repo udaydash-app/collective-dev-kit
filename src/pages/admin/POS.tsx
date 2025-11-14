@@ -617,10 +617,10 @@ export default function POS() {
           email,
           customer_ledger_account_id,
           supplier_ledger_account_id,
-          customer_account:accounts!customer_ledger_account_id (
+          customer_account:accounts!contacts_customer_ledger_account_id_fkey (
             current_balance
           ),
-          supplier_account:accounts!supplier_ledger_account_id (
+          supplier_account:accounts!contacts_supplier_ledger_account_id_fkey (
             current_balance
           )
         `)
@@ -632,11 +632,21 @@ export default function POS() {
         return [];
       }
 
+      console.log('Raw credit customers data:', data);
+
       // Calculate unified balance only when customer is also a supplier
       const customersWithBalance = (data || [])
         .map(customer => {
           const customerBalance = customer.customer_account?.current_balance || 0;
           const supplierBalance = customer.supplier_account?.current_balance || 0;
+          
+          console.log(`Customer ${customer.name}:`, {
+            customerBalance,
+            supplierBalance,
+            hasSupplierAccount: !!customer.supplier_ledger_account_id,
+            customer_account: customer.customer_account,
+            supplier_account: customer.supplier_account
+          });
           
           // Only calculate unified balance if customer is also a supplier (has supplier account)
           const displayBalance = customer.supplier_ledger_account_id 
@@ -649,10 +659,17 @@ export default function POS() {
             customerBalance // Keep original for filtering
           };
         })
-        .filter(customer => customer.customerBalance > 0) // Filter by customer balance, not unified
+        .filter(customer => {
+          const shouldShow = customer.customerBalance > 0;
+          if (!shouldShow && customer.supplier_ledger_account_id) {
+            console.log(`Filtering out dual-role customer ${customer.name}: customerBalance=${customer.customerBalance}`);
+          }
+          return shouldShow;
+        })
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
 
+      console.log('Filtered credit customers:', customersWithBalance);
       return customersWithBalance;
     },
     enabled: !!selectedStoreId,
