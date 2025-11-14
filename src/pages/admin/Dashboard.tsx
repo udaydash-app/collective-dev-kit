@@ -26,6 +26,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
@@ -303,81 +304,113 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Link to="/admin/settings" tabIndex={0}>
-                  <Button className="w-full">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Company Settings
+                  <Button className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Company Settings
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "S"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/pos" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Point of Sale
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Point of Sale
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "P"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/purchases" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Purchases & Stock
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Purchases & Stock
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "U"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/orders" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Manage Orders
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Manage Orders
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "O"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/products" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Manage Products
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Manage Products
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "I"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/pricing" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <BadgeDollarSign className="mr-2 h-4 w-4" />
-                    Pricing Management
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <BadgeDollarSign className="mr-2 h-4 w-4" />
+                      Pricing Management
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/stock-and-price" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Stock & Price List
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Stock & Price List
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/import-products" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Import Products
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Import Products
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/categories" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Tags className="mr-2 h-4 w-4" />
-                    Manage Categories
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Tags className="mr-2 h-4 w-4" />
+                      Manage Categories
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/offers" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Tag className="mr-2 h-4 w-4" />
-                    Manage Offers
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Tag className="mr-2 h-4 w-4" />
+                      Manage Offers
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/announcements" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Megaphone className="mr-2 h-4 w-4" />
-                    Manage Announcements
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Megaphone className="mr-2 h-4 w-4" />
+                      Manage Announcements
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/open-cash-register" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Open Cash Register
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Open Cash Register
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/quotations" tabIndex={0}>
-                  <Button variant="outline" className="w-full">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Quotations
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Quotations
+                    </span>
+                    <KeyboardBadge keys={["Alt", "Q"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Button variant="outline" className="w-full" tabIndex={0}>

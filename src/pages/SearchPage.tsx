@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, X, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 
 const recentSearches = ["Organic milk", "Fresh bananas", "Whole wheat bread"];
 const trendingSearches = ["Greek yogurt", "Avocados", "Salmon", "Almond milk"];
@@ -115,23 +116,25 @@ export default function SearchPage() {
             <Input
               type="search"
               placeholder="Search for products or ask anything..."
-              className="pl-10 pr-10"
+              className="pl-10 pr-24"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAISearch()}
               autoFocus
             />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setAiSuggestions("");
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
-            )}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <KeyboardBadge keys={["Ctrl", "K"]} className="hidden sm:flex" />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setAiSuggestions("");
+                  }}
+                >
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
           </div>
           
           {searchQuery && (

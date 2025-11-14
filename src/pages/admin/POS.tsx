@@ -82,6 +82,7 @@ import { Label } from '@/components/ui/label';
 import { UpdateButton } from '@/components/UpdateButton';
 import { APP_VERSION } from '@/config/version';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
+import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -2481,25 +2482,29 @@ export default function POS() {
       icon: Clock, 
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/orders')
+      action: () => navigate('/admin/orders'),
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pending sales')
+      action: () => alert('No pending sales'),
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Hold / Fire', 
       color: 'bg-[#F97316]', 
-      action: () => setShowHoldTicket(true)
+      action: () => setShowHoldTicket(true),
+      shortcut: 'F3'
     },
     { 
       icon: Package, 
       label: 'Pickup orders', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pickup orders')
+      action: () => alert('No pickup orders'),
+      shortcut: null
     },
     { 
       icon: Banknote, 
@@ -2511,7 +2516,8 @@ export default function POS() {
           return;
         }
         setShowRefund(true);
-      }
+      },
+      shortcut: null
     },
     { 
       icon: BarChart3, 
@@ -2523,13 +2529,15 @@ export default function POS() {
           return;
         }
         setShowCashOut(true);
-      }
+      },
+      shortcut: 'F2'
     },
     { 
       icon: ShoppingCart, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/stock-and-price')
+      action: () => navigate('/admin/stock-and-price'),
+      shortcut: null
     },
     { 
       icon: Clock, 
@@ -2538,16 +2546,18 @@ export default function POS() {
       action: () => {
         const now = new Date().toLocaleTimeString();
         alert(`Clocked in at ${now}`);
-      }
+      },
+      shortcut: null
     },
     { 
       icon: Gift, 
       label: 'Gift Card', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('Gift card - Coming soon')
+      action: () => alert('Gift card - Coming soon'),
+      shortcut: null
     },
     { 
-      icon: Gift, 
+      icon: Gift,
       label: 'Notes', 
       color: 'bg-[#5DADE2]', 
       action: () => setShowNotesDialog(true)
@@ -3372,12 +3382,17 @@ export default function POS() {
                   key={index}
                   variant="outline"
                   className={cn(
-                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
+                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors relative",
                     action.color,
                     "hover:opacity-90"
                   )}
                   onClick={action.action}
                 >
+                  {action.shortcut && (
+                    <div className="absolute top-0.5 right-0.5">
+                      <KeyboardBadge keys={action.shortcut} className="scale-[0.65] opacity-80" />
+                    </div>
+                  )}
                   <action.icon className="h-4 w-4 mb-0.5" />
                   <span className="text-[10px] text-center leading-tight">{action.label}</span>
                 </Button>
