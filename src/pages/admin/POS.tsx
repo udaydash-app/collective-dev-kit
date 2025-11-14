@@ -3072,8 +3072,8 @@ export default function POS() {
           </div>
         )}
 
-        {/* Recent Journal Entries or Products Grid - Scrollable with limited height */}
-        <div className="max-h-[200px] overflow-y-auto p-2 pb-0">
+        {/* Recent Journal Entries or Products Grid - Flexible scrollable container */}
+        <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-2">
