@@ -663,10 +663,15 @@ export default function POS() {
           return {
             ...contact,
             balance: displayBalance,
-            customerBalance
+            customerBalance,
+            isDualRole: !!contact.supplier_ledger_account_id
           };
         })
-        .filter(customer => customer.customerBalance > 0)
+        .filter(customer => {
+          // For dual-role customers, show if unified balance is positive
+          // For regular customers, show if customer balance is positive
+          return customer.isDualRole ? customer.balance > 0 : customer.customerBalance > 0;
+        })
         .sort((a, b) => b.balance - a.balance)
         .slice(0, 10);
 
