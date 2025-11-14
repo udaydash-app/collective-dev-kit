@@ -602,6 +602,43 @@ export default function POS() {
     enabled: !!currentCashSession,
   });
 
+  // Get top credit customers with outstanding balances
+  const { data: topCreditCustomers, isLoading: creditCustomersLoading } = useQuery({
+    queryKey: ['top-credit-customers', selectedStoreId],
+    queryFn: async () => {
+      if (!selectedStoreId) return [];
+
+      const { data } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          name,
+          phone,
+          email,
+          customer_ledger_account_id,
+          accounts!contacts_customer_ledger_account_id_fkey (
+            current_balance
+          )
+        `)
+        .eq('is_customer', true)
+        .not('customer_ledger_account_id', 'is', null)
+        .order('accounts.current_balance', { ascending: false })
+        .limit(10);
+
+      // Filter and format customers with positive balances
+      const customersWithBalance = (data || [])
+        .map(customer => ({
+          ...customer,
+          balance: customer.accounts?.current_balance || 0
+        }))
+        .filter(customer => customer.balance > 0)
+        .sort((a, b) => b.balance - a.balance);
+
+      return customersWithBalance;
+    },
+    enabled: !!selectedStoreId,
+  });
+
   // Calculate day activity
   const dayActivity = {
     cashSales: sessionTransactions
@@ -3075,11 +3112,55 @@ export default function POS() {
         {/* Recent Journal Entries or Products Grid - Flexible scrollable container */}
         <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
+            <div className="space-y-3">
+              {/* Top Credit Customers Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold">Top Credit Customers</h3>
+                </div>
+                
+                {creditCustomersLoading ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">Loading customers...</div>
+                ) : topCreditCustomers && topCreditCustomers.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                    {topCreditCustomers.map((customer: any) => (
+                      <Card 
+                        key={customer.id} 
+                        className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setShowCustomerDialog(false);
+                          toast.success(`Customer selected: ${customer.name}`);
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{customer.name}</p>
+                            {customer.phone && (
+                              <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>
+                            )}
+                          </div>
+                          <div className="text-right ml-2">
+                            <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                              {formatCurrency(customer.balance)}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">No credit customers found</div>
+                )}
               </div>
+
+              {/* Recent Journal Entries Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
+                </div>
               
               {displayJournalLoading ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
@@ -3130,6 +3211,7 @@ export default function POS() {
                   <p className="text-sm text-muted-foreground">No journal entries for this session</p>
                 </Card>
               )}
+              </div>
             </div>
           ) : (
             <>
