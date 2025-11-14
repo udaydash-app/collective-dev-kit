@@ -1,9 +1,9 @@
 # PowerShell script to release a new version with auto-update
-# Usage: .\release.ps1 -Version "1.0.16"
+# Usage: .\release.ps1 -Version "1.0.17"
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$Version = "1.0.16"
+    [string]$Version = "1.0.17"
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to pull from GitHub!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Successfully pulled latest changes" -ForegroundColor Green
+Write-Host "Successfully pulled latest changes" -ForegroundColor Green
 Write-Host ""
 
 # Step 2: Update version in package.json
@@ -28,17 +28,17 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to update version!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Version updated to $Version" -ForegroundColor Green
+Write-Host "Version updated to $Version" -ForegroundColor Green
 Write-Host ""
 
 # Step 3: Install dependencies
 Write-Host "Step 3: Installing dependencies..." -ForegroundColor Yellow
-npm install
+npm install --legacy-peer-deps
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to install dependencies!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Dependencies installed" -ForegroundColor Green
+Write-Host "Dependencies installed" -ForegroundColor Green
 Write-Host ""
 
 # Step 4: Build web application
@@ -48,7 +48,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to build web application!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Web application built successfully" -ForegroundColor Green
+Write-Host "Web application built successfully" -ForegroundColor Green
 Write-Host ""
 
 # Step 5: Build Electron installer
@@ -58,7 +58,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to build Electron installer!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Electron installer built successfully" -ForegroundColor Green
+Write-Host "Electron installer built successfully" -ForegroundColor Green
 Write-Host ""
 
 # Step 6: Commit changes
@@ -68,7 +68,7 @@ git commit -m "Release version $Version with auto-update fixes"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "WARNING: No changes to commit or commit failed" -ForegroundColor Yellow
 }
-Write-Host "✓ Changes committed" -ForegroundColor Green
+Write-Host "Changes committed" -ForegroundColor Green
 Write-Host ""
 
 # Step 7: Create and push tag
@@ -80,7 +80,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to push tag to GitHub!" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Tag v$Version created and pushed" -ForegroundColor Green
+Write-Host "Tag v$Version created and pushed" -ForegroundColor Green
 Write-Host ""
 
 # Success message
@@ -91,7 +91,7 @@ Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Cyan
 Write-Host "1. GitHub Actions will automatically build the release" -ForegroundColor White
 Write-Host "2. Go to: https://github.com/udaydash-app/collective-dev-kit/releases" -ForegroundColor White
-Write-Host "3. Wait for the build to complete (~5-10 minutes)" -ForegroundColor White
+Write-Host "3. Wait for the build to complete (5-10 minutes)" -ForegroundColor White
 Write-Host "4. The release will include:" -ForegroundColor White
 Write-Host "   - Global Market POS-$Version-x64.exe" -ForegroundColor Gray
 Write-Host "   - Global Market POS-$Version-ia32.exe" -ForegroundColor Gray
