@@ -45,20 +45,6 @@ function createWindow() {
   // Show window when ready to prevent flickering
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    
-    // Set default zoom to 150% when window is maximized
-    if (mainWindow.isMaximized()) {
-      mainWindow.webContents.setZoomFactor(1.5);
-    }
-  });
-
-  // Handle maximize/unmaximize events for zoom
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.setZoomFactor(1.5);
-  });
-
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.setZoomFactor(1.0);
   });
 
   // Load the app
@@ -93,6 +79,8 @@ if (autoUpdater) {
     console.log('[AUTO-UPDATE] Looking for releases at: https://github.com/udaydash-app/collective-dev-kit/releases');
   });
 
+  let downloadProgressWindow = null;
+
   autoUpdater.on('update-available', (info) => {
     console.log('[AUTO-UPDATE] Update available:', info.version);
     dialog.showMessageBox({
@@ -103,6 +91,74 @@ if (autoUpdater) {
     }).then((result) => {
       if (result.response === 0) {
         console.log('[AUTO-UPDATE] Starting download...');
+        
+        // Show download progress dialog
+        downloadProgressWindow = new BrowserWindow({
+          width: 400,
+          height: 150,
+          frame: false,
+          resizable: false,
+          alwaysOnTop: true,
+          center: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          }
+        });
+
+        downloadProgressWindow.loadURL(`data:text/html;charset=utf-8,
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>
+                body {
+                  margin: 0;
+                  padding: 20px;
+                  font-family: Arial, sans-serif;
+                  background: #f5f5f5;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  height: 100vh;
+                }
+                .container {
+                  background: white;
+                  padding: 20px;
+                  border-radius: 8px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                h3 { margin: 0 0 15px 0; color: #333; }
+                .progress-bar {
+                  width: 100%;
+                  height: 24px;
+                  background: #e0e0e0;
+                  border-radius: 12px;
+                  overflow: hidden;
+                }
+                .progress-fill {
+                  height: 100%;
+                  background: linear-gradient(90deg, #22C55E, #16A34A);
+                  transition: width 0.3s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: white;
+                  font-weight: bold;
+                  font-size: 12px;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h3>Downloading Update...</h3>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progress" style="width: 0%">0%</div>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
+
         autoUpdater.downloadUpdate();
       }
     });
@@ -115,12 +171,27 @@ if (autoUpdater) {
   autoUpdater.on('download-progress', (progressObj) => {
     let message = `[AUTO-UPDATE] Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent.toFixed(2)}%`;
     console.log(message);
-    // Send progress to renderer if needed
+    
+    // Update progress window
+    if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
+      const percent = Math.round(progressObj.percent);
+      downloadProgressWindow.webContents.executeJavaScript(`
+        document.getElementById('progress').style.width = '${percent}%';
+        document.getElementById('progress').textContent = '${percent}%';
+      `);
+    }
     BrowserWindow.getAllWindows()[0]?.webContents.send('download-progress', progressObj);
   });
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[AUTO-UPDATE] Update downloaded:', info.version);
+    
+    // Close progress window
+    if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
+      downloadProgressWindow.close();
+      downloadProgressWindow = null;
+    }
+    
     dialog.showMessageBox({
       type: 'info',
       title: 'Update Ready',
