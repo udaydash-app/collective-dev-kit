@@ -934,6 +934,14 @@ export default function POS() {
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: false });
       
+      console.log('Display journal entries query result:', { 
+        data, 
+        error: queryError, 
+        sessionStart, 
+        sessionEnd, 
+        accountIds 
+      });
+      
       return data || [];
     },
     enabled: !!currentCashSession,
@@ -1023,6 +1031,15 @@ export default function POS() {
       supabase.removeChannel(channel);
     };
   }, [currentCashSession, queryClient]);
+
+  // Debug logging for journal entries
+  useEffect(() => {
+    console.log('Display journal entries updated:', {
+      count: displayJournalEntries?.length || 0,
+      loading: displayJournalLoading,
+      entries: displayJournalEntries
+    });
+  }, [displayJournalEntries, displayJournalLoading]);
 
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
   const journalCashEffect = cashJournalEntries
@@ -2189,6 +2206,11 @@ export default function POS() {
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       toast.success(`Transaction ${displayNumber} processed successfully`);
+      
+      // Refetch journal entries to show the new transaction immediately
+      queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
     }
   };
 
