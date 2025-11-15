@@ -22,8 +22,6 @@ export function CustomPriceDialog({
   onSave,
   onSkip
 }: CustomPriceDialogProps) {
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
   // Filter items that have custom prices or discounts
   const itemsWithCustomPrices = cartItems.filter(item => {
     // Exclude special items (combos, BOGOs, cart discounts)
@@ -44,9 +42,9 @@ export function CustomPriceDialog({
   });
 
   // Initialize with all items selected
-  useState(() => {
-    setSelectedItems(new Set(itemsWithCustomPrices.map(item => item.productId)));
-  });
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(() => 
+    new Set(itemsWithCustomPrices.map(item => item.productId))
+  );
 
   const handleToggleItem = (productId: string) => {
     setSelectedItems(prev => {
