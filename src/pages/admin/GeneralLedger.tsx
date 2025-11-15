@@ -427,18 +427,18 @@ export default function GeneralLedger() {
 
   const ledgerEntries = calculateRunningBalance();
 
-  // For unified views, use the totals from A/R and A/P calculations
+  // For unified views, show A/R as Total Debits and A/P as Total Credits
   const isUnifiedView = (ledgerData?.account as any)?.isUnified;
   
   const totalDebit = isUnifiedView 
-    ? ((ledgerData?.account as any)?.total_ar_debits || 0)
+    ? ((ledgerData?.account as any)?.customer_balance || 0)
     : ((ledgerData?.lines as any[])?.reduce(
         (sum: number, line: any) => sum + (line.debit_amount || 0),
         0
       ) || 0);
 
   const totalCredit = isUnifiedView
-    ? ((ledgerData?.account as any)?.total_ap_credits || 0)
+    ? ((ledgerData?.account as any)?.supplier_balance || 0)
     : ((ledgerData?.lines as any[])?.reduce(
         (sum: number, line: any) => sum + (line.credit_amount || 0),
         0
