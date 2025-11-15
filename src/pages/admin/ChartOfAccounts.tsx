@@ -187,6 +187,12 @@ export default function ChartOfAccounts() {
     account.account_code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getParentAccountName = (parentId?: string) => {
+    if (!parentId) return '-';
+    const parent = accounts?.find(a => a.id === parentId);
+    return parent ? `${parent.account_code} - ${parent.account_name}` : '-';
+  };
+
   const accountTypeColors = {
     asset: 'bg-blue-500',
     liability: 'bg-red-500',
@@ -267,25 +273,48 @@ export default function ChartOfAccounts() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label htmlFor="parent_account">Parent Account (Optional)</Label>
+                  <Label htmlFor="parent_account">
+                    Parent Account (Optional)
+                    <span className="text-muted-foreground text-xs ml-2">
+                      - Change hierarchy by selecting a different parent
+                    </span>
+                  </Label>
                   <Select
-                    value={formData.parent_account_id}
+                    value={formData.parent_account_id || 'none'}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, parent_account_id: value })
+                      setFormData({ ...formData, parent_account_id: value === 'none' ? '' : value })
                     }
                   >
                     <SelectTrigger id="parent_account">
-                      <SelectValue placeholder="None" />
+                      <SelectValue placeholder="None (Top Level Account)" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {accounts?.filter(a => a.id !== editingAccount?.id).map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.account_code} - {account.account_name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="max-h-[300px]">
+                      <SelectItem value="none">None (Top Level Account)</SelectItem>
+                      {accounts
+                        ?.filter(a => a.id !== editingAccount?.id)
+                        .sort((a, b) => a.account_code.localeCompare(b.account_code))
+                        .map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs">{account.account_code}</span>
+                              <span>-</span>
+                              <span>{account.account_name}</span>
+                              <Badge 
+                                variant="outline" 
+                                className="ml-auto text-xs"
+                              >
+                                {account.account_type}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                  {editingAccount && formData.parent_account_id && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Currently moving to: {getParentAccountName(formData.parent_account_id)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-2">
@@ -351,6 +380,7 @@ export default function ChartOfAccounts() {
               <TableHead>Code</TableHead>
               <TableHead>Account Name</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Parent Account</TableHead>
               <TableHead className="text-right">Balance</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -359,13 +389,13 @@ export default function ChartOfAccounts() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredAccounts?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   No accounts found
                 </TableCell>
               </TableRow>
@@ -388,6 +418,11 @@ export default function ChartOfAccounts() {
                       {account.account_type}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {getParentAccountName(account.parent_account_id)}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right font-mono">
                     {formatCurrency(account.current_balance)}
                   </TableCell>
@@ -402,6 +437,7 @@ export default function ChartOfAccounts() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEdit(account)}
+                        title="Edit account"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -410,6 +446,7 @@ export default function ChartOfAccounts() {
                         size="icon"
                         onClick={() => handleDelete(account.id, account.account_name)}
                         disabled={account.current_balance !== 0}
+                        title={account.current_balance !== 0 ? "Cannot delete account with balance" : "Delete account"}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

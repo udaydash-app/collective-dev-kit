@@ -49,6 +49,7 @@ import InventoryLayers from "./pages/admin/InventoryLayers";
 import StockReconciliation from "./pages/admin/StockReconciliation";
 import COGSAnalysis from "./pages/admin/COGSAnalysis";
 import InventoryValuation from "./pages/admin/InventoryValuation";
+import Production from "./pages/admin/Production";
 import StockAging from "./pages/admin/StockAging";
 import ProfitMarginAnalysis from "./pages/admin/ProfitMarginAnalysis";
 import AdminComboOffers from "./pages/admin/ComboOffers";
@@ -57,6 +58,8 @@ import AdminMultiProductBOGO from "./pages/admin/MultiProductBOGO";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
 import AdminOfflineSync from "./pages/admin/OfflineSync";
+import AdminQuotations from "./pages/admin/Quotations";
+import AdminBarcode from "./pages/admin/Barcode";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -74,6 +77,9 @@ import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { OfflineIndicator } from "./components/OfflineIndicator";
+import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDialog";
+import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useAdminShortcuts } from "./hooks/useAdminShortcuts";
 import PWAInstall from "./pages/PWAInstall";
 
 const queryClient = new QueryClient();
@@ -86,9 +92,51 @@ const App = () => {
   );
 };
 
+// Component that uses router hooks - must be inside Router
+const RouterContent = () => {
+  useGlobalShortcuts();
+  useAdminShortcuts();
+  return null;
+};
+
 const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
+
+  // Cache essential data on app startup for offline support
+  React.useEffect(() => {
+    const initOfflineData = async () => {
+      if (!navigator.onLine) {
+        console.log('App started offline, using cached data');
+        return;
+      }
+
+      try {
+        const { cacheEssentialData, getLastCacheTime, isCacheStale } = await import('@/lib/cacheData');
+        const lastCache = getLastCacheTime();
+        
+        if (!lastCache) {
+          // First time setup - cache all data
+          console.log('First time setup: Caching all data for offline use...');
+          await cacheEssentialData(false);
+          console.log('Initial data cache completed');
+        } else if (isCacheStale(24)) {
+          // Refresh stale cache (older than 24 hours)
+          console.log('Cache is stale, refreshing data...');
+          await cacheEssentialData(false);
+          console.log('Cache refreshed successfully');
+        } else {
+          console.log('Cache is fresh, no update needed');
+        }
+      } catch (error) {
+        console.error('Failed to cache data:', error);
+      }
+    };
+
+    // Run initialization after a short delay to let app mount
+    const timer = setTimeout(initOfflineData, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
@@ -105,7 +153,9 @@ const AppContent = () => {
       <Sonner />
       <OrderStatusNotifications />
       <OfflineIndicator />
+      <KeyboardShortcutsDialog />
       <Router>
+        <RouterContent />
         <Routes>
           {/* Customer-facing home */}
           <Route path="/" element={isElectron ? <Navigate to="/pos-login" replace /> : <Index />} />
@@ -148,6 +198,7 @@ const AppContent = () => {
           <Route path="/admin/stock-reconciliation" element={<AdminRoute><StockReconciliation /></AdminRoute>} />
           <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
           <Route path="/admin/inventory-valuation" element={<AdminRoute><InventoryValuation /></AdminRoute>} />
+          <Route path="/admin/production" element={<AdminRoute><Production /></AdminRoute>} />
           <Route path="/admin/stock-aging" element={<AdminRoute><StockAging /></AdminRoute>} />
           <Route path="/admin/profit-margin-analysis" element={<AdminRoute><ProfitMarginAnalysis /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
@@ -160,6 +211,8 @@ const AppContent = () => {
           <Route path="/admin/accounts-receivable" element={<AdminRoute><AdminAccountsReceivable /></AdminRoute>} />
           <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
           <Route path="/admin/offline-sync" element={<AdminRoute><AdminOfflineSync /></AdminRoute>} />
+          <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
+          <Route path="/admin/barcode" element={<AdminRoute><AdminBarcode /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />

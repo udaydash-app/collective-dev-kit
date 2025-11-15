@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,7 @@ interface Store {
 
 export default function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,12 +99,27 @@ export default function Products() {
   const [filterStock, setFilterStock] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [returnPath, setReturnPath] = useState<string | null>(null);
+  const [fromPurchases, setFromPurchases] = useState(false);
+  const [fromPOS, setFromPOS] = useState(false);
+  const [hasProcessedOpenDialog, setHasProcessedOpenDialog] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchCategories();
     fetchStores();
   }, []);
+
+  // Handle opening add dialog after data is loaded
+  useEffect(() => {
+    if (location.state?.openAddDialog && stores.length > 0 && !loading && !hasProcessedOpenDialog) {
+      setFromPurchases(location.state?.fromPurchases || false);
+      setFromPOS(location.state?.fromPOS || false);
+      handleAdd();
+      setHasProcessedOpenDialog(true);
+      // Clear the state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [stores.length, loading, hasProcessedOpenDialog]);
 
   const fetchProducts = async () => {
     try {
@@ -424,9 +440,31 @@ export default function Products() {
 
         toast.success("Product created successfully");
         
+        // Navigate back to Purchases if that's where we came from
+        if (fromPurchases && newProduct) {
+          navigate('/admin/purchases', { 
+            state: { newProductId: newProduct.id },
+            replace: true 
+          });
+          setFromPurchases(false);
+          return;
+        }
+        
         // Navigate back to POS if that's where we came from
-        if (returnPath) {
-          navigate(returnPath);
+        if (fromPOS && newProduct) {
+          navigate('/admin/pos', { 
+            state: { newProductId: newProduct.id },
+            replace: true 
+          });
+          setFromPOS(false);
+          return;
+        }
+        
+        // Navigate back to POS if that's where we came from (via returnPath)
+        if (returnPath && newProduct) {
+          navigate(returnPath, {
+            state: { newProductId: newProduct.id }
+          });
           setReturnPath(null);
           return;
         }
@@ -901,7 +939,19 @@ export default function Products() {
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground py-2">
-                        {product.barcode || '-'}
+                        {product.barcode ? (
+                          (() => {
+                            const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
+                            if (barcodes.length === 1) {
+                              return barcodes[0];
+                            }
+                            return (
+                              <span title={barcodes.join(', ')}>
+                                {barcodes[0]} <span className="text-[10px] text-primary">+{barcodes.length - 1}</span>
+                              </span>
+                            );
+                          })()
+                        ) : '-'}
                       </TableCell>
                       <TableCell className="text-xs py-2">
                         {product.categories?.name || '-'}
@@ -1453,14 +1503,15 @@ export default function Products() {
                               </div>
                             </div>
                             <div>
-                              <Label className="text-[10px] font-medium">Barcode</Label>
+                              <Label className="text-[10px] font-medium">Barcode(s)</Label>
                               <Input
                                 type="text"
                                 value={variant.barcode || ''}
                                 onChange={(e) => updateVariant(index, 'barcode', e.target.value)}
                                 className="h-8 text-xs"
-                                placeholder="Variant barcode"
+                                placeholder="Barcode(s), comma-separated"
                               />
+                              <p className="text-[9px] text-muted-foreground mt-0.5">Separate with commas</p>
                             </div>
                           </CardContent>
                         </Card>
@@ -1537,15 +1588,16 @@ export default function Products() {
                       </div>
                       
                       <div>
-                        <Label htmlFor="barcode" className="text-xs">Barcode</Label>
+                        <Label htmlFor="barcode" className="text-xs">Barcode(s)</Label>
                         <Input
                           id="barcode"
                           name="barcode"
                           type="text"
                           defaultValue={(editingProduct as any).barcode || ''}
-                          placeholder="Product barcode"
+                          placeholder="Enter barcode(s), separate with comma for multiple"
                           className="h-9 text-sm"
                         />
+                        <p className="text-[10px] text-muted-foreground mt-1">Separate multiple barcodes with commas (e.g., 123456,789012)</p>
                       </div>
                     </div>
                   </CardContent>

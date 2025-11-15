@@ -302,6 +302,7 @@ export default function CloseDayReport() {
         .eq('status', 'posted')
         .gte('entry_date', startDate)
         .lte('entry_date', endDate)
+        .not('reference', 'ilike', 'CASHREG%')
         .order('entry_date', { ascending: false });
 
       // Categorize journal entries by payment method

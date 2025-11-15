@@ -47,6 +47,7 @@ interface PaymentModalProps {
     storeName?: string;
     logoUrl?: string;
     supportPhone?: string;
+    isUnifiedBalance?: boolean;
   };
 }
 
@@ -58,8 +59,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const completeSaleButtonRef = useRef<HTMLButtonElement>(null);
 
   // Pre-fill customer if passed from POS
   useEffect(() => {
@@ -88,7 +89,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     enabled: customerSearch.length > 0,
   });
 
-  // Fetch customer balance when customer is selected
+  // Fetch customer balance from journal entries when customer is selected
   const { data: customerBalance } = useQuery({
     queryKey: ['customer-balance', selectedCustomer],
     queryFn: async () => {
@@ -99,29 +100,49 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
 
       let totalBalance = 0;
 
-      // Get customer account balance
+      // Calculate balance from posted journal entries for customer account
       if (customer.customer_ledger_account_id) {
-        const { data: customerAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', customer.customer_ledger_account_id)
-          .single();
-        
-        if (customerAccount) {
-          totalBalance = Number(customerAccount.current_balance);
+        const { data: customerLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', customer.customer_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
+
+        if (customerLines && customerLines.length > 0) {
+          // Customer account balance = debit - credit (receivable)
+          const custReceivableBalance = customerLines.reduce((sum, line) => {
+            return sum + (line.debit_amount - line.credit_amount);
+          }, 0);
+          totalBalance = custReceivableBalance;
         }
       }
 
-      // If also a supplier, subtract supplier balance
+      // If also a supplier, subtract supplier balance from posted journal entries
       if (customer.is_supplier && customer.supplier_ledger_account_id) {
-        const { data: supplierAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', customer.supplier_ledger_account_id)
-          .single();
-        
-        if (supplierAccount) {
-          totalBalance -= Number(supplierAccount.current_balance);
+        const { data: supplierLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status
+            )
+          `)
+          .eq('account_id', customer.supplier_ledger_account_id)
+          .eq('journal_entries.status', 'posted');
+
+        if (supplierLines && supplierLines.length > 0) {
+          // Supplier account balance = credit - debit (payable)
+          const suppPayableBalance = supplierLines.reduce((sum, line) => {
+            return sum + (line.credit_amount - line.debit_amount);
+          }, 0);
+          totalBalance -= suppPayableBalance;
         }
       }
 
@@ -196,9 +217,15 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
     message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
     message += `Payment: ${transactionData.paymentMethod}\n`;
-    if (selectedCustomerData && customerBalance !== undefined) {
+    if (customerBalance !== undefined && customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `Customer Balance: ${formatCurrency(customerBalance)}\n`;
+      const balanceLabel = selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer 
+        ? '*Unified Balance:*' 
+        : '*Current Balance:*';
+      message += `${balanceLabel} ${formatCurrency(customerBalance)}\n`;
+      if (selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer) {
+        message += `_(Combined customer & supplier account)_\n`;
+      }
     }
     if (transactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -285,7 +312,14 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     setIsProcessing(true);
     try {
       await onConfirm(payments, totalPaid);
-      setShowPrintDialog(true);
+      // After payment completion, print directly without showing dialog
+      handlePrint();
+      // Reset and close
+      setPayments([{ id: '1', method: 'cash', amount: total }]);
+      setCashReceived("");
+      setSelectedCustomer("");
+      setCustomerSearch("");
+      onClose();
     } catch (error) {
       console.error("Payment processing error:", error);
       toast.error("There was an error processing the payment", {
@@ -296,17 +330,17 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
   };
 
-  const handleClosePrintDialog = async (shouldPrint: boolean) => {
-    if (shouldPrint) {
-      handlePrint();
+
+  // Auto-focus Complete Sale button when dialog opens
+  useEffect(() => {
+    if (isOpen && completeSaleButtonRef.current) {
+      // Delay focus slightly to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        completeSaleButtonRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-    setShowPrintDialog(false);
-    setPayments([{ id: '1', method: 'cash', amount: total }]);
-    setCashReceived("");
-    setSelectedCustomer("");
-    setCustomerSearch("");
-    onClose();
-  };
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -475,6 +509,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               Cancel
             </Button>
             <Button
+              ref={completeSaleButtonRef}
               onClick={handleConfirm}
               disabled={
                 isProcessing ||
@@ -488,57 +523,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           </div>
         </div>
       </DialogContent>
-
-      <AlertDialog open={showPrintDialog} onOpenChange={() => {}}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Receipt Options</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sale completed successfully! Choose how to handle the receipt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex flex-col gap-2 py-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handlePrint();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print Receipt
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handleSavePDF();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <FileDown className="w-4 h-4 mr-2" />
-              Save as PDF
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                handleSendWhatsApp();
-                handleClosePrintDialog(false);
-              }}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Send via WhatsApp
-            </Button>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => handleClosePrintDialog(false)}>
-              Close
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Hidden receipt for printing */}
       <div className="fixed -left-[9999px] top-0 bg-white">
@@ -564,6 +548,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               logoUrl={transactionData.logoUrl}
               supportPhone={transactionData.supportPhone}
               customerBalance={customerBalance}
+              isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
             />
           )}
         </div>

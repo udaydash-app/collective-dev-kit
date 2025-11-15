@@ -1581,6 +1581,112 @@ export type Database = {
           },
         ]
       }
+      production_outputs: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string | null
+          production_id: string
+          quantity: number
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          production_id: string
+          quantity: number
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          production_id?: string
+          quantity?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_outputs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_outputs_production_id_fkey"
+            columns: ["production_id"]
+            isOneToOne: false
+            referencedRelation: "productions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_outputs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      productions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          production_date: string
+          production_number: string
+          source_product_id: string | null
+          source_quantity: number
+          source_variant_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          production_date?: string
+          production_number?: string
+          source_product_id?: string | null
+          source_quantity: number
+          source_variant_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          production_date?: string
+          production_number?: string
+          source_product_id?: string | null
+          source_quantity?: number
+          source_variant_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productions_source_product_id_fkey"
+            columns: ["source_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productions_source_variant_id_fkey"
+            columns: ["source_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           barcode: string | null
@@ -1764,9 +1870,11 @@ export type Database = {
       }
       purchases: {
         Row: {
+          amount_paid: number | null
           created_at: string
           id: string
           notes: string | null
+          payment_details: Json | null
           payment_method: string | null
           payment_status: string
           purchase_number: string
@@ -1779,9 +1887,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
           created_at?: string
           id?: string
           notes?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           payment_status?: string
           purchase_number?: string
@@ -1794,9 +1904,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
           created_at?: string
           id?: string
           notes?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           payment_status?: string
           purchase_number?: string
@@ -1814,6 +1926,74 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          discount: number
+          id: string
+          items: Json
+          notes: string | null
+          quotation_number: string
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          discount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          quotation_number: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          discount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          quotation_number?: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -2024,6 +2204,7 @@ export type Database = {
           payment_date: string
           payment_method: string
           payment_number: string
+          purchase_id: string | null
           reference: string | null
           store_id: string
           updated_at: string
@@ -2038,6 +2219,7 @@ export type Database = {
           payment_date?: string
           payment_method: string
           payment_number?: string
+          purchase_id?: string | null
           reference?: string | null
           store_id: string
           updated_at?: string
@@ -2052,6 +2234,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: string
+          purchase_id?: string | null
           reference?: string | null
           store_id?: string
           updated_at?: string
@@ -2062,6 +2245,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
           {
@@ -2182,12 +2372,25 @@ export type Database = {
         }[]
       }
       generate_order_number: { Args: never; Returns: string }
+      generate_quotation_number: { Args: never; Returns: string }
       get_suggested_adjustment_cost: {
         Args: { p_product_id: string; p_variant_id?: string }
         Returns: {
           last_purchase_cost: number
           next_fifo_cost: number
           weighted_avg_cost: number
+        }[]
+      }
+      get_top_credit_customers: {
+        Args: { limit_count?: number }
+        Returns: {
+          balance: number
+          customer_balance: number
+          email: string
+          id: string
+          name: string
+          phone: string
+          supplier_balance: number
         }[]
       }
       has_role: {

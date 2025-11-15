@@ -17,6 +17,7 @@ interface ReceiptProps {
   logoUrl?: string;
   supportPhone?: string;
   customerBalance?: number;
+  isUnifiedBalance?: boolean;
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
@@ -36,6 +37,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       logoUrl,
       supportPhone,
       customerBalance,
+      isUnifiedBalance,
     },
     ref
   ) => {
@@ -55,6 +57,44 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               width: 80mm !important;
               margin: 0 !important;
               padding: 3mm !important;
+              background: white !important;
+              color: black !important;
+              font-family: monospace !important;
+              font-size: 14px !important;
+            }
+            .receipt-container * {
+              color: black !important;
+              background: transparent !important;
+            }
+            .receipt-container .border-t {
+              border-top: 1px solid black !important;
+            }
+            .receipt-container .border-b {
+              border-bottom: 1px solid black !important;
+            }
+            .receipt-container .border-black {
+              border-color: black !important;
+            }
+            .receipt-container .border-dashed {
+              border-style: dashed !important;
+            }
+            .receipt-container .border-gray-400 {
+              border-color: #9ca3af !important;
+            }
+            .receipt-container .text-xl {
+              font-size: 20px !important;
+            }
+            .receipt-container .text-lg {
+              font-size: 18px !important;
+            }
+            .receipt-container .text-sm {
+              font-size: 14px !important;
+            }
+            .receipt-container .text-xs {
+              font-size: 12px !important;
+            }
+            .receipt-container .font-bold {
+              font-weight: bold !important;
             }
             img {
               -webkit-print-color-adjust: exact !important;
@@ -127,12 +167,20 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
         <div className="border-t border-black pt-2 mb-2">
           <p className="text-sm">Payment Method: {paymentMethod.toUpperCase()}</p>
-          {customerName && customerName !== 'Walk-in Customer' && customerBalance !== undefined && (
-            <div className="mt-3 pt-2 border-t border-dashed border-gray-400">
-              <p className="text-sm font-bold">Customer Balance: {formatCurrency(customerBalance)}</p>
-            </div>
-          )}
         </div>
+
+        {customerBalance !== undefined && customerBalance !== null && (
+          <div className="border-t border-dashed border-black pt-2 mb-2">
+            <p className="text-sm font-bold">
+              {isUnifiedBalance ? 'Unified Balance:' : 'Current Balance:'} {formatCurrency(customerBalance)}
+            </p>
+            {isUnifiedBalance && (
+              <p className="text-xs mt-1">
+                (Combined customer & supplier account)
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="text-center text-xs">
           <p>Thank you for shopping with us!</p>

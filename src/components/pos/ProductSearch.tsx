@@ -23,11 +23,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
-  // Auto-focus search input on mount
-  React.useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
   // Reset highlighted index when search term changes
   React.useEffect(() => {
     setHighlightedIndex(-1);
@@ -38,79 +33,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     if (highlightedIndex >= 0 && productRefs.current[highlightedIndex]) {
       productRefs.current[highlightedIndex]?.scrollIntoView({
         block: 'nearest',
-        behavior: 'smooth'
+        behavior: 'auto'
       });
     }
   }, [highlightedIndex]);
-
-  // Maintain focus on search input for scanner input
-  React.useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Allow clicks on these elements and cart interactions
-      if (
-        target.matches('input[type="number"]') ||
-        target.matches('input[type="text"]') ||
-        target.closest('[role="dialog"]') ||
-        target.closest('button') ||
-        target.closest('[role="button"]') ||
-        target.closest('[data-cart-container="true"]') || // Cart container
-        target === searchInputRef.current
-      ) {
-        return;
-      }
-      
-      // Prevent blur by stopping the event and refocusing
-      e.preventDefault();
-      searchInputRef.current?.focus();
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // If not focused on an input, focus the search field for scanner input
-      const activeElement = document.activeElement as HTMLElement;
-      
-      // Don't steal focus if user is in cart or in any input field
-      if (
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA' ||
-        activeElement?.closest('[role="dialog"]') ||
-        activeElement?.closest('[data-cart-container="true"]') // Cart container
-      ) {
-        return;
-      }
-      
-      searchInputRef.current?.focus();
-    };
-
-    // Periodically check and refocus (for scanner reliability)
-    const focusInterval = setInterval(() => {
-      const activeElement = document.activeElement as HTMLElement;
-      
-      // Don't steal focus from cart or any input field
-      if (
-        document.querySelector('[role="dialog"]') ||
-        activeElement?.matches('input[type="number"]') ||
-        activeElement?.matches('input[type="text"]') ||
-        activeElement?.matches('textarea') ||
-        activeElement?.closest('[data-cart-container="true"]') || // Cart container
-        activeElement === searchInputRef.current
-      ) {
-        return;
-      }
-      
-      searchInputRef.current?.focus();
-    }, 100);
-
-    document.addEventListener('mousedown', handleMouseDown, true); // Use capture phase
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('keydown', handleKeyDown);
-      clearInterval(focusInterval);
-    };
-  }, []);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
@@ -146,12 +72,15 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       const { data, error } = await query.limit(20);
       if (error) throw error;
       
-      // If search term looks like a barcode, also check variant barcodes
+      // If search term looks like a barcode, check variant barcodes (supporting comma-separated barcodes)
       if (searchTerm && data) {
         const enhancedData = data.map(product => {
-          const matchingVariant = product.product_variants?.find((v: any) => 
-            v.barcode && v.barcode.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          const matchingVariant = product.product_variants?.find((v: any) => {
+            if (!v.barcode) return false;
+            // Split barcode by comma and check if any matches
+            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+            return barcodes.some((b: string) => b.includes(searchTerm.toLowerCase()));
+          });
           return {
             ...product,
             _matchingVariant: matchingVariant
@@ -189,10 +118,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         selectedVariant: matchingVariant,
       });
       setSearchTerm('');
-      // Only refocus if this was from scanning (not clicking)
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
       return;
     }
     
@@ -209,19 +134,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         price: defaultVariant.price,
         selectedVariant: defaultVariant,
       });
-      // Clear search and refocus only if not from click
+      // Clear search
       setSearchTerm('');
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
     } else {
       // No variants, use product price
       onProductSelect(product);
-      // Clear search and refocus only if not from click
+      // Clear search
       setSearchTerm('');
-      if (!fromClick) {
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }
     }
   };
 
@@ -258,6 +177,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       // First priority: Check if barcode matches any product variant
       // This ensures variant-specific barcodes are matched first
+      // Fetch all available variants and filter in JS to support comma-separated barcodes
       const { data: variantMatch, error: variantError } = await supabase
         .from('product_variants')
         .select(`
@@ -289,34 +209,38 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             )
           )
         `)
-        .ilike('barcode', barcode)
         .eq('is_available', true)
-        .eq('products.is_available', true);
+        .eq('products.is_available', true)
+        .not('barcode', 'is', null);
+      
+      // Filter to find exact match in comma-separated barcodes
+      const matchedVariant = variantMatch?.find((v: any) => {
+        if (!v.barcode) return false;
+        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.includes(barcode.toLowerCase());
+      });
       
       console.log('🎯 Variant match query result:', { 
-        found: variantMatch?.length || 0, 
-        data: variantMatch,
+        found: matchedVariant ? 1 : 0, 
+        data: matchedVariant,
         error: variantError 
       });
 
-      // Use maybeSingle() only if we found exactly one match
-      const singleVariantMatch = variantMatch && variantMatch.length === 1 ? variantMatch[0] : null;
-
-      if (singleVariantMatch?.product) {
+      if (matchedVariant?.product) {
         console.log('✅ Found variant match, adding directly to cart');
-        console.log('Matched variant:', singleVariantMatch.label, 'Barcode:', singleVariantMatch.barcode);
+        console.log('Matched variant:', matchedVariant.label, 'Barcode:', matchedVariant.barcode);
         // Found variant with this barcode - add directly to cart with this variant selected
         onProductSelect({
-          ...singleVariantMatch.product,
-          price: singleVariantMatch.price,
-          selectedVariant: singleVariantMatch,
+          ...matchedVariant.product,
+          price: matchedVariant.price,
+          selectedVariant: matchedVariant,
         });
         setSearchTerm('');
-        requestAnimationFrame(() => searchInputRef.current?.focus());
         return;
       }
 
       // Second priority: Check if barcode matches product's main barcode
+      // Fetch all products and filter in JS to support comma-separated barcodes
       const { data: productMatch, error: productError } = await supabase
         .from('products')
         .select(`
@@ -338,22 +262,27 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
             barcode
           )
         `)
-        .ilike('barcode', barcode)
-        .eq('is_available', true);
+        .eq('is_available', true)
+        .not('barcode', 'is', null);
       
-      console.log('🎯 Product match query result:', { 
-        found: productMatch?.length || 0,
-        data: productMatch,
-        error: productError 
+      // Filter to find exact match in comma-separated barcodes
+      const matchedProduct = productMatch?.find((p: any) => {
+        if (!p.barcode) return false;
+        const barcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.includes(barcode.toLowerCase());
       });
       
-      const singleProductMatch = productMatch && productMatch.length === 1 ? productMatch[0] : null;
+      console.log('🎯 Product match query result:', { 
+        found: matchedProduct ? 1 : 0,
+        data: matchedProduct,
+        error: productError 
+      });
 
-      if (singleProductMatch) {
+      if (matchedProduct) {
         console.log('✅ Found product match, adding to cart');
-        console.log('Product barcode:', singleProductMatch.barcode);
+        console.log('Product barcode:', matchedProduct.barcode);
         // Found product barcode match - add with default variant if available
-        handleProductSelect(singleProductMatch);
+        handleProductSelect(matchedProduct);
         return;
       }
 
@@ -397,40 +326,50 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       )}
 
       {products && products.length > 0 && (
-        <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-          {products.map((product, index) => {
-            const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
-            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-            const displayPrice = availableVariants.length > 0 
-              ? defaultVariant?.price 
-              : product.price;
-            const isHighlighted = index === highlightedIndex;
+        <Card className="max-h-[400px] overflow-hidden">
+          <div className="overflow-y-auto max-h-[400px]">
+            <div className="min-w-full">
+              {/* Header Row */}
+              <div className="grid grid-cols-[120px_1fr_100px_80px] gap-2 px-3 py-2 bg-muted/50 border-b sticky top-0 z-10">
+                <div className="font-semibold text-xs">Barcode</div>
+                <div className="font-semibold text-xs">Product Name</div>
+                <div className="font-semibold text-xs text-right">Price</div>
+                <div className="font-semibold text-xs text-right">Stock</div>
+              </div>
+              
+              {/* Data Rows */}
+              {products.map((product, index) => {
+                const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+                const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+                const displayPrice = availableVariants.length > 0 
+                  ? defaultVariant?.price 
+                  : product.price;
+                const displayStock = availableVariants.length > 0
+                  ? defaultVariant?.quantity || 0
+                  : product.stock_quantity || 0;
+                const isHighlighted = index === highlightedIndex;
 
-            return (
-              <Card
-                key={product.id}
-                ref={(el) => (productRefs.current[index] = el)}
-                className={`p-3 flex items-center gap-3 cursor-pointer transition-colors ${
-                  isHighlighted 
-                    ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
-                    : 'hover:bg-accent'
-                }`}
-                onClick={() => handleProductSelect(product, true)}
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{product.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {product.barcode || 'No barcode'}
-                    {availableVariants.length > 0 && ` • ${availableVariants.length} variants`}
-                  </p>
-                </div>
-                <p className="font-bold text-primary">
-                  {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
-                </p>
-              </Card>
-            );
-          })}
-        </div>
+                return (
+                  <div
+                    key={product.id}
+                    ref={(el) => (productRefs.current[index] = el)}
+                    className={`grid grid-cols-[120px_1fr_100px_80px] gap-2 px-3 py-2 cursor-pointer transition-none border-b last:border-b-0 ${
+                      isHighlighted 
+                        ? 'bg-primary/10 border-l-2 border-l-primary' 
+                        : 'hover:bg-accent'
+                    }`}
+                    onClick={() => handleProductSelect(product, true)}
+                  >
+                    <div className="text-sm truncate">{product.barcode || '-'}</div>
+                    <div className="text-sm font-medium truncate">{product.name}</div>
+                    <div className="text-sm font-semibold text-right">{displayPrice ? formatCurrency(Number(displayPrice)) : '-'}</div>
+                    <div className="text-sm text-right">{displayStock}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
       )}
 
       {searchTerm && products && products.length === 0 && (
@@ -449,12 +388,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         onClose={() => {
           setAssignBarcodeOpen(false);
           setSearchTerm('');
-          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
         barcode={scannedBarcode}
         onBarcodeAssigned={() => {
           setSearchTerm('');
-          requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
       />
     </div>

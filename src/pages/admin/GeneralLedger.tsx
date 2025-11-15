@@ -57,7 +57,7 @@ export default function GeneralLedger() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id');
+        .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id, opening_balance');
       if (error) throw error;
       return data;
     },
@@ -196,7 +196,16 @@ export default function GeneralLedger() {
       
       // Handle unified account view
       if (selectedAccountInfo?.isUnified) {
-        const { customerAccountId, supplierAccountId } = selectedAccountInfo;
+        const { customerAccountId, supplierAccountId, contactId } = selectedAccountInfo;
+        
+        // Fetch contact's opening balance directly from database
+        const { data: contactData } = await supabase
+          .from('contacts')
+          .select('opening_balance')
+          .eq('id', contactId)
+          .maybeSingle();
+        
+        const openingBalance = Number(contactData?.opening_balance || 0);
         
         // Fetch current balances for both accounts
         const { data: customerAccount } = await supabase
@@ -270,7 +279,8 @@ export default function GeneralLedger() {
             isUnified: true,
             current_balance: unifiedBalance,
             customer_balance: customerBalance,
-            supplier_balance: supplierBalance
+            supplier_balance: supplierBalance,
+            opening_balance: openingBalance
           } 
         };
       }
@@ -307,7 +317,16 @@ export default function GeneralLedger() {
         .eq('id', selectedAccount)
         .maybeSingle();
 
-      return { lines: sortedLines, account };
+      // Get opening balance from contact if this is a customer/supplier account
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('opening_balance')
+        .or(`customer_ledger_account_id.eq.${selectedAccount},supplier_ledger_account_id.eq.${selectedAccount}`)
+        .maybeSingle();
+      
+      const openingBalance = Number(contact?.opening_balance || 0);
+
+      return { lines: sortedLines, account: { ...account, opening_balance: openingBalance } };
     },
     enabled: !!selectedAccount,
   });
@@ -315,7 +334,8 @@ export default function GeneralLedger() {
   const calculateRunningBalance = () => {
     if (!ledgerData?.lines || !ledgerData?.account) return [];
 
-    let balance = 0;
+    // Start with opening balance if available
+    let balance = Number((ledgerData.account as any).opening_balance || 0);
     const accountType = ledgerData.account.account_type;
     
     return ledgerData.lines.map((line: any) => {
@@ -379,15 +399,34 @@ export default function GeneralLedger() {
     doc.text(`Period: ${startDate} to ${endDate}`, 14, 33);
     
     // Prepare table data
-    const tableData = ledgerEntries.map((entry: any) => [
-      new Date(entry.journal_entries.entry_date).toLocaleDateString(),
-      entry.journal_entries.entry_number,
-      entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
-      entry.journal_entries.reference || '',
-      entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
-      entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
-      Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
-    ]);
+    const openingBalance = Number(accountInfo.opening_balance || 0);
+    const tableData: any[] = [];
+    
+    // Add opening balance row if exists
+    if (openingBalance !== 0) {
+      tableData.push([
+        startDate,
+        '',
+        'Opening Balance',
+        '',
+        '',
+        '',
+        Math.abs(openingBalance).toFixed(2) + (openingBalance < 0 ? ' CR' : ''),
+      ]);
+    }
+    
+    // Add transaction rows
+    ledgerEntries.forEach((entry: any) => {
+      tableData.push([
+        new Date(entry.journal_entries.entry_date).toLocaleDateString(),
+        entry.journal_entries.entry_number,
+        entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
+        entry.journal_entries.reference || '',
+        entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
+        entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
+        Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
+      ]);
+    });
     
     // Add table
     autoTable(doc, {
@@ -591,8 +630,8 @@ export default function GeneralLedger() {
               </p>
               {(ledgerData.account as any).isUnified && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  A/R: {formatCurrency((ledgerData.account as any).customer_balance || 0)} | 
-                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))} CR
+                  A/R: {formatCurrency(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
+                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance < 0 ? ' CR' : ' DR'}
                 </p>
               )}
             </div>
@@ -634,48 +673,70 @@ export default function GeneralLedger() {
                     Loading...
                   </TableCell>
                 </TableRow>
-              ) : ledgerEntries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    No transactions found for this period
-                  </TableCell>
-                </TableRow>
               ) : (
-                ledgerEntries.map((entry: any) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>
-                      {new Date(entry.journal_entries.entry_date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="font-mono">
-                      {entry.journal_entries.entry_number}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p>{entry.journal_entries.description}</p>
-                        {entry.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {entry.description}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{entry.journal_entries.reference || '-'}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {entry.debit_amount > 0
-                        ? formatCurrency(entry.debit_amount)
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {entry.credit_amount > 0
-                        ? formatCurrency(entry.credit_amount)
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-bold">
-                      {formatCurrency(Math.abs(entry.running_balance))}
-                      {entry.running_balance < 0 && ' CR'}
-                    </TableCell>
-                  </TableRow>
-                ))
+                <>
+                  {/* Opening Balance Row */}
+                  {(ledgerData?.account as any)?.opening_balance !== undefined && 
+                   (ledgerData?.account as any)?.opening_balance !== null && 
+                   Number((ledgerData?.account as any)?.opening_balance) !== 0 && (
+                    <TableRow className="bg-muted/50">
+                      <TableCell colSpan={4} className="font-semibold">
+                        Opening Balance (as of {startDate})
+                      </TableCell>
+                      <TableCell className="text-right">-</TableCell>
+                      <TableCell className="text-right">-</TableCell>
+                      <TableCell className="text-right font-mono font-bold">
+                        {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
+                        {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  
+                  {/* Transaction Rows */}
+                  {ledgerEntries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        No transactions found for this period
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ledgerEntries.map((entry: any) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>
+                          {new Date(entry.journal_entries.entry_date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {entry.journal_entries.entry_number}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p>{entry.journal_entries.description}</p>
+                            {entry.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {entry.description}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{entry.journal_entries.reference || '-'}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {entry.debit_amount > 0
+                            ? formatCurrency(entry.debit_amount)
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {entry.credit_amount > 0
+                            ? formatCurrency(entry.credit_amount)
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-bold">
+                          {formatCurrency(Math.abs(entry.running_balance))}
+                          {entry.running_balance < 0 && ' CR'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </>
               )}
             </TableBody>
           </Table>

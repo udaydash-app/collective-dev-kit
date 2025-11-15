@@ -50,12 +50,31 @@ export const useOfflineSync = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Start auto-sync on mount
+  // Start auto-sync on mount and cache data when coming online
   useEffect(() => {
     syncService.startAutoSync(30000); // Sync every 30 seconds
 
+    // Cache data when coming online
+    const handleOnlineSync = async () => {
+      if (navigator.onLine) {
+        try {
+          const { cacheEssentialData, isCacheStale } = await import('@/lib/cacheData');
+          // Refresh cache if stale (older than 24 hours)
+          if (isCacheStale(24)) {
+            console.log('Cache is stale, refreshing...');
+            await cacheEssentialData(false);
+          }
+        } catch (error) {
+          console.error('Error refreshing cache:', error);
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnlineSync);
+
     return () => {
       syncService.stopAutoSync();
+      window.removeEventListener('online', handleOnlineSync);
     };
   }, []);
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PurchasePaymentDialog } from '@/components/admin/PurchasePaymentDialog';
 
 interface PurchaseItem {
   product_id: string;
@@ -26,7 +28,54 @@ interface PurchaseItem {
   variant_label?: string;
 }
 
+// State preservation helpers for navigating to add new product
+const PURCHASE_FORM_STATE_KEY = 'purchaseFormState';
+const STATE_EXPIRY_HOURS = 1;
+
+interface SavedPurchaseFormState {
+  items: PurchaseItem[];
+  selectedSupplier: string;
+  selectedStore: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes: string;
+  timestamp: number;
+}
+
+const savePurchaseFormState = (state: Omit<SavedPurchaseFormState, 'timestamp'>) => {
+  const stateWithTimestamp: SavedPurchaseFormState = {
+    ...state,
+    timestamp: Date.now(),
+  };
+  sessionStorage.setItem(PURCHASE_FORM_STATE_KEY, JSON.stringify(stateWithTimestamp));
+};
+
+const restorePurchaseFormState = (): SavedPurchaseFormState | null => {
+  const saved = sessionStorage.getItem(PURCHASE_FORM_STATE_KEY);
+  if (!saved) return null;
+  
+  try {
+    const state: SavedPurchaseFormState = JSON.parse(saved);
+    // Check if state is expired (older than 1 hour)
+    const isExpired = Date.now() - state.timestamp > STATE_EXPIRY_HOURS * 60 * 60 * 1000;
+    if (isExpired) {
+      clearPurchaseFormState();
+      return null;
+    }
+    return state;
+  } catch (error) {
+    console.error('Error restoring purchase form state:', error);
+    return null;
+  }
+};
+
+const clearPurchaseFormState = () => {
+  sessionStorage.removeItem(PURCHASE_FORM_STATE_KEY);
+};
+
 export default function Purchases() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showNewPurchase, setShowNewPurchase] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
@@ -39,6 +88,8 @@ export default function Purchases() {
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [pendingPaymentPurchase, setPendingPaymentPurchase] = useState<any>(null);
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -112,6 +163,7 @@ export default function Purchases() {
             quantity,
             unit,
             price,
+            cost_price,
             is_available
           )
         `)
@@ -127,8 +179,119 @@ export default function Purchases() {
     enabled: showProductSearch && searchTerm.length > 0,
   });
 
+  // Auto-select newly created product from Products page and restore form state
+  useEffect(() => {
+    const newProductId = location.state?.newProductId;
+    if (newProductId) {
+      // Fetch the specific product
+      const fetchNewProduct = async () => {
+        const { data: product } = await supabase
+          .from('products')
+          .select(`
+            *,
+            product_variants (
+              id,
+              label,
+              quantity,
+              unit,
+              price,
+              cost_price,
+              is_available
+            )
+          `)
+          .eq('id', newProductId)
+          .single();
+        
+        if (product) {
+          // Restore saved form state if available
+          const savedState = restorePurchaseFormState();
+          
+          if (savedState) {
+            // Restore all form fields
+            setSelectedSupplier(savedState.selectedSupplier);
+            setSelectedStore(savedState.selectedStore);
+            setPaymentStatus(savedState.paymentStatus);
+            setPaymentMethod(savedState.paymentMethod);
+            setNotes(savedState.notes);
+            
+            // Add the newly created product to the restored items
+            const unitCost = product.cost_price || product.price;
+            const newItem: PurchaseItem = {
+              product_id: product.id,
+              quantity: 1,
+              unit_cost: Number(unitCost),
+              total_cost: Number(unitCost),
+              product_name: product.name,
+            };
+            
+            // Check if product already exists in saved items
+            const existingIndex = savedState.items.findIndex(
+              item => item.product_id === product.id && !item.variant_id
+            );
+            
+            let updatedItems: PurchaseItem[];
+            if (existingIndex >= 0) {
+              // Increment quantity if product exists
+              updatedItems = [...savedState.items];
+              updatedItems[existingIndex].quantity += 1;
+              updatedItems[existingIndex].total_cost = 
+                updatedItems[existingIndex].quantity * updatedItems[existingIndex].unit_cost;
+            } else {
+              // Add new item
+              updatedItems = [...savedState.items, newItem];
+            }
+            
+            setItems(updatedItems);
+            
+            // Reopen the purchase dialog
+            setShowNewPurchase(true);
+            
+            // Clear the saved state after restoration
+            clearPurchaseFormState();
+            
+            toast.success(`"${product.name}" added to purchase`);
+          } else {
+            // No saved state, just add the product normally
+            addProductToItems(product);
+            toast.success(`"${product.name}" added to purchase`);
+          }
+        }
+      };
+      
+      fetchNewProduct();
+      // Clear the navigation state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.newProductId]);
+
+  // Auto-select newly created supplier from Contacts page
+  useEffect(() => {
+    const newSupplierId = location.state?.newSupplierId;
+    if (newSupplierId) {
+      setSelectedSupplier(newSupplierId);
+      setShowNewPurchase(true); // Reopen the dialog
+      
+      // Fetch the supplier details to show success message
+      const fetchNewSupplier = async () => {
+        const { data: supplier } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .eq('id', newSupplierId)
+          .single();
+        
+        if (supplier) {
+          toast.success(`Supplier "${supplier.name}" selected`);
+        }
+      };
+      
+      fetchNewSupplier();
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.newSupplierId]);
+
   const createPurchaseMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (paymentDetails?: Array<{method: string; amount: number}>) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -137,6 +300,11 @@ export default function Purchases() {
       if (!supplier) throw new Error('Supplier not found');
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+
+      // Determine payment method display
+      const displayMethod = paymentDetails && paymentDetails.length > 1 
+        ? 'Multiple' 
+        : paymentDetails?.[0]?.method || paymentMethod || 'cash';
 
       // Create purchase
       const { data: purchase, error: purchaseError } = await supabase
@@ -147,7 +315,8 @@ export default function Purchases() {
           supplier_contact: supplier.phone || supplier.email || '',
           total_amount: totalAmount,
           payment_status: paymentStatus,
-          payment_method: paymentMethod,
+          payment_method: displayMethod,
+          payment_details: paymentDetails || [],
           notes: notes,
           purchased_by: user.id,
         })
@@ -156,7 +325,7 @@ export default function Purchases() {
 
       if (purchaseError) throw purchaseError;
 
-      // Create purchase items
+      // Create purchase items and inventory layers
       const purchaseItems = items.map(item => ({
         purchase_id: purchase.id,
         product_id: item.product_id,
@@ -172,6 +341,11 @@ export default function Purchases() {
 
       if (itemsError) throw itemsError;
 
+      // Create journal entries if payment status is paid or partial
+      if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+        await createPurchaseJournalEntries(purchase, paymentDetails || [], supplier);
+      }
+
       return purchase;
     },
     onSuccess: () => {
@@ -186,6 +360,104 @@ export default function Purchases() {
     },
   });
 
+  // Function to create journal entries for purchase payments
+  const createPurchaseJournalEntries = async (
+    purchase: any, 
+    payments: Array<{method: string; amount: number}>, 
+    supplier: any
+  ) => {
+    try {
+      // Get accounts
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('*')
+        .in('account_code', ['1510', '2010', '1010', '1020', '1030']);
+
+      if (!accounts || accounts.length === 0) {
+        console.error('Required accounts not found');
+        return;
+      }
+
+      const inventoryAccount = accounts.find(a => a.account_code === '1510'); // Inventory
+      const accountsPayableAccount = accounts.find(a => a.account_code === '2010'); // Accounts Payable
+      const cashAccount = accounts.find(a => a.account_code === '1010'); // Cash
+      const bankAccount = accounts.find(a => a.account_code === '1020'); // Bank
+      const mobileMoneyAccount = accounts.find(a => a.account_code === '1030'); // Mobile Money
+
+      // Create journal entry for purchase
+      const { data: journalEntry, error: jeError } = await supabase
+        .from('journal_entries')
+        .insert({
+          description: `Purchase from ${supplier.name} - ${purchase.purchase_number}`,
+          reference: purchase.purchase_number,
+          entry_date: new Date().toISOString().split('T')[0],
+          status: 'posted',
+          total_debit: purchase.total_amount,
+          total_credit: purchase.total_amount,
+        })
+        .select()
+        .single();
+
+      if (jeError) throw jeError;
+
+      // Debit: Inventory (asset increases)
+      await supabase.from('journal_entry_lines').insert({
+        journal_entry_id: journalEntry.id,
+        account_id: inventoryAccount?.id,
+        debit_amount: purchase.total_amount,
+        credit_amount: 0,
+        description: `Inventory purchase - ${purchase.purchase_number}`,
+      });
+
+      // Credit: Based on payment method
+      if (purchase.payment_status === 'paid') {
+        // Fully paid - credit payment accounts
+        for (const payment of payments) {
+          let accountId;
+          switch (payment.method) {
+            case 'cash':
+              accountId = cashAccount?.id;
+              break;
+            case 'card':
+            case 'bank_transfer':
+            case 'cheque':
+              accountId = bankAccount?.id;
+              break;
+            case 'mobile_money':
+              accountId = mobileMoneyAccount?.id;
+              break;
+            default:
+              accountId = cashAccount?.id;
+          }
+
+          await supabase.from('journal_entry_lines').insert({
+            journal_entry_id: journalEntry.id,
+            account_id: accountId,
+            debit_amount: 0,
+            credit_amount: payment.amount,
+            description: `Payment via ${payment.method} - ${purchase.purchase_number}`,
+          });
+        }
+      } else {
+        // Pending or Partial - credit Accounts Payable (liability increases)
+        await supabase.from('journal_entry_lines').insert({
+          journal_entry_id: journalEntry.id,
+          account_id: accountsPayableAccount?.id,
+          debit_amount: 0,
+          credit_amount: purchase.total_amount,
+          description: `Accounts Payable - ${supplier.name}`,
+        });
+      }
+
+      // Update account balances via triggers
+      // Account balances are automatically updated by database triggers
+      
+    } catch (error) {
+      console.error('Error creating journal entries:', error);
+      // Don't throw - allow purchase to complete even if journal entry fails
+    }
+  };
+
   const resetForm = () => {
     setSelectedSupplier('');
     setSelectedStore('');
@@ -193,6 +465,8 @@ export default function Purchases() {
     setPaymentMethod('');
     setNotes('');
     setItems([]);
+    // Clear any saved form state
+    clearPurchaseFormState();
   };
 
   const addProductToItems = (product: any, variant?: any) => {
@@ -206,7 +480,7 @@ export default function Purchases() {
       updated[existingIndex].total_cost = updated[existingIndex].quantity * updated[existingIndex].unit_cost;
       setItems(updated);
     } else {
-      const unitCost = variant ? variant.price : product.price;
+      const unitCost = variant ? (variant.cost_price || variant.price) : (product.cost_price || product.price);
       setItems([
         ...items,
         {
@@ -226,6 +500,37 @@ export default function Purchases() {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  // Handle create purchase click
+  const handleCreatePurchase = () => {
+    if (!selectedSupplier || !selectedStore || items.length === 0) {
+      return;
+    }
+
+    // If payment status is paid or partial, show payment dialog
+    if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+      const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+      setPendingPaymentPurchase({ totalAmount, isNew: true });
+      setShowPaymentDialog(true);
+    } else {
+      // For pending, create directly
+      createPurchaseMutation.mutate(undefined);
+    }
+  };
+
+  // Handle payment confirmation for new purchase
+  const handlePaymentConfirm = async (payments: Array<{id: string; method: string; amount: number}>) => {
+    const paymentDetails = payments.map(p => ({ method: p.method, amount: p.amount }));
+    
+    if (pendingPaymentPurchase?.isNew) {
+      await createPurchaseMutation.mutateAsync(paymentDetails);
+    } else if (selectedPurchase) {
+      await updatePurchaseMutation.mutateAsync({ paymentDetails });
+    }
+    
+    setShowPaymentDialog(false);
+    setPendingPaymentPurchase(null);
   };
 
   const updateItemQuantity = (index: number, quantity: number) => {
@@ -276,17 +581,23 @@ export default function Purchases() {
   });
 
   const updatePurchaseMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ paymentDetails }: { paymentDetails?: Array<{method: string; amount: number}> }) => {
       if (!selectedPurchase) throw new Error('No purchase selected');
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+
+      // Determine payment method display
+      const displayMethod = paymentDetails && paymentDetails.length > 1 
+        ? 'Multiple' 
+        : paymentDetails?.[0]?.method || paymentMethod || selectedPurchase.payment_method;
 
       // Update purchase
       const { error: purchaseError } = await supabase
         .from('purchases')
         .update({
           payment_status: paymentStatus,
-          payment_method: paymentMethod,
+          payment_method: displayMethod,
+          payment_details: paymentDetails || selectedPurchase.payment_details || [],
           notes: notes,
           total_amount: totalAmount,
         })
@@ -315,6 +626,18 @@ export default function Purchases() {
         .insert(purchaseItems);
 
       if (itemsError) throw itemsError;
+
+      // Create journal entries if payment status changed to paid or partial
+      if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+        const supplier = suppliers?.find(s => s.name === selectedPurchase.supplier_name);
+        if (supplier && paymentDetails) {
+          await createPurchaseJournalEntries(
+            { ...selectedPurchase, total_amount: totalAmount }, 
+            paymentDetails, 
+            supplier
+          );
+        }
+      }
     },
     onSuccess: () => {
       toast.success('Purchase updated successfully');
@@ -332,6 +655,26 @@ export default function Purchases() {
   const handleViewPurchase = (purchase: any) => {
     setSelectedPurchase(purchase);
     setShowViewDialog(true);
+  };
+
+  // Handle update purchase click
+  const handleUpdatePurchase = () => {
+    if (items.length === 0) {
+      return;
+    }
+
+    // If payment status changed to paid or partial, and it wasn't before
+    const wasNotPaid = selectedPurchase?.payment_status === 'pending';
+    const isNowPaid = paymentStatus === 'paid' || paymentStatus === 'partial';
+    
+    if (wasNotPaid && isNowPaid) {
+      const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
+      setPendingPaymentPurchase({ totalAmount, isNew: false });
+      setShowPaymentDialog(true);
+    } else {
+      // No payment change or already paid
+      updatePurchaseMutation.mutate({ paymentDetails: undefined });
+    }
   };
 
   const handleEditPurchase = (purchase: any) => {
@@ -447,7 +790,16 @@ export default function Purchases() {
       </main>
 
       {/* New Purchase Dialog */}
-      <Dialog open={showNewPurchase} onOpenChange={setShowNewPurchase}>
+      <Dialog 
+        open={showNewPurchase} 
+        onOpenChange={(open) => {
+          setShowNewPurchase(open);
+          // Clear saved state if dialog is being closed
+          if (!open) {
+            clearPurchaseFormState();
+          }
+        }}
+      >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
@@ -460,29 +812,36 @@ export default function Purchases() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="supplier" className="text-sm font-semibold">Supplier *</Label>
-                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                      <SelectTrigger id="supplier" className="mt-1">
-                        <SelectValue placeholder="Select supplier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers?.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
-                            {(supplier.phone || supplier.email) && (
-                              <span className="text-xs text-muted-foreground ml-2">
-                                {supplier.phone || supplier.email}
-                              </span>
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Don't see your supplier?{' '}
-                      <a href="/admin/contacts" className="text-primary hover:underline">
-                        Add in Contacts
-                      </a>
-                    </p>
+                    <div className="flex gap-2">
+                      <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                        <SelectTrigger id="supplier" className="mt-1 flex-1">
+                          <SelectValue placeholder="Select supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers?.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                              {(supplier.phone || supplier.email) && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  {supplier.phone || supplier.email}
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="mt-1"
+                        onClick={() => navigate('/admin/contacts', { 
+                          state: { openAddDialog: true, fromPurchases: true } 
+                        })}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div>
@@ -518,13 +877,20 @@ export default function Purchases() {
 
                 <div className="mt-4">
                   <Label htmlFor="payment-method" className="text-sm font-semibold">Payment Method</Label>
-                  <Input
-                    id="payment-method"
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    placeholder="Cash, Card, Bank Transfer..."
-                    className="mt-1"
-                  />
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger id="payment-method" className="mt-1">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="wave_money">Wave Money</SelectItem>
+                      <SelectItem value="orange_money">Orange Money</SelectItem>
+                      <SelectItem value="store_credit">Store Credit</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -640,13 +1006,16 @@ export default function Purchases() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setShowNewPurchase(false)}
+                onClick={() => {
+                  clearPurchaseFormState();
+                  setShowNewPurchase(false);
+                }}
                 className="flex-1"
               >
                 Cancel
               </Button>
               <Button
-                onClick={() => createPurchaseMutation.mutate()}
+                onClick={handleCreatePurchase}
                 disabled={!selectedSupplier || !selectedStore || items.length === 0 || createPurchaseMutation.isPending}
                 className="flex-1"
               >
@@ -690,13 +1059,20 @@ export default function Purchases() {
                   </div>
                   <div>
                     <Label htmlFor="edit-payment-method" className="text-sm font-semibold">Payment Method</Label>
-                    <Input
-                      id="edit-payment-method"
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      placeholder="Cash, Card, Bank Transfer..."
-                      className="mt-1"
-                    />
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger id="edit-payment-method" className="mt-1">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="wave_money">Wave Money</SelectItem>
+                        <SelectItem value="orange_money">Orange Money</SelectItem>
+                        <SelectItem value="store_credit">Store Credit</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -823,7 +1199,7 @@ export default function Purchases() {
                 Cancel
               </Button>
               <Button
-                onClick={() => updatePurchaseMutation.mutate()}
+                onClick={handleUpdatePurchase}
                 disabled={items.length === 0 || updatePurchaseMutation.isPending}
                 className="flex-1"
               >
@@ -841,14 +1217,36 @@ export default function Purchases() {
             <DialogTitle>Search Products</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                variant="default"
+                onClick={() => {
+                  // Save current form state before navigating
+                  savePurchaseFormState({
+                    items,
+                    selectedSupplier,
+                    selectedStore,
+                    paymentStatus,
+                    paymentMethod,
+                    notes,
+                  });
+                  
+                  setShowProductSearch(false);
+                  navigate('/admin/products', { state: { openAddDialog: true, fromPurchases: true } });
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Product
+              </Button>
             </div>
             <div className="max-h-[400px] overflow-y-auto space-y-2">
               {products?.map((product) => {
@@ -868,7 +1266,7 @@ export default function Purchases() {
                             onClick={() => addProductToItems(product, variant)}
                           >
                             <span>{variant.label || `${variant.quantity}${variant.unit}`}</span>
-                            <span>{formatCurrency(variant.price)}</span>
+                            <span>{formatCurrency(variant.cost_price || variant.price)}</span>
                           </Button>
                         ))}
                       </div>
@@ -879,7 +1277,7 @@ export default function Purchases() {
                         className="w-full mt-2"
                         onClick={() => addProductToItems(product)}
                       >
-                        Add - {formatCurrency(product.price)}
+                        Add - {formatCurrency(product.cost_price || product.price)}
                       </Button>
                     )}
                   </div>
@@ -968,6 +1366,18 @@ export default function Purchases() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <PurchasePaymentDialog
+        isOpen={showPaymentDialog}
+        onClose={() => {
+          setShowPaymentDialog(false);
+          setPendingPaymentPurchase(null);
+        }}
+        totalAmount={pendingPaymentPurchase?.totalAmount || 0}
+        onConfirm={handlePaymentConfirm}
+        currentPaymentStatus={paymentStatus}
+      />
 
       <BottomNav />
     </div>

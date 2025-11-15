@@ -84,16 +84,18 @@ export const HoldTicketDialog = ({
           {currentCart.length > 0 && (
             <Card className="p-4">
               <h3 className="font-semibold mb-3">Current Cart</h3>
-              <div className="space-y-2 mb-3">
-                {currentCart.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span>
-                      {item.name} x {item.quantity}
-                    </span>
-                    <span>{formatCurrency(item.price * item.quantity)}</span>
-                  </div>
-                ))}
-              </div>
+              <ScrollArea className="max-h-[200px] mb-3">
+                <div className="space-y-2 pr-4">
+                  {currentCart.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span>
+                        {item.name} x {item.quantity}
+                      </span>
+                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
               <div className="flex justify-between font-semibold pt-2 border-t">
                 <span>Total</span>
                 <span>{formatCurrency(currentTotal)}</span>

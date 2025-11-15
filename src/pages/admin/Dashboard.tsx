@@ -19,12 +19,14 @@ import {
   Megaphone,
   CreditCard,
   Wallet,
-  BadgeDollarSign
+  BadgeDollarSign,
+  FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
@@ -95,10 +97,10 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 relative z-10">
       <Header />
       
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6 pointer-events-auto relative z-10">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
@@ -132,7 +134,7 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="cursor-default hover:shadow-xl transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -145,7 +147,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-default hover:shadow-xl transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Transactions</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -158,7 +160,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-default hover:shadow-xl transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Products</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
@@ -166,17 +168,17 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalProducts || 0}</div>
               <div className="flex flex-col gap-1 mt-2">
-                <Link to="/admin/products">
-                  <p className="text-xs text-primary hover:underline">Manage products</p>
+                <Link to="/admin/products" className="text-xs text-primary hover:underline cursor-pointer">
+                  Manage products
                 </Link>
-                <Link to="/admin/categories">
-                  <p className="text-xs text-primary hover:underline">Manage categories</p>
+                <Link to="/admin/categories" className="text-xs text-primary hover:underline cursor-pointer">
+                  Manage categories
                 </Link>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-default hover:shadow-xl transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -302,78 +304,116 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Link to="/admin/settings">
-                  <Button className="w-full">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Company Settings
+                  <Button className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Company Settings
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "S"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/pos">
-                  <Button variant="outline" className="w-full">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Point of Sale
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Point of Sale
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "P"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/purchases">
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Purchases & Stock
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Purchases & Stock
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "U"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/orders">
-                  <Button variant="outline" className="w-full">
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Manage Orders
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Manage Orders
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "O"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/products">
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Manage Products
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Manage Products
+                    </span>
+                    <KeyboardBadge keys={["Ctrl", "⇧", "I"]} className="scale-90" />
                   </Button>
                 </Link>
                 <Link to="/admin/pricing">
-                  <Button variant="outline" className="w-full">
-                    <BadgeDollarSign className="mr-2 h-4 w-4" />
-                    Pricing Management
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <BadgeDollarSign className="mr-2 h-4 w-4" />
+                      Pricing Management
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/stock-and-price">
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Stock & Price List
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Stock & Price List
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/import-products">
-                  <Button variant="outline" className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Import Products
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      Import Products
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/categories">
-                  <Button variant="outline" className="w-full">
-                    <Tags className="mr-2 h-4 w-4" />
-                    Manage Categories
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Tags className="mr-2 h-4 w-4" />
+                      Manage Categories
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/offers">
-                  <Button variant="outline" className="w-full">
-                    <Tag className="mr-2 h-4 w-4" />
-                    Manage Offers
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Tag className="mr-2 h-4 w-4" />
+                      Manage Offers
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/announcements">
-                  <Button variant="outline" className="w-full">
-                    <Megaphone className="mr-2 h-4 w-4" />
-                    Manage Announcements
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Megaphone className="mr-2 h-4 w-4" />
+                      Manage Announcements
+                    </span>
                   </Button>
                 </Link>
                 <Link to="/admin/open-cash-register">
-                  <Button variant="outline" className="w-full">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Open Cash Register
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Open Cash Register
+                    </span>
                   </Button>
                 </Link>
-                <Button variant="outline" className="w-full">
+                <Link to="/admin/quotations">
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Quotations
+                    </span>
+                    <KeyboardBadge keys={["Alt", "Q"]} className="scale-90" />
+                  </Button>
+                </Link>
+                <Button variant="outline" className="w-full cursor-pointer">
                   <Users className="mr-2 h-4 w-4" />
                   User Management
                 </Button>

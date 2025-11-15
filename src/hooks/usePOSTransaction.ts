@@ -32,9 +32,30 @@ export interface PaymentDetail {
   amount: number;
 }
 
+const POS_CART_KEY = 'pos_cart_state';
+const POS_DISCOUNT_KEY = 'pos_discount_state';
+
 export const usePOSTransaction = () => {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState(0);
+  // Load cart from localStorage on mount
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(POS_CART_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error loading cart from localStorage:', error);
+      return [];
+    }
+  });
+  
+  const [discount, setDiscount] = useState(() => {
+    try {
+      const saved = localStorage.getItem(POS_DISCOUNT_KEY);
+      return saved ? parseFloat(saved) : 0;
+    } catch (error) {
+      console.error('Error loading discount from localStorage:', error);
+      return 0;
+    }
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Cache offers to avoid repeated database queries
@@ -46,6 +67,24 @@ export const usePOSTransaction = () => {
   // Debounce timer for offer detection
   const offerDetectionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cartUpdateQueueRef = useRef<CartItem[]>([]);
+  
+  // Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(POS_CART_KEY, JSON.stringify(cart));
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
+  }, [cart]);
+  
+  // Persist discount to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(POS_DISCOUNT_KEY, discount.toString());
+    } catch (error) {
+      console.error('Error saving discount to localStorage:', error);
+    }
+  }, [discount]);
 
   // Load and cache all offers on mount
   useEffect(() => {
@@ -448,8 +487,9 @@ export const usePOSTransaction = () => {
         return currentCart;
       }
 
-      // Filter out existing combo items and cart-discount items
-      let regularItems = currentCart.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      // Preserve existing combo items, only process regular items for new combos
+      const existingCombos = currentCart.filter(item => item.isCombo);
+      let regularItems = currentCart.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const appliedCombos: CartItem[] = [];
 
       // Try to apply each combo
@@ -611,8 +651,8 @@ export const usePOSTransaction = () => {
         toast.success(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
       }
 
-      // Return combined cart: regular items + applied combos
-      return [...regularItems, ...appliedCombos];
+      // Return combined cart: existing combos + regular items + newly applied combos
+      return [...existingCombos, ...regularItems, ...appliedCombos];
     } catch (error) {
       console.error('Error in detectAndApplyCombos:', error);
       return currentCart;
@@ -635,7 +675,13 @@ export const usePOSTransaction = () => {
     if (existing) {
       updatedCart = cart.map(item =>
         item.id === cartItemId
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { 
+              ...item, 
+              quantity: item.quantity + 1,
+              // Preserve or update discount if passed in
+              itemDiscount: product.itemDiscount !== undefined ? product.itemDiscount : item.itemDiscount,
+              customPrice: product.customPrice !== undefined ? product.customPrice : item.customPrice,
+            }
           : item
       );
     } else {
@@ -647,6 +693,8 @@ export const usePOSTransaction = () => {
         quantity: 1,
         barcode: product.barcode,
         image_url: product.image_url,
+        itemDiscount: product.itemDiscount || 0,
+        customPrice: product.customPrice,
       };
       updatedCart = [newItem, ...cart];
     }
@@ -664,6 +712,17 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       // Run all offer detections in parallel for speed
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
@@ -671,17 +730,24 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Merge all offers (prioritize combos, then multi-BOGOs, then BOGOs)
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300); // Wait 300ms after last scan before applying offers
-    
-    toast.success(`${product.name} added to cart`);
   };
 
   const removeFromCart = async (productId: string) => {
@@ -700,18 +766,39 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
         detectAndApplyMultiProductBOGO(cartToProcess, true),
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300);
   };
@@ -739,18 +826,39 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
+      // Store current discounts and custom prices before offer detection
+      const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
+      cartToProcess.forEach(item => {
+        if (item.itemDiscount || item.customPrice) {
+          existingDiscounts.set(item.id, {
+            itemDiscount: item.itemDiscount,
+            customPrice: item.customPrice
+          });
+        }
+      });
+      
       const [cartWithBOGOs, cartWithMultiBOGOs, cartWithCombos] = await Promise.all([
         detectAndApplyBOGOOffers(cartToProcess, true),
         detectAndApplyMultiProductBOGO(cartToProcess, true),
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItems = cartToProcess.filter(item => !item.isBogo && !item.isCombo && item.id !== 'cart-discount');
+      // Extract regular items from combo result (which already has products removed)
+      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const finalCart = [...regularItems, ...bogoItems, ...multiBogoItems, ...comboItems];
+      // Restore custom prices and discounts to regular items
+      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+        const savedDiscount = existingDiscounts.get(item.id);
+        if (savedDiscount) {
+          return { ...item, ...savedDiscount };
+        }
+        return item;
+      });
+      
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300);
   };
@@ -784,6 +892,8 @@ export const usePOSTransaction = () => {
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+    localStorage.removeItem(POS_CART_KEY);
+    localStorage.removeItem(POS_DISCOUNT_KEY);
   };
   
   // Load multiple items directly into cart (for edit mode)
@@ -836,7 +946,9 @@ export const usePOSTransaction = () => {
     customerId?: string,
     notes?: string,
     additionalItems?: CartItem[],
-    discountOverride?: number
+    discountOverride?: number,
+    editingTransactionId?: string,
+    editingTransactionType?: 'pos' | 'online'
   ) => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -868,12 +980,12 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
-      // Calculate COGS using FIFO method before saving transaction
+      // Calculate COGS using FIFO method before saving transaction (only for NEW transactions)
       let totalCOGS = 0;
       const cogsDetails: any[] = [];
 
-      // Check if online for FIFO calculation
-      if (navigator.onLine) {
+      // Check if online for FIFO calculation (skip for edited transactions to avoid double deduction)
+      if (navigator.onLine && !editingTransactionId) {
         for (const item of cart) {
           if (item.id === 'cart-discount') continue;
           
@@ -963,7 +1075,7 @@ export const usePOSTransaction = () => {
       }));
 
       const transactionData = {
-        id: uuidv4(),
+        id: editingTransactionId || uuidv4(),  // Use existing ID if editing
         cashier_id: user.id,
         store_id: storeId,
         customer_id: customerId,
@@ -981,104 +1093,162 @@ export const usePOSTransaction = () => {
         metadata: {
           total_cogs: totalCOGS,
           cogs_details: cogsDetails,
-          gross_profit: (subtotal - finalDiscount) - totalCOGS
+          gross_profit: (subtotal - finalDiscount) - totalCOGS,
+          ...(editingTransactionId && { edited_at: new Date().toISOString() })
         }
       };
 
-      console.log('Processing transaction with COGS:', transactionData);
+      console.log(editingTransactionId ? 'Updating transaction:' : 'Processing new transaction:', transactionData);
 
       // Check if online
       if (navigator.onLine) {
-        // Try to save online
-        const { data, error } = await supabase
-          .from('pos_transactions')
-          .insert(transactionData)
-          .select()
-          .single();
+        if (editingTransactionId && editingTransactionType === 'pos') {
+          // UPDATE existing POS transaction instead of creating new one
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .update({
+              store_id: transactionData.store_id,
+              customer_id: transactionData.customer_id,
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              tax: transactionData.tax,
+              discount: transactionData.discount,
+              total: transactionData.total,
+              payment_method: transactionData.payment_method,
+              payment_details: transactionData.payment_details,
+              notes: transactionData.notes,
+              metadata: transactionData.metadata,
+            })
+            .eq('id', editingTransactionId)
+            .select()
+            .single();
 
-        if (error) {
-          console.error('Database error:', error);
-          // If online but failed, save offline as backup
-          await offlineDB.addTransaction({
-            id: transactionData.id,
-            storeId: transactionData.store_id,
-            cashierId: transactionData.cashier_id,
-            customerId: transactionData.customer_id,
-            items: transactionData.items,
-            subtotal: transactionData.subtotal,
-            discount: transactionData.discount,
-            total: transactionData.total,
-            paymentMethod: transactionData.payment_method,
-            notes: transactionData.notes,
-            timestamp: new Date().toISOString(),
-            synced: false,
-          });
-          toast.warning('Saved offline - will sync when connection is stable');
+          if (error) {
+            console.error('Database update error:', error);
+            toast.error('Failed to update transaction');
+            return null;
+          }
+
+          toast.success('Transaction updated successfully!');
           clearCart();
-          return { ...transactionData, offline: true };
-        }
+          return data;
+        } else if (editingTransactionId && editingTransactionType === 'online') {
+          // For online orders, we still create a POS transaction and delete the order
+          // (converting order to POS transaction)
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .insert(transactionData)
+            .select()
+            .single();
 
-        // Update stock quantities for sold items
-        for (const item of cart) {
-          if (item.id === 'cart-discount') continue; // Skip cart discount items
-          
-          // Handle combo items - deduct stock from each product in the combo
-          if (item.isCombo && item.comboItems) {
-            for (const comboProduct of item.comboItems) {
-              const stockToDeduct = comboProduct.quantity * item.quantity;
+          if (error) {
+            console.error('Database error:', error);
+            toast.error('Failed to create POS transaction');
+            return null;
+          }
+
+          // Delete the original online order
+          await supabase.from('order_items').delete().eq('order_id', editingTransactionId);
+          await supabase.from('orders').delete().eq('id', editingTransactionId);
+
+          toast.success('Order converted to POS transaction successfully!');
+          clearCart();
+          return data;
+        } else {
+          // Create new transaction (original flow)
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .insert(transactionData)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Database error:', error);
+            // If online but failed, save offline as backup
+            await offlineDB.addTransaction({
+              id: transactionData.id,
+              storeId: transactionData.store_id,
+              cashierId: transactionData.cashier_id,
+              customerId: transactionData.customer_id,
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              discount: transactionData.discount,
+              total: transactionData.total,
+              paymentMethod: transactionData.payment_method,
+              notes: transactionData.notes,
+              timestamp: new Date().toISOString(),
+              synced: false,
+            });
+            toast.warning('Saved offline - will sync when connection is stable');
+            clearCart();
+            return { ...transactionData, offline: true };
+          }
+        }
+        
+        // Update stock quantities for sold items (only for new transactions)
+        let data = null;
+        if (!editingTransactionId) {
+          for (const item of cart) {
+            if (item.id === 'cart-discount') continue; // Skip cart discount items
+            
+            // Handle combo items - deduct stock from each product in the combo
+            if (item.isCombo && item.comboItems) {
+              for (const comboProduct of item.comboItems) {
+                const stockToDeduct = comboProduct.quantity * item.quantity;
+                
+                if (comboProduct.variant_id) {
+                  const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
+                    p_variant_id: comboProduct.variant_id,
+                    p_quantity: stockToDeduct
+                  });
+                  
+                  if (variantError) {
+                    console.error('Error updating combo variant stock:', variantError);
+                  }
+                } else {
+                  const { error: stockError } = await supabase.rpc('decrement_product_stock', {
+                    p_product_id: comboProduct.product_id,
+                    p_quantity: stockToDeduct
+                  });
+                  
+                  if (stockError) {
+                    console.error('Error updating combo product stock:', stockError);
+                  }
+                }
+              }
+            } else {
+              // Regular product stock deduction
+              // Check if this is a variant or base product
+              const isVariant = item.id !== item.productId;
               
-              if (comboProduct.variant_id) {
+              if (isVariant) {
+                // Update variant stock
                 const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                  p_variant_id: comboProduct.variant_id,
-                  p_quantity: stockToDeduct
+                  p_variant_id: item.id,
+                  p_quantity: item.quantity
                 });
                 
                 if (variantError) {
-                  console.error('Error updating combo variant stock:', variantError);
+                  console.error('Error updating variant stock:', variantError);
                 }
               } else {
+                // Update base product stock
                 const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                  p_product_id: comboProduct.product_id,
-                  p_quantity: stockToDeduct
+                  p_product_id: item.id,
+                  p_quantity: item.quantity
                 });
                 
                 if (stockError) {
-                  console.error('Error updating combo product stock:', stockError);
+                  console.error('Error updating product stock:', stockError);
                 }
-              }
-            }
-          } else {
-            // Regular product stock deduction
-            // Check if this is a variant or base product
-            const isVariant = item.id !== item.productId;
-            
-            if (isVariant) {
-              // Update variant stock
-              const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                p_variant_id: item.id,
-                p_quantity: item.quantity
-              });
-              
-              if (variantError) {
-                console.error('Error updating variant stock:', variantError);
-              }
-            } else {
-              // Update base product stock
-              const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                p_product_id: item.id,
-                p_quantity: item.quantity
-              });
-              
-              if (stockError) {
-                console.error('Error updating product stock:', stockError);
               }
             }
           }
         }
 
-        toast.success('Transaction completed successfully!');
+        toast.success(editingTransactionId ? 'Transaction updated successfully!' : 'Transaction completed successfully!');
         clearCart();
-        return data;
+        return data || transactionData;
       } else {
         // Save offline
         await offlineDB.addTransaction({

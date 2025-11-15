@@ -63,15 +63,25 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [fromPOS, setFromPOS] = useState(false);
+  const [fromPurchases, setFromPurchases] = useState(false);
+  const [fromQuotations, setFromQuotations] = useState(false);
 
-  // Open add dialog if navigated from POS
+  // Open add dialog if navigated from POS, Purchases, or Quotations
   useEffect(() => {
-    if (location.state?.openAddDialog) {
+    const returnTo = new URLSearchParams(location.search).get('returnTo');
+    if (returnTo === 'quotations') {
       setOpen(true);
+      setFromQuotations(true);
+      setFormData(prev => ({ ...prev, is_customer: true }));
+    } else if (location.state?.openAddDialog) {
+      setOpen(true);
+      setFromPOS(location.state?.fromPOS || false);
+      setFromPurchases(location.state?.fromPurchases || false);
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.search, location.pathname, navigate]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -122,12 +132,45 @@ export default function Contacts() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from('contacts').insert([data]);
+      const { data: newContact, error } = await supabase
+        .from('contacts')
+        .insert([data])
+        .select()
+        .single();
       if (error) throw error;
+      return newContact;
     },
-    onSuccess: () => {
+    onSuccess: (newContact) => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Contact created successfully');
+      
+      // If came from POS, navigate back with new customer ID BEFORE closing dialog
+      if (fromPOS) {
+        setFromPOS(false);
+        navigate('/admin/pos', { 
+          state: { newCustomerId: newContact.id },
+          replace: true 
+        });
+      }
+      
+      // If from Purchases, return to Purchases with new supplier ID
+      if (fromPurchases) {
+        setFromPurchases(false);
+        navigate('/admin/purchases', { 
+          state: { newSupplierId: newContact.id },
+          replace: true 
+        });
+      }
+      
+      // If from Quotations, return to Quotations with new customer ID
+      if (fromQuotations) {
+        setFromQuotations(false);
+        navigate('/admin/quotations', { 
+          state: { newCustomerId: newContact.id },
+          replace: true 
+        });
+      }
+      
       handleClose();
     },
     onError: (error) => {
@@ -222,6 +265,8 @@ export default function Contacts() {
   const handleClose = () => {
     setOpen(false);
     setEditingContact(null);
+    setFromPOS(false);
+    setFromPurchases(false);
     setFormData({
       name: '',
       email: '',
@@ -526,7 +571,11 @@ export default function Contacts() {
                     onChange={(e) =>
                       setFormData({ ...formData, opening_balance: e.target.value })
                     }
+                    placeholder="0.00"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Positive = they owe you (A/R), Negative = you owe them (A/P)
+                  </p>
                 </div>
 
                 <div className="col-span-2">

@@ -39,7 +39,9 @@ import {
   Plus,
   Calendar,
   Award,
-  Banknote
+  Banknote,
+  Factory,
+  ScanBarcode as BarcodeIcon
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -56,8 +58,9 @@ import { Receipt } from '@/components/pos/Receipt';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
+import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { cn } from '@/lib/utils';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
@@ -76,10 +79,16 @@ import {
 import { NumericKeypad } from '@/components/pos/NumericKeypad';
 import { ProductSearch } from '@/components/pos/ProductSearch';
 import { Label } from '@/components/ui/label';
+import { UpdateButton } from '@/components/UpdateButton';
+import { APP_VERSION } from '@/config/version';
+import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
+import { KeyboardBadge } from '@/components/ui/keyboard-badge';
+import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 
 export default function POS() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -87,8 +96,11 @@ export default function POS() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerPrices, setCustomerPrices] = useState<Record<string, number>>({});
+  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showQuickPayment, setShowQuickPayment] = useState(false);
+  const [quickPaymentMethod, setQuickPaymentMethod] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
@@ -118,6 +130,8 @@ export default function POS() {
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
   const [keypadInput, setKeypadInput] = useState<string>('');
+  const keypadInputRef = useRef<string>(''); // Persist across re-renders
+  const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -126,6 +140,9 @@ export default function POS() {
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
   
+  // Track processed customer IDs to prevent re-selecting
+  const processedCustomerIdRef = useRef<string | null>(null);
+  const processedProductIdRef = useRef<string | null>(null);
   
   const ITEMS_PER_PAGE = 12;
 
@@ -358,7 +375,7 @@ export default function POS() {
           const productId = item.productId || item.id;
           console.log(`🔧 Loading item: ${item.name}, productId: ${productId}`);
           
-          // Create cart item
+          // Create cart item with proper custom pricing and discounts
           cartItems.push({
             id: productId,
             productId: productId,
@@ -366,9 +383,11 @@ export default function POS() {
             price: item.price,
             quantity: item.quantity || 1,
             barcode: item.barcode,
-            customPrice: item.customPrice,
+            customPrice: item.customPrice || null,
             itemDiscount: item.itemDiscount || 0,
           });
+          
+          console.log(`🔧 Item loaded with customPrice: ${item.customPrice}, itemDiscount: ${item.itemDiscount}`);
         }
         
         // Load all items at once
@@ -429,12 +448,23 @@ export default function POS() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('stores')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-      return data || [];
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          const { data } = await supabase
+            .from('stores')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+          return data || [];
+        } catch (error) {
+          console.error('Failed to fetch stores online, trying offline:', error);
+        }
+      }
+      
+      // Fallback to offline data
+      const offlineStores = await offlineDB.getStores();
+      return offlineStores.filter((s: any) => s.is_active);
     },
   });
 
@@ -576,6 +606,106 @@ export default function POS() {
     enabled: !!currentCashSession,
   });
 
+  // Get top credit customers with outstanding balances
+  const { data: topCreditCustomers, isLoading: creditCustomersLoading } = useQuery({
+    queryKey: ['top-credit-customers', selectedStoreId],
+    queryFn: async () => {
+      if (!selectedStoreId) return [];
+
+      // First, get all customer contacts
+      const { data: contacts, error: contactsError } = await supabase
+        .from('contacts')
+        .select('id, name, phone, email, customer_ledger_account_id, supplier_ledger_account_id')
+        .eq('is_customer', true)
+        .not('customer_ledger_account_id', 'is', null)
+        .order('name');
+
+      if (contactsError) {
+        console.error('Error fetching contacts:', contactsError);
+        return [];
+      }
+
+      console.log('Fetched contacts:', contacts);
+
+      if (!contacts || contacts.length === 0) {
+        console.log('No contacts found');
+        return [];
+      }
+
+      // Log dual-role customers
+      const dualRoleContacts = contacts.filter(c => c.supplier_ledger_account_id);
+      console.log('Dual-role customers found:', dualRoleContacts);
+
+      // Get all account IDs (both customer and supplier)
+      const accountIds = [
+        ...contacts.map(c => c.customer_ledger_account_id).filter(Boolean),
+        ...contacts.map(c => c.supplier_ledger_account_id).filter(Boolean)
+      ];
+
+      // Fetch all accounts in one query
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('id, current_balance')
+        .in('id', accountIds);
+
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+        return [];
+      }
+
+      // Create a map of account balances
+      const accountBalanceMap = new Map(
+        (accounts || []).map(acc => [acc.id, acc.current_balance])
+      );
+
+      console.log('Account balances fetched:', accounts);
+      console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
+
+      // Calculate balance for each contact (no filtering by positive/negative)
+      const customersWithBalance = contacts
+        .map(contact => {
+          const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
+          const supplierBalance = contact.supplier_ledger_account_id 
+            ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
+            : 0;
+          
+          // For regular customers: show customer balance (positive or negative)
+          // For dual-role customers: show unified balance (customer - supplier, positive or negative)
+          const displayBalance = contact.supplier_ledger_account_id 
+            ? customerBalance - supplierBalance 
+            : customerBalance;
+
+          return {
+            ...contact,
+            balance: displayBalance,
+            customerBalance,
+            isDualRole: !!contact.supplier_ledger_account_id
+          };
+        });
+
+      // Separate dual-role and regular customers
+      const dualRoleCustomers = customersWithBalance
+        .filter(c => c.isDualRole)
+        .sort((a, b) => b.balance - a.balance);
+      
+      const regularCustomers = customersWithBalance
+        .filter(c => !c.isDualRole)
+        .sort((a, b) => b.balance - a.balance);
+
+      // Prioritize dual-role customers, then fill with regular customers
+      const finalList = [
+        ...dualRoleCustomers,
+        ...regularCustomers
+      ].slice(0, 10);
+
+      console.log('Final customers with balance:', finalList);
+      console.log('Dual-role in final list:', finalList.filter(c => c.isDualRole));
+
+      return finalList;
+    },
+    enabled: !!selectedStoreId,
+  });
+
   // Calculate day activity
   const dayActivity = {
     cashSales: sessionTransactions
@@ -708,7 +838,7 @@ export default function POS() {
 
   // Fetch journal entries affecting cash account for the session period (excluding POS, purchases, expenses, and payment receipts to avoid double counting)
   const { data: cashJournalEntries, isLoading: cashJournalLoading, error: cashJournalError } = useQuery({
-    queryKey: ['session-cash-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-cash-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       if (!currentCashSession) {
         return [];
@@ -752,6 +882,7 @@ export default function POS() {
                !ref.startsWith('SPM-') && 
                !ref.startsWith('PMT-') &&
                !ref.startsWith('OB-') &&
+               !ref.startsWith('CASHREG-') &&
                !ref.endsWith('-PMT');
       });
       
@@ -762,9 +893,55 @@ export default function POS() {
     staleTime: 0
   });
 
+  // Fetch ALL journal entries for display (including payment receipts) - separate from calculation entries
+  const { data: displayJournalEntries, isLoading: displayJournalLoading } = useQuery({
+    queryKey: ['session-display-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryFn: async () => {
+      if (!currentCashSession) {
+        return [];
+      }
+      
+      // Get the session timestamp range
+      const sessionStart = currentCashSession.opened_at;
+      const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
+
+      // Get ALL journal entries (including credit sales) created during the session
+      // Exclude cash register opening entries
+      const { data, error: queryError } = await supabase
+        .from('journal_entries')
+        .select(`
+          id,
+          reference,
+          description,
+          entry_date,
+          created_at,
+          total_debit,
+          total_credit,
+          status
+        `)
+        .eq('status', 'posted')
+        .gte('created_at', sessionStart)
+        .lte('created_at', sessionEnd)
+        .not('reference', 'ilike', 'CASHREG%')
+        .order('created_at', { ascending: false });
+      
+      console.log('Display journal entries query result:', { 
+        data, 
+        error: queryError, 
+        sessionStart, 
+        sessionEnd
+      });
+      
+      return data || [];
+    },
+    enabled: !!currentCashSession,
+    refetchOnMount: 'always',
+    staleTime: 0
+  });
+
   // Fetch mobile money journal entries for the entire session period
   const { data: mobileMoneyJournalEntries } = useQuery({
-    queryKey: ['session-mobile-money-journal-entries-v2', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
+    queryKey: ['session-mobile-money-journal-entries-v3', selectedStoreId, currentCashSession?.opened_at, currentCashSession?.closed_at],
     queryFn: async () => {
       if (!currentCashSession) {
         return [];
@@ -808,6 +985,7 @@ export default function POS() {
                !ref.startsWith('SPM-') && 
                !ref.startsWith('PMT-') &&
                !ref.startsWith('OB-') &&
+               !ref.startsWith('CASHREG-') &&
                !ref.endsWith('-PMT');
       });
       
@@ -817,6 +995,42 @@ export default function POS() {
     refetchOnMount: 'always',
     staleTime: 0
   });
+
+  // Real-time subscription for journal entries
+  useEffect(() => {
+    if (!currentCashSession) return;
+
+    const channel = supabase
+      .channel('journal-entries-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'journal_entries'
+        },
+        () => {
+          // Refetch all journal entry queries when new entries are created
+          queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentCashSession, queryClient]);
+
+  // Debug logging for journal entries
+  useEffect(() => {
+    console.log('Display journal entries updated:', {
+      count: displayJournalEntries?.length || 0,
+      loading: displayJournalLoading,
+      entries: displayJournalEntries
+    });
+  }, [displayJournalEntries, displayJournalLoading]);
 
   // Calculate net cash from journal entries (debits increase cash, credits decrease cash)
   const journalCashEffect = cashJournalEntries
@@ -858,64 +1072,124 @@ export default function POS() {
   const { data: categories } = useQuery({
     queryKey: ['pos-categories'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('categories')
-        .select('id, name, image_url, icon')
-        .eq('is_active', true)
-        .order('display_order');
-      return data || [];
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          const { data } = await supabase
+            .from('categories')
+            .select('id, name, image_url, icon')
+            .eq('is_active', true)
+            .order('display_order');
+          return data || [];
+        } catch (error) {
+          console.error('Failed to fetch categories online, trying offline:', error);
+        }
+      }
+      
+      // Fallback to offline data
+      const offlineCategories = await offlineDB.getCategories();
+      return offlineCategories.filter((c: any) => c.is_active);
     },
   });
 
   const { data: customers } = useQuery({
     queryKey: ['pos-customers', customerSearch],
     queryFn: async () => {
-      let query = supabase
-        .from('contacts')
-        .select('*')
-        .eq('is_customer', true)
-        .order('name');
-      
-      // Apply search filter if search term exists
-      if (customerSearch && customerSearch.length >= 2) {
-        query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          let query = supabase
+            .from('contacts')
+            .select('*')
+            .eq('is_customer', true)
+            .order('name');
+          
+          // Apply search filter if search term exists
+          if (customerSearch && customerSearch.length >= 2) {
+            query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+          }
+          
+          const { data } = await query.limit(50);
+          return data || [];
+        } catch (error) {
+          console.error('Failed to fetch customers online, trying offline:', error);
+        }
       }
       
-      const { data } = await query.limit(50);
-      return data || [];
+      // Fallback to offline data
+      let offlineCustomers = await offlineDB.getCustomers();
+      offlineCustomers = offlineCustomers.filter((c: any) => c.is_customer);
+      
+      // Apply search filter
+      if (customerSearch && customerSearch.length >= 2) {
+        const term = customerSearch.toLowerCase();
+        offlineCustomers = offlineCustomers.filter((c: any) => 
+          c.name?.toLowerCase().includes(term) || 
+          c.phone?.toLowerCase().includes(term) ||
+          c.email?.toLowerCase().includes(term)
+        );
+      }
+      
+      return offlineCustomers.slice(0, 50);
     },
   });
 
   const { data: products } = useQuery({
     queryKey: ['pos-products', searchTerm, selectedCategory],
     queryFn: async () => {
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default
-          )
-        `)
-        .eq('is_available', true)
-        .order('name');
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          let query = supabase
+            .from('products')
+            .select(`
+              *,
+              product_variants (
+                id,
+                label,
+                quantity,
+                unit,
+                price,
+                is_available,
+                is_default
+              )
+            `)
+            .eq('is_available', true)
+            .order('name');
 
+          if (searchTerm) {
+            query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+          }
+
+          if (selectedCategory) {
+            query = query.eq('category_id', selectedCategory);
+          }
+
+          const { data } = await query.limit(50);
+          return data || [];
+        } catch (error) {
+          console.error('Failed to fetch products online, trying offline:', error);
+        }
+      }
+      
+      // Fallback to offline data
+      let offlineProducts = await offlineDB.getProducts();
+      
+      // Apply filters
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        const term = searchTerm.toLowerCase();
+        offlineProducts = offlineProducts.filter((p: any) => 
+          p.name?.toLowerCase().includes(term) || 
+          p.barcode?.toLowerCase().includes(term) ||
+          p.description?.toLowerCase().includes(term)
+        );
       }
-
+      
       if (selectedCategory) {
-        query = query.eq('category_id', selectedCategory);
+        offlineProducts = offlineProducts.filter((p: any) => p.category_id === selectedCategory);
       }
-
-      const { data } = await query.limit(50);
-      return data || [];
+      
+      return offlineProducts.slice(0, 50);
     },
     enabled: !!selectedCategory || !!searchTerm,
   });
@@ -1199,9 +1473,56 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
-    console.log('Scanning barcode:', barcode);
+    // Try to find product by barcode in offline DB first (works both online and offline)
+    try {
+      const cachedProduct = await offlineDB.getProductByBarcode(barcode);
+      
+      if (cachedProduct) {
+        // Check if it has variants
+        const availableVariants = cachedProduct.product_variants?.filter((v: any) => v.is_available) || [];
+        
+        if (availableVariants.length > 0) {
+          // Check if any variant has this barcode
+          const matchingVariant = availableVariants.find((v: any) => v.barcode === barcode);
+          
+          if (matchingVariant) {
+            const productToAdd = {
+              ...cachedProduct,
+              price: matchingVariant.price,
+              selectedVariant: matchingVariant,
+            };
+            addToCartWithCustomPrice(productToAdd);
+            return;
+          }
+          
+          // Otherwise use default or first variant
+          const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+          const productToAdd = {
+            ...cachedProduct,
+            price: variantToAdd.price,
+            selectedVariant: variantToAdd,
+          };
+          addToCartWithCustomPrice(productToAdd);
+          return;
+        } else {
+          // No variants, use product price
+          addToCartWithCustomPrice(cachedProduct);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking offline cache:', error);
+    }
     
-    // First, try to find a product variant with this barcode
+    // If not found in cache and we're online, try online database
+    if (!navigator.onLine) {
+      toast.error('Product not found in offline cache');
+      setScannedBarcode(barcode);
+      setAssignBarcodeOpen(true);
+      return;
+    }
+    
+    // First, try to find a product variant with this barcode (optimized query)
     const { data: variantData, error: variantError } = await supabase
       .from('product_variants')
       .select(`
@@ -1224,13 +1545,11 @@ export default function POS() {
       `)
       .eq('barcode', barcode)
       .eq('is_available', true)
-      .maybeSingle();
-
-    console.log('Variant barcode scan result:', { variantData, variantError });
+      .limit(1)
+      .single();
 
     if (variantData && variantData.products) {
       // Found a variant with this barcode
-      console.log('Adding variant to cart:', variantData);
       const productToAdd = {
         ...variantData.products,
         price: variantData.price,
@@ -1240,7 +1559,7 @@ export default function POS() {
       return;
     }
 
-    // If no variant found, check main product barcode
+    // If no variant found, check main product barcode (optimized query)
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -1258,19 +1577,16 @@ export default function POS() {
       `)
       .eq('barcode', barcode)
       .eq('is_available', true)
-      .maybeSingle();
-
-    console.log('Product barcode scan result:', { data, error });
+      .limit(1)
+      .single();
 
     if (data) {
       // For barcode scans, add directly to cart with smart variant selection
       const availableVariants = data.product_variants?.filter((v: any) => v.is_available) || [];
-      console.log('Available variants:', availableVariants);
       
       if (availableVariants.length > 0) {
         // Prioritize default variant, otherwise use first available
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-        console.log('Adding variant to cart:', variantToAdd);
         const productToAdd = {
           ...data,
           price: variantToAdd.price,
@@ -1279,12 +1595,10 @@ export default function POS() {
         addToCartWithCustomPrice(productToAdd);
       } else {
         // No variants, use product price
-        console.log('Adding product without variants to cart');
         addToCartWithCustomPrice(data);
       }
     } else {
       // Product not found - open assign barcode dialog
-      console.log('Product not found for barcode:', barcode);
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
     }
@@ -1331,21 +1645,39 @@ export default function POS() {
 
   // Helper function to add to cart with custom pricing logic
   const addToCartWithCustomPrice = async (product: any) => {
-    // Check if customer has custom price for this product
-    const customPrice = customerPrices[product.id];
+    // Get base product ID (in case product has variants, we still use base ID for custom pricing)
+    const baseProductId = product.id;
+    
+    console.log('🛒 addToCartWithCustomPrice called');
+    console.log('🛒 Product:', { id: baseProductId, name: product.name, price: product.price });
+    console.log('🛒 Selected customer:', selectedCustomer?.name || 'None');
+    console.log('🛒 Available custom prices:', customerPrices);
+    
+    // Check if customer is selected and has custom price for this product
+    const customPrice = selectedCustomer ? customerPrices[baseProductId] : null;
+    
+    console.log('🔍 Custom price lookup:', {
+      baseProductId,
+      productName: product.name,
+      retailPrice: product.price,
+      customPrice,
+      hasCustomer: !!selectedCustomer,
+      customerPricesKeys: Object.keys(customerPrices)
+    });
     
     if (customPrice && customPrice < product.price) {
       // Calculate discount as difference between retail and custom price
       const discount = product.price - customPrice;
       
-      // Add product with original price
-      await addToCart(product);
+      console.log('✅ Applying custom price discount:', discount);
       
-      // Apply discount immediately
-      setTimeout(() => {
-        updateItemDiscount(product.selectedVariant?.id || product.id, discount);
-      }, 50);
+      // Add product with discount already applied
+      await addToCart({
+        ...product,
+        itemDiscount: discount
+      });
     } else {
+      console.log('❌ No custom price or custom price not lower, adding normally');
       // No custom price, add normally
       await addToCart(product);
     }
@@ -1354,19 +1686,30 @@ export default function POS() {
   // Fetch customer prices when customer is selected
   useEffect(() => {
     const fetchCustomerPrices = async () => {
-      // First, reset all cart items to retail price
+      // Detect customer change (including removal)
+      const currentCustomerId = selectedCustomer?.id || null;
+      const customerChanged = currentCustomerId !== prevCustomerId;
+      
+      // Only proceed if customer actually changed
+      if (!customerChanged) return;
+      
+      setPrevCustomerId(currentCustomerId);
+      
+      // Reset all cart items to retail price when customer changes
       cart.forEach((item) => {
         if (item.itemDiscount && item.itemDiscount > 0) {
           updateItemDiscount(item.id, 0);
         }
       });
 
+      // If customer removed, clear prices and exit
       if (!selectedCustomer) {
         setCustomerPrices({});
-        toast.info('Prices reset to retail');
+        toast.info('Customer removed - prices reset to retail');
         return;
       }
 
+      // Fetch custom prices for the new customer
       try {
         const { data, error } = await supabase
           .from('customer_product_prices')
@@ -1381,45 +1724,150 @@ export default function POS() {
           pricesMap[item.product_id] = item.price;
         });
 
+        console.log('📦 Fetched custom prices for customer:', selectedCustomer.name);
+        console.log('📦 Prices map:', pricesMap);
+        console.log('📦 Product IDs with custom prices:', Object.keys(pricesMap));
+        
         setCustomerPrices(pricesMap);
         
         // Apply custom prices to existing cart items
-        if (Object.keys(pricesMap).length > 0) {
+        if (Object.keys(pricesMap).length > 0 && cart.length > 0) {
           let appliedCount = 0;
-          cart.forEach((cartItem) => {
-            // Use the base productId stored in cart item
-            const customPrice = pricesMap[cartItem.productId];
-            
-            console.log('Checking custom price for cart item:', {
-              cartItemId: cartItem.id,
-              productId: cartItem.productId,
-              retailPrice: cartItem.price,
-              customPrice: customPrice
+          
+          // Small delay to ensure cart is updated
+          setTimeout(() => {
+            cart.forEach((cartItem) => {
+              // Use the base productId stored in cart item
+              const customPrice = pricesMap[cartItem.productId];
+              
+              console.log('Checking custom price for cart item:', {
+                cartItemId: cartItem.id,
+                productId: cartItem.productId,
+                retailPrice: cartItem.price,
+                customPrice: customPrice
+              });
+              
+              if (customPrice && customPrice < cartItem.price) {
+                const discount = cartItem.price - customPrice;
+                updateItemDiscount(cartItem.id, discount);
+                appliedCount++;
+                console.log('✅ Applied discount:', discount, 'to item:', cartItem.id);
+              }
             });
             
-            if (customPrice && customPrice < cartItem.price) {
-              const discount = cartItem.price - customPrice;
-              updateItemDiscount(cartItem.id, discount);
-              appliedCount++;
-              console.log('Applied discount:', discount, 'to item:', cartItem.id);
+            if (appliedCount > 0) {
+              toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
+            } else {
+              toast.info(`No custom prices available for current cart items`);
             }
-          });
-          
-          if (appliedCount > 0) {
-            toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
-          } else {
-            toast.info(`No custom prices available for current cart items`);
-          }
-        } else {
+          }, 100);
+        } else if (Object.keys(pricesMap).length === 0) {
           toast.info(`No custom prices set for ${selectedCustomer.name}`);
         }
       } catch (error) {
         console.error('Error fetching customer prices:', error);
+        toast.error('Failed to fetch custom prices');
       }
     };
 
     fetchCustomerPrices();
-  }, [selectedCustomer]);
+  }, [selectedCustomer?.id]);
+
+  // Auto-select newly created customer from Contacts page
+  useEffect(() => {
+    const newCustomerId = location.state?.newCustomerId;
+    if (newCustomerId && newCustomerId !== processedCustomerIdRef.current) {
+      processedCustomerIdRef.current = newCustomerId;
+      
+      // Fetch the new customer details
+      const fetchNewCustomer = async () => {
+        try {
+          const { data: customer, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('id', newCustomerId)
+            .single();
+          
+          if (error) throw error;
+          
+          if (customer) {
+            setSelectedCustomer(customer);
+            setShowCustomerDialog(false);
+            toast.success(`Customer "${customer.name}" selected`);
+          }
+        } catch (error) {
+          console.error('Error fetching new customer:', error);
+          toast.error('Failed to select new customer');
+        }
+      };
+      
+      fetchNewCustomer();
+    }
+  }, [location.state?.newCustomerId]);
+  
+  // Auto-add newly created product from Products page
+  useEffect(() => {
+    const newProductId = location.state?.newProductId;
+    if (newProductId && newProductId !== processedProductIdRef.current) {
+      processedProductIdRef.current = newProductId;
+      
+      // Fetch and add the new product to cart
+      const fetchAndAddProduct = async () => {
+        try {
+          const { data: product, error } = await supabase
+            .from('products')
+            .select(`
+              id,
+              name,
+              price,
+              unit,
+              barcode,
+              image_url,
+              product_variants (
+                id,
+                label,
+                price,
+                unit,
+                is_available,
+                is_default,
+                barcode
+              )
+            `)
+            .eq('id', newProductId)
+            .single();
+          
+          if (error) throw error;
+          
+          if (product) {
+            // Check if product has variants
+            const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
+            
+            if (availableVariants.length > 0) {
+              // Product has variants, find default or first available
+              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+              
+              // Add variant to cart
+              const productToAdd = {
+                ...product,
+                selectedVariant: defaultVariant,
+              };
+              addToCartWithCustomPrice(productToAdd);
+            } else {
+              // No variants, add product directly
+              addToCartWithCustomPrice(product);
+            }
+            
+            toast.success(`Added "${product.name}" to cart`);
+          }
+        } catch (error) {
+          console.error('Error fetching new product:', error);
+          toast.error('Failed to add new product to cart');
+        }
+      };
+      
+      fetchAndAddProduct();
+    }
+  }, [location.state?.newProductId]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -1443,6 +1891,125 @@ export default function POS() {
   const subtotal = calculateSubtotal();
   const cartDiscountAmount = cartDiscountItem ? Math.abs(cartDiscountItem.price) : 0;
   const total = subtotal - cartDiscountAmount;
+
+  // POS Keyboard Shortcuts
+  const posShortcuts: KeyboardShortcut[] = [
+    {
+      key: 'F1',
+      description: 'Cash In',
+      action: () => setShowCashIn(true),
+    },
+    {
+      key: 'F2',
+      description: 'Quick Cash Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('cash');
+        setShowQuickPayment(true);
+      },
+    },
+    {
+      key: 'F3',
+      description: 'Quick Credit Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        if (!selectedCustomer) {
+          toast.error('Please select a customer first');
+          return;
+        }
+        setQuickPaymentMethod('credit');
+        setShowQuickPayment(true);
+      },
+    },
+    {
+      key: 'F4',
+      description: 'Quick Mobile Money Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('mobile_money');
+        setShowQuickPayment(true);
+      },
+    },
+    {
+      key: 'F5',
+      description: 'Hold Ticket',
+      action: () => {
+        if (cart.length > 0) {
+          setShowHoldTicket(true);
+        } else {
+          toast.error('No items in cart to hold');
+        }
+      },
+    },
+    {
+      key: 'F6',
+      description: 'Recall Held Ticket',
+      action: () => {
+        if (heldTickets.length > 0) {
+          setShowHoldTicket(true);
+        } else {
+          toast.info('No held tickets available');
+        }
+      },
+    },
+    {
+      key: 'F9',
+      description: 'Process Payment',
+      action: () => {
+        if (cart.length > 0) {
+          handleCheckout();
+        } else {
+          toast.error('No items in cart');
+        }
+      },
+    },
+    {
+      key: 'F12',
+      description: 'Clear Cart',
+      action: () => {
+        if (cart.length > 0) {
+          const confirmed = window.confirm('Are you sure you want to clear the cart?');
+          if (confirmed) {
+            clearCart();
+            setSelectedCustomer(null);
+            toast.info('Cart cleared');
+          }
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      description: 'Close dialogs',
+      action: () => {
+        setShowPayment(false);
+        setShowCashIn(false);
+        setShowCashOut(false);
+        setShowHoldTicket(false);
+        setShowCustomerDialog(false);
+        setShowRefund(false);
+        setShowNotesDialog(false);
+        setVariantSelectorOpen(false);
+        setAssignBarcodeOpen(false);
+        setShowCustomPriceConfirm(false);
+        setShowQuickPayment(false);
+      },
+      preventDefault: false,
+    },
+  ];
+
+  useKeyboardShortcuts({ 
+    shortcuts: posShortcuts,
+    enabled: !showPayment && !showNotesDialog // Disable when typing in modals
+  });
 
   const handleCheckout = () => {
     if (!selectedStoreId) {
@@ -1507,13 +2074,19 @@ export default function POS() {
     setShowPayment(true);
   };
 
-  const handleSaveCustomerPrices = async () => {
-    if (!selectedCustomer) return;
+  const handleSaveCustomerPrices = async (selectedProductIds: string[]) => {
+    if (!selectedCustomer || selectedProductIds.length === 0) {
+      setShowCustomPriceConfirm(false);
+      setShowPayment(true);
+      return;
+    }
     
     try {
+      // Get items with custom prices that were selected
       const itemsWithCustomPrices = cart.filter(item => 
-        (item.customPrice !== undefined && item.customPrice !== item.price) ||
-        (item.itemDiscount !== undefined && item.itemDiscount > 0)
+        selectedProductIds.includes(item.productId) &&
+        ((item.customPrice !== undefined && item.customPrice !== item.price) ||
+        (item.itemDiscount !== undefined && item.itemDiscount > 0))
       );
       
       if (itemsWithCustomPrices.length === 0) {
@@ -1522,10 +2095,10 @@ export default function POS() {
         return;
       }
       
-      // Prepare prices to save - only for valid product IDs (exclude combos, BOGOs, cart discounts)
+      // Prepare prices to save
       const pricesToUpsert = itemsWithCustomPrices
         .filter(item => {
-          // Exclude items without valid product IDs or special items
+          // Exclude special items
           return item.productId && 
                  !item.id.startsWith('combo-') && 
                  !item.id.startsWith('bogo-') && 
@@ -1533,7 +2106,6 @@ export default function POS() {
                  item.id !== 'cart-discount';
         })
         .map(item => {
-          // Calculate effective price: use customPrice if set, otherwise price minus discount
           const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
           return {
             customer_id: selectedCustomer.id,
@@ -1543,13 +2115,13 @@ export default function POS() {
         });
 
       if (pricesToUpsert.length === 0) {
-        toast.info('No items with valid product IDs to save');
+        toast.info('No valid items to save');
         setShowCustomPriceConfirm(false);
         setShowPayment(true);
         return;
       }
 
-      // Upsert prices (will update existing or insert new)
+      // Upsert selected prices
       const { error } = await supabase
         .from('customer_product_prices')
         .upsert(pricesToUpsert, {
@@ -1557,6 +2129,13 @@ export default function POS() {
         });
 
       if (error) throw error;
+      
+      // Update local price map
+      const updatedPrices = { ...customerPrices };
+      pricesToUpsert.forEach(item => {
+        updatedPrices[item.product_id] = item.price;
+      });
+      setCustomerPrices(updatedPrices);
       
       toast.success(`Custom prices saved for ${pricesToUpsert.length} product(s)`);
     } catch (error: any) {
@@ -1609,61 +2188,14 @@ export default function POS() {
       selectedCustomer?.id, 
       notesWithCustomer,
       cartDiscountItem ? [cartDiscountItem] : undefined,
-      cartDiscountAmount // Pass the cart discount amount
+      cartDiscountAmount, // Pass the cart discount amount
+      editingOrderId || undefined,
+      editingOrderType || undefined
     );
     
     if (result) {
-      // If editing an existing order/transaction, delete the old one
+      // Clear editing state
       if (editingOrderId) {
-        try {
-          // Verify the new transaction was created before deleting the old one
-          if ('id' in result && result.id) {
-            if (editingOrderType === 'pos') {
-              const { error: deleteError } = await supabase
-                .from('pos_transactions')
-                .delete()
-                .eq('id', editingOrderId);
-              
-              if (deleteError) {
-                console.error('Error deleting old POS transaction:', deleteError);
-                toast.error('Failed to remove old transaction. Please contact support.');
-              } else {
-                toast.success('Transaction updated successfully');
-              }
-            } else if (editingOrderType === 'online') {
-              // First delete order items
-              const { error: itemsDeleteError } = await supabase
-                .from('order_items')
-                .delete()
-                .eq('order_id', editingOrderId);
-              
-              if (itemsDeleteError) {
-                console.error('Error deleting old order items:', itemsDeleteError);
-              }
-              
-              // Then delete the order
-              const { error: deleteError } = await supabase
-                .from('orders')
-                .delete()
-                .eq('id', editingOrderId);
-              
-              if (deleteError) {
-                console.error('Error deleting old order:', deleteError);
-                toast.error('Failed to remove old order. Please contact support.');
-              } else {
-                toast.success('Order updated successfully');
-              }
-            }
-          } else {
-            // New transaction was saved offline, don't delete old one yet
-            toast.warning('Transaction saved offline. Old transaction will be replaced when synced.');
-          }
-        } catch (error) {
-          console.error('Error during edit cleanup:', error);
-          toast.error('Transaction saved but cleanup failed. You may see duplicate entries.');
-        }
-        
-        // Clear editing state
         setEditingOrderId(null);
         setEditingOrderType(null);
       }
@@ -1673,6 +2205,7 @@ export default function POS() {
       
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
+      setDiscount(0);
       
       // Reset customer selection to walk-in customer
       setSelectedCustomer(null);
@@ -1689,6 +2222,63 @@ export default function POS() {
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       toast.success(`Transaction ${displayNumber} processed successfully`);
+      
+      // Refetch journal entries to show the new transaction immediately
+      queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
+    }
+  };
+
+  const handleQuickPayment = async (shouldPrint: boolean) => {
+    if (!selectedStoreId) {
+      toast.error('Please select a store');
+      return;
+    }
+
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return;
+    }
+
+    // Create payment object with the selected method and full total
+    const payment = {
+      id: '1',
+      method: quickPaymentMethod,
+      amount: total
+    };
+
+    // Process the transaction
+    await handlePaymentConfirm([payment], total);
+
+    // If shouldPrint is true, print directly to default printer after transaction is saved
+    if (shouldPrint) {
+      // Wait for lastTransactionData to be set by handlePaymentConfirm
+      setTimeout(async () => {
+        if (lastTransactionData) {
+          await handleDirectPrintLastReceipt();
+        } else {
+          // Fallback: fetch and print the most recent transaction
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: transaction } = await supabase
+              .from('pos_transactions')
+              .select('*')
+              .eq('cashier_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (transaction) {
+              await handleDirectPrintLastReceipt();
+            }
+          } catch (error) {
+            console.error('Error printing receipt:', error);
+          }
+        }
+      }, 1000);
     }
   };
 
@@ -1721,6 +2311,7 @@ export default function POS() {
       // Fetch customer name and balance if customer_id exists (unified if both customer and supplier)
       let customerName = undefined;
       let customerBalance = undefined;
+      let isUnifiedBalance = false;
       if (transaction.customer_id) {
         const { data: contact } = await supabase
           .from('contacts')
@@ -1730,6 +2321,7 @@ export default function POS() {
 
         if (contact) {
           customerName = contact.name;
+          isUnifiedBalance = contact.is_customer && contact.is_supplier;
           
           let totalBalance = 0;
 
@@ -1807,8 +2399,9 @@ export default function POS() {
         paymentMethod: transaction.payment_method || 'Cash',
         cashierName: currentCashSession?.cashier_name || 'Cashier',
         customerName,
-        customerBalance,
-        storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
+          customerBalance,
+          isUnifiedBalance,
+          storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
         logoUrl: settings?.logo_url,
         supportPhone: settings?.company_phone,
       };
@@ -1899,9 +2492,15 @@ export default function POS() {
     }
     message += `\n*TOTAL: ${formatCurrency(lastTransactionData.total)}*\n\n`;
     message += `Payment: ${lastTransactionData.paymentMethod}\n`;
-    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerName) {
+    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerBalance !== null) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Customer Balance: ${formatCurrency(lastTransactionData.customerBalance)}*\n`;
+      const balanceLabel = lastTransactionData.isUnifiedBalance 
+        ? '*Unified Balance:*' 
+        : '*Current Balance:*';
+      message += `${balanceLabel} ${formatCurrency(lastTransactionData.customerBalance)}\n`;
+      if (lastTransactionData.isUnifiedBalance) {
+        message += `_(Combined customer & supplier account)_\n`;
+      }
     }
     if (lastTransactionData.supportPhone) {
       message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -1954,6 +2553,7 @@ export default function POS() {
   const menuSections = {
     sales: [
       { icon: ShoppingCart, label: 'Manage Orders', path: '/admin/orders' },
+      { icon: FileText, label: 'Quotations', path: '/admin/quotations' },
       { icon: DollarSign, label: 'Pricing Management', path: '/admin/pricing' },
       { icon: Tag, label: 'Manage Offers', path: '/admin/offers' },
       { icon: Megaphone, label: 'Announcements', path: '/admin/announcements' },
@@ -1961,7 +2561,9 @@ export default function POS() {
     inventory: [
       { icon: Package, label: 'Manage Products', path: '/admin/products' },
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
+      { icon: BarcodeIcon, label: 'Barcode Management', path: '/admin/barcode' },
       { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
+      { icon: Factory, label: 'Production', path: '/admin/production' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
       { icon: FileSpreadsheet, label: 'Import Products', path: '/admin/import-products' },
     ],
@@ -1997,25 +2599,29 @@ export default function POS() {
       icon: Clock, 
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/orders')
+      action: () => navigate('/admin/orders'),
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pending sales')
+      action: () => alert('No pending sales'),
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Hold / Fire', 
       color: 'bg-[#F97316]', 
-      action: () => setShowHoldTicket(true)
+      action: () => setShowHoldTicket(true),
+      shortcut: 'F3'
     },
     { 
       icon: Package, 
       label: 'Pickup orders', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pickup orders')
+      action: () => alert('No pickup orders'),
+      shortcut: null
     },
     { 
       icon: Banknote, 
@@ -2027,7 +2633,8 @@ export default function POS() {
           return;
         }
         setShowRefund(true);
-      }
+      },
+      shortcut: null
     },
     { 
       icon: BarChart3, 
@@ -2039,13 +2646,15 @@ export default function POS() {
           return;
         }
         setShowCashOut(true);
-      }
+      },
+      shortcut: 'F2'
     },
     { 
       icon: ShoppingCart, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/stock-and-price')
+      action: () => navigate('/admin/stock-and-price'),
+      shortcut: null
     },
     { 
       icon: Clock, 
@@ -2054,16 +2663,18 @@ export default function POS() {
       action: () => {
         const now = new Date().toLocaleTimeString();
         alert(`Clocked in at ${now}`);
-      }
+      },
+      shortcut: null
     },
     { 
       icon: Gift, 
       label: 'Gift Card', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('Gift card - Coming soon')
+      action: () => alert('Gift card - Coming soon'),
+      shortcut: null
     },
     { 
-      icon: Gift, 
+      icon: Gift,
       label: 'Notes', 
       color: 'bg-[#5DADE2]', 
       action: () => setShowNotesDialog(true)
@@ -2111,6 +2722,7 @@ export default function POS() {
     
     // Clear cart discount
     setCartDiscountItem(null);
+    setDiscount(0);
     
     toast.success(`Ticket "${ticketName}" held successfully`);
   };
@@ -2203,6 +2815,13 @@ export default function POS() {
 
   const handleLogout = async () => {
     try {
+      // Clear cart before logout
+      clearCart();
+      setDiscount(0);
+      setCartDiscountItem(null);
+      localStorage.removeItem('pos_cart_state');
+      localStorage.removeItem('pos_discount_state');
+      
       await supabase.auth.signOut();
       toast.success('Logged out successfully');
       navigate('/pos-login');
@@ -2216,20 +2835,32 @@ export default function POS() {
   const handleSelectCartItem = (itemId: string) => {
     // Don't allow selecting cart discount item
     if (itemId === 'cart-discount') return;
+    
+    // Don't clear input when in any keypad input mode
+    if (keypadMode === 'cartDiscount' || keypadMode === 'qty' || keypadMode === 'discount' || keypadMode === 'price') {
+      console.log('🎯 Cart item selected in input mode, keeping input');
+      setSelectedCartItemId(itemId);
+      return;
+    }
+    
+    console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
-    setKeypadInput('');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadNumber = (value: string) => {
-    if (keypadMode === 'cartDiscount') {
-      setKeypadInput(prev => prev + value);
-      return;
-    }
-    if (!selectedCartItemId) {
+    console.log('🔢 Number pressed:', value, { keypadMode, currentInput: keypadInputRef.current });
+    
+    const newValue = keypadInputRef.current + value;
+    keypadInputRef.current = newValue;
+    setKeypadRenderKey(prev => prev + 1); // Force re-render to show new value
+    console.log('📝 Input updated to:', newValue);
+    
+    if (keypadMode !== 'cartDiscount' && !selectedCartItemId) {
       toast.error('Please select a product from the cart first');
       return;
     }
-    setKeypadInput(prev => prev + value);
   };
 
   const handleKeypadQty = () => {
@@ -2237,8 +2868,10 @@ export default function POS() {
       toast.error('Please select a product from the cart first');
       return;
     }
+    console.log('🔢 QTY mode activated, clearing input');
     setKeypadMode('qty');
-    setKeypadInput('');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadDiscount = () => {
@@ -2247,15 +2880,25 @@ export default function POS() {
       return;
     }
     setKeypadMode('discount');
-    setKeypadInput('');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
     setIsPercentMode(false);
   };
 
   const handleKeypadCartDiscount = () => {
-    setKeypadMode('cartDiscount');
-    setKeypadInput('');
-    setIsPercentMode(false);
-    setSelectedCartItemId(null);
+    console.log('🔢 Cart Discount clicked:', { currentMode: keypadMode, currentInput: keypadInputRef.current });
+    
+    // Only clear input if not already in cartDiscount mode
+    if (keypadMode !== 'cartDiscount') {
+      setKeypadMode('cartDiscount');
+      keypadInputRef.current = '';
+      setIsPercentMode(false);
+      setSelectedCartItemId(null);
+      setKeypadRenderKey(prev => prev + 1);
+      console.log('✅ Cart Discount mode activated');
+    } else {
+      console.log('ℹ️ Already in Cart Discount mode, keeping input:', keypadInputRef.current);
+    }
   };
 
   const handleKeypadPercent = () => {
@@ -2280,11 +2923,14 @@ export default function POS() {
       return;
     }
     setKeypadMode('price');
-    setKeypadInput('');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
   };
 
   const handleKeypadClear = () => {
-    setKeypadInput('');
+    console.log('🧹 CLEAR button pressed');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
     setIsPercentMode(false);
     if (keypadMode === 'cartDiscount') {
       setKeypadMode(null);
@@ -2292,12 +2938,15 @@ export default function POS() {
   };
 
   const handleKeypadEnter = () => {
-    if (!keypadMode || !keypadInput) {
+    console.log('🔢 Enter pressed:', { keypadMode, keypadInput: keypadInputRef.current, isPercentMode });
+    
+    if (!keypadMode || !keypadInputRef.current) {
+      console.log('❌ Missing mode or input:', { keypadMode, keypadInput: keypadInputRef.current });
       toast.error('Please select mode and enter a value');
       return;
     }
-
-    const value = parseFloat(keypadInput);
+    
+    const value = parseFloat(keypadInputRef.current);
     if (isNaN(value) || value < 0) {
       toast.error('Invalid value');
       return;
@@ -2348,7 +2997,9 @@ export default function POS() {
         } else {
           toast.success(`Cart discount applied: ${formatCurrency(value)}`);
         }
-        // Add or update cart discount as a special item
+        // Update the discount state for transaction processing
+        setDiscount(cartDiscountAmount);
+        // Add or update cart discount as a special item for display
         setCartDiscountItem({
           id: 'cart-discount',
           name: 'Cart Discount',
@@ -2356,10 +3007,12 @@ export default function POS() {
           quantity: 1,
           itemDiscount: 0,
         });
-        break;
+      break;
     }
 
-    setKeypadInput('');
+    console.log('✅ Enter completed, clearing keypad input');
+    keypadInputRef.current = '';
+    setKeypadRenderKey(prev => prev + 1);
     setKeypadMode(null);
     setIsPercentMode(false);
   };
@@ -2431,7 +3084,7 @@ export default function POS() {
                 size="sm"
                 onClick={() => {
                   setSelectedCustomer(null);
-                  toast.info('Customer removed - prices reset to retail');
+                  // Price reset is handled by useEffect
                 }}
                 className="h-6 w-6 p-0"
               >
@@ -2458,6 +3111,7 @@ export default function POS() {
             onRemove={(id) => {
               if (id === 'cart-discount') {
                 setCartDiscountItem(null);
+                setDiscount(0);
                 toast.success('Cart discount removed');
               } else {
                 removeFromCart(id);
@@ -2466,6 +3120,7 @@ export default function POS() {
             onClear={() => {
               clearCart();
               setCartDiscountItem(null);
+              setDiscount(0);
             }}
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
@@ -2589,7 +3244,12 @@ export default function POS() {
                   <ChevronDown className="h-2.5 w-2.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 bg-background z-50">
+              <DropdownMenuContent align="start" className="w-56 bg-background z-50">
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center gap-2 py-2">
+                  <Award className="h-3 w-3" />
+                  Global Market POS v{APP_VERSION}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {menuSections.settings.map((item, index) => (
                   <DropdownMenuItem
                     key={index}
@@ -2600,6 +3260,10 @@ export default function POS() {
                     {item.label}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1">
+                  <UpdateButton compact />
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -2635,196 +3299,56 @@ export default function POS() {
           </div>
         )}
 
-        {/* Dashboard/Analytics or Products Grid - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-2 pb-0">
-          {/* Show Dashboard when no category/search selected */}
+        {/* Recent Journal Entries or Products Grid - Flexible scrollable container */}
+        <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
-            <>
-              {/* Date Range Selector */}
-              <div className="mb-2 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-                    <SelectTrigger className="h-7 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
-                      <SelectItem value="custom">Custom Period</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {dateRange === 'custom' && (
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="h-7 text-xs"
-                      placeholder="Start Date"
-                    />
-                    <span className="text-xs text-muted-foreground">to</span>
-                    <Input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="h-7 text-xs"
-                      placeholder="End Date"
-                    />
-                  </div>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
               </div>
-
-              {/* Analytics Cards Grid - Compact Version */}
-              <div className="space-y-1.5">
-                {/* Sales Overview Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('sales')}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div className="p-0.5 rounded bg-emerald-500/20">
-                          <BarChart3 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              
+              {displayJournalLoading ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
+              ) : displayJournalEntries && displayJournalEntries.length > 0 ? (
+                <div className="space-y-1.5">
+                  {displayJournalEntries.slice(0, 10).map((entry: any, index: number) => {
+                    const amount = parseFloat(entry.total_debit?.toString() || '0');
+                    
+                    return (
+                      <Card key={index} className="p-2 hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                                Transaction
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(entry.created_at), 'MMM dd, HH:mm')}
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium truncate">{entry.reference}</p>
+                            {entry.description && (
+                              <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right ml-2">
+                            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(amount)}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-semibold text-emerald-900 dark:text-emerald-100">Sales</span>
-                      </div>
-                      <p className="text-base font-bold text-emerald-900 dark:text-emerald-100 mb-0.5 truncate">
-                        {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
-                      </p>
-                      <div className="flex gap-2 text-[8px]">
-                        <span className="text-emerald-700 dark:text-emerald-300">💵 {formatCurrency(analyticsData?.cashSales || 0)}</span>
-                        <span className="text-emerald-700 dark:text-emerald-300">💳 {formatCurrency(analyticsData?.creditSales || 0)}</span>
-                        {(analyticsData?.mobileMoneySales || 0) > 0 && (
-                          <span className="text-emerald-700 dark:text-emerald-300">📱 {formatCurrency(analyticsData?.mobileMoneySales || 0)}</span>
-                        )}
-                      </div>
-                    </div>
-                    {analyticsData?.paymentMethodData && analyticsData.paymentMethodData.length > 0 && (
-                      <div className="w-14 h-14 flex-shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={analyticsData.paymentMethodData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={8}
-                              outerRadius={20}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {analyticsData.paymentMethodData.map((_: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={['#22C55E', '#3B82F6', '#F59E0B'][index % 3]} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Top Products Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('products')}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-0.5 rounded bg-amber-500/20">
-                      <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-amber-900 dark:text-amber-100">Top Product</span>
-                  </div>
-                  {analyticsData?.topItem ? (
-                    <>
-                      <p className="text-xs font-bold text-amber-900 dark:text-amber-100 mb-0.5 truncate">
-                        {analyticsData.topItem.name}
-                      </p>
-                      <div className="flex items-center justify-between text-[9px] mb-1">
-                        <span className="text-amber-700 dark:text-amber-300">Qty: {analyticsData.topItem.quantity}</span>
-                        <span className="font-semibold text-amber-900 dark:text-amber-100">{formatCurrency(analyticsData.topItem.revenue)}</span>
-                      </div>
-                      {analyticsData?.topProducts && analyticsData.topProducts.length > 0 && (
-                        <div className="h-10 -mx-1">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.topProducts.slice(0, 3)}>
-                              <Bar dataKey="revenue" fill="#F59E0B" radius={[2, 2, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-amber-700 dark:text-amber-300">No data</p>
-                  )}
-                </Card>
-
-                {/* Top Customers Card - Compact */}
-                <Card 
-                  className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedMetric('customers')}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="p-0.5 rounded bg-purple-500/20">
-                      <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-purple-900 dark:text-purple-100">Top Customer</span>
-                  </div>
-                  {analyticsData?.topCustomer ? (
-                    <>
-                      <p className="text-xs font-bold text-purple-900 dark:text-purple-100 mb-0.5 truncate">
-                        {analyticsData.topCustomer.name}
-                      </p>
-                      <div className="flex items-center justify-between text-[9px] mb-1">
-                        <span className="text-purple-700 dark:text-purple-300">{analyticsData.topCustomer.count} orders</span>
-                        <span className="font-semibold text-purple-900 dark:text-purple-100">{formatCurrency(analyticsData.topCustomer.total)}</span>
-                      </div>
-                      {analyticsData?.topCustomers && analyticsData.topCustomers.length > 0 && (
-                        <div className="h-10 -mx-1">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.topCustomers.slice(0, 3)}>
-                              <Bar dataKey="total" fill="#8B5CF6" radius={[2, 2, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-purple-700 dark:text-purple-300">No data</p>
-                  )}
-                </Card>
-
-                {/* Quick Stats Row - Compact */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Card className="p-1.5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <ReceiptIcon className="h-2.5 w-2.5 text-slate-600 dark:text-slate-400" />
-                      <span className="text-[9px] font-medium text-slate-900 dark:text-slate-100">Transactions</span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {analyticsData?.totalTransactions || 0}
-                    </p>
-                  </Card>
-
-                  <Card className="p-1.5 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <TrendingUp className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-[9px] font-medium text-indigo-900 dark:text-indigo-100">Avg Sale</span>
-                    </div>
-                    <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 truncate">
-                      {analyticsData?.totalTransactions 
-                        ? formatCurrency(((analyticsData.cashSales || 0) + (analyticsData.creditSales || 0) + (analyticsData.mobileMoneySales || 0)) / analyticsData.totalTransactions)
-                        : formatCurrency(0)
-                      }
-                    </p>
-                  </Card>
+                      </Card>
+                    );
+                  })}
                 </div>
-              </div>
-            </>
+              ) : (
+                <Card className="p-4 text-center">
+                  <BookOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                  <p className="text-sm text-muted-foreground">No journal entries for this session</p>
+                </Card>
+              )}
+            </div>
           ) : (
             <>
               {/* Breadcrumb */}
@@ -2899,29 +3423,19 @@ export default function POS() {
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="h-7 px-3 text-xs"
+                    className="h-7 w-20 text-xs"
                   >
-                    Prev
+                    Previous
                   </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        className="w-7 h-7 text-xs p-0"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  </div>
+                  <span className="text-xs text-muted-foreground px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="h-7 px-3 text-xs"
+                    className="h-7 w-20 text-xs"
                   >
                     Next
                   </Button>
@@ -2931,44 +3445,200 @@ export default function POS() {
           )}
         </div>
 
-        {/* Numeric Keypad and Quick Actions - Fixed at Bottom */}
-        <div className="flex gap-2 p-2 border-t bg-background">
-          {/* Numeric Keypad - left side */}
-          <div className="flex-1">
-            <NumericKeypad
-              onNumberClick={handleKeypadNumber}
-              onQtyClick={handleKeypadQty}
-              onDiscountClick={handleKeypadDiscount}
-              onPriceClick={handleKeypadPrice}
-              onPercentClick={handleKeypadPercent}
-              onCartDiscountClick={handleKeypadCartDiscount}
-              onPayClick={() => setShowPayment(true)}
-              onClear={handleKeypadClear}
-              onEnter={handleKeypadEnter}
-              disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
-              activeMode={keypadMode}
-              isPercentMode={isPercentMode}
-              payDisabled={cart.length === 0}
-            />
-          </div>
+        {/* Keypad, Actions & Dashboard Section - Always Visible */}
+        <div className="flex-shrink-0 p-2 pt-0">
+          <div className="flex gap-4">
+            {/* Numeric Keypad - left side */}
+            <div className="flex-1">
+              {/* Keypad Input Display */}
+              <div key={keypadRenderKey} className="mb-2 p-3 bg-card border rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-muted-foreground">
+                    {keypadMode === 'qty' && 'QUANTITY'}
+                    {keypadMode === 'discount' && 'DISCOUNT'}
+                    {keypadMode === 'price' && 'CUSTOM PRICE'}
+                    {keypadMode === 'cartDiscount' && 'CART DISCOUNT'}
+                    {!keypadMode && 'SELECT MODE'}
+                    {isPercentMode && keypadMode && ' (%)'}
+                  </div>
+                  <div className="text-2xl font-bold text-primary min-w-[100px] text-right">
+                    {keypadInputRef.current || '0'}
+                  </div>
+                </div>
+              </div>
+              <NumericKeypad
+                onNumberClick={handleKeypadNumber}
+                onQtyClick={handleKeypadQty}
+                onDiscountClick={handleKeypadDiscount}
+                onPriceClick={handleKeypadPrice}
+                onPercentClick={handleKeypadPercent}
+                onCartDiscountClick={handleKeypadCartDiscount}
+                onPayClick={() => setShowPayment(true)}
+                onClear={handleKeypadClear}
+                onEnter={handleKeypadEnter}
+                disabled={!selectedCartItemId && keypadMode !== 'cartDiscount'}
+                activeMode={keypadMode}
+                isPercentMode={isPercentMode}
+                payDisabled={cart.length === 0}
+              />
+            </div>
 
-          {/* Quick Actions Grid - 2 columns, right side */}
-          <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className={cn(
-                  "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors",
-                  action.color,
-                  "hover:opacity-90"
+            {/* Quick Actions Grid - middle */}
+            <div className="grid grid-cols-2 gap-1.5 flex-shrink-0">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className={cn(
+                    "h-16 w-28 flex flex-col items-center justify-center p-1.5 text-white border-none transition-colors relative",
+                    action.color,
+                    "hover:opacity-90"
+                  )}
+                  onClick={action.action}
+                >
+                  {action.shortcut && (
+                    <div className="absolute top-0.5 right-0.5">
+                      <KeyboardBadge keys={action.shortcut} className="scale-[0.65] opacity-80" />
+                    </div>
+                  )}
+                  <action.icon className="h-4 w-4 mb-0.5" />
+                  <span className="text-[10px] text-center leading-tight">{action.label}</span>
+                </Button>
+              ))}
+            </div>
+
+            {/* Dashboard Analytics - right side */}
+            {!selectedCategory && !searchTerm && (
+              <div className="flex-shrink-0 w-[420px] space-y-2">
+                {/* Date Range Selector */}
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="custom">Custom Period</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {dateRange === 'custom' && (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="Start Date"
+                    />
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="End Date"
+                    />
+                  </div>
                 )}
-                onClick={action.action}
-              >
-                <action.icon className="h-4 w-4 mb-0.5" />
-                <span className="text-[10px] text-center leading-tight">{action.label}</span>
-              </Button>
-            ))}
+
+                {/* Analytics Cards - Vertical Stack */}
+                <div className="space-y-2">
+                  {/* Sales Overview Card */}
+                  <Card className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded bg-emerald-500/20">
+                        <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100 block mb-1">Sales</span>
+                        <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                          {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Top Product Card */}
+                  <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded bg-blue-500/20">
+                        <Award className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-blue-900 dark:text-blue-100 block mb-1">Top Product</span>
+                        <p className="text-sm font-bold text-blue-900 dark:text-blue-100 truncate">
+                          {analyticsData?.topProducts?.[0]?.name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          {analyticsData?.topProducts?.[0]?.quantity || 0} sold
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Top Customer Card */}
+                  <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded bg-purple-500/20">
+                        <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-purple-900 dark:text-purple-100 block mb-1">Top Customer</span>
+                        <p className="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">
+                          {analyticsData?.topCustomers?.[0]?.name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-purple-700 dark:text-purple-300">
+                          {formatCurrency(analyticsData?.topCustomers?.[0]?.total || 0)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                
+                {/* Top Credit Customers Section */}
+                <div className="border-t pt-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-xs font-semibold">Top Credit Customers</h3>
+                  </div>
+                  
+                  {creditCustomersLoading ? (
+                    <div className="text-center py-3 text-muted-foreground text-xs">Loading...</div>
+                  ) : topCreditCustomers && topCreditCustomers.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                      {topCreditCustomers.map((customer: any) => (
+                        <Card 
+                          key={customer.id} 
+                          className="p-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{customer.name}</p>
+                              {customer.phone && (
+                                <p className="text-[10px] text-muted-foreground truncate">{customer.phone}</p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[10px] text-muted-foreground">Balance</p>
+                              <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                                {formatCurrency(customer.balance)}
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-3 text-muted-foreground text-xs">No credit customers</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2983,6 +3653,13 @@ export default function POS() {
         onConfirm={handlePaymentConfirm}
         selectedCustomer={selectedCustomer}
         transactionData={lastTransactionData}
+      />
+
+      <QuickPaymentDialog
+        isOpen={showQuickPayment}
+        onClose={() => setShowQuickPayment(false)}
+        onConfirm={handleQuickPayment}
+        paymentMethod={quickPaymentMethod}
       />
 
       <VariantSelector
@@ -3091,6 +3768,7 @@ export default function POS() {
         onRefundComplete={() => {
           clearCart();
           setCartDiscountItem(null);
+          setDiscount(0);
           queryClient.invalidateQueries({ queryKey: ['pos-products'] });
         }}
       />
@@ -3117,7 +3795,7 @@ export default function POS() {
                 <Button 
                   onClick={() => {
                     setShowCustomerDialog(false);
-                    navigate('/admin/contacts', { state: { openAddDialog: true } });
+                    navigate('/admin/contacts', { state: { openAddDialog: true, fromPOS: true } });
                   }}
                   variant="default"
                 >
@@ -3159,7 +3837,7 @@ export default function POS() {
                     <Button 
                       onClick={() => {
                         setShowCustomerDialog(false);
-                        navigate('/admin/contacts', { state: { openAddDialog: true } });
+                        navigate('/admin/contacts', { state: { openAddDialog: true, fromPOS: true } });
                       }}
                       variant="outline"
                     >
@@ -3176,41 +3854,14 @@ export default function POS() {
 
 
       {/* Custom Price Confirmation Dialog */}
-      <AlertDialog open={showCustomPriceConfirm} onOpenChange={setShowCustomPriceConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Save Custom Prices?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have changed prices or applied discounts for some items in this cart. Would you like to save these custom prices to {selectedCustomer?.name}'s profile for future orders?
-              {cart.filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0)).length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="font-semibold text-sm">Items with custom prices/discounts:</p>
-                  <ul className="list-disc list-inside text-sm">
-                    {cart
-                      .filter(item => (item.customPrice !== undefined && item.customPrice !== item.price) || (item.itemDiscount !== undefined && item.itemDiscount > 0))
-                      .map(item => {
-                        const effectivePrice = item.customPrice ?? (item.price - (item.itemDiscount || 0));
-                        return (
-                          <li key={item.id}>
-                            {item.name}: {formatCurrency(item.price)} → {formatCurrency(effectivePrice)}
-                          </li>
-                        );
-                      })}
-                  </ul>
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleSkipCustomerPrices}>
-              No, Continue Without Saving
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveCustomerPrices}>
-              Yes, Save Prices
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CustomPriceDialog
+        open={showCustomPriceConfirm}
+        onClose={() => setShowCustomPriceConfirm(false)}
+        customerName={selectedCustomer?.name || ''}
+        cartItems={cart}
+        onSave={handleSaveCustomerPrices}
+        onSkip={handleSkipCustomerPrices}
+      />
 
       {/* Last Receipt Options Dialog */}
       <Dialog open={showLastReceiptOptions} onOpenChange={setShowLastReceiptOptions}>
@@ -3294,6 +3945,7 @@ export default function POS() {
               cashierName={lastTransactionData.cashierName}
               customerName={lastTransactionData.customerName}
               customerBalance={lastTransactionData.customerBalance}
+              isUnifiedBalance={lastTransactionData.isUnifiedBalance}
               storeName={lastTransactionData.storeName}
               logoUrl={lastTransactionData.logoUrl}
               supportPhone={lastTransactionData.supportPhone}
