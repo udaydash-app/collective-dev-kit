@@ -247,27 +247,38 @@ export default function GeneralLedger() {
         const priorSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
         const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
-        // A/R = Positive opening balance + all debits from customer account
+        // Calculate total debits and credits from ALL lines (customer + supplier)
+        const allDebits = [...priorCustomerLines, ...currentCustomerLines, ...priorSupplierLines, ...currentSupplierLines]
+          .reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const allCredits = [...priorCustomerLines, ...currentCustomerLines, ...priorSupplierLines, ...currentSupplierLines]
+          .reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        // Current period debits and credits
+        const currentDebits = [...currentCustomerLines, ...currentSupplierLines]
+          .reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const currentCredits = [...currentCustomerLines, ...currentSupplierLines]
+          .reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        // Prior period debits and credits
+        const priorDebits = [...priorCustomerLines, ...priorSupplierLines]
+          .reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const priorCredits = [...priorSupplierLines, ...priorSupplierLines]
+          .reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        // Opening balance = contact opening balance + prior period net movement
+        const openingBalance = contactOpeningBalance + (priorDebits - priorCredits);
+        
+        // Current unified balance = opening balance + current period net movement
+        const unifiedBalance = openingBalance + (currentDebits - currentCredits);
+        
+        // Calculate A/R and A/P for display purposes
         const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
         const allARDebits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const allARCredits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
         const currentAR = arOpeningBalance + allARDebits;
 
-        // A/P = Negative opening balance (as positive) + all credits from supplier account  
         const apOpeningBalance = contactOpeningBalance < 0 ? Math.abs(contactOpeningBalance) : 0;
         const allAPCredits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const allAPDebits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentAP = apOpeningBalance + allAPCredits;
-        
-        // Calculate opening balance (before start date)
-        const priorARDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const priorAPCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const openingAR = arOpeningBalance + priorARDebits;
-        const openingAP = apOpeningBalance + priorAPCredits;
-        const openingBalance = openingAR - openingAP;
-        
-        // Current unified balance = A/R - A/P
-        const unifiedBalance = currentAR - currentAP;
 
         // Mark lines with their source type
         const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
@@ -287,9 +298,7 @@ export default function GeneralLedger() {
             current_balance: unifiedBalance,
             customer_balance: currentAR,
             supplier_balance: currentAP,
-            opening_balance: openingBalance,
-            total_ar_debits: allARDebits,
-            total_ap_credits: allAPCredits
+            opening_balance: openingBalance
           } 
         };
       }
