@@ -174,10 +174,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       // Otherwise, treat as barcode scan
       const barcode = searchTerm.trim().toLowerCase();
       
-      console.log('🔍 Scanning barcode:', barcode);
+      console.log('🔍 Scanning barcode:', barcode, 'Length:', barcode.length);
       
       // Step 1: Check variant barcodes first
-      const { data: allVariants } = await supabase
+      const { data: allVariants, error: variantError } = await supabase
         .from('product_variants')
         .select(`
           id,
@@ -210,10 +210,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         .not('barcode', 'is', null)
         .limit(100);
       
+      console.log('📦 Variant query results:', allVariants?.length, 'variants', variantError);
+      
       // Find matching variant
       const matchedVariant = allVariants?.find((v: any) => {
         if (!v.barcode) return false;
         const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        console.log('🔎 Checking variant:', v.product?.name, v.label, 'barcodes:', barcodes);
         return barcodes.includes(barcode);
       });
       
@@ -228,8 +231,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         return;
       }
       
+      console.log('❌ No variant match found');
+      
       // Step 2: Check main product barcodes
-      const { data: directProducts } = await supabase
+      const { data: directProducts, error: productError } = await supabase
         .from('products')
         .select(`
           id,
@@ -250,13 +255,15 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           )
         `)
         .eq('is_available', true)
-        .not('barcode', 'is', null)
-        .limit(100);
+        .not('barcode', 'is', null);
+
+      console.log('📦 Product query results:', directProducts?.length, 'products', productError);
 
       // Find direct product barcode match
       const matchedDirectProduct = directProducts?.find((p: any) => {
         if (!p.barcode) return false;
         const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        console.log('🔎 Checking product:', p.name, 'barcodes:', productBarcodes, 'match?', productBarcodes.includes(barcode));
         return productBarcodes.includes(barcode);
       });
 
