@@ -106,8 +106,7 @@ export default function StockAdjustment() {
           product_id: productId,
           variant_id: variantId,
           adjustment_type: 'manual',
-          adjustment_quantity: adjustmentQuantity,
-          quantity_change: currentStock, // Store absolute current stock, not the delta
+          quantity_change: adjustmentQuantity,
           unit_cost: unitCost || 0,
           cost_source: unitCost ? 'manual' : 'system',
           reason: reason || 'Physical stock count adjustment',
