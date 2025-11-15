@@ -262,22 +262,20 @@ export default function GeneralLedger() {
         // Opening balance = A/R - A/P
         const openingBalance = arBalance - apBalance;
         
-        // Fetch current balances for both accounts
-        const { data: customerAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', customerAccountId)
-          .maybeSingle();
+        // Calculate current period transactions
+        const currentARDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const currentARCredits = currentCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const currentAPCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const currentAPDebits = currentSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         
-        const { data: supplierAccount } = await supabase
-          .from('accounts')
-          .select('current_balance')
-          .eq('id', supplierAccountId)
-          .maybeSingle();
+        // Current A/R = Opening A/R + current period (debits - credits)
+        const currentAR = arBalance + currentARDebits - currentARCredits;
         
-        const customerBalance = Number(customerAccount?.current_balance || 0);
-        const supplierBalance = Number(supplierAccount?.current_balance || 0);
-        const unifiedBalance = customerBalance - supplierBalance;
+        // Current A/P = Opening A/P + current period (credits - debits)
+        const currentAP = apBalance + currentAPCredits - currentAPDebits;
+        
+        // Current unified balance = A/R - A/P
+        const unifiedBalance = currentAR - currentAP;
 
         // Mark lines with their source type
         const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
@@ -295,8 +293,8 @@ export default function GeneralLedger() {
             account_type: 'unified',
             isUnified: true,
             current_balance: unifiedBalance,
-            customer_balance: customerBalance,
-            supplier_balance: supplierBalance,
+            customer_balance: currentAR,
+            supplier_balance: currentAP,
             opening_balance: openingBalance
           } 
         };
