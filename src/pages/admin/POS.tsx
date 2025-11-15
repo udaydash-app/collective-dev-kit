@@ -2067,6 +2067,14 @@ export default function POS() {
     setLastTransactionData(transactionDataPrep);
     
     // Check if customer is selected and has custom prices or discounts
+    console.log('🔍 Customer check:', {
+      hasCustomer: !!selectedCustomer,
+      customerId: selectedCustomer?.id,
+      customerName: selectedCustomer?.name,
+      cartLength: cart.length,
+      isLoadingTransaction
+    });
+    
     if (selectedCustomer) {
       const itemsWithCustomPrices = cart.filter(item => {
         // Exclude special items (combos, BOGOs, cart discounts)
@@ -2076,17 +2084,45 @@ export default function POS() {
                              item.id.startsWith('multi-bogo-') ||
                              item.id === 'cart-discount';
         
+        console.log('🔍 Checking item:', {
+          name: item.name,
+          productId: item.productId,
+          price: item.price,
+          customPrice: item.customPrice,
+          itemDiscount: item.itemDiscount,
+          isSpecialItem
+        });
+        
         if (isSpecialItem) return false;
         
         // Check if item has custom price or discount
-        return (item.customPrice !== undefined && item.customPrice !== item.price) ||
-               (item.itemDiscount !== undefined && item.itemDiscount > 0);
+        const hasCustomPrice = (item.customPrice !== undefined && item.customPrice !== item.price);
+        const hasDiscount = (item.itemDiscount !== undefined && item.itemDiscount > 0);
+        
+        console.log('🔍 Item pricing check:', {
+          name: item.name,
+          hasCustomPrice,
+          hasDiscount,
+          willInclude: hasCustomPrice || hasDiscount
+        });
+        
+        return hasCustomPrice || hasDiscount;
+      });
+      
+      console.log('🔍 Items with custom prices:', {
+        count: itemsWithCustomPrices.length,
+        items: itemsWithCustomPrices.map(i => ({ name: i.name, customPrice: i.customPrice, itemDiscount: i.itemDiscount }))
       });
       
       if (itemsWithCustomPrices.length > 0) {
+        console.log('✅ Opening CustomPriceDialog');
         setShowCustomPriceConfirm(true);
         return;
+      } else {
+        console.log('❌ No custom prices found, opening payment');
       }
+    } else {
+      console.log('❌ No customer selected, opening payment');
     }
     
     setShowPayment(true);
