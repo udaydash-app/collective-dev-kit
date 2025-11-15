@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Package, Search, Filter, DollarSign } from 'lucide-react';
+import { Package, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
@@ -633,8 +633,11 @@ export default function StockAdjustment() {
                                 disabled={difference !== null && difference <= 0}
                               />
                               {suggested && (
-                                <span title={`Last: ${suggested.last_purchase_cost?.toFixed(2) || 'N/A'} | Avg: ${suggested.weighted_avg_cost?.toFixed(2) || 'N/A'} | FIFO: ${suggested.next_fifo_cost?.toFixed(2) || 'N/A'}`}>
-                                  <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                <span 
+                                  className="text-xs text-muted-foreground"
+                                  title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'} | FIFO: ${suggested.next_fifo_cost ? formatCurrency(suggested.next_fifo_cost) : 'N/A'}`}
+                                >
+                                  FCFA
                                 </span>
                               )}
                             </div>
@@ -790,8 +793,11 @@ export default function StockAdjustment() {
                                   disabled={difference !== null && difference <= 0}
                                 />
                                 {suggested && (
-                                  <span title={`Last: ${suggested.last_purchase_cost?.toFixed(2) || 'N/A'} | Avg: ${suggested.weighted_avg_cost?.toFixed(2) || 'N/A'} | FIFO: ${suggested.next_fifo_cost?.toFixed(2) || 'N/A'}`}>
-                                    <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                  <span 
+                                    className="text-xs text-muted-foreground"
+                                    title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'} | FIFO: ${suggested.next_fifo_cost ? formatCurrency(suggested.next_fifo_cost) : 'N/A'}`}
+                                  >
+                                    FCFA
                                   </span>
                                 )}
                               </div>
