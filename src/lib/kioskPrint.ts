@@ -45,51 +45,69 @@ class KioskPrintService {
    * In Electron, uses native print API
    */
   async printReceipt(data: KioskReceiptData): Promise<void> {
-    console.log('🖨️ Starting kiosk print...', data);
+    console.log('🖨️ KioskPrintService.printReceipt() called');
+    console.log('🖨️ Receipt data:', data);
+    console.log('🖨️ window.electron available:', !!window.electron);
+    console.log('🖨️ window.electron.isElectron:', window.electron?.isElectron);
+    console.log('🖨️ window.electron.print:', !!window.electron?.print);
     
     try {
       const receiptHTML = this.generateReceiptHTML(data);
+      console.log('🖨️ Receipt HTML generated, length:', receiptHTML.length);
       
       // Check if running in Electron
       if (window.electron?.isElectron && window.electron.print) {
         console.log('🖨️ Using Electron native print API...');
-        await window.electron.print(receiptHTML);
-        console.log('✅ Print job sent via Electron');
-        return;
+        try {
+          await window.electron.print(receiptHTML);
+          console.log('✅ Print job sent via Electron successfully');
+          return;
+        } catch (electronError) {
+          console.error('❌ Electron print failed:', electronError);
+          throw new Error('Electron print failed: ' + (electronError as Error).message);
+        }
       }
       
       // Fallback to browser window.open() for web/kiosk mode
       console.log('🖨️ Using browser print (kiosk mode)...');
+      console.log('🖨️ Attempting to open print window...');
+      
       const printWindow = window.open('', '_blank', 'width=300,height=600');
       
       if (!printWindow) {
         console.error('❌ Failed to open print window (popup blocked?)');
-        throw new Error('Failed to open print window. Please check if popups are blocked.');
+        throw new Error('Failed to open print window. Please allow popups to print receipts.');
       }
       
-      console.log('✅ Print window opened');
+      console.log('✅ Print window opened successfully');
       
       printWindow.document.open();
       printWindow.document.write(receiptHTML);
       printWindow.document.close();
       
-      console.log('✅ Receipt HTML written');
+      console.log('✅ Receipt HTML written to print window');
       
       // Wait for complete load
       await new Promise(resolve => {
         if (printWindow.document.readyState === 'complete') {
+          console.log('🖨️ Print window already loaded');
           setTimeout(resolve, 100);
         } else {
-          printWindow.onload = () => setTimeout(resolve, 100);
+          console.log('🖨️ Waiting for print window to load...');
+          printWindow.onload = () => {
+            console.log('✅ Print window loaded');
+            setTimeout(resolve, 100);
+          };
         }
       });
       
-      console.log('🖨️ Calling print...');
+      console.log('🖨️ About to call window.print()...');
       
       // In kiosk mode with --kiosk-printing, this prints silently to default printer
       printWindow.print();
       
-      console.log('✅ Print called - waiting for print job...');
+      console.log('✅ window.print() called successfully');
+      console.log('🖨️ Waiting 3 seconds before closing window...');
       
       // Don't close immediately - wait for print to complete
       // In kiosk mode, the print happens in background

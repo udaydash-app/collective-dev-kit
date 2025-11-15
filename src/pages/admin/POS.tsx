@@ -2273,11 +2273,12 @@ export default function POS() {
 
     // If shouldPrint is true and we have transaction data, print it
     if (shouldPrint && transactionData) {
-      console.log('🖨️ Transaction completed, printing...', transactionData);
+      console.log('🖨️ Transaction completed, printing receipt...', transactionData);
+      console.log('🖨️ About to call kioskPrintService.printReceipt()');
       
       // Use the transaction data directly for printing
       try {
-        await kioskPrintService.printReceipt({
+        const receiptData = {
           storeName: transactionData.storeName || 'Global Market',
           transactionNumber: transactionData.transactionNumber,
           date: new Date(),
@@ -2295,11 +2296,17 @@ export default function POS() {
           cashierName: transactionData.cashierName,
           logoUrl: transactionData.logoUrl,
           supportPhone: transactionData.supportPhone
-        });
+        };
         
+        console.log('🖨️ Receipt data prepared:', receiptData);
+        
+        await kioskPrintService.printReceipt(receiptData);
+        
+        console.log('✅ Print completed successfully');
         toast.success('✅ Receipt sent to printer');
       } catch (error: any) {
         console.error('❌ Print error:', error);
+        console.error('❌ Error details:', { message: error.message, stack: error.stack });
         toast.error(error.message || 'Failed to print receipt');
       }
     } else if (shouldPrint && !transactionData) {
