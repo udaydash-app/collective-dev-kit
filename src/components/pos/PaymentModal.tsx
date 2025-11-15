@@ -27,7 +27,7 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
-  onConfirm: (payments: Payment[], totalPaid: number) => Promise<void>;
+  onConfirm: (payments: Payment[], totalPaid: number) => Promise<any>;
   selectedCustomer?: any;
   transactionData?: {
     transactionNumber: string;

@@ -2215,10 +2215,12 @@ export default function POS() {
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
       
-      setLastTransactionData({
+      const completeTransactionData = {
         ...transactionDataPrep,
         transactionNumber,
-      });
+      };
+      
+      setLastTransactionData(completeTransactionData);
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       toast.success(`Transaction ${displayNumber} processed successfully`);
@@ -2227,7 +2229,11 @@ export default function POS() {
       queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
+      
+      return completeTransactionData; // Return the transaction data
     }
+    
+    return null;
   };
 
   const handleQuickPayment = async (shouldPrint: boolean) => {
@@ -2250,29 +2256,43 @@ export default function POS() {
       amount: total
     };
 
-    // Process the transaction
-    await handlePaymentConfirm([payment], total);
+    // Process the transaction and get the data directly
+    const transactionData = await handlePaymentConfirm([payment], total);
 
-    // If shouldPrint is true, print directly to default printer after transaction is saved
-    if (shouldPrint) {
-      console.log('🖨️ Will attempt to print...');
-      // Wait for lastTransactionData to be set by handlePaymentConfirm, with retry logic
-      let retries = 0;
-      const maxRetries = 10;
-      const printInterval = setInterval(async () => {
-        retries++;
-        console.log(`🖨️ Print retry ${retries}/${maxRetries}, lastTransactionData:`, !!lastTransactionData);
+    // If shouldPrint is true and we have transaction data, print it
+    if (shouldPrint && transactionData) {
+      console.log('🖨️ Transaction completed, printing...', transactionData);
+      
+      // Use the transaction data directly for printing
+      try {
+        await kioskPrintService.printReceipt({
+          storeName: transactionData.storeName || 'Global Market',
+          transactionNumber: transactionData.transactionNumber,
+          date: new Date(),
+          items: transactionData.items.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.customPrice ?? item.price,
+            itemDiscount: item.itemDiscount || 0
+          })),
+          subtotal: transactionData.subtotal,
+          tax: 0,
+          discount: transactionData.discount || 0,
+          total: transactionData.total,
+          paymentMethod: transactionData.paymentMethod,
+          cashierName: transactionData.cashierName,
+          logoUrl: transactionData.logoUrl,
+          supportPhone: transactionData.supportPhone
+        });
         
-        if (lastTransactionData) {
-          clearInterval(printInterval);
-          console.log('🖨️ Transaction data available, calling print...');
-          await handleDirectPrintLastReceipt();
-        } else if (retries >= maxRetries) {
-          clearInterval(printInterval);
-          console.error('🖨️ Failed to get transaction data after', maxRetries, 'retries');
-          toast.error('Failed to print receipt - transaction data not available');
-        }
-      }, 300);
+        toast.success('✅ Receipt sent to printer');
+      } catch (error: any) {
+        console.error('❌ Print error:', error);
+        toast.error(error.message || 'Failed to print receipt');
+      }
+    } else if (shouldPrint && !transactionData) {
+      console.error('🖨️ No transaction data available');
+      toast.error('Failed to print - transaction may not have completed');
     }
   };
 
