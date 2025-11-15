@@ -25,6 +25,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          opening_balance: number | null
           parent_account_id: string | null
           updated_at: string
         }
@@ -38,6 +39,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          opening_balance?: number | null
           parent_account_id?: string | null
           updated_at?: string
         }
@@ -51,6 +53,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          opening_balance?: number | null
           parent_account_id?: string | null
           updated_at?: string
         }
