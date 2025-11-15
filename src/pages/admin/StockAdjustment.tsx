@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Package, Search, Filter, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { formatCurrency } from '@/lib/utils';
 
 export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -617,7 +618,7 @@ export default function StockAdjustment() {
                             {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
                           </TableCell>
                           <TableCell className="text-right py-2 text-muted-foreground">
-                            {product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-'}
+                            {product.cost_price ? formatCurrency(product.cost_price) : '-'}
                           </TableCell>
                           <TableCell className="text-right py-2">
                             <div className="flex items-center gap-1">
@@ -774,7 +775,7 @@ export default function StockAdjustment() {
                               {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
                             </TableCell>
                             <TableCell className="text-right py-2 text-muted-foreground">
-                              {variant.cost_price ? `$${variant.cost_price.toFixed(2)}` : (product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-')}
+                              {variant.cost_price ? formatCurrency(variant.cost_price) : (product.cost_price ? formatCurrency(product.cost_price) : '-')}
                             </TableCell>
                             <TableCell className="text-right py-2">
                               <div className="flex items-center gap-1">
