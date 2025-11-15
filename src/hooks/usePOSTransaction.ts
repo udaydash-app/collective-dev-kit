@@ -748,8 +748,6 @@ export const usePOSTransaction = () => {
       const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300); // Wait 300ms after last scan before applying offers
-    
-    toast.success(`${product.name} added to cart`);
   };
 
   const removeFromCart = async (productId: string) => {
