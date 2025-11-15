@@ -1,0 +1,23 @@
+git config --global user.email "your-email@example.com"
+git config --global user.name "Your Name"
+git add .
+git commit -m "Configure auto-update with GitHub"
+git pull origin main
+git push origin main
+# 1. Add release/ to .gitignore (open .gitignore and add this line)
+echo release/ >> .gitignore
+
+# 2. Remove release folder from git (keeps local files)
+git rm -r --cached release/
+
+# 3. Commit the change
+git add .gitignore
+git commit -m "Ignore release folder"
+
+# 4. Push to GitHub
+git push origin main
+After this, create your version tag and the GitHub Action will build the releases automatically:
+
+
+npm version 1.0.0
+git push origin v1.0.0
