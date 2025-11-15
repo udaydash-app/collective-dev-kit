@@ -176,7 +176,62 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       console.log('🔍 Scanning barcode:', barcode);
       
-      // Single optimized query - check both variant and product barcodes at once
+      // Check product barcodes directly first
+      const { data: directProducts } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          price,
+          barcode,
+          stock_quantity,
+          cost_price,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default,
+            barcode
+          )
+        `)
+        .eq('is_available', true)
+        .not('barcode', 'is', null)
+        .limit(100);
+
+      // Find direct product barcode match
+      const matchedDirectProduct = directProducts?.find((p: any) => {
+        if (!p.barcode) return false;
+        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return productBarcodes.includes(barcode);
+      });
+
+      if (matchedDirectProduct) {
+        console.log('✅ Found direct product match:', matchedDirectProduct.name);
+        
+        // If product has variants, select default or first available
+        if (matchedDirectProduct.product_variants && matchedDirectProduct.product_variants.length > 0) {
+          const availableVariants = matchedDirectProduct.product_variants.filter((v: any) => v.is_available);
+          const defaultVariant = availableVariants.find((v: any) => v.is_default);
+          const selectedVariant = defaultVariant || availableVariants[0];
+          
+          if (selectedVariant) {
+            onProductSelect({
+              ...matchedDirectProduct,
+              price: selectedVariant.price,
+              selectedVariant,
+            });
+          }
+        } else {
+          onProductSelect(matchedDirectProduct);
+        }
+        setSearchTerm('');
+        return;
+      }
+      
+      // Check variant barcodes
       const { data: allVariants } = await supabase
         .from('product_variants')
         .select(`
@@ -208,7 +263,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         .eq('is_available', true)
         .eq('products.is_available', true)
         .not('barcode', 'is', null)
-        .limit(100); // Limit results for faster query
+        .limit(100);
       
       // Find matching variant
       const matchedVariant = allVariants?.find((v: any) => {
@@ -228,39 +283,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         return;
       }
 
-      // If no variant match, check product barcodes
-      const matchedProduct = allVariants?.find((v: any) => {
-        const product = v.product;
-        if (!product.barcode) return false;
-        const productBarcodes = product.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return productBarcodes.includes(barcode);
-      })?.product;
-
-      if (matchedProduct) {
-        console.log('✅ Found product match:', matchedProduct.name);
-        
-        // If product has variants, select default or first available
-        if (matchedProduct.product_variants && matchedProduct.product_variants.length > 0) {
-          const availableVariants = matchedProduct.product_variants.filter((v: any) => v.is_available);
-          const defaultVariant = availableVariants.find((v: any) => v.is_default);
-          const selectedVariant = defaultVariant || availableVariants[0];
-          
-          if (selectedVariant) {
-            onProductSelect({
-              ...matchedProduct,
-              price: selectedVariant.price,
-              selectedVariant,
-            });
-          }
-        } else {
-          onProductSelect(matchedProduct);
-        }
-        setSearchTerm('');
-        return;
-      }
-
-      console.log('❌ No barcode match found');
+      console.log('❌ No barcode match found - opening assign dialog');
       toast.error(`No product found with barcode: ${barcode}`);
+      setScannedBarcode(barcode);
+      setAssignBarcodeOpen(true);
       setSearchTerm('');
     }
   };
