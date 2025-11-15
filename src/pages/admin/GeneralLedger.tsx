@@ -259,11 +259,15 @@ export default function GeneralLedger() {
         const priorCredits = [...priorCustomerLines, ...priorSupplierLines]
           .reduce((sum, line: any) => sum + line.credit_amount, 0);
         
+        // Calculate total debits and credits from ALL periods
+        const totalDebits = priorDebits + currentDebits;
+        const totalCredits = priorCredits + currentCredits;
+        
         // Opening balance = Contact's opening balance + prior period net movement
         const openingBalance = contactOpeningBalance + (priorDebits - priorCredits);
         
-        // Current unified balance = Opening balance + current period net movement
-        const unifiedBalance = openingBalance + (currentDebits - currentCredits);
+        // Current unified balance = Total Debits - Total Credits
+        const unifiedBalance = totalDebits - totalCredits;
         
         // Calculate A/R and A/P for display
         // A/R = Total debits from customer account
