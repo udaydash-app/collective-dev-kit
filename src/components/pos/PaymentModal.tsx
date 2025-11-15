@@ -562,6 +562,35 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           )}
         </div>
       </div>
+
+      {/* Hidden Receipt for Printing - same as order management page */}
+      {transactionData && (
+        <div className="hidden">
+          <Receipt
+            ref={receiptRef}
+            transactionNumber={transactionData.transactionNumber}
+            date={new Date()}
+            items={transactionData.items.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.customPrice ?? item.price,
+              itemDiscount: item.itemDiscount || 0
+            }))}
+            subtotal={transactionData.subtotal}
+            discount={transactionData.discount || 0}
+            customerName={selectedCustomerData?.name || propSelectedCustomer?.name}
+            tax={transactionData.tax || 0}
+            total={transactionData.total}
+            paymentMethod={payments.map(p => p.method.toUpperCase()).join(', ')}
+            cashierName={transactionData.cashierName}
+            storeName={transactionData.storeName || 'Global Market'}
+            logoUrl={transactionData.logoUrl}
+            supportPhone={transactionData.supportPhone}
+            customerBalance={customerBalance}
+            isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
+          />
+        </div>
+      )}
     </Dialog>
   );
 };
