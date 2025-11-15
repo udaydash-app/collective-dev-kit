@@ -499,6 +499,11 @@ export default function GeneralLedger() {
       ]);
     });
     
+    // Calculate final balance from last entry
+    const finalBalance = ledgerEntries.length > 0 
+      ? ledgerEntries[ledgerEntries.length - 1].running_balance 
+      : openingBalance;
+    
     // Add table
     autoTable(doc, {
       startY: 38,
@@ -506,8 +511,8 @@ export default function GeneralLedger() {
       body: tableData,
       foot: [
         ['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
-        ['', '', '', 'Balance:', '', '', 
-         Math.abs(netChange).toFixed(2) + (netChange < 0 ? ' CR' : '')]
+        ['', '', '', 'Closing Balance:', '', '', 
+         Math.abs(finalBalance).toFixed(2) + (finalBalance < 0 ? ' CR' : '')]
       ],
       styles: { 
         fontSize: 7,
