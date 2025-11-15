@@ -342,7 +342,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             customerName: selectedCustomerData?.name,
             logoUrl: transactionData.logoUrl,
             supportPhone: transactionData.supportPhone,
-            customerBalance: customerBalance
+            customerBalance: customerBalance,
+            isUnifiedBalance: selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer
           });
           
           console.log('✅ Kiosk print completed successfully');

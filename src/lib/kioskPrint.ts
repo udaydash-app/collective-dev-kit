@@ -27,6 +27,7 @@ export interface KioskReceiptData {
   logoUrl?: string;
   supportPhone?: string;
   customerBalance?: number;
+  isUnifiedBalance?: boolean;
 }
 
 class KioskPrintService {
@@ -125,10 +126,23 @@ class KioskPrintService {
   }
 
   private generateReceiptHTML(data: KioskReceiptData): string {
-    const formatPrice = (price: number) => price.toLocaleString('fr-CI', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }) + ' FCFA';
+    const formatCurrency = (amount: number) => {
+      return amount.toLocaleString('fr-CI', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 0 
+      }) + ' FCFA';
+    };
+
+    const formatDateTime = (date: Date) => {
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
 
     return `
       <!DOCTYPE html>
@@ -136,109 +150,188 @@ class KioskPrintService {
         <head>
           <title>Receipt - ${data.transactionNumber}</title>
           <style>
+            @media print {
+              @page {
+                size: 80mm auto;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              .receipt-container {
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 3mm !important;
+                background: white !important;
+                color: black !important;
+                font-family: monospace !important;
+                font-size: 14px !important;
+              }
+              .receipt-container * {
+                color: black !important;
+                background: transparent !important;
+              }
+              .receipt-container .border-t {
+                border-top: 1px solid black !important;
+              }
+              .receipt-container .border-b {
+                border-bottom: 1px solid black !important;
+              }
+              .receipt-container .border-black {
+                border-color: black !important;
+              }
+              .receipt-container .border-dashed {
+                border-style: dashed !important;
+              }
+              .receipt-container .border-gray-400 {
+                border-color: #9ca3af !important;
+              }
+              .receipt-container .text-xl {
+                font-size: 20px !important;
+              }
+              .receipt-container .text-lg {
+                font-size: 18px !important;
+              }
+              .receipt-container .text-sm {
+                font-size: 14px !important;
+              }
+              .receipt-container .text-xs {
+                font-size: 12px !important;
+              }
+              .receipt-container .font-bold {
+                font-weight: bold !important;
+              }
+              img {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                display: block !important;
+                max-height: 128px !important;
+                width: auto !important;
+              }
+            }
             body {
               margin: 0;
-              padding: 20px;
+              padding: 0;
               font-family: monospace;
-              font-size: 12px;
             }
-            .receipt {
+            .receipt-container {
               width: 80mm;
-              margin: 0 auto;
+              padding: 8px;
               background: white;
               color: black;
+              font-family: monospace;
+              font-size: 14px;
             }
             .text-center { text-align: center; }
-            .text-xs { font-size: 10px; }
-            .text-sm { font-size: 11px; }
-            .text-lg { font-size: 14px; }
-            .text-xl { font-size: 16px; }
+            .text-xl { font-size: 20px; }
+            .text-lg { font-size: 18px; }
+            .text-sm { font-size: 14px; }
+            .text-xs { font-size: 12px; }
             .font-bold { font-weight: bold; }
-            .mb-1 { margin-bottom: 4px; }
+            .font-semibold { font-weight: 600; }
             .mb-2 { margin-bottom: 8px; }
-            .mb-4 { margin-bottom: 16px; }
+            .mb-3 { margin-bottom: 12px; }
             .mt-2 { margin-top: 8px; }
             .py-2 { padding-top: 8px; padding-bottom: 8px; }
             .pt-1 { padding-top: 4px; }
             .pt-2 { padding-top: 8px; }
             .border-t { border-top: 1px solid black; }
             .border-b { border-bottom: 1px solid black; }
+            .border-black { border-color: black; }
+            .border-dashed { border-style: dashed; }
             .flex { display: flex; }
             .justify-between { justify-content: space-between; }
             .justify-center { justify-content: center; }
-            .items-center { align-items: center; }
             .flex-1 { flex: 1; }
+            .ml-2 { margin-left: 8px; }
             .space-y-1 > * + * { margin-top: 4px; }
-            img { max-width: 100%; height: auto; }
-            @media print {
-              body { padding: 0; }
+            img { 
+              height: 128px;
+              width: auto;
+              object-fit: contain;
+              max-height: 128px;
             }
           </style>
         </head>
         <body>
-          <div class="receipt">
-            <div class="text-center mb-4">
+          <div class="receipt-container">
+            <div class="text-center mb-3">
               ${data.logoUrl ? `
                 <div class="flex justify-center mb-2">
-                  <img src="${data.logoUrl}" alt="Company Logo" style="height: 120px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
+                  <img src="${data.logoUrl}" alt="Company Logo" style="max-height: 128px; width: auto" id="companyLogo" />
                 </div>
               ` : ''}
-              <h1 class="text-xl font-bold">${data.storeName || 'Global Market'}</h1>
-              <p class="text-xs">Fresh groceries delivered to your doorstep</p>
-              <p class="text-xs mt-2">Transaction: ${data.transactionNumber}</p>
-              <p class="text-xs">${new Date(data.date).toLocaleString()}</p>
-              ${data.cashierName ? `<p class="text-xs">Cashier: ${data.cashierName}</p>` : ''}
-              ${data.customerName && data.customerName !== 'Walk-in Customer' ? `<p class="text-xs">Customer: ${data.customerName}</p>` : ''}
-              ${data.customerBalance !== undefined && data.customerName && data.customerName !== 'Walk-in Customer' ? `<p class="text-xs font-bold mt-2">Customer Balance: ${formatPrice(data.customerBalance)}</p>` : ''}
+              <div class="${data.logoUrl ? 'mt-2' : ''}">
+                <h1 class="text-xl font-bold">${data.storeName || 'Global Market'}</h1>
+                <p class="text-xs">Fresh groceries delivered to your doorstep</p>
+                <p class="text-xs mt-2">Transaction: ${data.transactionNumber}</p>
+                <p class="text-xs">${formatDateTime(data.date)}</p>
+                <p class="text-xs font-semibold mt-2 mb-2">Customer: ${data.customerName || 'Walk-in Customer'}</p>
+              </div>
             </div>
 
-            <div class="border-t border-b py-2 mb-2">
+            <div class="border-t border-b border-black py-2 mb-2">
               ${data.items.map(item => {
                 const effectivePrice = item.customPrice ?? item.price;
-                const itemDiscount = item.itemDiscount ? item.itemDiscount * item.quantity : 0;
+                const itemDiscount = (item.itemDiscount || 0) * item.quantity;
                 return `
-                <div class="mb-2">
-                  <div class="flex justify-between">
-                    <span class="flex-1">${item.displayName ?? item.name}</span>
+                  <div class="mb-2">
+                    <div class="flex justify-between">
+                      <span class="flex-1">${item.displayName ?? item.name}</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                      <span>${item.quantity} x ${formatCurrency(effectivePrice)}</span>
+                      <span>${formatCurrency(effectivePrice * item.quantity)}</span>
+                    </div>
+                    ${itemDiscount > 0 ? `
+                      <div class="flex justify-between text-xs ml-2">
+                        <span>Item Discount:</span>
+                        <span>-${formatCurrency(itemDiscount)}</span>
+                      </div>
+                    ` : ''}
                   </div>
-                  <div class="flex justify-between text-xs">
-                    <span>${item.quantity} x ${formatPrice(effectivePrice)}</span>
-                    <span>${formatPrice(effectivePrice * item.quantity)}</span>
-                  </div>
-                  ${itemDiscount > 0 ? `
-                  <div class="flex justify-between text-xs" style="margin-left: 8px;">
-                    <span>Item Discount:</span>
-                    <span>-${formatPrice(itemDiscount)}</span>
-                  </div>
-                  ` : ''}
-                </div>
-              `}).join('')}
+                `;
+              }).join('')}
             </div>
 
             <div class="space-y-1 mb-2">
               <div class="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${formatPrice(data.subtotal)}</span>
+                <span>${formatCurrency(data.subtotal)}</span>
               </div>
               <div class="flex justify-between">
                 <span>Tax (15%):</span>
-                <span>${formatPrice(data.tax)}</span>
+                <span>${formatCurrency(data.tax)}</span>
               </div>
               ${data.discount && data.discount > 0 ? `
                 <div class="flex justify-between">
                   <span>Discount:</span>
-                  <span>-${formatPrice(data.discount)}</span>
+                  <span>-${formatCurrency(data.discount)}</span>
                 </div>
               ` : ''}
               <div class="flex justify-between font-bold text-lg border-t pt-1">
                 <span>TOTAL:</span>
-                <span>${formatPrice(data.total)}</span>
+                <span>${formatCurrency(data.total)}</span>
               </div>
             </div>
 
-            <div class="border-t pt-2 mb-4">
-              <p class="text-xs">Payment Method: ${data.paymentMethod.toUpperCase()}</p>
+            <div class="border-t border-black pt-2 mb-2">
+              <p class="text-sm">Payment Method: ${data.paymentMethod.toUpperCase()}</p>
             </div>
+
+            ${data.customerBalance !== undefined && data.customerBalance !== null ? `
+              <div class="border-t border-dashed border-black pt-2 mb-2">
+                <p class="text-sm font-bold">
+                  ${data.isUnifiedBalance ? 'Unified Balance:' : 'Current Balance:'} ${formatCurrency(data.customerBalance)}
+                </p>
+                ${data.isUnifiedBalance ? `
+                  <p class="text-xs mt-1">
+                    (Combined customer & supplier account)
+                  </p>
+                ` : ''}
+              </div>
+            ` : ''}
 
             <div class="text-center text-xs">
               <p>Thank you for shopping with us!</p>
@@ -248,7 +341,6 @@ class KioskPrintService {
           <script>
             window.onload = function() {
               ${data.logoUrl ? `
-                // Wait for logo to load before printing
                 var logo = document.getElementById('companyLogo');
                 if (logo) {
                   if (logo.complete) {
@@ -260,7 +352,6 @@ class KioskPrintService {
                       setTimeout(() => window.close(), 100);
                     };
                     logo.onerror = function() {
-                      // Print anyway if logo fails to load
                       window.print();
                       setTimeout(() => window.close(), 100);
                     };
