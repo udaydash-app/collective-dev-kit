@@ -266,15 +266,11 @@ export default function GeneralLedger() {
         const unifiedBalance = openingBalance + (currentDebits - currentCredits);
         
         // Calculate A/R and A/P for display
-        const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
-        const allARDebits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const allARCredits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const currentAR = arOpeningBalance + allARDebits - allARCredits;
-
-        const apOpeningBalance = contactOpeningBalance < 0 ? Math.abs(contactOpeningBalance) : 0;
-        const allAPCredits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const allAPDebits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const currentAP = apOpeningBalance + allAPCredits - allAPDebits;
+        // A/R = Total debits from customer account
+        const currentAR = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
+        
+        // A/P = Total credits from supplier account
+        const currentAP = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
 
         // Mark lines with their source type
         const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
