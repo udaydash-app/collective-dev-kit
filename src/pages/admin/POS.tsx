@@ -1767,7 +1767,7 @@ export default function POS() {
               
               if (customPrice && customPrice < cartItem.price) {
                 const discount = cartItem.price - customPrice;
-                updateItemDiscount(cartItem.id, discount);
+                updateItemDiscount(cartItem.id, discount, false); // false = not manual
                 appliedCount++;
                 console.log('✅ Applied discount:', discount, 'to item:', cartItem.id);
               }
@@ -2069,18 +2069,12 @@ export default function POS() {
     // Check if customer is selected and has items with manually changed prices
     if (selectedCustomer) {
       const itemsWithManualChanges = cart.filter(item => {
-        // Exclude special items
-        if (!item.productId || item.id.startsWith('combo-') || item.id.startsWith('bogo-') || 
-            item.id.startsWith('multi-bogo-') || item.id === 'cart-discount') {
-          return false;
-        }
-        
-        // Include items where price was manually changed (different from original product price)
-        // OR items that have a discount applied manually (not from automatic customer pricing)
-        const priceChanged = item.customPrice !== undefined && item.customPrice !== item.price;
-        const hasManualDiscount = item.itemDiscount !== undefined && item.itemDiscount > 0;
-        
-        return priceChanged || hasManualDiscount;
+        // Only include items where price was MANUALLY changed by cashier
+        return item.manualPriceChange === true && item.productId && 
+               !item.id.startsWith('combo-') && 
+               !item.id.startsWith('bogo-') && 
+               !item.id.startsWith('multi-bogo-') && 
+               item.id !== 'cart-discount';
       });
       
       if (itemsWithManualChanges.length > 0) {

@@ -15,6 +15,7 @@ export interface CartItem {
   image_url?: string;
   itemDiscount?: number;
   customPrice?: number;
+  manualPriceChange?: boolean; // Flag to track if price was manually changed by cashier
   isCombo?: boolean;
   comboId?: string;
   comboItems?: Array<{
@@ -863,18 +864,18 @@ export const usePOSTransaction = () => {
     }, 300);
   };
 
-  const updateItemPrice = (productId: string, price: number) => {
+  const updateItemPrice = (productId: string, price: number, isManual: boolean = true) => {
     setCart(prev =>
       prev.map(item =>
-        item.id === productId ? { ...item, customPrice: price } : item
+        item.id === productId ? { ...item, customPrice: price, manualPriceChange: isManual } : item
       )
     );
   };
 
-  const updateItemDiscount = (productId: string, discount: number) => {
+  const updateItemDiscount = (productId: string, discount: number, isManual: boolean = true) => {
     setCart(prev =>
       prev.map(item =>
-        item.id === productId ? { ...item, itemDiscount: discount } : item
+        item.id === productId ? { ...item, itemDiscount: discount, manualPriceChange: isManual } : item
       )
     );
   };
