@@ -731,7 +731,7 @@ export default function GeneralLedger() {
               {(ledgerData.account as any).isUnified && (
                 <p className="text-xs text-muted-foreground mt-1">
                   A/R: {formatCurrency(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
-                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance < 0 ? ' CR' : ' DR'}
+                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
                 </p>
               )}
             </div>
