@@ -386,17 +386,22 @@ export default function GeneralLedger() {
       let contactOpeningBalance = 0;
       if (contact) {
         const openingBal = Number(contact.opening_balance || 0);
-        const accountType = account?.account_type;
         
-        // Customer account (AR - Asset): positive balance means they owe us
+        // For dual-role contacts, opening_balance is a net position:
+        // - Positive means they owe us (should go to customer account only)
+        // - Negative means we owe them (should go to supplier account only)
+        
+        // Customer account (AR - Asset): only apply if positive balance
         if (contact.customer_ledger_account_id === selectedAccount) {
-          // For asset accounts, positive opening balance increases the account
-          contactOpeningBalance = openingBal;
+          if (openingBal > 0) {
+            contactOpeningBalance = openingBal;
+          }
         }
-        // Supplier account (AP - Liability): we need to invert the sign
+        // Supplier account (AP - Liability): only apply if negative balance
         else if (contact.supplier_ledger_account_id === selectedAccount) {
-          // For liability accounts, negative opening balance (we owe them) should show as positive liability
-          contactOpeningBalance = -openingBal;
+          if (openingBal < 0) {
+            contactOpeningBalance = Math.abs(openingBal);
+          }
         }
       }
       
