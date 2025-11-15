@@ -20,6 +20,8 @@ export const useRealtimeSync = () => {
         (payload) => {
           console.log('Products changed:', payload);
           queryClient.invalidateQueries({ queryKey: ['products'] });
+          queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+          queryClient.invalidateQueries({ queryKey: ['stock-products'] });
           
           if (payload.eventType === 'INSERT') {
             toast.info('New product added');
@@ -45,6 +47,8 @@ export const useRealtimeSync = () => {
         () => {
           console.log('Product variants changed');
           queryClient.invalidateQueries({ queryKey: ['products'] });
+          queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+          queryClient.invalidateQueries({ queryKey: ['stock-products'] });
         }
       )
       .subscribe();
