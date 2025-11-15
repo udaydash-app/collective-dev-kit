@@ -2072,10 +2072,18 @@ export default function POS() {
       customerId: selectedCustomer?.id,
       customerName: selectedCustomer?.name,
       cartLength: cart.length,
+      cartItems: cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        customPrice: item.customPrice,
+        itemDiscount: item.itemDiscount
+      })),
       isLoadingTransaction
     });
     
     if (selectedCustomer) {
+      console.log('🔍 About to filter cart, cart length:', cart.length);
       const itemsWithCustomPrices = cart.filter(item => {
         // Exclude special items (combos, BOGOs, cart discounts)
         const isSpecialItem = !item.productId || 
