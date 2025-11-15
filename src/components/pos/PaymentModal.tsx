@@ -16,8 +16,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useReactToPrint } from 'react-to-print';
-import { Receipt } from './Receipt';
 
 interface Payment {
   id: string;
@@ -63,6 +61,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
   const [isProcessing, setIsProcessing] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const completeSaleButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+  });
 
   // Pre-fill customer if passed from POS
   useEffect(() => {
