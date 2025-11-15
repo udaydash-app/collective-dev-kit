@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('electron', {
   onDownloadProgress: (callback) => {
     ipcRenderer.on('download-progress', (event, progress) => callback(progress));
   },
+  print: (html) => ipcRenderer.invoke('print:receipt', html),
   isElectron: true,
 });

@@ -42,6 +42,7 @@ class KioskPrintService {
   /**
    * Print receipt directly using window.print()
    * Works best with Chrome kiosk mode: chrome --kiosk-printing
+   * In Electron, uses native print API
    */
   async printReceipt(data: KioskReceiptData): Promise<void> {
     console.log('🖨️ Starting kiosk print...', data);
@@ -49,7 +50,16 @@ class KioskPrintService {
     try {
       const receiptHTML = this.generateReceiptHTML(data);
       
-      // Create print window
+      // Check if running in Electron
+      if (window.electron?.isElectron && window.electron.print) {
+        console.log('🖨️ Using Electron native print API...');
+        await window.electron.print(receiptHTML);
+        console.log('✅ Print job sent via Electron');
+        return;
+      }
+      
+      // Fallback to browser window.open() for web/kiosk mode
+      console.log('🖨️ Using browser print (kiosk mode)...');
       const printWindow = window.open('', '_blank', 'width=300,height=600');
       
       if (!printWindow) {

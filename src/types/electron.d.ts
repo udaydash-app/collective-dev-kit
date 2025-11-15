@@ -14,6 +14,7 @@ interface Window {
       transferred: number;
       total: number;
     }) => void) => void;
+    print: (html: string) => Promise<void>;
     isElectron: boolean;
   };
 }
