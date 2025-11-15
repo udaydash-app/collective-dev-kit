@@ -266,15 +266,19 @@ export default function GeneralLedger() {
         // Opening balance = Contact's opening balance + prior period net movement
         const openingBalance = contactOpeningBalance + (priorDebits - priorCredits);
         
-        // Current unified balance = Total Debits - Total Credits
-        const unifiedBalance = totalDebits - totalCredits;
+        // Current unified balance = opening balance + total debits - total credits
+        const unifiedBalance = contactOpeningBalance + totalDebits - totalCredits;
         
         // Calculate A/R and A/P for display
-        // A/R = Total debits from customer account
-        const currentAR = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
+        // A/R = Total debits from customer account (positive opening balance is already a debit)
+        const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
+        const customerDebits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const currentAR = arOpeningBalance + customerDebits;
         
-        // A/P = Total credits from supplier account
-        const currentAP = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
+        // A/P = Total credits from supplier account (negative opening balance becomes positive credit)
+        const apOpeningBalance = contactOpeningBalance < 0 ? Math.abs(contactOpeningBalance) : 0;
+        const supplierCredits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const currentAP = apOpeningBalance + supplierCredits;
 
         // Mark lines with their source type
         const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
@@ -356,7 +360,7 @@ export default function GeneralLedger() {
       // Check if this is a dual-role contact
       const isDualRole = contact?.is_customer && contact?.is_supplier;
       
-      // For dual-role contacts, calculate balance as total debits - total credits
+      // For dual-role contacts, calculate balance as opening balance + total debits - total credits
       if (isDualRole) {
         // Get all lines including prior period
         const { data: allLines } = await supabase
@@ -380,12 +384,32 @@ export default function GeneralLedger() {
         const priorCredits = (priorLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
         const openingBalance = priorDebits - priorCredits;
         
+        // Get contact's opening balance
+        const contactOpeningBal = Number(contact.opening_balance || 0);
+        
+        // Determine if this is customer or supplier account
+        const isCustomerAccount = contact.customer_ledger_account_id === selectedAccount;
+        const isSupplierAccount = contact.supplier_ledger_account_id === selectedAccount;
+        
+        // Calculate current balance based on account type
+        let currentBalance;
+        if (isCustomerAccount && contactOpeningBal > 0) {
+          // Customer account with positive opening balance
+          currentBalance = contactOpeningBal + totalDebits - totalCredits;
+        } else if (isSupplierAccount && contactOpeningBal < 0) {
+          // Supplier account with negative opening balance
+          currentBalance = Math.abs(contactOpeningBal) + totalCredits - totalDebits;
+        } else {
+          // No opening balance for this account, just use transaction totals
+          currentBalance = totalDebits - totalCredits;
+        }
+        
         return { 
           lines: sortedLines, 
           account: { 
             ...account, 
             opening_balance: openingBalance,
-            current_balance: totalDebits - totalCredits,
+            current_balance: currentBalance,
             isDualRole: true
           } 
         };
