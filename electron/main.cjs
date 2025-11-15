@@ -353,3 +353,44 @@ ipcMain.handle('app:getVersion', () => {
 ipcMain.handle('app:getPath', (event, name) => {
   return app.getPath(name);
 });
+
+// IPC handler for printing receipts
+ipcMain.handle('print:receipt', async (event, html) => {
+  return new Promise((resolve, reject) => {
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    
+    printWindow.webContents.on('did-finish-load', () => {
+      printWindow.webContents.print(
+        { 
+          silent: false,
+          printBackground: true,
+          margins: { marginType: 'none' }
+        },
+        (success, errorType) => {
+          if (!success) {
+            console.error('Print failed:', errorType);
+            reject(new Error(`Print failed: ${errorType}`));
+          } else {
+            console.log('Print successful');
+            resolve();
+          }
+          printWindow.close();
+        }
+      );
+    });
+
+    printWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('Failed to load print content:', errorDescription);
+      reject(new Error(`Failed to load print content: ${errorDescription}`));
+      printWindow.close();
+    });
+  });
+});
