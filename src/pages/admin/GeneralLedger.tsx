@@ -247,31 +247,25 @@ export default function GeneralLedger() {
         const priorSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
         const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
-        // Calculate total debits and credits from ALL lines (customer + supplier)
-        const allDebits = [...priorCustomerLines, ...currentCustomerLines, ...priorSupplierLines, ...currentSupplierLines]
-          .reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const allCredits = [...priorCustomerLines, ...currentCustomerLines, ...priorSupplierLines, ...currentSupplierLines]
-          .reduce((sum, line: any) => sum + line.credit_amount, 0);
-        
-        // Current period debits and credits
+        // Calculate all debits and credits from both customer and supplier accounts
         const currentDebits = [...currentCustomerLines, ...currentSupplierLines]
           .reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentCredits = [...currentCustomerLines, ...currentSupplierLines]
           .reduce((sum, line: any) => sum + line.credit_amount, 0);
         
-        // Prior period debits and credits
+        // Prior period transactions
         const priorDebits = [...priorCustomerLines, ...priorSupplierLines]
           .reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const priorCredits = [...priorSupplierLines, ...priorSupplierLines]
+        const priorCredits = [...priorCustomerLines, ...priorSupplierLines]
           .reduce((sum, line: any) => sum + line.credit_amount, 0);
         
-        // Opening balance = contact opening balance + prior period net movement
+        // Opening balance = Contact's opening balance + prior period net movement
         const openingBalance = contactOpeningBalance + (priorDebits - priorCredits);
         
-        // Current unified balance = opening balance + current period net movement
+        // Current unified balance = Opening balance + current period net movement
         const unifiedBalance = openingBalance + (currentDebits - currentCredits);
         
-        // Calculate A/R and A/P for display purposes
+        // Calculate A/R and A/P for display
         const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
         const allARDebits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentAR = arOpeningBalance + allARDebits;
