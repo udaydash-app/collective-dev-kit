@@ -349,16 +349,54 @@ export default function GeneralLedger() {
       // Get opening balance from contact if this is a customer/supplier account
       const { data: contact } = await supabase
         .from('contacts')
-        .select('opening_balance, customer_ledger_account_id, supplier_ledger_account_id')
+        .select('opening_balance, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
         .or(`customer_ledger_account_id.eq.${selectedAccount},supplier_ledger_account_id.eq.${selectedAccount}`)
         .maybeSingle();
+      
+      // Check if this is a dual-role contact
+      const isDualRole = contact?.is_customer && contact?.is_supplier;
+      
+      // For dual-role contacts, calculate balance as total debits - total credits
+      if (isDualRole) {
+        // Get all lines including prior period
+        const { data: allLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              entry_date,
+              status
+            )
+          `)
+          .eq('account_id', selectedAccount)
+          .eq('journal_entries.status', 'posted');
+
+        const totalDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const totalCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        // Calculate opening balance from prior period
+        const priorDebits = (priorLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const priorCredits = (priorLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const openingBalance = priorDebits - priorCredits;
+        
+        return { 
+          lines: sortedLines, 
+          account: { 
+            ...account, 
+            opening_balance: openingBalance,
+            current_balance: totalDebits - totalCredits,
+            isDualRole: true
+          } 
+        };
+      }
       
       // Apply opening balance based on whether this is customer or supplier account
       let contactOpeningBalance = 0;
       if (contact) {
         const openingBal = Number(contact.opening_balance || 0);
         
-        // For dual-role contacts, opening_balance is a net position:
+        // For non-dual-role contacts, opening_balance is a net position:
         // - Positive means they owe us (should go to customer account only)
         // - Negative means we owe them (should go to supplier account only)
         
@@ -392,7 +430,30 @@ export default function GeneralLedger() {
       // Opening balance is account's opening balance + contact opening balance (if applicable) + calculated prior transactions
       const openingBalance = accountOpeningBalance + contactOpeningBalance + priorBalance;
 
-      return { lines: sortedLines, account: { ...account, opening_balance: openingBalance } };
+      // Calculate current balance from all transactions
+      const { data: allLines } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (
+            status
+          )
+        `)
+        .eq('account_id', selectedAccount)
+        .eq('journal_entries.status', 'posted');
+
+      const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
+      const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+      
+      let currentBalance;
+      if (['asset', 'expense'].includes(account?.account_type || '')) {
+        currentBalance = accountOpeningBalance + allDebits - allCredits;
+      } else {
+        currentBalance = accountOpeningBalance + allCredits - allDebits;
+      }
+
+      return { lines: sortedLines, account: { ...account, opening_balance: openingBalance, current_balance: currentBalance } };
     },
     enabled: !!selectedAccount,
   });
@@ -405,15 +466,18 @@ export default function GeneralLedger() {
     const accountType = ledgerData.account.account_type;
     
     return ledgerData.lines.map((line: any) => {
-      // For unified accounts, calculate net position
-      // Receivable (customer owes us) is positive, Payable (we owe them) is negative
-      if (accountType === 'unified') {
-        if (line.sourceType === 'receivable') {
-          // Customer account: debit increases what they owe us
-          balance += line.debit_amount - line.credit_amount;
+      // For unified accounts or dual-role accounts, calculate as debits - credits
+      if (accountType === 'unified' || (ledgerData.account as any).isDualRole) {
+        if (accountType === 'unified') {
+          // Unified view: track net position
+          if (line.sourceType === 'receivable') {
+            balance += line.debit_amount - line.credit_amount;
+          } else {
+            balance -= (line.credit_amount - line.debit_amount);
+          }
         } else {
-          // Supplier account: credit increases what we owe them (negative balance)
-          balance -= (line.credit_amount - line.debit_amount);
+          // Dual-role single account view: simple debits - credits
+          balance += line.debit_amount - line.credit_amount;
         }
       }
       // Regular account logic
