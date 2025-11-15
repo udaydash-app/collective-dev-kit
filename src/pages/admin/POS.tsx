@@ -2231,6 +2231,8 @@ export default function POS() {
   };
 
   const handleQuickPayment = async (shouldPrint: boolean) => {
+    console.log('🖨️ Quick Payment triggered, shouldPrint:', shouldPrint);
+    
     if (!selectedStoreId) {
       toast.error('Please select a store');
       return;
@@ -2253,20 +2255,24 @@ export default function POS() {
 
     // If shouldPrint is true, print directly to default printer after transaction is saved
     if (shouldPrint) {
+      console.log('🖨️ Will attempt to print...');
       // Wait for lastTransactionData to be set by handlePaymentConfirm, with retry logic
       let retries = 0;
-      const maxRetries = 5;
+      const maxRetries = 10;
       const printInterval = setInterval(async () => {
         retries++;
+        console.log(`🖨️ Print retry ${retries}/${maxRetries}, lastTransactionData:`, !!lastTransactionData);
         
         if (lastTransactionData) {
           clearInterval(printInterval);
+          console.log('🖨️ Transaction data available, calling print...');
           await handleDirectPrintLastReceipt();
         } else if (retries >= maxRetries) {
           clearInterval(printInterval);
+          console.error('🖨️ Failed to get transaction data after', maxRetries, 'retries');
           toast.error('Failed to print receipt - transaction data not available');
         }
-      }, 500);
+      }, 300);
     }
   };
 

@@ -25,6 +25,9 @@ export const useKeyboardShortcuts = ({ shortcuts, enabled = true }: UseKeyboardS
     const target = event.target as HTMLElement;
     const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
     
+    // Allow F-keys to work even in input fields (for POS shortcuts)
+    const isFunctionKey = event.key.startsWith('F') && event.key.length >= 2 && event.key.length <= 3;
+    
     for (const shortcut of shortcuts) {
       const keyMatches = event.key.toLowerCase() === shortcut.key.toLowerCase();
       const ctrlMatches = shortcut.ctrlKey === undefined || event.ctrlKey === shortcut.ctrlKey;
@@ -33,8 +36,8 @@ export const useKeyboardShortcuts = ({ shortcuts, enabled = true }: UseKeyboardS
       const metaMatches = shortcut.metaKey === undefined || event.metaKey === shortcut.metaKey;
 
       if (keyMatches && ctrlMatches && shiftMatches && altMatches && metaMatches) {
-        // Allow Ctrl/Cmd shortcuts even in inputs
-        if (isInput && !(event.ctrlKey || event.metaKey)) {
+        // Allow Ctrl/Cmd shortcuts and F-keys even in inputs
+        if (isInput && !(event.ctrlKey || event.metaKey || isFunctionKey)) {
           continue;
         }
 
