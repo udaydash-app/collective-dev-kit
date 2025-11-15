@@ -316,10 +316,11 @@ export default function StockAdjustment() {
     console.log('Unit Cost:', unitCost);
     console.log('Reason:', reason);
 
-    // For stock increases, require cost input
-    if (difference > 0 && (!costInputs[key] || unitCost <= 0)) {
-      console.log('Stock increase requires cost input');
-      toast.error('Please enter unit cost for stock increases');
+    // Only require cost for stock increases if a cost was provided
+    // For physical count adjustments, cost is optional
+    if (difference > 0 && costInputs[key] && unitCost <= 0) {
+      console.log('Invalid cost input');
+      toast.error('Please enter a valid unit cost or leave it empty');
       return;
     }
 
