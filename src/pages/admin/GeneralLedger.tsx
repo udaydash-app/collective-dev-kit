@@ -378,11 +378,23 @@ export default function GeneralLedger() {
       // Get opening balance from contact if this is a customer/supplier account
       const { data: contact } = await supabase
         .from('contacts')
-        .select('opening_balance')
+        .select('opening_balance, customer_ledger_account_id, supplier_ledger_account_id')
         .or(`customer_ledger_account_id.eq.${selectedAccount},supplier_ledger_account_id.eq.${selectedAccount}`)
         .maybeSingle();
       
-      const contactOpeningBalance = Number(contact?.opening_balance || 0);
+      // Apply opening balance based on whether this is customer or supplier account
+      let contactOpeningBalance = 0;
+      if (contact) {
+        const openingBal = Number(contact.opening_balance || 0);
+        // If this is customer account and balance is positive (they owe us), add to AR
+        if (contact.customer_ledger_account_id === selectedAccount && openingBal > 0) {
+          contactOpeningBalance = openingBal;
+        }
+        // If this is supplier account and balance is negative (we owe them), add to AP
+        else if (contact.supplier_ledger_account_id === selectedAccount && openingBal < 0) {
+          contactOpeningBalance = Math.abs(openingBal);
+        }
+      }
       
       // Calculate balance from prior transactions
       const priorBalance = (priorLines || []).reduce((balance, line: any) => {
