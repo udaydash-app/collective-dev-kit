@@ -250,21 +250,20 @@ export default function GeneralLedger() {
         // A/R = Positive opening balance + all debits from customer account
         const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
         const allARDebits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const allARCredits = [...priorCustomerLines, ...currentCustomerLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
         const currentAR = arOpeningBalance + allARDebits;
 
         // A/P = Negative opening balance (as positive) + all credits from supplier account  
         const apOpeningBalance = contactOpeningBalance < 0 ? Math.abs(contactOpeningBalance) : 0;
         const allAPCredits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const allAPDebits = [...priorSupplierLines, ...currentSupplierLines].reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentAP = apOpeningBalance + allAPCredits;
         
-        // Calculate opening balance and current balance
+        // Calculate opening balance (before start date)
         const priorARDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const priorARCredits = priorCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
         const priorAPCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const priorAPDebits = priorSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        
-        const openingAR = arOpeningBalance + priorARDebits - priorARCredits;
-        const openingAP = apOpeningBalance + priorAPCredits - priorAPDebits;
+        const openingAR = arOpeningBalance + priorARDebits;
+        const openingAP = apOpeningBalance + priorAPCredits;
         const openingBalance = openingAR - openingAP;
         
         // Current unified balance = A/R - A/P
