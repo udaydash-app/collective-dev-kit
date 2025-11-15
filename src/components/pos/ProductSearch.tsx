@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ProductSearchProps {
   onProductSelect: (product: any) => void;
@@ -170,15 +171,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         return;
       }
       
-      // Otherwise, treat as barcode scan
-      const barcode = searchTerm.trim();
+      // Otherwise, treat as barcode scan - OPTIMIZED VERSION
+      const barcode = searchTerm.trim().toLowerCase();
       
       console.log('🔍 Scanning barcode:', barcode);
       
-      // First priority: Check if barcode matches any product variant
-      // This ensures variant-specific barcodes are matched first
-      // Fetch all available variants and filter in JS to support comma-separated barcodes
-      const { data: variantMatch, error: variantError } = await supabase
+      // Single optimized query - check both variant and product barcodes at once
+      const { data: allVariants } = await supabase
         .from('product_variants')
         .select(`
           id,
@@ -186,15 +185,12 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           quantity,
           unit,
           price,
-          is_available,
-          is_default,
           barcode,
           product:products!inner (
             id,
             name,
             price,
             barcode,
-            is_available,
             stock_quantity,
             cost_price,
             product_variants (
@@ -211,25 +207,18 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         `)
         .eq('is_available', true)
         .eq('products.is_available', true)
-        .not('barcode', 'is', null);
+        .not('barcode', 'is', null)
+        .limit(100); // Limit results for faster query
       
-      // Filter to find exact match in comma-separated barcodes
-      const matchedVariant = variantMatch?.find((v: any) => {
+      // Find matching variant
+      const matchedVariant = allVariants?.find((v: any) => {
         if (!v.barcode) return false;
         const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return barcodes.includes(barcode.toLowerCase());
+        return barcodes.includes(barcode);
       });
       
-      console.log('🎯 Variant match query result:', { 
-        found: matchedVariant ? 1 : 0, 
-        data: matchedVariant,
-        error: variantError 
-      });
-
       if (matchedVariant?.product) {
-        console.log('✅ Found variant match, adding directly to cart');
-        console.log('Matched variant:', matchedVariant.label, 'Barcode:', matchedVariant.barcode);
-        // Found variant with this barcode - add directly to cart with this variant selected
+        console.log('✅ Found variant match:', matchedVariant.label);
         onProductSelect({
           ...matchedVariant.product,
           price: matchedVariant.price,
@@ -239,57 +228,40 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         return;
       }
 
-      // Second priority: Check if barcode matches product's main barcode
-      // Fetch all products and filter in JS to support comma-separated barcodes
-      const { data: productMatch, error: productError } = await supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          barcode,
-          is_available,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode
-          )
-        `)
-        .eq('is_available', true)
-        .not('barcode', 'is', null);
-      
-      // Filter to find exact match in comma-separated barcodes
-      const matchedProduct = productMatch?.find((p: any) => {
-        if (!p.barcode) return false;
-        const barcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return barcodes.includes(barcode.toLowerCase());
-      });
-      
-      console.log('🎯 Product match query result:', { 
-        found: matchedProduct ? 1 : 0,
-        data: matchedProduct,
-        error: productError 
-      });
+      // If no variant match, check product barcodes
+      const matchedProduct = allVariants?.find((v: any) => {
+        const product = v.product;
+        if (!product.barcode) return false;
+        const productBarcodes = product.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return productBarcodes.includes(barcode);
+      })?.product;
 
       if (matchedProduct) {
-        console.log('✅ Found product match, adding to cart');
-        console.log('Product barcode:', matchedProduct.barcode);
-        // Found product barcode match - add with default variant if available
-        handleProductSelect(matchedProduct);
+        console.log('✅ Found product match:', matchedProduct.name);
+        
+        // If product has variants, select default or first available
+        if (matchedProduct.product_variants && matchedProduct.product_variants.length > 0) {
+          const availableVariants = matchedProduct.product_variants.filter((v: any) => v.is_available);
+          const defaultVariant = availableVariants.find((v: any) => v.is_default);
+          const selectedVariant = defaultVariant || availableVariants[0];
+          
+          if (selectedVariant) {
+            onProductSelect({
+              ...matchedProduct,
+              price: selectedVariant.price,
+              selectedVariant,
+            });
+          }
+        } else {
+          onProductSelect(matchedProduct);
+        }
+        setSearchTerm('');
         return;
       }
 
-      // No match found in products or variants - open assign barcode dialog
-      console.log('❌ No match found for barcode:', barcode);
-      setScannedBarcode(barcode);
-      setAssignBarcodeOpen(true);
+      console.log('❌ No barcode match found');
+      toast.error(`No product found with barcode: ${barcode}`);
+      setSearchTerm('');
     }
   };
 
