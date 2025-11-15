@@ -11,7 +11,10 @@ export const useAdminShortcuts = () => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       
-      if (isInput && !e.ctrlKey && !e.metaKey) {
+      // Allow F-keys to work even when focus is on input fields (POS shortcuts)
+      const isFunctionKey = e.key.startsWith('F') && e.key.length >= 2 && e.key.length <= 3;
+      
+      if (isInput && !e.ctrlKey && !e.metaKey && !isFunctionKey) {
         return;
       }
 

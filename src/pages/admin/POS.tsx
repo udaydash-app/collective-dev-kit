@@ -2253,32 +2253,20 @@ export default function POS() {
 
     // If shouldPrint is true, print directly to default printer after transaction is saved
     if (shouldPrint) {
-      // Wait for lastTransactionData to be set by handlePaymentConfirm
-      setTimeout(async () => {
+      // Wait for lastTransactionData to be set by handlePaymentConfirm, with retry logic
+      let retries = 0;
+      const maxRetries = 5;
+      const printInterval = setInterval(async () => {
+        retries++;
+        
         if (lastTransactionData) {
+          clearInterval(printInterval);
           await handleDirectPrintLastReceipt();
-        } else {
-          // Fallback: fetch and print the most recent transaction
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const { data: transaction } = await supabase
-              .from('pos_transactions')
-              .select('*')
-              .eq('cashier_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-
-            if (transaction) {
-              await handleDirectPrintLastReceipt();
-            }
-          } catch (error) {
-            console.error('Error printing receipt:', error);
-          }
+        } else if (retries >= maxRetries) {
+          clearInterval(printInterval);
+          toast.error('Failed to print receipt - transaction data not available');
         }
-      }, 1000);
+      }, 500);
     }
   };
 
