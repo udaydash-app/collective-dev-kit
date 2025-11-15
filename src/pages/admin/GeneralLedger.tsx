@@ -205,7 +205,50 @@ export default function GeneralLedger() {
           .eq('id', contactId)
           .maybeSingle();
         
-        const openingBalance = Number(contactData?.opening_balance || 0);
+        const contactOpeningBalance = Number(contactData?.opening_balance || 0);
+
+        // Calculate opening balance from transactions before start date for customer account
+        const { data: priorCustomerLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              entry_date,
+              status
+            )
+          `)
+          .eq('account_id', customerAccountId)
+          .eq('journal_entries.status', 'posted')
+          .lt('journal_entries.entry_date', startDate);
+
+        // Calculate opening balance from transactions before start date for supplier account
+        const { data: priorSupplierLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              entry_date,
+              status
+            )
+          `)
+          .eq('account_id', supplierAccountId)
+          .eq('journal_entries.status', 'posted')
+          .lt('journal_entries.entry_date', startDate);
+
+        // Calculate prior balances (receivable is debit-credit, payable is credit-debit)
+        const priorCustomerBalance = (priorCustomerLines || []).reduce((balance, line: any) => {
+          return balance + line.debit_amount - line.credit_amount;
+        }, 0);
+
+        const priorSupplierBalance = (priorSupplierLines || []).reduce((balance, line: any) => {
+          return balance + line.credit_amount - line.debit_amount;
+        }, 0);
+
+        // Opening balance is contact's opening balance + calculated prior transactions
+        // For unified view: receivable (positive) - payable (positive for supplier) = net receivable
+        const openingBalance = contactOpeningBalance + priorCustomerBalance - priorSupplierBalance;
         
         // Fetch current balances for both accounts
         const { data: customerAccount } = await supabase
@@ -317,6 +360,21 @@ export default function GeneralLedger() {
         .eq('id', selectedAccount)
         .maybeSingle();
 
+      // Calculate opening balance from transactions before start date
+      const { data: priorLines } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (
+            entry_date,
+            status
+          )
+        `)
+        .eq('account_id', selectedAccount)
+        .eq('journal_entries.status', 'posted')
+        .lt('journal_entries.entry_date', startDate);
+
       // Get opening balance from contact if this is a customer/supplier account
       const { data: contact } = await supabase
         .from('contacts')
@@ -324,7 +382,20 @@ export default function GeneralLedger() {
         .or(`customer_ledger_account_id.eq.${selectedAccount},supplier_ledger_account_id.eq.${selectedAccount}`)
         .maybeSingle();
       
-      const openingBalance = Number(contact?.opening_balance || 0);
+      const contactOpeningBalance = Number(contact?.opening_balance || 0);
+      
+      // Calculate balance from prior transactions
+      const priorBalance = (priorLines || []).reduce((balance, line: any) => {
+        const accountType = account?.account_type;
+        if (accountType === 'asset' || accountType === 'expense') {
+          return balance + line.debit_amount - line.credit_amount;
+        } else {
+          return balance + line.credit_amount - line.debit_amount;
+        }
+      }, 0);
+
+      // Opening balance is contact's opening balance + calculated prior transactions
+      const openingBalance = contactOpeningBalance + priorBalance;
 
       return { lines: sortedLines, account: { ...account, opening_balance: openingBalance } };
     },
