@@ -85,6 +85,8 @@ export default function Pricing() {
   const [selectedBill, setSelectedBill] = useState<string | null>(null);
   const [showImportConfirmDialog, setShowImportConfirmDialog] = useState(false);
   const [importPricesData, setImportPricesData] = useState<Array<{ product_id: string; product_name: string; price: number }>>([]);
+  const [selectedImportProducts, setSelectedImportProducts] = useState<Set<string>>(new Set());
+  const [selectAllImport, setSelectAllImport] = useState(true);
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -468,6 +470,8 @@ export default function Pricing() {
 
       // Store the prepared data and show confirmation dialog
       setImportPricesData(prices);
+      setSelectedImportProducts(new Set(prices.map(p => p.product_id)));
+      setSelectAllImport(true);
       setShowImportConfirmDialog(true);
     } catch (error: any) {
       console.error('Import bill error:', error);
@@ -477,16 +481,26 @@ export default function Pricing() {
 
   const handleConfirmImport = async () => {
     try {
+      // Filter to only include selected products
+      const selectedPrices = importPricesData.filter(item => 
+        selectedImportProducts.has(item.product_id)
+      );
+
+      if (selectedPrices.length === 0) {
+        toast.error('Please select at least one product to import');
+        return;
+      }
+
       // Remove product_name from the data before sending to mutation
-      const pricesToSave = importPricesData.map(({ product_id, price }) => ({
+      const pricesToSave = selectedPrices.map(({ product_id, price }) => ({
         product_id,
         price
       }));
       
       await updateCustomerPricesMutation.mutateAsync(pricesToSave);
       
-      const skippedCount = (customerBills?.find(b => b.id === selectedBill)?.items as any[])?.length - importPricesData.length || 0;
-      let message = `Imported ${importPricesData.length} product${importPricesData.length === 1 ? '' : 's'} from bill`;
+      const skippedCount = (customerBills?.find(b => b.id === selectedBill)?.items as any[])?.length - selectedPrices.length || 0;
+      let message = `Imported ${selectedPrices.length} product${selectedPrices.length === 1 ? '' : 's'} from bill`;
       if (skippedCount > 0) {
         message += ` (${skippedCount} skipped - special items or deleted products)`;
       }
@@ -1036,15 +1050,35 @@ export default function Pricing() {
       <AlertDialog open={showImportConfirmDialog} onOpenChange={setShowImportConfirmDialog}>
         <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Import Prices</AlertDialogTitle>
+            <AlertDialogTitle>Select Prices to Import</AlertDialogTitle>
             <AlertDialogDescription>
-              The following {importPricesData.length} product price{importPricesData.length === 1 ? '' : 's'} will be added or updated for {selectedCustomerData?.name}:
+              Select which product prices you want to import for {selectedCustomerData?.name}. Selected prices will be added or updated.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex-1 overflow-y-auto my-4">
+          <div className="px-6 py-2">
+            <div className="flex items-center gap-2 border rounded-lg px-4 py-2 bg-muted/50">
+              <Checkbox
+                id="select-all-import"
+                checked={selectAllImport}
+                onCheckedChange={(checked) => {
+                  setSelectAllImport(!!checked);
+                  if (checked) {
+                    setSelectedImportProducts(new Set(importPricesData.map(p => p.product_id)));
+                  } else {
+                    setSelectedImportProducts(new Set());
+                  }
+                }}
+              />
+              <Label htmlFor="select-all-import" className="cursor-pointer font-medium">
+                Select All ({importPricesData.length} products)
+              </Label>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">Import</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                 </TableRow>
@@ -1052,6 +1086,21 @@ export default function Pricing() {
               <TableBody>
                 {importPricesData.map((item) => (
                   <TableRow key={item.product_id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedImportProducts.has(item.product_id)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedImportProducts);
+                          if (checked) {
+                            newSet.add(item.product_id);
+                          } else {
+                            newSet.delete(item.product_id);
+                          }
+                          setSelectedImportProducts(newSet);
+                          setSelectAllImport(newSet.size === importPricesData.length);
+                        }}
+                      />
+                    </TableCell>
                     <TableCell>{item.product_name}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.price)}
@@ -1065,11 +1114,15 @@ export default function Pricing() {
             <AlertDialogCancel onClick={() => {
               setShowImportConfirmDialog(false);
               setImportPricesData([]);
+              setSelectedImportProducts(new Set());
             }}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmImport}>
-              Confirm Import
+            <AlertDialogAction 
+              onClick={handleConfirmImport}
+              disabled={selectedImportProducts.size === 0}
+            >
+              Import {selectedImportProducts.size > 0 ? `(${selectedImportProducts.size})` : ''} Selected
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
