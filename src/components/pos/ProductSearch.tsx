@@ -146,6 +146,11 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
 
   // Handle barcode scan from search field
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow F-keys to bubble up for POS shortcuts
+    if (e.key.startsWith('F') && e.key.length >= 2 && e.key.length <= 3) {
+      return;
+    }
+    
     // Handle arrow key navigation
     if (e.key === 'ArrowDown') {
       e.preventDefault();

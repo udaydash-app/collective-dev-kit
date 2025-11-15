@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface QuickPaymentDialogProps {
   isOpen: boolean;
@@ -10,6 +11,14 @@ interface QuickPaymentDialogProps {
 }
 
 export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod }: QuickPaymentDialogProps) => {
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isOpen && yesButtonRef.current) {
+      // Focus the "Yes" button when dialog opens
+      setTimeout(() => yesButtonRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
   const getPaymentMethodLabel = () => {
     switch (paymentMethod) {
       case 'cash':
@@ -44,6 +53,7 @@ export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod }
             No, Don't Print
           </Button>
           <Button
+            ref={yesButtonRef}
             variant="default"
             onClick={() => {
               onConfirm(true);
