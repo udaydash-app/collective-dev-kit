@@ -62,6 +62,7 @@ export default function ChartOfAccounts() {
     parent_account_id: string;
     description: string;
     is_active: boolean;
+    opening_balance: string;
   }>({
     account_code: '',
     account_name: '',
@@ -69,6 +70,7 @@ export default function ChartOfAccounts() {
     parent_account_id: '',
     description: '',
     is_active: true,
+    opening_balance: '',
   });
 
   const { data: accounts, isLoading } = useQuery({
@@ -141,6 +143,7 @@ export default function ChartOfAccounts() {
     const submitData = {
       ...formData,
       parent_account_id: formData.parent_account_id || null,
+      opening_balance: formData.opening_balance ? parseFloat(formData.opening_balance) : 0,
     };
 
     if (editingAccount) {
@@ -159,6 +162,7 @@ export default function ChartOfAccounts() {
       parent_account_id: account.parent_account_id || '',
       description: account.description || '',
       is_active: account.is_active,
+      opening_balance: (account as any).opening_balance?.toString() || '0',
     });
     setOpen(true);
   };
@@ -173,6 +177,7 @@ export default function ChartOfAccounts() {
       parent_account_id: '',
       description: '',
       is_active: true,
+      opening_balance: '',
     });
   };
 
@@ -327,6 +332,23 @@ export default function ChartOfAccounts() {
                     }
                     rows={3}
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="opening_balance">Opening Balance</Label>
+                  <Input
+                    id="opening_balance"
+                    type="number"
+                    step="0.01"
+                    value={formData.opening_balance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, opening_balance: e.target.value })
+                    }
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Starting balance for this account
+                  </p>
                 </div>
 
                 <div className="col-span-2">

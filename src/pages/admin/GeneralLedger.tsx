@@ -394,8 +394,11 @@ export default function GeneralLedger() {
         }
       }, 0);
 
-      // Opening balance is contact's opening balance + calculated prior transactions
-      const openingBalance = contactOpeningBalance + priorBalance;
+      // Get account's own opening balance
+      const accountOpeningBalance = Number(account?.opening_balance || 0);
+
+      // Opening balance is account's opening balance + contact opening balance (if applicable) + calculated prior transactions
+      const openingBalance = accountOpeningBalance + contactOpeningBalance + priorBalance;
 
       return { lines: sortedLines, account: { ...account, opening_balance: openingBalance } };
     },
