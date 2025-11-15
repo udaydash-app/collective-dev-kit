@@ -2066,71 +2066,27 @@ export default function POS() {
     
     setLastTransactionData(transactionDataPrep);
     
-    // Check if customer is selected and has custom prices or discounts
-    console.log('🔍 Customer check:', {
-      hasCustomer: !!selectedCustomer,
-      customerId: selectedCustomer?.id,
-      customerName: selectedCustomer?.name,
-      cartLength: cart.length,
-      cartItems: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        customPrice: item.customPrice,
-        itemDiscount: item.itemDiscount
-      })),
-      isLoadingTransaction
-    });
-    
+    // Check if customer is selected and has items with manually changed prices
     if (selectedCustomer) {
-      console.log('🔍 About to filter cart, cart length:', cart.length);
-      const itemsWithCustomPrices = cart.filter(item => {
-        // Exclude special items (combos, BOGOs, cart discounts)
-        const isSpecialItem = !item.productId || 
-                             item.id.startsWith('combo-') || 
-                             item.id.startsWith('bogo-') || 
-                             item.id.startsWith('multi-bogo-') ||
-                             item.id === 'cart-discount';
+      const itemsWithManualChanges = cart.filter(item => {
+        // Exclude special items
+        if (!item.productId || item.id.startsWith('combo-') || item.id.startsWith('bogo-') || 
+            item.id.startsWith('multi-bogo-') || item.id === 'cart-discount') {
+          return false;
+        }
         
-        console.log('🔍 Checking item:', {
-          name: item.name,
-          productId: item.productId,
-          price: item.price,
-          customPrice: item.customPrice,
-          itemDiscount: item.itemDiscount,
-          isSpecialItem
-        });
+        // Include items where price was manually changed (different from original product price)
+        // OR items that have a discount applied manually (not from automatic customer pricing)
+        const priceChanged = item.customPrice !== undefined && item.customPrice !== item.price;
+        const hasManualDiscount = item.itemDiscount !== undefined && item.itemDiscount > 0;
         
-        if (isSpecialItem) return false;
-        
-        // Check if item has custom price or discount
-        const hasCustomPrice = (item.customPrice !== undefined && item.customPrice !== item.price);
-        const hasDiscount = (item.itemDiscount !== undefined && item.itemDiscount > 0);
-        
-        console.log('🔍 Item pricing check:', {
-          name: item.name,
-          hasCustomPrice,
-          hasDiscount,
-          willInclude: hasCustomPrice || hasDiscount
-        });
-        
-        return hasCustomPrice || hasDiscount;
+        return priceChanged || hasManualDiscount;
       });
       
-      console.log('🔍 Items with custom prices:', {
-        count: itemsWithCustomPrices.length,
-        items: itemsWithCustomPrices.map(i => ({ name: i.name, customPrice: i.customPrice, itemDiscount: i.itemDiscount }))
-      });
-      
-      if (itemsWithCustomPrices.length > 0) {
-        console.log('✅ Opening CustomPriceDialog');
+      if (itemsWithManualChanges.length > 0) {
         setShowCustomPriceConfirm(true);
         return;
-      } else {
-        console.log('❌ No custom prices found, opening payment');
       }
-    } else {
-      console.log('❌ No customer selected, opening payment');
     }
     
     setShowPayment(true);
