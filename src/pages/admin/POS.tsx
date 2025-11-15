@@ -1473,15 +1473,11 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
-    console.log('Scanning barcode:', barcode);
-    
     // Try to find product by barcode in offline DB first (works both online and offline)
     try {
       const cachedProduct = await offlineDB.getProductByBarcode(barcode);
       
       if (cachedProduct) {
-        console.log('Found product in offline cache:', cachedProduct);
-        
         // Check if it has variants
         const availableVariants = cachedProduct.product_variants?.filter((v: any) => v.is_available) || [];
         
@@ -1526,7 +1522,7 @@ export default function POS() {
       return;
     }
     
-    // First, try to find a product variant with this barcode
+    // First, try to find a product variant with this barcode (optimized query)
     const { data: variantData, error: variantError } = await supabase
       .from('product_variants')
       .select(`
@@ -1549,13 +1545,11 @@ export default function POS() {
       `)
       .eq('barcode', barcode)
       .eq('is_available', true)
-      .maybeSingle();
-
-    console.log('Variant barcode scan result:', { variantData, variantError });
+      .limit(1)
+      .single();
 
     if (variantData && variantData.products) {
       // Found a variant with this barcode
-      console.log('Adding variant to cart:', variantData);
       const productToAdd = {
         ...variantData.products,
         price: variantData.price,
@@ -1565,7 +1559,7 @@ export default function POS() {
       return;
     }
 
-    // If no variant found, check main product barcode
+    // If no variant found, check main product barcode (optimized query)
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -1583,19 +1577,16 @@ export default function POS() {
       `)
       .eq('barcode', barcode)
       .eq('is_available', true)
-      .maybeSingle();
-
-    console.log('Product barcode scan result:', { data, error });
+      .limit(1)
+      .single();
 
     if (data) {
       // For barcode scans, add directly to cart with smart variant selection
       const availableVariants = data.product_variants?.filter((v: any) => v.is_available) || [];
-      console.log('Available variants:', availableVariants);
       
       if (availableVariants.length > 0) {
         // Prioritize default variant, otherwise use first available
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-        console.log('Adding variant to cart:', variantToAdd);
         const productToAdd = {
           ...data,
           price: variantToAdd.price,
@@ -1604,12 +1595,10 @@ export default function POS() {
         addToCartWithCustomPrice(productToAdd);
       } else {
         // No variants, use product price
-        console.log('Adding product without variants to cart');
         addToCartWithCustomPrice(data);
       }
     } else {
       // Product not found - open assign barcode dialog
-      console.log('Product not found for barcode:', barcode);
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
     }
