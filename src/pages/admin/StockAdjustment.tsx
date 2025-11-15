@@ -76,29 +76,42 @@ export default function StockAdjustment() {
 
   const updateStockMutation = useMutation({
     mutationFn: async ({ productId, variantId, systemStock, currentStock, unitCost, reason, key }: any) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const adjustmentQuantity = currentStock - systemStock;
+      console.log('=== updateStockMutation.mutationFn called ===');
+      console.log('Params:', { productId, variantId, systemStock, currentStock, unitCost, reason, key });
       
-      if (adjustmentQuantity === 0) return { key };
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('User:', user?.id);
+      
+      const adjustmentQuantity = currentStock - systemStock;
+      console.log('Adjustment Quantity:', adjustmentQuantity);
+      
+      if (adjustmentQuantity === 0) {
+        console.log('No adjustment needed');
+        return { key };
+      }
 
       if (variantId) {
-        // Update variant stock
-        const { error } = await supabase
+        console.log('Updating variant stock...');
+        const { data, error } = await supabase
           .from('product_variants')
           .update({ stock_quantity: currentStock })
-          .eq('id', variantId);
+          .eq('id', variantId)
+          .select();
 
+        console.log('Variant update result:', { data, error });
         if (error) {
           console.error('Variant update error:', error);
           throw error;
         }
       } else {
-        // Update product stock
-        const { error } = await supabase
+        console.log('Updating product stock...');
+        const { data, error } = await supabase
           .from('products')
           .update({ stock_quantity: currentStock })
-          .eq('id', productId);
+          .eq('id', productId)
+          .select();
 
+        console.log('Product update result:', { data, error });
         if (error) {
           console.error('Product update error:', error);
           throw error;
@@ -106,7 +119,8 @@ export default function StockAdjustment() {
       }
 
       // Log the adjustment with FIFO tracking
-      const { error: logError } = await supabase
+      console.log('Inserting stock adjustment log...');
+      const { data: logData, error: logError } = await supabase
         .from('stock_adjustments')
         .insert({
           product_id: productId,
@@ -118,16 +132,22 @@ export default function StockAdjustment() {
           reason: reason || 'Physical stock count adjustment',
           adjusted_by: user?.id,
           store_id: selectedStoreId,
-        });
+        })
+        .select();
 
+      console.log('Stock adjustment log result:', { logData, logError });
       if (logError) {
         console.error('Stock adjustment log error:', logError);
         throw logError;
       }
 
+      console.log('=== Stock update completed successfully ===');
       return { key };
     },
     onSuccess: (data) => {
+      console.log('=== updateStockMutation.onSuccess ===');
+      console.log('Success data:', data);
+      
       if (data?.key) {
         // Clear inputs only after successful save
         setStockInputs(prev => ({ ...prev, [data.key]: '' }));
@@ -139,7 +159,8 @@ export default function StockAdjustment() {
       toast.success('Stock adjusted successfully');
     },
     onError: (error: any) => {
-      console.error('Stock adjustment error:', error);
+      console.error('=== updateStockMutation.onError ===');
+      console.error('Error:', error);
       toast.error('Failed to adjust stock: ' + error.message);
     },
   });
@@ -259,28 +280,58 @@ export default function StockAdjustment() {
   };
 
   const handleStockUpdate = (key: string, systemStock: number, productId: string, variantId?: string) => {
+    console.log('=== handleStockUpdate called ===');
+    console.log('Key:', key);
+    console.log('System Stock:', systemStock);
+    console.log('Product ID:', productId);
+    console.log('Variant ID:', variantId);
+    
     const inputValue = stockInputs[key];
-    if (!inputValue || inputValue === '') return;
+    console.log('Input Value:', inputValue);
+    
+    if (!inputValue || inputValue === '') {
+      console.log('No input value, returning');
+      return;
+    }
 
     const currentStock = parseInt(inputValue);
+    console.log('Parsed Current Stock:', currentStock);
+    
     if (isNaN(currentStock) || currentStock < 0) {
+      console.log('Invalid quantity');
       toast.error('Please enter a valid quantity');
       return;
     }
 
     if (currentStock === systemStock) {
+      console.log('No change in stock, returning');
       return;
     }
 
     const difference = currentStock - systemStock;
     const unitCost = parseFloat(costInputs[key] || '0');
     const reason = reasonInputs[key] || 'count';
+    
+    console.log('Difference:', difference);
+    console.log('Unit Cost:', unitCost);
+    console.log('Reason:', reason);
 
     // For stock increases, require cost input
     if (difference > 0 && (!costInputs[key] || unitCost <= 0)) {
+      console.log('Stock increase requires cost input');
       toast.error('Please enter unit cost for stock increases');
       return;
     }
+
+    console.log('Calling mutation with:', {
+      productId,
+      variantId,
+      systemStock,
+      currentStock,
+      unitCost,
+      reason,
+      key,
+    });
 
     updateStockMutation.mutate({
       productId,
