@@ -123,6 +123,7 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
       toast.success('Stock adjusted successfully with FIFO tracking');
     },
     onError: (error: any) => {
@@ -152,6 +153,7 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
       toast.success('Barcode updated successfully');
     },
     onError: (error: any) => {
@@ -170,6 +172,7 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
       toast.success('Variant label updated successfully');
     },
     onError: (error: any) => {
@@ -195,6 +198,7 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
       toast.success('Variant created successfully');
     },
     onError: (error: any) => {
@@ -213,6 +217,7 @@ export default function StockAdjustment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
       toast.success('Category updated successfully');
     },
     onError: (error: any) => {
