@@ -1919,6 +1919,10 @@ export default function POS() {
           toast.error('Cart is empty');
           return;
         }
+        if (!selectedCustomer) {
+          toast.error('Please select a customer first');
+          return;
+        }
         setQuickPaymentMethod('credit');
         setShowQuickPayment(true);
       },
