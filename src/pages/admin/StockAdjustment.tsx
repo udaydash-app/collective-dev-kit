@@ -79,7 +79,7 @@ export default function StockAdjustment() {
       const { data: { user } } = await supabase.auth.getUser();
       const adjustmentQuantity = currentStock - systemStock;
       
-      if (adjustmentQuantity === 0) return;
+      if (adjustmentQuantity === 0) return { key };
 
       if (variantId) {
         // Update variant stock
@@ -88,7 +88,10 @@ export default function StockAdjustment() {
           .update({ stock_quantity: currentStock })
           .eq('id', variantId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Variant update error:', error);
+          throw error;
+        }
       } else {
         // Update product stock
         const { error } = await supabase
@@ -96,7 +99,10 @@ export default function StockAdjustment() {
           .update({ stock_quantity: currentStock })
           .eq('id', productId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Product update error:', error);
+          throw error;
+        }
       }
 
       // Log the adjustment with FIFO tracking
@@ -114,19 +120,26 @@ export default function StockAdjustment() {
           store_id: selectedStoreId,
         });
 
-      if (logError) throw logError;
+      if (logError) {
+        console.error('Stock adjustment log error:', logError);
+        throw logError;
+      }
 
-      // Clear inputs
-      setStockInputs(prev => ({ ...prev, [key]: '' }));
-      setCostInputs(prev => ({ ...prev, [key]: '' }));
-      setReasonInputs(prev => ({ ...prev, [key]: 'count' }));
+      return { key };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.key) {
+        // Clear inputs only after successful save
+        setStockInputs(prev => ({ ...prev, [data.key]: '' }));
+        setCostInputs(prev => ({ ...prev, [data.key]: '' }));
+        setReasonInputs(prev => ({ ...prev, [data.key]: '' }));
+      }
       queryClient.invalidateQueries({ queryKey: ['stock-products'] });
       queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
-      toast.success('Stock adjusted successfully with FIFO tracking');
+      toast.success('Stock adjusted successfully');
     },
     onError: (error: any) => {
+      console.error('Stock adjustment error:', error);
       toast.error('Failed to adjust stock: ' + error.message);
     },
   });
