@@ -11,8 +11,10 @@ export interface KioskReceiptData {
   date: Date;
   items: Array<{
     name: string;
+    displayName?: string;
     quantity: number;
     price: number;
+    customPrice?: number;
     itemDiscount?: number;
   }>;
   subtotal: number;
@@ -123,144 +125,156 @@ class KioskPrintService {
   }
 
   private generateReceiptHTML(data: KioskReceiptData): string {
-    const formatCurrency = (amount: number) => {
-      return amount.toLocaleString('fr-CI', { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 0 
-      }) + ' FCFA';
-    };
-
-    const itemsHTML = data.items.map(item => `
-      <div style="margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between;">
-          <span style="flex: 1;">${item.name}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px;">
-          <span>${item.quantity} x ${formatCurrency(item.price)}</span>
-          <span>${formatCurrency(item.price * item.quantity)}</span>
-        </div>
-        ${item.itemDiscount && item.itemDiscount > 0 ? `
-          <div style="display: flex; justify-content: space-between; font-size: 11px;">
-            <span style="margin-left: 8px;">Item Discount:</span>
-            <span>-${formatCurrency(item.itemDiscount)}</span>
-          </div>
-        ` : ''}
-      </div>
-    `).join('');
+    const formatPrice = (price: number) => price.toLocaleString('fr-CI', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }) + ' FCFA';
 
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <meta charset="utf-8">
           <title>Receipt - ${data.transactionNumber}</title>
           <style>
-            @page {
-              size: 80mm auto;
-              margin: 0;
-            }
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
             body {
-              font-family: 'Courier New', monospace;
+              margin: 0;
+              padding: 20px;
+              font-family: monospace;
               font-size: 12px;
-              line-height: 1.4;
-              color: #000;
-              background: #fff;
+            }
+            .receipt {
               width: 80mm;
-              padding: 4mm;
+              margin: 0 auto;
+              background: white;
+              color: black;
             }
-            .center {
-              text-align: center;
-            }
-            .bold {
-              font-weight: bold;
-            }
-            .large {
-              font-size: 16px;
-            }
-            .small {
-              font-size: 10px;
-            }
-            .border-top {
-              border-top: 1px dashed #000;
-              padding-top: 4px;
-            }
-            .border-bottom {
-              border-bottom: 1px dashed #000;
-              padding-bottom: 4px;
-            }
-            .mb-2 {
-              margin-bottom: 8px;
-            }
-            .mt-2 {
-              margin-top: 8px;
-            }
-            img {
-              max-height: 40px;
-              max-width: 200px;
-            }
+            .text-center { text-align: center; }
+            .text-xs { font-size: 10px; }
+            .text-sm { font-size: 11px; }
+            .text-lg { font-size: 14px; }
+            .text-xl { font-size: 16px; }
+            .font-bold { font-weight: bold; }
+            .mb-1 { margin-bottom: 4px; }
+            .mb-2 { margin-bottom: 8px; }
+            .mb-4 { margin-bottom: 16px; }
+            .mt-2 { margin-top: 8px; }
+            .py-2 { padding-top: 8px; padding-bottom: 8px; }
+            .pt-1 { padding-top: 4px; }
+            .pt-2 { padding-top: 8px; }
+            .border-t { border-top: 1px solid black; }
+            .border-b { border-bottom: 1px solid black; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .justify-center { justify-content: center; }
+            .items-center { align-items: center; }
+            .flex-1 { flex: 1; }
+            .space-y-1 > * + * { margin-top: 4px; }
+            img { max-width: 100%; height: auto; }
             @media print {
-              body {
-                width: 80mm;
-                margin: 0;
-                padding: 2mm;
-              }
+              body { padding: 0; }
             }
           </style>
         </head>
         <body>
-          <div class="center mb-2">
-            ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="mb-2">` : ''}
-            <div class="large bold">${data.storeName}</div>
-            <div class="small">Fresh groceries delivered to your doorstep</div>
-            <div class="small mt-2">Transaction: ${data.transactionNumber}</div>
-            <div class="small">${formatDateTime(data.date)}</div>
-            ${data.cashierName ? `<div class="small">Cashier: ${data.cashierName}</div>` : ''}
-            ${data.customerName ? `<div class="small">Customer: ${data.customerName}</div>` : ''}
-          </div>
-
-          <div class="border-top border-bottom mb-2">
-            ${itemsHTML}
-          </div>
-
-          <div class="mb-2">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Subtotal:</span>
-              <span>${formatCurrency(data.subtotal)}</span>
+          <div class="receipt">
+            <div class="text-center mb-4">
+              ${data.logoUrl ? `
+                <div class="flex justify-center mb-2">
+                  <img src="${data.logoUrl}" alt="Company Logo" style="height: 120px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
+                </div>
+              ` : ''}
+              <h1 class="text-xl font-bold">${data.storeName || 'Global Market'}</h1>
+              <p class="text-xs">Fresh groceries delivered to your doorstep</p>
+              <p class="text-xs mt-2">Transaction: ${data.transactionNumber}</p>
+              <p class="text-xs">${new Date(data.date).toLocaleString()}</p>
+              ${data.cashierName ? `<p class="text-xs">Cashier: ${data.cashierName}</p>` : ''}
+              ${data.customerName && data.customerName !== 'Walk-in Customer' ? `<p class="text-xs">Customer: ${data.customerName}</p>` : ''}
+              ${data.customerBalance !== undefined && data.customerName && data.customerName !== 'Walk-in Customer' ? `<p class="text-xs font-bold mt-2">Customer Balance: ${formatPrice(data.customerBalance)}</p>` : ''}
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Tax (15%):</span>
-              <span>${formatCurrency(data.tax)}</span>
+
+            <div class="border-t border-b py-2 mb-2">
+              ${data.items.map(item => {
+                const effectivePrice = item.customPrice ?? item.price;
+                const itemDiscount = item.itemDiscount ? item.itemDiscount * item.quantity : 0;
+                return `
+                <div class="mb-2">
+                  <div class="flex justify-between">
+                    <span class="flex-1">${item.displayName ?? item.name}</span>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span>${item.quantity} x ${formatPrice(effectivePrice)}</span>
+                    <span>${formatPrice(effectivePrice * item.quantity)}</span>
+                  </div>
+                  ${itemDiscount > 0 ? `
+                  <div class="flex justify-between text-xs" style="margin-left: 8px;">
+                    <span>Item Discount:</span>
+                    <span>-${formatPrice(itemDiscount)}</span>
+                  </div>
+                  ` : ''}
+                </div>
+              `}).join('')}
             </div>
-            ${data.discount && data.discount > 0 ? `
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span>Discount:</span>
-                <span>-${formatCurrency(data.discount)}</span>
+
+            <div class="space-y-1 mb-2">
+              <div class="flex justify-between">
+                <span>Subtotal:</span>
+                <span>${formatPrice(data.subtotal)}</span>
               </div>
-            ` : ''}
-            <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 4px; font-size: 16px;" class="bold">
-              <span>TOTAL:</span>
-              <span>${formatCurrency(data.total)}</span>
+              <div class="flex justify-between">
+                <span>Tax (15%):</span>
+                <span>${formatPrice(data.tax)}</span>
+              </div>
+              ${data.discount && data.discount > 0 ? `
+                <div class="flex justify-between">
+                  <span>Discount:</span>
+                  <span>-${formatPrice(data.discount)}</span>
+                </div>
+              ` : ''}
+              <div class="flex justify-between font-bold text-lg border-t pt-1">
+                <span>TOTAL:</span>
+                <span>${formatPrice(data.total)}</span>
+              </div>
+            </div>
+
+            <div class="border-t pt-2 mb-4">
+              <p class="text-xs">Payment Method: ${data.paymentMethod.toUpperCase()}</p>
+            </div>
+
+            <div class="text-center text-xs">
+              <p>Thank you for shopping with us!</p>
+              ${data.supportPhone ? `<p class="mt-2">For support: ${data.supportPhone}</p>` : ''}
             </div>
           </div>
-
-          <div class="border-top mb-2">
-            <div class="small">Payment Method: ${data.paymentMethod.toUpperCase()}</div>
-            ${data.customerName && data.customerName !== 'Walk-in Customer' && data.customerBalance !== undefined ? `
-              <div class="mt-3 border-top-dashed">
-                <div class="small bold">Customer Balance: ${formatCurrency(data.customerBalance)}</div>
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="center small">
-            <div>Thank you for shopping with us!</div>
-            ${data.supportPhone ? `<div class="mt-2">For support: ${data.supportPhone}</div>` : ''}
-          </div>
+          <script>
+            window.onload = function() {
+              ${data.logoUrl ? `
+                // Wait for logo to load before printing
+                var logo = document.getElementById('companyLogo');
+                if (logo) {
+                  if (logo.complete) {
+                    window.print();
+                    setTimeout(() => window.close(), 100);
+                  } else {
+                    logo.onload = function() {
+                      window.print();
+                      setTimeout(() => window.close(), 100);
+                    };
+                    logo.onerror = function() {
+                      // Print anyway if logo fails to load
+                      window.print();
+                      setTimeout(() => window.close(), 100);
+                    };
+                  }
+                } else {
+                  window.print();
+                  setTimeout(() => window.close(), 100);
+                }
+              ` : `
+                window.print();
+                setTimeout(() => window.close(), 100);
+              `}
+            };
+          </script>
         </body>
       </html>
     `;
