@@ -219,7 +219,11 @@ if (autoUpdater) {
           </html>
         `);
 
-        autoUpdater.downloadUpdate();
+        // Wait for the window to finish loading before starting the download
+        downloadProgressWindow.webContents.once('did-finish-load', () => {
+          console.log('[AUTO-UPDATE] Progress dialog loaded, starting download...');
+          autoUpdater.downloadUpdate();
+        });
       }
     });
   });
@@ -278,6 +282,12 @@ if (autoUpdater) {
     console.error('[AUTO-UPDATE] Error occurred:', err.message);
     console.error('[AUTO-UPDATE] Error code:', err.code);
     console.error('[AUTO-UPDATE] Full error:', err);
+    
+    // Close progress window if it's open
+    if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
+      downloadProgressWindow.close();
+      downloadProgressWindow = null;
+    }
     
     // If it's a 404, it means no releases exist yet
     if (err.message.includes('404')) {
