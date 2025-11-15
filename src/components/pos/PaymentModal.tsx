@@ -16,7 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { kioskPrintService } from '@/lib/kioskPrint';
+import { useReactToPrint } from 'react-to-print';
+import { Receipt } from './Receipt';
 
 interface Payment {
   id: string;
@@ -314,45 +315,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     try {
       await onConfirm(payments, totalPaid);
       
-      // After payment completion, print using kiosk print service
-      console.log('🖨️ Payment completed, starting kiosk print...');
-      
-      if (transactionData) {
-        console.log('🖨️ Transaction data available, calling kioskPrintService...');
-        
-        try {
-          await kioskPrintService.printReceipt({
-            storeName: transactionData.storeName || 'Global Market',
-            transactionNumber: transactionData.transactionNumber,
-            date: new Date(),
-            items: transactionData.items.map((item: any) => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              itemDiscount: 0
-            })),
-            subtotal: transactionData.subtotal,
-            tax: transactionData.tax || 0,
-            discount: transactionData.discount || 0,
-            total: transactionData.total,
-            paymentMethod: payments.map(p => p.method).join(', '),
-            cashierName: transactionData.cashierName,
-            customerName: selectedCustomerData?.name,
-            logoUrl: transactionData.logoUrl,
-            supportPhone: transactionData.supportPhone,
-            customerBalance: customerBalance
-          });
-          
-          console.log('✅ Kiosk print completed successfully');
-        } catch (printError) {
-          console.error('❌ Kiosk print failed:', printError);
-          toast.error('Failed to print receipt', {
-            description: 'The transaction was saved but printing failed'
-          });
-        }
-      } else {
-        console.warn('⚠️ No transaction data available for printing');
-      }
+      // After payment completion, print using react-to-print (same as order management)
+      console.log('🖨️ Payment completed, triggering print...');
+      setTimeout(() => {
+        handlePrintReceipt();
+      }, 100);
       
       // Reset and close
       setPayments([{ id: '1', method: 'cash', amount: total }]);
