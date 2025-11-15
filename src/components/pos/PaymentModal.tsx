@@ -327,9 +327,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             date: new Date(),
             items: transactionData.items.map((item: any) => ({
               name: item.name,
+              displayName: item.displayName,
               quantity: item.quantity,
               price: item.price,
-              itemDiscount: 0
+              customPrice: item.customPrice,
+              itemDiscount: item.itemDiscount || 0
             })),
             subtotal: transactionData.subtotal,
             tax: transactionData.tax || 0,
