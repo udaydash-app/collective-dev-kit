@@ -207,48 +207,60 @@ export default function GeneralLedger() {
         
         const contactOpeningBalance = Number(contactData?.opening_balance || 0);
 
-        // Calculate opening balance from transactions before start date for customer account
-        const { data: priorCustomerLines } = await supabase
+        // Fetch lines from both customer and supplier accounts (including prior period)
+        const { data: customerLines } = await supabase
           .from('journal_entry_lines')
           .select(`
-            debit_amount,
-            credit_amount,
+            *,
             journal_entries!inner (
+              entry_number,
               entry_date,
+              description,
+              reference,
               status
             )
           `)
           .eq('account_id', customerAccountId)
           .eq('journal_entries.status', 'posted')
-          .lt('journal_entries.entry_date', startDate);
+          .lt('journal_entries.entry_date', endDate);
 
-        // Calculate opening balance from transactions before start date for supplier account
-        const { data: priorSupplierLines } = await supabase
+        const { data: supplierLines } = await supabase
           .from('journal_entry_lines')
           .select(`
-            debit_amount,
-            credit_amount,
+            *,
             journal_entries!inner (
+              entry_number,
               entry_date,
+              description,
+              reference,
               status
             )
           `)
           .eq('account_id', supplierAccountId)
           .eq('journal_entries.status', 'posted')
-          .lt('journal_entries.entry_date', startDate);
+          .lt('journal_entries.entry_date', endDate);
 
-        // Calculate prior balances (receivable is debit-credit, payable is credit-debit)
-        const priorCustomerBalance = (priorCustomerLines || []).reduce((balance, line: any) => {
-          return balance + line.debit_amount - line.credit_amount;
-        }, 0);
+        // Separate prior period and current period lines
+        const priorCustomerLines = customerLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
+        const currentCustomerLines = customerLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
+        
+        const priorSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
+        const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
-        const priorSupplierBalance = (priorSupplierLines || []).reduce((balance, line: any) => {
-          return balance + line.credit_amount - line.debit_amount;
-        }, 0);
+        // A/R = Positive opening balance + all debits from customer account
+        const arOpeningBalance = contactOpeningBalance > 0 ? contactOpeningBalance : 0;
+        const priorARDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const priorARCredits = priorCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const arBalance = arOpeningBalance + priorARDebits - priorARCredits;
 
-        // Opening balance is contact's opening balance + calculated prior transactions
-        // For unified view: receivable (positive) - payable (positive for supplier) = net receivable
-        const openingBalance = contactOpeningBalance + priorCustomerBalance - priorSupplierBalance;
+        // A/P = Negative opening balance (as positive) + all credits from supplier account  
+        const apOpeningBalance = contactOpeningBalance < 0 ? Math.abs(contactOpeningBalance) : 0;
+        const priorAPCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const priorAPDebits = priorSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const apBalance = apOpeningBalance + priorAPCredits - priorAPDebits;
+
+        // Opening balance = A/R - A/P
+        const openingBalance = arBalance - apBalance;
         
         // Fetch current balances for both accounts
         const { data: customerAccount } = await supabase
@@ -265,49 +277,11 @@ export default function GeneralLedger() {
         
         const customerBalance = Number(customerAccount?.current_balance || 0);
         const supplierBalance = Number(supplierAccount?.current_balance || 0);
-        // Net position: Customer balance (what they owe us) minus Supplier balance (what we owe them)
         const unifiedBalance = customerBalance - supplierBalance;
-        
-        // Fetch lines from both customer and supplier accounts
-        const { data: customerLines, error: customerError } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            *,
-            journal_entries!inner (
-              entry_number,
-              entry_date,
-              description,
-              reference,
-              status
-            )
-          `)
-          .eq('account_id', customerAccountId)
-          .eq('journal_entries.status', 'posted')
-          .gte('journal_entries.entry_date', startDate)
-          .lte('journal_entries.entry_date', endDate);
-
-        const { data: supplierLines, error: supplierError } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            *,
-            journal_entries!inner (
-              entry_number,
-              entry_date,
-              description,
-              reference,
-              status
-            )
-          `)
-          .eq('account_id', supplierAccountId)
-          .eq('journal_entries.status', 'posted')
-          .gte('journal_entries.entry_date', startDate)
-          .lte('journal_entries.entry_date', endDate);
-
-        if (customerError || supplierError) throw customerError || supplierError;
 
         // Mark lines with their source type
-        const markedCustomerLines = customerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
-        const markedSupplierLines = supplierLines?.map(line => ({ ...line, sourceType: 'payable' })) || [];
+        const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
+        const markedSupplierLines = currentSupplierLines?.map(line => ({ ...line, sourceType: 'payable' })) || [];
         
         // Combine and sort all lines
         const allLines = [...markedCustomerLines, ...markedSupplierLines].sort((a, b) => 
