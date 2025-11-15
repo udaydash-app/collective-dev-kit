@@ -287,7 +287,9 @@ export default function GeneralLedger() {
             current_balance: unifiedBalance,
             customer_balance: currentAR,
             supplier_balance: currentAP,
-            opening_balance: openingBalance
+            opening_balance: openingBalance,
+            total_ar_debits: allARDebits,
+            total_ap_credits: allAPCredits
           } 
         };
       }
@@ -425,15 +427,22 @@ export default function GeneralLedger() {
 
   const ledgerEntries = calculateRunningBalance();
 
-  const totalDebit = (ledgerData?.lines as any[])?.reduce(
-    (sum: number, line: any) => sum + (line.debit_amount || 0),
-    0
-  ) || 0;
+  // For unified views, use the totals from A/R and A/P calculations
+  const isUnifiedView = (ledgerData?.account as any)?.isUnified;
+  
+  const totalDebit = isUnifiedView 
+    ? ((ledgerData?.account as any)?.total_ar_debits || 0)
+    : ((ledgerData?.lines as any[])?.reduce(
+        (sum: number, line: any) => sum + (line.debit_amount || 0),
+        0
+      ) || 0);
 
-  const totalCredit = (ledgerData?.lines as any[])?.reduce(
-    (sum: number, line: any) => sum + (line.credit_amount || 0),
-    0
-  ) || 0;
+  const totalCredit = isUnifiedView
+    ? ((ledgerData?.account as any)?.total_ap_credits || 0)
+    : ((ledgerData?.lines as any[])?.reduce(
+        (sum: number, line: any) => sum + (line.credit_amount || 0),
+        0
+      ) || 0);
 
   const netChange = totalDebit - totalCredit;
 
