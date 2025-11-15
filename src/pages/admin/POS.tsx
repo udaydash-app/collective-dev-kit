@@ -97,6 +97,7 @@ export default function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerPrices, setCustomerPrices] = useState<Record<string, number>>({});
   const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
+  const [isLoadingTransaction, setIsLoadingTransaction] = useState(false);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showQuickPayment, setShowQuickPayment] = useState(false);
@@ -328,6 +329,9 @@ export default function POS() {
 
   const loadEditOrderToPOS = async (editOrderId: string) => {
     try {
+      // Set flag to prevent price re-application
+      setIsLoadingTransaction(true);
+      
       // Get order data from localStorage
       const storedData = localStorage.getItem('pos-edit-order');
       if (!storedData) {
@@ -442,6 +446,8 @@ export default function POS() {
       navigate('/admin/pos', { replace: true });
     } finally {
       setIsLoadingOrder(false);
+      // Clear loading flag after a delay to ensure customer price fetching is skipped
+      setTimeout(() => setIsLoadingTransaction(false), 500);
     }
   };
 
@@ -1695,6 +1701,12 @@ export default function POS() {
       
       setPrevCustomerId(currentCustomerId);
       
+      // Don't reset or apply prices when loading an existing transaction
+      if (isLoadingTransaction) {
+        console.log('⏭️ Skipping price application - loading existing transaction');
+        return;
+      }
+      
       // Reset all cart items to retail price when customer changes
       cart.forEach((item) => {
         if (item.itemDiscount && item.itemDiscount > 0) {
@@ -1737,6 +1749,12 @@ export default function POS() {
           // Small delay to ensure cart is updated
           setTimeout(() => {
             cart.forEach((cartItem) => {
+              // Skip items that already have custom prices or discounts
+              if (cartItem.customPrice || (cartItem.itemDiscount && cartItem.itemDiscount > 0)) {
+                console.log('⏭️ Skipping item - already has custom price/discount:', cartItem.id);
+                return;
+              }
+              
               // Use the base productId stored in cart item
               const customPrice = pricesMap[cartItem.productId];
               
@@ -1771,7 +1789,7 @@ export default function POS() {
     };
 
     fetchCustomerPrices();
-  }, [selectedCustomer?.id]);
+  }, [selectedCustomer?.id, isLoadingTransaction]);
 
   // Auto-select newly created customer from Contacts page
   useEffect(() => {
@@ -2742,6 +2760,9 @@ export default function POS() {
   };
 
   const handleRecallTicket = (ticket: any) => {
+    // Set flag to prevent price re-application
+    setIsLoadingTransaction(true);
+    
     // Close dialog
     setShowHoldTicket(false);
     
@@ -2812,6 +2833,9 @@ export default function POS() {
       }
       
       toast.success(`Ticket "${ticket.name}" recalled`);
+      
+      // Clear loading flag after items are loaded
+      setTimeout(() => setIsLoadingTransaction(false), 300);
     }, 100);
   };
 
