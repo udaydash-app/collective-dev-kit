@@ -83,6 +83,7 @@ import { UpdateButton } from '@/components/UpdateButton';
 import { APP_VERSION } from '@/config/version';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardBadge } from '@/components/ui/keyboard-badge';
+import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -98,6 +99,8 @@ export default function POS() {
   const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showQuickPayment, setShowQuickPayment] = useState(false);
+  const [quickPaymentMethod, setQuickPaymentMethod] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
@@ -1909,11 +1912,42 @@ export default function POS() {
     },
     {
       key: 'F2',
-      description: 'Cash Out',
-      action: () => setShowCashOut(true),
+      description: 'Quick Cash Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('cash');
+        setShowQuickPayment(true);
+      },
     },
     {
       key: 'F3',
+      description: 'Quick Credit Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('credit');
+        setShowQuickPayment(true);
+      },
+    },
+    {
+      key: 'F4',
+      description: 'Quick Mobile Money Payment',
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('mobile_money');
+        setShowQuickPayment(true);
+      },
+    },
+    {
+      key: 'F5',
       description: 'Hold Ticket',
       action: () => {
         if (cart.length > 0) {
@@ -1924,7 +1958,7 @@ export default function POS() {
       },
     },
     {
-      key: 'F4',
+      key: 'F6',
       description: 'Recall Held Ticket',
       action: () => {
         if (heldTickets.length > 0) {
@@ -1973,6 +2007,7 @@ export default function POS() {
         setVariantSelectorOpen(false);
         setAssignBarcodeOpen(false);
         setShowCustomPriceConfirm(false);
+        setShowQuickPayment(false);
       },
       preventDefault: false,
     },
@@ -2199,6 +2234,58 @@ export default function POS() {
       queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['session-cash-journal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['session-mobile-money-journal-entries-v2'] });
+    }
+  };
+
+  const handleQuickPayment = async (shouldPrint: boolean) => {
+    if (!selectedStoreId) {
+      toast.error('Please select a store');
+      return;
+    }
+
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return;
+    }
+
+    // Create payment object with the selected method and full total
+    const payment = {
+      id: '1',
+      method: quickPaymentMethod,
+      amount: total
+    };
+
+    // Process the transaction
+    await handlePaymentConfirm([payment], total);
+
+    // If shouldPrint is true, print directly to default printer after transaction is saved
+    if (shouldPrint) {
+      // Wait for lastTransactionData to be set by handlePaymentConfirm
+      setTimeout(async () => {
+        if (lastTransactionData) {
+          await handleDirectPrintLastReceipt();
+        } else {
+          // Fallback: fetch and print the most recent transaction
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: transaction } = await supabase
+              .from('pos_transactions')
+              .select('*')
+              .eq('cashier_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (transaction) {
+              await handleDirectPrintLastReceipt();
+            }
+          } catch (error) {
+            console.error('Error printing receipt:', error);
+          }
+        }
+      }, 1000);
     }
   };
 
@@ -3573,6 +3660,13 @@ export default function POS() {
         onConfirm={handlePaymentConfirm}
         selectedCustomer={selectedCustomer}
         transactionData={lastTransactionData}
+      />
+
+      <QuickPaymentDialog
+        isOpen={showQuickPayment}
+        onClose={() => setShowQuickPayment(false)}
+        onConfirm={handleQuickPayment}
+        paymentMethod={quickPaymentMethod}
       />
 
       <VariantSelector
