@@ -171,67 +171,12 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         return;
       }
       
-      // Otherwise, treat as barcode scan - OPTIMIZED VERSION
+      // Otherwise, treat as barcode scan
       const barcode = searchTerm.trim().toLowerCase();
       
       console.log('🔍 Scanning barcode:', barcode);
       
-      // Check product barcodes directly first
-      const { data: directProducts } = await supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          barcode,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode
-          )
-        `)
-        .eq('is_available', true)
-        .not('barcode', 'is', null)
-        .limit(100);
-
-      // Find direct product barcode match
-      const matchedDirectProduct = directProducts?.find((p: any) => {
-        if (!p.barcode) return false;
-        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return productBarcodes.includes(barcode);
-      });
-
-      if (matchedDirectProduct) {
-        console.log('✅ Found direct product match:', matchedDirectProduct.name);
-        
-        // If product has variants, select default or first available
-        if (matchedDirectProduct.product_variants && matchedDirectProduct.product_variants.length > 0) {
-          const availableVariants = matchedDirectProduct.product_variants.filter((v: any) => v.is_available);
-          const defaultVariant = availableVariants.find((v: any) => v.is_default);
-          const selectedVariant = defaultVariant || availableVariants[0];
-          
-          if (selectedVariant) {
-            onProductSelect({
-              ...matchedDirectProduct,
-              price: selectedVariant.price,
-              selectedVariant,
-            });
-          }
-        } else {
-          onProductSelect(matchedDirectProduct);
-        }
-        setSearchTerm('');
-        return;
-      }
-      
-      // Check variant barcodes
+      // Step 1: Check variant barcodes first
       const { data: allVariants } = await supabase
         .from('product_variants')
         .select(`
@@ -282,7 +227,63 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         setSearchTerm('');
         return;
       }
+      
+      // Step 2: Check main product barcodes
+      const { data: directProducts } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          price,
+          barcode,
+          stock_quantity,
+          cost_price,
+          product_variants (
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            is_available,
+            is_default,
+            barcode
+          )
+        `)
+        .eq('is_available', true)
+        .not('barcode', 'is', null)
+        .limit(100);
 
+      // Find direct product barcode match
+      const matchedDirectProduct = directProducts?.find((p: any) => {
+        if (!p.barcode) return false;
+        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return productBarcodes.includes(barcode);
+      });
+
+      if (matchedDirectProduct) {
+        console.log('✅ Found main product match:', matchedDirectProduct.name);
+        
+        // If product has variants, select default or first available
+        if (matchedDirectProduct.product_variants && matchedDirectProduct.product_variants.length > 0) {
+          const availableVariants = matchedDirectProduct.product_variants.filter((v: any) => v.is_available);
+          const defaultVariant = availableVariants.find((v: any) => v.is_default);
+          const selectedVariant = defaultVariant || availableVariants[0];
+          
+          if (selectedVariant) {
+            onProductSelect({
+              ...matchedDirectProduct,
+              price: selectedVariant.price,
+              selectedVariant,
+            });
+          }
+        } else {
+          onProductSelect(matchedDirectProduct);
+        }
+        setSearchTerm('');
+        return;
+      }
+
+      // Step 3: No match found - open assign dialog
       console.log('❌ No barcode match found - opening assign dialog');
       toast.error(`No product found with barcode: ${barcode}`);
       setScannedBarcode(barcode);
