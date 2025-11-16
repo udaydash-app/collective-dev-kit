@@ -251,7 +251,7 @@ export default function GeneralLedger() {
         const priorSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
         const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
-        // Calculate debits and credits for both customer and supplier
+        // Calculate all debits and credits (including manual journals) for both customer and supplier
         const priorCustomerDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         const priorCustomerCredits = priorCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
         const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
@@ -262,8 +262,8 @@ export default function GeneralLedger() {
         const currentSupplierDebits = currentSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
         
-        // A/R = customer opening + all sales (debits) - customer payments (credits)
-        // A/P = supplier opening + all purchases (credits) - supplier payments (debits)
+        // A/R = customer opening + all customer debits (sales + manual journals) - all customer credits (payments + manual journals)
+        // A/P = supplier opening + all supplier credits (purchases + manual journals) - all supplier debits (payments + manual journals)
         const totalCustomerDebits = priorCustomerDebits + currentCustomerDebits;
         const totalCustomerCredits = priorCustomerCredits + currentCustomerCredits;
         const totalSupplierDebits = priorSupplierDebits + currentSupplierDebits;
@@ -574,7 +574,7 @@ export default function GeneralLedger() {
   const ledgerEntries = calculateRunningBalance();
 
   // Calculate total debits and credits from all lines
-  // For unified accounts, calculate customer debits and supplier credits separately
+  // For unified accounts, sum customer debits/credits and supplier debits/credits separately
   const accountData = ledgerData?.account as any;
   const isUnified = accountData?.isUnified;
   
@@ -582,9 +582,19 @@ export default function GeneralLedger() {
   let totalCredit = 0;
   
   if (isUnified) {
-    // For unified view: customer opening + customer debits, supplier opening + supplier credits
+    // For unified view: sum all customer account activity and supplier account activity
     const customerDebits = (ledgerData?.lines as any[])?.reduce(
       (sum: number, line: any) => sum + (line.sourceType === 'receivable' ? line.debit_amount : 0),
+      0
+    ) || 0;
+    
+    const customerCredits = (ledgerData?.lines as any[])?.reduce(
+      (sum: number, line: any) => sum + (line.sourceType === 'receivable' ? line.credit_amount : 0),
+      0
+    ) || 0;
+    
+    const supplierDebits = (ledgerData?.lines as any[])?.reduce(
+      (sum: number, line: any) => sum + (line.sourceType === 'payable' ? line.debit_amount : 0),
       0
     ) || 0;
     
@@ -593,6 +603,8 @@ export default function GeneralLedger() {
       0
     ) || 0;
     
+    // Total Debit = Customer opening + all customer debits
+    // Total Credit = Supplier opening + all supplier credits
     totalDebit = (accountData?.customer_opening_balance || 0) + customerDebits;
     totalCredit = (accountData?.supplier_opening_balance || 0) + supplierCredits;
   } else {
