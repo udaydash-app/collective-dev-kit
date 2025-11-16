@@ -527,11 +527,11 @@ export default function GeneralLedger() {
       if (accountType === 'unified') {
         // Unified view: Balance = A/R - A/P
         if (line.sourceType === 'receivable') {
-          // Customer A/R: only debits increase A/R
-          balance += line.debit_amount;
+          // Customer A/R: debits increase, credits decrease
+          balance += line.debit_amount - line.credit_amount;
         } else {
-          // Supplier A/P: only credits increase A/P (which decreases net balance)
-          balance -= line.credit_amount;
+          // Supplier A/P: credits increase, debits decrease (decreases net unified balance)
+          balance -= (line.credit_amount - line.debit_amount);
         }
       }
       // For dual-role single account view
