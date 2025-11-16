@@ -209,6 +209,7 @@ export default function GeneralLedger() {
         const supplierOpeningBalance = Number(contactData?.supplier_opening_balance || 0);
 
         // Fetch lines from both customer and supplier accounts (including prior period)
+        // Exclude opening balance entries since we already have opening_balance in contacts table
         const { data: customerLines } = await supabase
           .from('journal_entry_lines')
           .select(`
@@ -223,6 +224,7 @@ export default function GeneralLedger() {
           `)
           .eq('account_id', customerAccountId)
           .eq('journal_entries.status', 'posted')
+          .not('journal_entries.description', 'ilike', '%opening balance%')
           .lt('journal_entries.entry_date', endDate);
 
         const { data: supplierLines } = await supabase
@@ -239,6 +241,7 @@ export default function GeneralLedger() {
           `)
           .eq('account_id', supplierAccountId)
           .eq('journal_entries.status', 'posted')
+          .not('journal_entries.description', 'ilike', '%opening balance%')
           .lt('journal_entries.entry_date', endDate);
 
         // Separate prior period and current period lines
@@ -290,6 +293,7 @@ export default function GeneralLedger() {
       }
 
       // Regular single account view
+      // Exclude opening balance entries from display since opening balance is shown separately
       const { data: lines, error } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -304,6 +308,7 @@ export default function GeneralLedger() {
         `)
         .eq('account_id', selectedAccount)
         .eq('journal_entries.status', 'posted')
+        .not('journal_entries.description', 'ilike', '%opening balance%')
         .gte('journal_entries.entry_date', startDate)
         .lte('journal_entries.entry_date', endDate);
 
@@ -322,6 +327,7 @@ export default function GeneralLedger() {
         .maybeSingle();
 
       // Calculate opening balance from transactions before start date
+      // Exclude opening balance entries since we use contacts.opening_balance
       const { data: priorLines } = await supabase
         .from('journal_entry_lines')
         .select(`
@@ -329,11 +335,13 @@ export default function GeneralLedger() {
           credit_amount,
           journal_entries!inner (
             entry_date,
+            description,
             status
           )
         `)
         .eq('account_id', selectedAccount)
         .eq('journal_entries.status', 'posted')
+        .not('journal_entries.description', 'ilike', '%opening balance%')
         .lt('journal_entries.entry_date', startDate);
 
       // Get opening balance from contact if this is a customer/supplier account
@@ -348,7 +356,7 @@ export default function GeneralLedger() {
       
       // For dual-role contacts viewing individual accounts
       if (isDualRole) {
-        // Get all lines including prior period
+        // Get all lines including prior period, excluding opening balance entries
         const { data: allLines } = await supabase
           .from('journal_entry_lines')
           .select(`
@@ -356,11 +364,13 @@ export default function GeneralLedger() {
             credit_amount,
             journal_entries!inner (
               entry_date,
+              description,
               status
             )
           `)
           .eq('account_id', selectedAccount)
-          .eq('journal_entries.status', 'posted');
+          .eq('journal_entries.status', 'posted')
+          .not('journal_entries.description', 'ilike', '%opening balance%');
 
         const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
         const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
@@ -445,18 +455,20 @@ export default function GeneralLedger() {
         openingBalance = accountOpeningBalance + priorBalance;
       }
 
-      // Calculate current balance from all transactions
+      // Calculate current balance from all transactions, excluding opening balance entries
       const { data: allLines } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
           credit_amount,
           journal_entries!inner (
+            description,
             status
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted');
+        .eq('journal_entries.status', 'posted')
+        .not('journal_entries.description', 'ilike', '%opening balance%');
 
       const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
       const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
