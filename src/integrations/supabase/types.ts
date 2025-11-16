@@ -557,6 +557,7 @@ export type Database = {
           price_tier: Database["public"]["Enums"]["price_tier"] | null
           state: string | null
           supplier_ledger_account_id: string | null
+          supplier_opening_balance: number | null
           tax_id: string | null
           updated_at: string
           zip_code: string | null
@@ -584,6 +585,7 @@ export type Database = {
           price_tier?: Database["public"]["Enums"]["price_tier"] | null
           state?: string | null
           supplier_ledger_account_id?: string | null
+          supplier_opening_balance?: number | null
           tax_id?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -611,6 +613,7 @@ export type Database = {
           price_tier?: Database["public"]["Enums"]["price_tier"] | null
           state?: string | null
           supplier_ledger_account_id?: string | null
+          supplier_opening_balance?: number | null
           tax_id?: string | null
           updated_at?: string
           zip_code?: string | null
