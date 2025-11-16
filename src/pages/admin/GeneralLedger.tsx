@@ -263,7 +263,7 @@ export default function GeneralLedger() {
         // Current Balance = A/R - A/P
         const unifiedBalance = currentAR - currentAP;
         
-        // Opening balance = A/R - A/P from opening balances
+        // Opening balance = Customer Opening - Supplier Opening
         const openingBalance = customerOpeningBalance - supplierOpeningBalance;
 
         // Mark lines with their source type
@@ -378,13 +378,13 @@ export default function GeneralLedger() {
         let openingBalance;
         
         if (isCustomerAccount) {
-          // Customer account (A/R): Opening Balance + All Debits - All Credits
+          // Customer A/R account: Opening + All Debits
           openingBalance = customerOpeningBal;
-          currentBalance = customerOpeningBal + allDebits - allCredits;
+          currentBalance = customerOpeningBal + allDebits;
         } else if (isSupplierAccount) {
-          // Supplier account (A/P): Opening Balance + All Credits - All Debits
+          // Supplier A/P account: Opening + All Credits
           openingBalance = supplierOpeningBal;
-          currentBalance = supplierOpeningBal + allCredits - allDebits;
+          currentBalance = supplierOpeningBal + allCredits;
         } else {
           // Fallback
           openingBalance = 0;
@@ -438,8 +438,8 @@ export default function GeneralLedger() {
       // Opening balance calculation
       let openingBalance;
       if (isContactAccount) {
-        // For contact accounts, opening balance is contact opening + prior period transactions
-        openingBalance = contactOpeningBalance + priorBalance;
+        // For contact accounts, opening balance is just the contact opening balance
+        openingBalance = contactOpeningBalance;
       } else {
         // For non-contact accounts, use account's own opening balance + prior transactions
         openingBalance = accountOpeningBalance + priorBalance;
@@ -464,14 +464,14 @@ export default function GeneralLedger() {
       let currentBalance;
       
       if (isContactAccount) {
-        // For contact accounts, use contact opening balance
+        // For contact accounts
         const accountType = account?.account_type;
         if (accountType === 'asset') {
-          // Customer A/R: Opening + Debits - Credits
-          currentBalance = contactOpeningBalance + allDebits - allCredits;
+          // Customer A/R: Opening + Debits
+          currentBalance = contactOpeningBalance + allDebits;
         } else {
-          // Supplier A/P: Opening + Credits - Debits
-          currentBalance = contactOpeningBalance + allCredits - allDebits;
+          // Supplier A/P: Opening + Credits
+          currentBalance = contactOpeningBalance + allCredits;
         }
       } else {
         // For non-contact accounts, use account opening balance
