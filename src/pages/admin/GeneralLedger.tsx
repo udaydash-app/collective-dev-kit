@@ -402,13 +402,13 @@ export default function GeneralLedger() {
         let openingBalance;
         
         if (isCustomerAccount) {
-          // Customer A/R = opening + debits
+          // Customer A/R = opening + debits - credits
           openingBalance = customerOpeningBal;
-          currentBalance = customerOpeningBal + allDebits;
+          currentBalance = customerOpeningBal + allDebits - allCredits;
         } else if (isSupplierAccount) {
-          // Supplier A/P = opening + credits
+          // Supplier A/P = opening + credits - debits
           openingBalance = supplierOpeningBal;
-          currentBalance = supplierOpeningBal + allCredits;
+          currentBalance = supplierOpeningBal + allCredits - allDebits;
         } else {
           // Fallback
           openingBalance = 0;
@@ -493,11 +493,11 @@ export default function GeneralLedger() {
         // For contact accounts, use contact opening balance
         const accountType = account?.account_type;
         if (accountType === 'asset') {
-          // Customer A/R = opening + debits
-          currentBalance = contactOpeningBalance + allDebits;
+          // Customer A/R = opening + debits - credits
+          currentBalance = contactOpeningBalance + allDebits - allCredits;
         } else {
-          // Supplier A/P = opening + credits
-          currentBalance = contactOpeningBalance + allCredits;
+          // Supplier A/P = opening + credits - debits
+          currentBalance = contactOpeningBalance + allCredits - allDebits;
         }
       } else {
         // For non-contact accounts, use account opening balance
@@ -538,21 +538,21 @@ export default function GeneralLedger() {
       else if (isDualRole) {
         // Determine account type and calculate accordingly
         if (accountType === 'asset') {
-          // Customer A/R account: only debits increase balance
-          balance += line.debit_amount;
+          // Customer A/R account: debits increase, credits decrease
+          balance += line.debit_amount - line.credit_amount;
         } else {
-          // Supplier A/P account: only credits increase balance
-          balance += line.credit_amount;
+          // Supplier A/P account: credits increase, debits decrease
+          balance += line.credit_amount - line.debit_amount;
         }
       }
       // For regular contact accounts
       else if (isContactAccount) {
         if (accountType === 'asset') {
-          // Customer A/R: only debits increase balance
-          balance += line.debit_amount;
+          // Customer A/R: debits increase, credits decrease
+          balance += line.debit_amount - line.credit_amount;
         } else {
-          // Supplier A/P: only credits increase balance
-          balance += line.credit_amount;
+          // Supplier A/P: credits increase, debits decrease
+          balance += line.credit_amount - line.debit_amount;
         }
       }
       // For non-contact accounts, use standard accounting rules
