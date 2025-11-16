@@ -642,6 +642,12 @@ export default function GeneralLedger() {
     doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, 28);
     doc.text(`Period: ${startDate} to ${endDate}`, 14, 33);
     
+    // For unified accounts, show A/R and A/P info
+    if (accountInfo.isUnified) {
+      doc.text(`Customer Balance (A/R): ${accountInfo.customer_balance.toFixed(2)}`, 14, 38);
+      doc.text(`Supplier Balance (A/P): ${accountInfo.supplier_balance.toFixed(2)}`, 14, 43);
+    }
+    
     // Prepare table data
     const openingBalance = Number(accountInfo.opening_balance || 0);
     const tableData: any[] = [];
@@ -672,19 +678,17 @@ export default function GeneralLedger() {
       ]);
     });
     
-    // Calculate final balance from last entry
-    const finalBalance = ledgerEntries.length > 0 
-      ? ledgerEntries[ledgerEntries.length - 1].running_balance 
-      : openingBalance;
+    // Use the same totals as displayed on the page
+    const finalBalance = accountInfo.current_balance;
     
     // Add table
     autoTable(doc, {
-      startY: 38,
+      startY: accountInfo.isUnified ? 48 : 38,
       head: [['Date', 'Entry', 'Description', 'Ref', 'Debit', 'Credit', 'Balance']],
       body: tableData,
       foot: [
         ['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
-        ['', '', '', 'Closing Balance:', '', '', 
+        ['', '', '', 'Current Balance:', '', '', 
          Math.abs(finalBalance).toFixed(2) + (finalBalance < 0 ? ' CR' : '')]
       ],
       styles: { 
