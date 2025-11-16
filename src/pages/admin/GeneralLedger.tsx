@@ -346,7 +346,7 @@ export default function GeneralLedger() {
       // Check if this is a dual-role contact
       const isDualRole = contact?.is_customer && contact?.is_supplier;
       
-      // For dual-role contacts, calculate balance properly using separate opening balances
+      // For dual-role contacts viewing individual accounts
       if (isDualRole) {
         // Get all lines including prior period
         const { data: allLines } = await supabase
@@ -362,8 +362,8 @@ export default function GeneralLedger() {
           .eq('account_id', selectedAccount)
           .eq('journal_entries.status', 'posted');
 
-        const totalDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const totalCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
         
         // Determine if this is customer or supplier account
         const isCustomerAccount = contact.customer_ledger_account_id === selectedAccount;
@@ -378,17 +378,17 @@ export default function GeneralLedger() {
         let openingBalance;
         
         if (isCustomerAccount) {
-          // Customer account: Opening Balance + All Debits
+          // Customer account (A/R): Opening Balance + All Debits - All Credits
           openingBalance = customerOpeningBal;
-          currentBalance = customerOpeningBal + totalDebits;
+          currentBalance = customerOpeningBal + allDebits - allCredits;
         } else if (isSupplierAccount) {
-          // Supplier account: Opening Balance + All Credits
+          // Supplier account (A/P): Opening Balance + All Credits - All Debits
           openingBalance = supplierOpeningBal;
-          currentBalance = supplierOpeningBal + totalCredits;
+          currentBalance = supplierOpeningBal + allCredits - allDebits;
         } else {
           // Fallback
           openingBalance = 0;
-          currentBalance = totalDebits - totalCredits;
+          currentBalance = allDebits - allCredits;
         }
         
         return { 
@@ -402,8 +402,10 @@ export default function GeneralLedger() {
         };
       }
       
+      // Regular single account view (non-dual-role contacts or non-contact accounts)
       // Apply opening balance based on whether this is customer or supplier account
       let contactOpeningBalance = 0;
+      let isContactAccount = false;
       if (contact) {
         const customerOpeningBal = Number(contact.opening_balance || 0);
         const supplierOpeningBal = Number(contact.supplier_opening_balance || 0);
@@ -411,10 +413,12 @@ export default function GeneralLedger() {
         // Customer account (AR - Asset): use customer opening balance
         if (contact.customer_ledger_account_id === selectedAccount) {
           contactOpeningBalance = customerOpeningBal;
+          isContactAccount = true;
         }
         // Supplier account (AP - Liability): use supplier opening balance
         else if (contact.supplier_ledger_account_id === selectedAccount) {
           contactOpeningBalance = supplierOpeningBal;
+          isContactAccount = true;
         }
       }
       
@@ -428,11 +432,18 @@ export default function GeneralLedger() {
         }
       }, 0);
 
-      // Get account's own opening balance
+      // Get account's own opening balance (only for non-contact accounts)
       const accountOpeningBalance = Number(account?.opening_balance || 0);
 
-      // Opening balance is account's opening balance + contact opening balance (if applicable) + calculated prior transactions
-      const openingBalance = accountOpeningBalance + contactOpeningBalance + priorBalance;
+      // Opening balance calculation
+      let openingBalance;
+      if (isContactAccount) {
+        // For contact accounts, opening balance is contact opening + prior period transactions
+        openingBalance = contactOpeningBalance + priorBalance;
+      } else {
+        // For non-contact accounts, use account's own opening balance + prior transactions
+        openingBalance = accountOpeningBalance + priorBalance;
+      }
 
       // Calculate current balance from all transactions
       const { data: allLines } = await supabase
@@ -451,10 +462,24 @@ export default function GeneralLedger() {
       const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
       
       let currentBalance;
-      if (['asset', 'expense'].includes(account?.account_type || '')) {
-        currentBalance = accountOpeningBalance + allDebits - allCredits;
+      
+      if (isContactAccount) {
+        // For contact accounts, use contact opening balance
+        const accountType = account?.account_type;
+        if (accountType === 'asset') {
+          // Customer A/R: Opening + Debits - Credits
+          currentBalance = contactOpeningBalance + allDebits - allCredits;
+        } else {
+          // Supplier A/P: Opening + Credits - Debits
+          currentBalance = contactOpeningBalance + allCredits - allDebits;
+        }
       } else {
-        currentBalance = accountOpeningBalance + allCredits - allDebits;
+        // For non-contact accounts, use account opening balance
+        if (['asset', 'expense'].includes(account?.account_type || '')) {
+          currentBalance = accountOpeningBalance + allDebits - allCredits;
+        } else {
+          currentBalance = accountOpeningBalance + allCredits - allDebits;
+        }
       }
 
       return { lines: sortedLines, account: { ...account, opening_balance: openingBalance, current_balance: currentBalance } };
@@ -468,26 +493,38 @@ export default function GeneralLedger() {
     // Start with opening balance if available
     let balance = Number((ledgerData.account as any).opening_balance || 0);
     const accountType = ledgerData.account.account_type;
+    const isDualRole = (ledgerData.account as any).isDualRole;
     
     return ledgerData.lines.map((line: any) => {
-      // For unified accounts or dual-role accounts, calculate as debits - credits
-      if (accountType === 'unified' || (ledgerData.account as any).isDualRole) {
-        if (accountType === 'unified') {
-          // Unified view: track net position
-          if (line.sourceType === 'receivable') {
-            balance += line.debit_amount - line.credit_amount;
-          } else {
-            balance -= (line.credit_amount - line.debit_amount);
-          }
-        } else {
-          // Dual-role single account view: simple debits - credits
+      // For unified accounts
+      if (accountType === 'unified') {
+        // Unified view: track net position (A/R - A/P)
+        if (line.sourceType === 'receivable') {
+          // Customer transactions: debits increase A/R, credits decrease A/R
           balance += line.debit_amount - line.credit_amount;
+        } else {
+          // Supplier transactions: credits increase A/P, debits decrease A/P
+          // Since we're tracking net position (A/R - A/P), increase in A/P reduces net
+          balance -= (line.credit_amount - line.debit_amount);
         }
       }
-      // Regular account logic
+      // For dual-role single account view
+      else if (isDualRole) {
+        // Determine account type and calculate accordingly
+        if (accountType === 'asset') {
+          // Customer A/R account: debits increase, credits decrease
+          balance += line.debit_amount - line.credit_amount;
+        } else {
+          // Supplier A/P account: credits increase, debits decrease
+          balance += line.credit_amount - line.debit_amount;
+        }
+      }
+      // Regular account logic (including non-dual-role contact accounts)
       else if (['asset', 'expense'].includes(accountType)) {
+        // Asset/Expense: debits increase, credits decrease
         balance += line.debit_amount - line.credit_amount;
       } else {
+        // Liability/Equity/Revenue: credits increase, debits decrease
         balance += line.credit_amount - line.debit_amount;
       }
 
