@@ -225,7 +225,7 @@ export default function GeneralLedger() {
           .eq('account_id', customerAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lt('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate);
 
         const { data: supplierLines } = await supabase
           .from('journal_entry_lines')
@@ -242,7 +242,7 @@ export default function GeneralLedger() {
           .eq('account_id', supplierAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lt('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate);
 
         // Separate prior period and current period lines
         const priorCustomerLines = customerLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
@@ -256,6 +256,14 @@ export default function GeneralLedger() {
         const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         const priorSupplierCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
         const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        console.log('A/P Calculation Debug:', {
+          supplierOpeningBalance,
+          priorSupplierCredits,
+          currentSupplierCredits,
+          totalSupplierCredits: priorSupplierCredits + currentSupplierCredits,
+          calculatedAP: supplierOpeningBalance + priorSupplierCredits + currentSupplierCredits
+        });
         
         // Opening Balance (at start of period): A/R = opening + prior debits, A/P = opening + prior credits
         const openingAR = customerOpeningBalance + priorCustomerDebits;
