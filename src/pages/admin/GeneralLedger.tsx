@@ -251,23 +251,21 @@ export default function GeneralLedger() {
         const priorSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
         const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
-        // Calculate debits and credits separately for customer and supplier accounts
-        const customerDebits = [...priorCustomerLines, ...currentCustomerLines]
-          .reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const supplierCredits = [...priorSupplierLines, ...currentSupplierLines]
-          .reduce((sum, line: any) => sum + line.credit_amount, 0);
+        // Calculate debits and credits separately for prior and current periods
+        const priorCustomerDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const priorSupplierCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
         
-        // A/R = Customer Opening Balance + All Debits from Customer Account
-        const currentAR = customerOpeningBalance + customerDebits;
+        // Opening Balance (at start of period): A/R = opening + prior debits, A/P = opening + prior credits
+        const openingAR = customerOpeningBalance + priorCustomerDebits;
+        const openingAP = supplierOpeningBalance + priorSupplierCredits;
+        const openingBalance = openingAR - openingAP;
         
-        // A/P = Supplier Opening Balance + All Credits from Supplier Account
-        const currentAP = supplierOpeningBalance + supplierCredits;
-        
-        // Current Balance = A/R - A/P
+        // Current Balance (at end of period): A/R = opening + all debits, A/P = opening + all credits
+        const currentAR = customerOpeningBalance + priorCustomerDebits + currentCustomerDebits;
+        const currentAP = supplierOpeningBalance + priorSupplierCredits + currentSupplierCredits;
         const unifiedBalance = currentAR - currentAP;
-        
-        // Opening balance = A/R - A/P from opening balances
-        const openingBalance = customerOpeningBalance - supplierOpeningBalance;
 
         // Mark lines with their source type
         const markedCustomerLines = currentCustomerLines?.map(line => ({ ...line, sourceType: 'receivable' })) || [];
