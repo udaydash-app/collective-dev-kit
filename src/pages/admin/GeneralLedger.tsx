@@ -254,25 +254,24 @@ export default function GeneralLedger() {
         // Calculate debits and credits separately for prior and current periods
         const priorCustomerDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
+        
+        // For A/P: credits increase (purchases), debits decrease (payments)
         const priorSupplierCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const priorSupplierDebits = priorSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const currentSupplierDebits = currentSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
         
-        console.log('A/P Calculation Debug:', {
-          supplierOpeningBalance,
-          priorSupplierCredits,
-          currentSupplierCredits,
-          totalSupplierCredits: priorSupplierCredits + currentSupplierCredits,
-          calculatedAP: supplierOpeningBalance + priorSupplierCredits + currentSupplierCredits
-        });
+        const priorSupplierNet = priorSupplierCredits - priorSupplierDebits;
+        const currentSupplierNet = currentSupplierCredits - currentSupplierDebits;
         
-        // Opening Balance (at start of period): A/R = opening + prior debits, A/P = opening + prior credits
+        // Opening Balance (at start of period): A/R = opening + prior debits, A/P = opening + prior net
         const openingAR = customerOpeningBalance + priorCustomerDebits;
-        const openingAP = supplierOpeningBalance + priorSupplierCredits;
+        const openingAP = supplierOpeningBalance + priorSupplierNet;
         const openingBalance = openingAR - openingAP;
         
-        // Current Balance (at end of period): A/R = opening + all debits, A/P = opening + all credits
+        // Current Balance (at end of period): A/R = opening + all debits, A/P = opening + all net
         const currentAR = customerOpeningBalance + priorCustomerDebits + currentCustomerDebits;
-        const currentAP = supplierOpeningBalance + priorSupplierCredits + currentSupplierCredits;
+        const currentAP = supplierOpeningBalance + priorSupplierNet + currentSupplierNet;
         const unifiedBalance = currentAR - currentAP;
 
         // Mark lines with their source type
