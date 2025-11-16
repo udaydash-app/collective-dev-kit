@@ -935,6 +935,22 @@ export default function GeneralLedger() {
                       </TableRow>
                     ))
                   )}
+                  
+                  {/* Current Balance Row */}
+                  {ledgerData?.account && (ledgerData?.account as any)?.current_balance !== undefined && 
+                   ledgerEntries.length > 0 && (
+                    <TableRow className="bg-primary/10 font-bold">
+                      <TableCell colSpan={4} className="font-semibold">
+                        Current Balance (as of {endDate})
+                      </TableCell>
+                      <TableCell className="text-right">-</TableCell>
+                      <TableCell className="text-right">-</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-primary">
+                        {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
+                        {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </>
               )}
             </TableBody>
