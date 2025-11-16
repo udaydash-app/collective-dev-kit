@@ -50,6 +50,7 @@ interface Contact {
   custom_price_tier_id?: string;
   credit_limit?: number;
   opening_balance?: number;
+  supplier_opening_balance?: number;
   notes?: string;
   created_at: string;
 }
@@ -101,6 +102,7 @@ export default function Contacts() {
     custom_price_tier_id: '' as string,
     credit_limit: '',
     opening_balance: '',
+    supplier_opening_balance: '',
     notes: '',
   });
 
@@ -227,6 +229,7 @@ export default function Contacts() {
       ...formData,
       credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
       opening_balance: formData.opening_balance ? parseFloat(formData.opening_balance) : 0,
+      supplier_opening_balance: formData.supplier_opening_balance ? parseFloat(formData.supplier_opening_balance) : 0,
       custom_price_tier_id: formData.custom_price_tier_id || null,
     };
 
@@ -257,6 +260,7 @@ export default function Contacts() {
       custom_price_tier_id: contact.custom_price_tier_id || '',
       credit_limit: contact.credit_limit?.toString() || '',
       opening_balance: contact.opening_balance?.toString() || '',
+      supplier_opening_balance: contact.supplier_opening_balance?.toString() || '',
       notes: contact.notes || '',
     });
     setOpen(true);
@@ -285,6 +289,7 @@ export default function Contacts() {
       custom_price_tier_id: '',
       credit_limit: '',
       opening_balance: '',
+      supplier_opening_balance: '',
       notes: '',
     });
   };
@@ -562,7 +567,7 @@ export default function Contacts() {
                 </div>
 
                 <div>
-                  <Label htmlFor="opening_balance">Opening Balance</Label>
+                  <Label htmlFor="opening_balance">Customer Opening Balance</Label>
                   <Input
                     id="opening_balance"
                     type="number"
@@ -574,7 +579,24 @@ export default function Contacts() {
                     placeholder="0.00"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Positive = they owe you (A/R), Negative = you owe them (A/P)
+                    Positive = customer owes you (A/R)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="supplier_opening_balance">Supplier Opening Balance</Label>
+                  <Input
+                    id="supplier_opening_balance"
+                    type="number"
+                    step="0.01"
+                    value={formData.supplier_opening_balance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, supplier_opening_balance: e.target.value })
+                    }
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Positive = you owe supplier (A/P)
                   </p>
                 </div>
 
