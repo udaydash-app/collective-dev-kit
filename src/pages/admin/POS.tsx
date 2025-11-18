@@ -1919,20 +1919,20 @@ export default function POS() {
     },
     {
       key: 'F2',
-      description: 'Quick Cash Payment',
-      action: () => {
+      description: 'Quick Cash Payment (Print)',
+      action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
         }
         setQuickPaymentMethod('cash');
-        setShowQuickPayment(true);
+        await handleQuickPayment(true);
       },
     },
     {
       key: 'F3',
-      description: 'Quick Credit Payment',
-      action: () => {
+      description: 'Quick Credit Payment (Print if customer)',
+      action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
@@ -1942,19 +1942,19 @@ export default function POS() {
           return;
         }
         setQuickPaymentMethod('credit');
-        setShowQuickPayment(true);
+        await handleQuickPayment(true);
       },
     },
     {
       key: 'F4',
-      description: 'Quick Mobile Money Payment',
-      action: () => {
+      description: 'Quick Mobile Money Payment (Print)',
+      action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
         }
         setQuickPaymentMethod('mobile_money');
-        setShowQuickPayment(true);
+        await handleQuickPayment(true);
       },
     },
     {
@@ -2270,6 +2270,9 @@ export default function POS() {
 
     // Process the transaction and get the data directly
     const transactionData = await handlePaymentConfirm([payment], total);
+
+    // Close the quick payment dialog
+    setShowQuickPayment(false);
 
     // If shouldPrint is true and we have transaction data, print it
     if (shouldPrint && transactionData) {
