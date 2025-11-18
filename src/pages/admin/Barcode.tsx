@@ -502,44 +502,46 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
-                      style={{ width: '40mm', height: '30mm' }}
+                      className="barcode-label border rounded p-1 flex flex-col items-center"
+                      style={{ width: '40mm', height: '30mm', gap: '1mm' }}
                     >
-                      <div className="w-full text-center mb-0.5 -mt-2">
-                        <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
+                      <div className="w-full text-center" style={{ minHeight: '8mm' }}>
+                        <p className="font-bold text-[8px] leading-tight truncate px-1">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-[6px] leading-none truncate px-1">{item.variantLabel}</p>
+                          <p className="text-[6px] leading-tight truncate px-1">{item.variantLabel}</p>
                         )}
                       </div>
-                      {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center w-full">
-                          <div className="flex justify-center w-full">
+                      <div className="flex-1 flex flex-col items-center justify-center w-full">
+                        {barcodeValues.map((barcodeValue, index) => (
+                          <div key={index} className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1.2}
-                              height={35}
-                              fontSize={10}
+                              width={1.1}
+                              height={30}
+                              fontSize={8}
                               background="#ffffff"
                               margin={0}
                               displayValue={true}
                             />
                           </div>
-                        </div>
-                      ))}
-                      <p className="text-[10px] font-bold leading-none mt-0.5 mb-1">{formatCurrency(item.price)}</p>
-                      {details && (
-                        <div className="text-[5px] leading-none w-full text-center space-y-0 mt-1">
-                          {details.batchNumber && (
-                            <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
-                          )}
-                          {details.manufacturingDate && (
-                            <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
-                          )}
-                          {details.expiryDate && (
-                            <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
-                          )}
-                        </div>
-                      )}
+                        ))}
+                      </div>
+                      <div className="w-full text-center" style={{ minHeight: '8mm' }}>
+                        <p className="text-[10px] font-bold leading-tight mb-1">{formatCurrency(item.price)}</p>
+                        {details && (
+                          <div className="text-[5px] leading-tight space-y-0">
+                            {details.batchNumber && (
+                              <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
+                            )}
+                            {details.manufacturingDate && (
+                              <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                            )}
+                            {details.expiryDate && (
+                              <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
