@@ -424,19 +424,19 @@ export default function BarcodeManagement() {
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
                       style={{ width: '40mm', height: '30mm', pageBreakAfter: 'always' }}
                     >
-                      <div className="w-full text-center">
-                        <p className="font-bold text-[8px] leading-tight truncate px-1">{item.name}</p>
+                      <div className="w-full text-center -mb-1">
+                        <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-[6px] leading-tight truncate px-1">{item.variantLabel}</p>
+                          <p className="text-[6px] leading-none truncate px-1">{item.variantLabel}</p>
                         )}
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center w-full -my-1">
+                        <div key={index} className="flex flex-col items-center w-full">
                           <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
                               width={1.5}
-                              height={35}
+                              height={40}
                               fontSize={8}
                               background="#ffffff"
                               margin={0}
@@ -444,9 +444,9 @@ export default function BarcodeManagement() {
                           </div>
                         </div>
                       ))}
-                      <p className="text-[10px] font-bold leading-none">{formatCurrency(item.price)}</p>
+                      <p className="text-[10px] font-bold leading-none -mt-1">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="text-[5px] leading-tight w-full text-center space-y-0">
+                        <div className="text-[5px] leading-none w-full text-center space-y-0 mt-0.5">
                           {details.batchNumber && (
                             <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
                           )}
