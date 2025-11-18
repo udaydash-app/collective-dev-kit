@@ -586,15 +586,22 @@ export default function Purchases() {
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_cost, 0);
 
+      // Get supplier details
+      const supplier = suppliers?.find(s => s.id === selectedSupplier);
+      if (!supplier) throw new Error('Supplier not found');
+
       // Determine payment method display
       const displayMethod = paymentDetails && paymentDetails.length > 1 
         ? 'Multiple' 
         : paymentDetails?.[0]?.method || paymentMethod || selectedPurchase.payment_method;
 
-      // Update purchase
+      // Update purchase with all editable fields
       const { error: purchaseError } = await supabase
         .from('purchases')
         .update({
+          supplier_name: supplier.name,
+          supplier_contact: supplier.phone || supplier.email || null,
+          store_id: selectedStore,
           payment_status: paymentStatus,
           payment_method: displayMethod,
           payment_details: paymentDetails || selectedPurchase.payment_details || [],
@@ -629,7 +636,6 @@ export default function Purchases() {
 
       // Create journal entries if payment status changed to paid or partial
       if (paymentStatus === 'paid' || paymentStatus === 'partial') {
-        const supplier = suppliers?.find(s => s.name === selectedPurchase.supplier_name);
         if (supplier && paymentDetails) {
           await createPurchaseJournalEntries(
             { ...selectedPurchase, total_amount: totalAmount }, 
@@ -679,7 +685,10 @@ export default function Purchases() {
 
   const handleEditPurchase = (purchase: any) => {
     setSelectedPurchase(purchase);
-    setSelectedSupplier(purchase.supplier_name);
+    
+    // Find supplier ID by name
+    const supplier = suppliers?.find(s => s.name === purchase.supplier_name);
+    setSelectedSupplier(supplier?.id || '');
     setSelectedStore(purchase.store_id);
     setPaymentStatus(purchase.payment_status);
     setPaymentMethod(purchase.payment_method || '');
