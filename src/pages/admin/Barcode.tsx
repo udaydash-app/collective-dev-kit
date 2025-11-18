@@ -454,7 +454,7 @@ export default function BarcodeManagement() {
                             <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {details.expiryDate && (
-                            <p><span className="font-semibold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
                       )}
