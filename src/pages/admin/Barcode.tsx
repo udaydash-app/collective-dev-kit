@@ -391,25 +391,50 @@ export default function BarcodeManagement() {
               <style>
                 {`
                   @media print {
+                    @page {
+                      size: 380mm 250mm;
+                      margin: 5mm;
+                    }
                     body {
                       margin: 0;
                       padding: 0;
                     }
+                    .barcode-container {
+                      display: flex !important;
+                      flex-wrap: wrap !important;
+                      gap: 5mm !important;
+                    }
                     .barcode-label {
-                      width: 40mm !important;
-                      height: 30mm !important;
-                      padding: 1mm !important;
+                      width: 85mm !important;
+                      height: 55mm !important;
+                      padding: 3mm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
+                      page-break-inside: avoid;
+                    }
+                    .barcode-label p {
+                      font-size: 14px !important;
+                    }
+                    .barcode-label .text-\[8px\] {
+                      font-size: 14px !important;
+                    }
+                    .barcode-label .text-\[6px\] {
+                      font-size: 12px !important;
+                    }
+                    .barcode-label .text-\[10px\] {
+                      font-size: 16px !important;
+                    }
+                    .barcode-label .text-\[5px\] {
+                      font-size: 10px !important;
                     }
                   }
                 `}
               </style>
-              <div ref={printRef} className="flex flex-wrap gap-2">
+              <div ref={printRef} className="barcode-container flex flex-wrap gap-2">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
                   const itemKey = `${item.type}-${item.id}`;
@@ -418,7 +443,7 @@ export default function BarcodeManagement() {
                     <div
                       key={itemKey}
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
-                      style={{ width: '40mm', height: '30mm' }}
+                      style={{ width: '85mm', height: '55mm' }}
                     >
                       <div className="w-full text-center mb-0.5 -mt-2">
                         <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
@@ -431,11 +456,11 @@ export default function BarcodeManagement() {
                           <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1.5}
-                              height={40}
-                              fontSize={8}
+                              width={2}
+                              height={60}
+                              fontSize={14}
                               background="#ffffff"
-                              margin={0}
+                              margin={2}
                             />
                           </div>
                         </div>
