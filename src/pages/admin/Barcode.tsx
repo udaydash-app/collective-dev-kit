@@ -388,7 +388,32 @@ export default function BarcodeManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div ref={printRef} className="grid grid-cols-2 gap-6 p-6">
+              <style>
+                {`
+                  @media print {
+                    @page {
+                      size: 40mm 30mm;
+                      margin: 0;
+                    }
+                    body {
+                      margin: 0;
+                      padding: 0;
+                    }
+                    .barcode-label {
+                      width: 40mm !important;
+                      height: 30mm !important;
+                      page-break-after: always;
+                      padding: 1mm !important;
+                      box-sizing: border-box;
+                      display: flex;
+                      flex-direction: column;
+                      justify-content: center;
+                      align-items: center;
+                    }
+                  }
+                `}
+              </style>
+              <div ref={printRef} className="flex flex-wrap gap-2">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
                   const itemKey = `${item.type}-${item.id}`;
@@ -396,36 +421,34 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="border-2 rounded-lg p-6 flex flex-col items-center space-y-3"
-                      style={{ pageBreakInside: 'avoid' }}
+                      className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
+                      style={{ width: '40mm', height: '30mm', pageBreakAfter: 'always' }}
                     >
-                      <div className="w-full text-center space-y-1 mb-2">
-                        <p className="font-bold text-lg leading-tight">{item.name}</p>
+                      <div className="w-full text-center">
+                        <p className="font-bold text-[8px] leading-tight truncate px-1">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-sm text-muted-foreground leading-tight">{item.variantLabel}</p>
+                          <p className="text-[6px] leading-tight truncate px-1">{item.variantLabel}</p>
                         )}
-                        <p className="text-2xl font-bold mt-2">{formatCurrency(item.price)}</p>
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center w-full my-2">
-                          {barcodeValues.length > 1 && (
-                            <p className="text-xs text-muted-foreground mb-1">Barcode {index + 1}</p>
-                          )}
-                          <div className="flex justify-center w-full">
+                        <div key={index} className="flex flex-col items-center w-full -my-1">
+                          <div className="flex justify-center w-full scale-75">
                             <Barcode
                               value={barcodeValue}
-                              width={3}
-                              height={80}
-                              fontSize={14}
+                              width={1}
+                              height={25}
+                              fontSize={8}
                               background="#ffffff"
+                              margin={0}
                             />
                           </div>
                         </div>
                       ))}
+                      <p className="text-[10px] font-bold leading-none">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="text-sm space-y-1 pt-3 border-t-2 w-full text-center">
+                        <div className="text-[5px] leading-tight w-full text-center space-y-0">
                           {details.batchNumber && (
-                            <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
+                            <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
                           )}
                           {details.manufacturingDate && (
                             <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
