@@ -12,6 +12,7 @@ import { Barcode as BarcodeIcon, Printer, Save, RefreshCw } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useReactToPrint } from 'react-to-print';
+import { formatCurrency } from '@/lib/utils';
 
 interface SelectedItem {
   id: string;
@@ -21,6 +22,9 @@ interface SelectedItem {
   price: number;
   productId?: string;
   variantLabel?: string;
+  manufacturingDate?: string;
+  expiryDate?: string;
+  batchNumber?: string;
 }
 
 export default function BarcodeManagement() {
@@ -28,6 +32,7 @@ export default function BarcodeManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [generatedBarcodes, setGeneratedBarcodes] = useState<Map<string, string>>(new Map());
+  const [itemDetails, setItemDetails] = useState<Map<string, { manufacturingDate: string; expiryDate: string; batchNumber: string }>>(new Map());
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: stores } = useQuery({
@@ -83,6 +88,15 @@ export default function BarcodeManagement() {
         return prev.filter((i) => !(i.id === item.id && i.type === item.type));
       }
       return [...prev, item];
+    });
+  };
+
+  const updateItemDetails = (itemKey: string, field: 'manufacturingDate' | 'expiryDate' | 'batchNumber', value: string) => {
+    setItemDetails((prev) => {
+      const newMap = new Map(prev);
+      const current = newMap.get(itemKey) || { manufacturingDate: '', expiryDate: '', batchNumber: '' };
+      newMap.set(itemKey, { ...current, [field]: value });
+      return newMap;
     });
   };
 
@@ -290,6 +304,58 @@ export default function BarcodeManagement() {
           </Card>
         )}
 
+        {/* Item Details */}
+        {selectedItems.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Details for Barcode</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedItems.map((item) => {
+                const itemKey = `${item.type}-${item.id}`;
+                const details = itemDetails.get(itemKey) || { manufacturingDate: '', expiryDate: '', batchNumber: '' };
+                return (
+                  <div key={itemKey} className="border rounded-lg p-4 space-y-3">
+                    <p className="font-medium">
+                      {item.name} {item.variantLabel && `- ${item.variantLabel}`}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor={`mfg-${itemKey}`}>Manufacturing Date</Label>
+                        <Input
+                          id={`mfg-${itemKey}`}
+                          type="date"
+                          value={details.manufacturingDate}
+                          onChange={(e) => updateItemDetails(itemKey, 'manufacturingDate', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`exp-${itemKey}`}>Expiry Date</Label>
+                        <Input
+                          id={`exp-${itemKey}`}
+                          type="date"
+                          value={details.expiryDate}
+                          onChange={(e) => updateItemDetails(itemKey, 'expiryDate', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`batch-${itemKey}`}>Batch Number</Label>
+                        <Input
+                          id={`batch-${itemKey}`}
+                          type="text"
+                          placeholder="Enter batch number"
+                          value={details.batchNumber}
+                          onChange={(e) => updateItemDetails(itemKey, 'batchNumber', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         {selectedItems.length > 0 && (
           <Card>
@@ -325,32 +391,48 @@ export default function BarcodeManagement() {
               <div ref={printRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
+                  const itemKey = `${item.type}-${item.id}`;
+                  const details = itemDetails.get(itemKey);
                   return (
                     <div
-                      key={`${item.type}-${item.id}`}
-                      className="border rounded-lg p-4 text-center space-y-2"
+                      key={itemKey}
+                      className="border rounded-lg p-3 text-center space-y-1"
+                      style={{ pageBreakInside: 'avoid' }}
                     >
-                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="font-semibold text-xs">{item.name}</p>
                       {item.variantLabel && (
-                        <p className="text-xs text-muted-foreground">{item.variantLabel}</p>
+                        <p className="text-[10px] text-muted-foreground">{item.variantLabel}</p>
                       )}
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center gap-1">
+                        <div key={index} className="flex flex-col items-center">
                           {barcodeValues.length > 1 && (
-                            <p className="text-[10px] text-muted-foreground">Barcode {index + 1}</p>
+                            <p className="text-[8px] text-muted-foreground">Barcode {index + 1}</p>
                           )}
                           <div className="flex justify-center">
                             <Barcode
                               value={barcodeValue}
                               width={1.5}
-                              height={50}
-                              fontSize={12}
+                              height={40}
+                              fontSize={10}
                               background="#ffffff"
                             />
                           </div>
                         </div>
                       ))}
-                      <p className="text-sm font-medium">${item.price}</p>
+                      <p className="text-sm font-bold">{formatCurrency(item.price)}</p>
+                      {details && (
+                        <div className="text-[9px] space-y-0.5 mt-2 pt-2 border-t">
+                          {details.batchNumber && (
+                            <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
+                          )}
+                          {details.manufacturingDate && (
+                            <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                          )}
+                          {details.expiryDate && (
+                            <p><span className="font-semibold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
