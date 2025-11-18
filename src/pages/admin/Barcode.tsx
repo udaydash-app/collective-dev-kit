@@ -415,22 +415,20 @@ export default function BarcodeManagement() {
                       page-break-after: always;
                     }
                     .barcode-label p {
-                      font-size: 6px !important;
                       margin: 0 !important;
                       padding: 0 !important;
-                      line-height: 1 !important;
                     }
-                    .barcode-label .text-\[8px\] {
-                      font-size: 6px !important;
+                    .barcode-label .text-\[9px\] {
+                      font-size: 9px !important;
                     }
-                    .barcode-label .text-\[6px\] {
-                      font-size: 5px !important;
-                    }
-                    .barcode-label .text-\[10px\] {
+                    .barcode-label .text-\[7px\] {
                       font-size: 7px !important;
                     }
-                    .barcode-label .text-\[5px\] {
-                      font-size: 4px !important;
+                    .barcode-label .text-\[11px\] {
+                      font-size: 11px !important;
+                    }
+                    .barcode-label .text-\[6px\] {
+                      font-size: 6px !important;
                     }
                   }
                 `}
@@ -446,10 +444,10 @@ export default function BarcodeManagement() {
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
                       style={{ width: '38mm', height: '25mm' }}
                     >
-                      <div className="w-full text-center mb-0.5 -mt-2">
-                        <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
+                      <div className="w-full text-center mb-0 -mt-3">
+                        <p className="font-bold text-[9px] leading-tight truncate px-1">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-[6px] leading-none truncate px-1">{item.variantLabel}</p>
+                          <p className="text-[7px] leading-tight truncate px-1">{item.variantLabel}</p>
                         )}
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
@@ -458,17 +456,17 @@ export default function BarcodeManagement() {
                             <Barcode
                               value={barcodeValue}
                               width={1}
-                              height={25}
-                              fontSize={6}
+                              height={30}
+                              fontSize={7}
                               background="#ffffff"
                               margin={0}
                             />
                           </div>
                         </div>
                       ))}
-                      <p className="text-[10px] font-bold leading-none mt-0.5 mb-1">{formatCurrency(item.price)}</p>
+                      <p className="text-[11px] font-bold leading-none mt-1 mb-0.5">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="text-[5px] leading-none w-full text-center space-y-0 mt-1">
+                        <div className="text-[6px] leading-tight w-full text-center space-y-0.5 mt-1">
                           {details.batchNumber && (
                             <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
                           )}
@@ -476,7 +474,7 @@ export default function BarcodeManagement() {
                             <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {details.expiryDate && (
-                            <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p className="text-[7px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
                       )}
