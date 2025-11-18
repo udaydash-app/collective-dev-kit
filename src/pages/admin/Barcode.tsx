@@ -402,17 +402,12 @@ export default function BarcodeManagement() {
                     .barcode-label {
                       width: 40mm !important;
                       height: 30mm !important;
-                      page-break-after: auto;
-                      page-break-inside: avoid;
                       padding: 1mm !important;
                       box-sizing: border-box;
                       display: flex;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
-                    }
-                    .barcode-label:last-child {
-                      page-break-after: avoid;
                     }
                   }
                 `}
