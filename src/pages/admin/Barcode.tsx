@@ -388,7 +388,7 @@ export default function BarcodeManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div ref={printRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+              <div ref={printRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
                   const itemKey = `${item.type}-${item.id}`;
@@ -396,32 +396,34 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="border rounded-lg p-3 text-center space-y-1"
+                      className="border rounded p-2 flex flex-col items-center space-y-1"
                       style={{ pageBreakInside: 'avoid' }}
                     >
-                      <p className="font-semibold text-xs">{item.name}</p>
-                      {item.variantLabel && (
-                        <p className="text-[10px] text-muted-foreground">{item.variantLabel}</p>
-                      )}
+                      <div className="w-full text-center space-y-0.5 mb-1">
+                        <p className="font-semibold text-[9px] leading-tight">{item.name}</p>
+                        {item.variantLabel && (
+                          <p className="text-[7px] text-muted-foreground leading-tight">{item.variantLabel}</p>
+                        )}
+                        <p className="text-[10px] font-bold">{formatCurrency(item.price)}</p>
+                      </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center">
+                        <div key={index} className="flex flex-col items-center w-full">
                           {barcodeValues.length > 1 && (
-                            <p className="text-[8px] text-muted-foreground">Barcode {index + 1}</p>
+                            <p className="text-[6px] text-muted-foreground">Barcode {index + 1}</p>
                           )}
-                          <div className="flex justify-center">
+                          <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1.5}
-                              height={40}
-                              fontSize={10}
+                              width={2}
+                              height={50}
+                              fontSize={8}
                               background="#ffffff"
                             />
                           </div>
                         </div>
                       ))}
-                      <p className="text-sm font-bold">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="text-[9px] space-y-0.5 mt-2 pt-2 border-t">
+                        <div className="text-[7px] space-y-0.5 pt-1 border-t w-full text-center">
                           {details.batchNumber && (
                             <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
