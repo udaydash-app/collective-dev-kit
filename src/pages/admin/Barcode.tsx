@@ -392,44 +392,45 @@ export default function BarcodeManagement() {
                 {`
                   @media print {
                     @page {
-                      size: 380mm 250mm;
-                      margin: 5mm;
+                      size: 38mm 25mm;
+                      margin: 0;
                     }
                     body {
                       margin: 0;
                       padding: 0;
                     }
                     .barcode-container {
-                      display: flex !important;
-                      flex-wrap: wrap !important;
-                      gap: 5mm !important;
+                      display: block !important;
                     }
                     .barcode-label {
-                      width: 85mm !important;
-                      height: 55mm !important;
-                      padding: 3mm !important;
+                      width: 38mm !important;
+                      height: 25mm !important;
+                      padding: 0.5mm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
-                      page-break-inside: avoid;
+                      page-break-after: always;
                     }
                     .barcode-label p {
-                      font-size: 14px !important;
+                      font-size: 6px !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                      line-height: 1 !important;
                     }
                     .barcode-label .text-\[8px\] {
-                      font-size: 14px !important;
+                      font-size: 6px !important;
                     }
                     .barcode-label .text-\[6px\] {
-                      font-size: 12px !important;
+                      font-size: 5px !important;
                     }
                     .barcode-label .text-\[10px\] {
-                      font-size: 16px !important;
+                      font-size: 7px !important;
                     }
                     .barcode-label .text-\[5px\] {
-                      font-size: 10px !important;
+                      font-size: 4px !important;
                     }
                   }
                 `}
@@ -443,7 +444,7 @@ export default function BarcodeManagement() {
                     <div
                       key={itemKey}
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
-                      style={{ width: '85mm', height: '55mm' }}
+                      style={{ width: '38mm', height: '25mm' }}
                     >
                       <div className="w-full text-center mb-0.5 -mt-2">
                         <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
@@ -456,11 +457,11 @@ export default function BarcodeManagement() {
                           <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={2}
-                              height={60}
-                              fontSize={14}
+                              width={1}
+                              height={25}
+                              fontSize={6}
                               background="#ffffff"
-                              margin={2}
+                              margin={0}
                             />
                           </div>
                         </div>
