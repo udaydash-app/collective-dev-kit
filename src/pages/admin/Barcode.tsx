@@ -424,7 +424,7 @@ export default function BarcodeManagement() {
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
                       style={{ width: '40mm', height: '30mm', pageBreakAfter: 'always' }}
                     >
-                      <div className="w-full text-center -mb-2 -mt-2">
+                      <div className="w-full text-center mb-0.5 -mt-2">
                         <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
                         {item.variantLabel && (
                           <p className="text-[6px] leading-none truncate px-1">{item.variantLabel}</p>
@@ -444,7 +444,7 @@ export default function BarcodeManagement() {
                           </div>
                         </div>
                       ))}
-                      <p className="text-[10px] font-bold leading-none -mt-2 mb-1">{formatCurrency(item.price)}</p>
+                      <p className="text-[10px] font-bold leading-none mt-0.5 mb-1">{formatCurrency(item.price)}</p>
                       {details && (
                         <div className="text-[5px] leading-none w-full text-center space-y-0 mt-1">
                           {details.batchNumber && (
