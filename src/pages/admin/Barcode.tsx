@@ -432,11 +432,11 @@ export default function BarcodeManagement() {
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
                         <div key={index} className="flex flex-col items-center w-full -my-1">
-                          <div className="flex justify-center w-full scale-75">
+                          <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1}
-                              height={25}
+                              width={1.5}
+                              height={35}
                               fontSize={8}
                               background="#ffffff"
                               margin={0}
