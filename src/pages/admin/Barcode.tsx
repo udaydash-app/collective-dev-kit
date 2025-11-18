@@ -421,7 +421,7 @@ export default function BarcodeManagement() {
                     <div
                       key={itemKey}
                       className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
-                      style={{ width: '40mm', height: '30mm', pageBreakAfter: 'always' }}
+                      style={{ width: '40mm', height: '30mm' }}
                     >
                       <div className="w-full text-center mb-0.5 -mt-2">
                         <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
