@@ -391,10 +391,6 @@ export default function BarcodeManagement() {
               <style>
                 {`
                   @media print {
-                    @page {
-                      size: 40mm 30mm;
-                      margin: 0;
-                    }
                     body {
                       margin: 0;
                       padding: 0;
@@ -403,8 +399,9 @@ export default function BarcodeManagement() {
                       width: 40mm !important;
                       height: 30mm !important;
                       padding: 1mm !important;
+                      margin: 0 !important;
                       box-sizing: border-box;
-                      display: flex;
+                      display: flex !important;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
