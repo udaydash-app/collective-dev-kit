@@ -10,6 +10,16 @@ try {
   // Configure auto-updater
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.allowDowngrade = false;
+  
+  // Configure update check settings
+  autoUpdater.logger = {
+    info: (msg) => console.log('[AUTO-UPDATE]', msg),
+    warn: (msg) => console.warn('[AUTO-UPDATE]', msg),
+    error: (msg) => console.error('[AUTO-UPDATE]', msg),
+    debug: (msg) => console.log('[AUTO-UPDATE DEBUG]', msg)
+  };
   
   // If GH_TOKEN is set, use it for private repo access
   if (process.env.GH_TOKEN) {
@@ -18,8 +28,15 @@ try {
     };
     console.log('[AUTO-UPDATE] Using GitHub token for private repository access');
   }
+  
+  console.log('[AUTO-UPDATE] Initialized successfully');
+  console.log('[AUTO-UPDATE] Update config:', {
+    provider: 'github',
+    owner: 'udaydash-app',
+    repo: 'collective-dev-kit'
+  });
 } catch (error) {
-  console.warn('electron-updater not available:', error.message);
+  console.warn('[AUTO-UPDATE] electron-updater not available:', error.message);
 }
 
 let mainWindow;
@@ -73,23 +90,49 @@ function createWindow() {
 // Auto-updater event handlers (only if electron-updater is available)
 if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => {
+    console.log('[AUTO-UPDATE] ====================================');
     console.log('[AUTO-UPDATE] Checking for updates...');
     console.log('[AUTO-UPDATE] Current version:', app.getVersion());
+    console.log('[AUTO-UPDATE] Platform:', process.platform);
+    console.log('[AUTO-UPDATE] Architecture:', process.arch);
     console.log('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL());
-    console.log('[AUTO-UPDATE] Looking for releases at: https://github.com/udaydash-app/collective-dev-kit/releases');
+    console.log('[AUTO-UPDATE] Release URL: https://github.com/udaydash-app/collective-dev-kit/releases');
+    console.log('[AUTO-UPDATE] ====================================');
+    
+    // Notify renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', { status: 'checking' });
+    }
   });
 
   let downloadProgressWindow = null;
 
   autoUpdater.on('update-available', (info) => {
-    console.log('[AUTO-UPDATE] Update available:', info.version);
+    console.log('[AUTO-UPDATE] ====================================');
+    console.log('[AUTO-UPDATE] Update available!');
+    console.log('[AUTO-UPDATE] New version:', info.version);
+    console.log('[AUTO-UPDATE] Release date:', info.releaseDate);
+    console.log('[AUTO-UPDATE] Release notes:', info.releaseNotes);
+    console.log('[AUTO-UPDATE] ====================================');
+    
+    // Notify renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', { 
+        status: 'available', 
+        version: info.version,
+        releaseNotes: info.releaseNotes 
+      });
+    }
+    
     dialog.showMessageBox({
       type: 'info',
       title: 'Update Available',
       message: `A new version ${info.version} is available. Do you want to download it now?`,
+      detail: `Current version: ${app.getVersion()}\nNew version: ${info.version}`,
       buttons: ['Download', 'Later']
     }).then((result) => {
       if (result.response === 0) {
+        console.log('[AUTO-UPDATE] User chose to download update');
         console.log('[AUTO-UPDATE] Starting download...');
         
         // Show download progress dialog
@@ -229,7 +272,19 @@ if (autoUpdater) {
   });
 
   autoUpdater.on('update-not-available', (info) => {
-    console.log('[AUTO-UPDATE] No updates available. Current version:', info.version);
+    console.log('[AUTO-UPDATE] ====================================');
+    console.log('[AUTO-UPDATE] No updates available');
+    console.log('[AUTO-UPDATE] Current version:', info.version);
+    console.log('[AUTO-UPDATE] You are running the latest version');
+    console.log('[AUTO-UPDATE] ====================================');
+    
+    // Notify renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', { 
+        status: 'not-available', 
+        version: info.version 
+      });
+    }
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
@@ -279,9 +334,20 @@ if (autoUpdater) {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('[AUTO-UPDATE] Error occurred:', err.message);
+    console.error('[AUTO-UPDATE] ====================================');
+    console.error('[AUTO-UPDATE] Error occurred');
+    console.error('[AUTO-UPDATE] Error message:', err.message);
     console.error('[AUTO-UPDATE] Error code:', err.code);
-    console.error('[AUTO-UPDATE] Full error:', err);
+    console.error('[AUTO-UPDATE] Stack trace:', err.stack);
+    console.error('[AUTO-UPDATE] ====================================');
+    
+    // Notify renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', { 
+        status: 'error', 
+        error: err.message 
+      });
+    }
     
     // Close progress window if it's open
     if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
@@ -290,8 +356,13 @@ if (autoUpdater) {
     }
     
     // If it's a 404, it means no releases exist yet
-    if (err.message.includes('404')) {
-      console.log('[AUTO-UPDATE] No releases found on GitHub yet. Please create a release first.');
+    if (err.message.includes('404') || err.message.includes('No published releases')) {
+      console.log('[AUTO-UPDATE] No releases found on GitHub yet.');
+      console.log('[AUTO-UPDATE] To enable updates:');
+      console.log('[AUTO-UPDATE] 1. Build your app');
+      console.log('[AUTO-UPDATE] 2. Create a GitHub release with the built files');
+      console.log('[AUTO-UPDATE] 3. Tag the release with a version number (e.g., v1.0.0)');
+      return; // Don't show error dialog for missing releases
       console.log('[AUTO-UPDATE] Visit: https://github.com/udaydash-app/collective-dev-kit/releases');
       // Don't show error dialog for 404 - it's expected when no releases exist
       return;
@@ -331,13 +402,21 @@ app.whenReady().then(() => {
   // Check for updates on startup (only in production)
   if (!isDev && autoUpdater) {
     console.log('[AUTO-UPDATE] App started in PRODUCTION mode');
-    console.log('[AUTO-UPDATE] Will check for updates in 3 seconds...');
-    setTimeout(() => {
-      console.log('[AUTO-UPDATE] Starting update check...');
-      autoUpdater.checkForUpdates().catch(err => {
-        console.error('[AUTO-UPDATE] Check failed:', err);
-      });
-    }, 3000); // Check after 3 seconds
+    console.log('[AUTO-UPDATE] Current version:', app.getVersion());
+    console.log('[AUTO-UPDATE] Will check for updates in 5 seconds...');
+    
+    setTimeout(async () => {
+      console.log('[AUTO-UPDATE] Starting automatic update check...');
+      try {
+        const result = await autoUpdater.checkForUpdates();
+        if (result) {
+          console.log('[AUTO-UPDATE] Check complete. Update available:', !!result.updateInfo);
+        }
+      } catch (err) {
+        console.error('[AUTO-UPDATE] Automatic check failed:', err.message);
+        console.error('[AUTO-UPDATE] This is normal if no releases exist yet.');
+      }
+    }, 5000); // Check after 5 seconds to ensure app is fully loaded
   } else {
     console.log('[AUTO-UPDATE] App started in DEVELOPMENT mode - updates disabled');
   }
