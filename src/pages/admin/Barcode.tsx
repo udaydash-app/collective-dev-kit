@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Barcode as BarcodeIcon, Printer, Save, RefreshCw } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import html2canvas from 'html2canvas';
+import { useReactToPrint } from 'react-to-print';
 import { formatCurrency } from '@/lib/utils';
 
 interface SelectedItem {
@@ -162,80 +162,11 @@ export default function BarcodeManagement() {
     }
   };
 
-  const handlePrint = async () => {
-    if (!printRef.current) return;
-
-    try {
-      const labels = printRef.current.querySelectorAll('.barcode-label');
-      const printWindow = window.open('', '_blank');
-      
-      if (!printWindow) {
-        toast.error('Please allow popups to print');
-        return;
-      }
-
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Print Barcodes</title>
-            <style>
-              @page {
-                size: 40mm 30mm;
-                margin: 0;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-              }
-              .barcode-page {
-                width: 40mm;
-                height: 30mm;
-                page-break-after: always;
-                page-break-inside: avoid;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                background: white;
-              }
-              img {
-                max-width: 100%;
-                height: auto;
-              }
-            </style>
-          </head>
-          <body>
-      `);
-
-      for (let i = 0; i < labels.length; i++) {
-        const canvas = await html2canvas(labels[i] as HTMLElement, {
-          scale: 2,
-          backgroundColor: '#ffffff',
-          logging: false,
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        printWindow.document.write(`
-          <div class="barcode-page">
-            <img src="${imgData}" alt="Barcode ${i + 1}" />
-          </div>
-        `);
-      }
-
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      
-      printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-        toast.success('Barcodes sent to printer');
-      };
-    } catch (error) {
-      console.error('Print error:', error);
-      toast.error('Failed to print barcodes');
-    }
-  };
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: 'Product Barcodes',
+    onAfterPrint: () => toast.success('Barcodes sent to printer'),
+  });
 
   const getBarcodeValue = (item: SelectedItem) => {
     const key = `${item.type}-${item.id}`;
@@ -460,36 +391,20 @@ export default function BarcodeManagement() {
               <style>
                 {`
                   @media print {
-                    * {
-                      -webkit-print-color-adjust: exact;
-                      print-color-adjust: exact;
-                    }
                     body {
                       margin: 0;
                       padding: 0;
-                      font-family: Arial, sans-serif;
-                    }
-                    @page {
-                      size: 40mm 30mm;
-                      margin: 0mm;
                     }
                     .barcode-label {
                       width: 40mm !important;
                       height: 30mm !important;
                       padding: 1mm !important;
                       margin: 0 !important;
-                      page-break-after: always;
-                      page-break-inside: avoid;
                       box-sizing: border-box;
                       display: flex !important;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
-                      background: white !important;
-                      border: none !important;
-                    }
-                    .barcode-label * {
-                      max-width: 100%;
                     }
                   }
                 `}
@@ -502,46 +417,43 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label border rounded p-1 flex flex-col items-center"
-                      style={{ width: '40mm', height: '30mm', gap: '1mm' }}
+                      className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
+                      style={{ width: '40mm', height: '30mm' }}
                     >
-                      <div className="w-full text-center" style={{ minHeight: '8mm' }}>
-                        <p className="font-bold text-[8px] leading-tight truncate px-1">{item.name}</p>
+                      <div className="w-full text-center mb-0.5 -mt-2">
+                        <p className="font-bold text-[8px] leading-none truncate px-1">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-[6px] leading-tight truncate px-1">{item.variantLabel}</p>
+                          <p className="text-[6px] leading-none truncate px-1">{item.variantLabel}</p>
                         )}
                       </div>
-                      <div className="flex-1 flex flex-col items-center justify-center w-full">
-                        {barcodeValues.map((barcodeValue, index) => (
-                          <div key={index} className="flex justify-center w-full">
+                      {barcodeValues.map((barcodeValue, index) => (
+                        <div key={index} className="flex flex-col items-center w-full">
+                          <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1.1}
-                              height={30}
+                              width={1.5}
+                              height={40}
                               fontSize={8}
                               background="#ffffff"
                               margin={0}
-                              displayValue={true}
                             />
                           </div>
-                        ))}
-                      </div>
-                      <div className="w-full text-center" style={{ minHeight: '8mm' }}>
-                        <p className="text-[10px] font-bold leading-tight mb-1">{formatCurrency(item.price)}</p>
-                        {details && (
-                          <div className="text-[5px] leading-tight space-y-0">
-                            {details.batchNumber && (
-                              <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
-                            )}
-                            {details.manufacturingDate && (
-                              <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
-                            )}
-                            {details.expiryDate && (
-                              <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ))}
+                      <p className="text-[10px] font-bold leading-none mt-0.5 mb-1">{formatCurrency(item.price)}</p>
+                      {details && (
+                        <div className="text-[5px] leading-none w-full text-center space-y-0 mt-1">
+                          {details.batchNumber && (
+                            <p className="truncate"><span className="font-semibold">B:</span> {details.batchNumber}</p>
+                          )}
+                          {details.manufacturingDate && (
+                            <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                          )}
+                          {details.expiryDate && (
+                            <p className="text-[6px] font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
