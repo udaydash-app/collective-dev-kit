@@ -388,7 +388,7 @@ export default function BarcodeManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div ref={printRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
+              <div ref={printRef} className="grid grid-cols-2 gap-6 p-6">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
                   const itemKey = `${item.type}-${item.id}`;
@@ -396,34 +396,34 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="border rounded p-2 flex flex-col items-center space-y-1"
+                      className="border-2 rounded-lg p-6 flex flex-col items-center space-y-3"
                       style={{ pageBreakInside: 'avoid' }}
                     >
-                      <div className="w-full text-center space-y-0.5 mb-1">
-                        <p className="font-semibold text-[9px] leading-tight">{item.name}</p>
+                      <div className="w-full text-center space-y-1 mb-2">
+                        <p className="font-bold text-lg leading-tight">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="text-[7px] text-muted-foreground leading-tight">{item.variantLabel}</p>
+                          <p className="text-sm text-muted-foreground leading-tight">{item.variantLabel}</p>
                         )}
-                        <p className="text-[10px] font-bold">{formatCurrency(item.price)}</p>
+                        <p className="text-2xl font-bold mt-2">{formatCurrency(item.price)}</p>
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex flex-col items-center w-full">
+                        <div key={index} className="flex flex-col items-center w-full my-2">
                           {barcodeValues.length > 1 && (
-                            <p className="text-[6px] text-muted-foreground">Barcode {index + 1}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Barcode {index + 1}</p>
                           )}
                           <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={2}
-                              height={50}
-                              fontSize={8}
+                              width={3}
+                              height={80}
+                              fontSize={14}
                               background="#ffffff"
                             />
                           </div>
                         </div>
                       ))}
                       {details && (
-                        <div className="text-[7px] space-y-0.5 pt-1 border-t w-full text-center">
+                        <div className="text-sm space-y-1 pt-3 border-t-2 w-full text-center">
                           {details.batchNumber && (
                             <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
