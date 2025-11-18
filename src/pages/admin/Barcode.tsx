@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Barcode as BarcodeIcon, Printer, Save, RefreshCw } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
 import { formatCurrency } from '@/lib/utils';
 
 interface SelectedItem {
@@ -162,28 +162,80 @@ export default function BarcodeManagement() {
     }
   };
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: 'Product Barcodes',
-    onAfterPrint: () => toast.success('Barcodes sent to printer'),
-    pageStyle: `
-      @page {
-        size: 40mm 30mm;
-        margin: 0;
+  const handlePrint = async () => {
+    if (!printRef.current) return;
+
+    try {
+      const labels = printRef.current.querySelectorAll('.barcode-label');
+      const printWindow = window.open('', '_blank');
+      
+      if (!printWindow) {
+        toast.error('Please allow popups to print');
+        return;
       }
-      @media print {
-        body {
-          margin: 0;
-          padding: 0;
-          font-family: Arial, sans-serif;
-        }
-        .barcode-label {
-          page-break-after: always;
-          page-break-inside: avoid;
-        }
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Barcodes</title>
+            <style>
+              @page {
+                size: 40mm 30mm;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              .barcode-page {
+                width: 40mm;
+                height: 30mm;
+                page-break-after: always;
+                page-break-inside: avoid;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: white;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+              }
+            </style>
+          </head>
+          <body>
+      `);
+
+      for (let i = 0; i < labels.length; i++) {
+        const canvas = await html2canvas(labels[i] as HTMLElement, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        printWindow.document.write(`
+          <div class="barcode-page">
+            <img src="${imgData}" alt="Barcode ${i + 1}" />
+          </div>
+        `);
       }
-    `,
-  });
+
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+        toast.success('Barcodes sent to printer');
+      };
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print barcodes');
+    }
+  };
 
   const getBarcodeValue = (item: SelectedItem) => {
     const key = `${item.type}-${item.id}`;
