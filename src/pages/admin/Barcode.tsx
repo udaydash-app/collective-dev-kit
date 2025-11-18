@@ -13,8 +13,6 @@ import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useReactToPrint } from 'react-to-print';
 import { formatCurrency } from '@/lib/utils';
-import qz from 'qz-tray';
-import { qzTrayService } from '@/lib/qzTray';
 
 interface SelectedItem {
   id: string;
@@ -164,108 +162,28 @@ export default function BarcodeManagement() {
     }
   };
 
-  const handlePrint = async () => {
-    if (selectedItems.length === 0) {
-      toast.error('No items selected for printing');
-      return;
-    }
-
-    try {
-      // Connect to QZ Tray
-      if (!qzTrayService['isConnected']) {
-        await qzTrayService.connect();
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: 'Product Barcodes',
+    onAfterPrint: () => toast.success('Barcodes sent to printer'),
+    pageStyle: `
+      @page {
+        size: 40mm 30mm;
+        margin: 0;
       }
-
-      const config = qz.configs.create(await qzTrayService.getDefaultPrinter());
-      
-      // Generate ESC/POS commands for each barcode label
-      const commands: string[] = [];
-      
-      for (const item of selectedItems) {
-        const barcodeValues = getBarcodeValues(item);
-        const itemKey = `${item.type}-${item.id}`;
-        const details = itemDetails.get(itemKey);
-
-        // ESC/POS commands for each label
-        commands.push(
-          '\x1B\x40', // Initialize printer
-          '\x1B\x61\x01', // Center alignment
-          
-          // Print product name (bold, small font)
-          '\x1B\x21\x08', // Bold
-          item.name.substring(0, 32) + '\n',
-          '\x1B\x21\x00', // Reset font
-        );
-
-        // Print variant label if exists
-        if (item.variantLabel) {
-          commands.push(
-            '\x1B\x21\x00', // Normal font
-            item.variantLabel.substring(0, 32) + '\n'
-          );
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
         }
-
-        // Print each barcode
-        for (const barcodeValue of barcodeValues) {
-          if (barcodeValue.length >= 8 && barcodeValue.length <= 13) {
-            // EAN/UPC barcode
-            commands.push(
-              '\x1D\x68\x64', // Barcode height (100 dots)
-              '\x1D\x77\x02', // Barcode width
-              '\x1D\x48\x02', // HRI characters below barcode
-              '\x1D\x6B\x02', // EAN13 barcode type
-              barcodeValue + '\x00' // Barcode data with null terminator
-            );
-          } else {
-            // CODE39 barcode for other lengths
-            const barcodeData = barcodeValue;
-            commands.push(
-              '\x1D\x68\x64', // Barcode height (100 dots)
-              '\x1D\x77\x02', // Barcode width
-              '\x1D\x48\x02', // HRI characters below barcode
-              '\x1D\x6B\x04', // CODE39 barcode type
-              String.fromCharCode(barcodeData.length) + barcodeData // Length + data
-            );
-          }
-          commands.push('\n');
+        .barcode-label {
+          page-break-after: always;
+          page-break-inside: avoid;
         }
-
-        // Print price (bold)
-        commands.push(
-          '\x1B\x21\x10', // Bold and larger
-          formatCurrency(item.price) + '\n',
-          '\x1B\x21\x00' // Reset font
-        );
-
-        // Print additional details if exist
-        if (details) {
-          commands.push('\x1B\x21\x00'); // Small font
-          if (details.batchNumber) {
-            commands.push(`B: ${details.batchNumber}\n`);
-          }
-          if (details.manufacturingDate) {
-            commands.push(`Mfg: ${new Date(details.manufacturingDate).toLocaleDateString('en-GB')}\n`);
-          }
-          if (details.expiryDate) {
-            commands.push(`Exp: ${new Date(details.expiryDate).toLocaleDateString('en-GB')}\n`);
-          }
-        }
-
-        // Cut paper after each label
-        commands.push(
-          '\n\n',
-          '\x1D\x56\x00' // Full cut
-        );
       }
-
-      // Print the barcodes
-      await qz.print(config, commands);
-      toast.success('Barcodes sent to thermal printer');
-    } catch (error) {
-      console.error('Print error:', error);
-      toast.error('Failed to print barcodes. Make sure QZ Tray is running.');
-    }
-  };
+    `,
+  });
 
   const getBarcodeValue = (item: SelectedItem) => {
     const key = `${item.type}-${item.id}`;
@@ -490,20 +408,36 @@ export default function BarcodeManagement() {
               <style>
                 {`
                   @media print {
+                    * {
+                      -webkit-print-color-adjust: exact;
+                      print-color-adjust: exact;
+                    }
                     body {
                       margin: 0;
                       padding: 0;
+                      font-family: Arial, sans-serif;
+                    }
+                    @page {
+                      size: 40mm 30mm;
+                      margin: 0mm;
                     }
                     .barcode-label {
                       width: 40mm !important;
                       height: 30mm !important;
                       padding: 1mm !important;
                       margin: 0 !important;
+                      page-break-after: always;
+                      page-break-inside: avoid;
                       box-sizing: border-box;
                       display: flex !important;
                       flex-direction: column;
                       justify-content: center;
                       align-items: center;
+                      background: white !important;
+                      border: none !important;
+                    }
+                    .barcode-label * {
+                      max-width: 100%;
                     }
                   }
                 `}
@@ -530,11 +464,12 @@ export default function BarcodeManagement() {
                           <div className="flex justify-center w-full">
                             <Barcode
                               value={barcodeValue}
-                              width={1.5}
-                              height={40}
-                              fontSize={8}
+                              width={1.2}
+                              height={35}
+                              fontSize={10}
                               background="#ffffff"
                               margin={0}
+                              displayValue={true}
                             />
                           </div>
                         </div>
