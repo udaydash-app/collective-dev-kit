@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -146,7 +147,7 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
                     <div className="font-medium">{product.name}</div>
                     <div className="text-sm text-muted-foreground mt-1">
                       Stock: {product.stock_quantity || 0} | 
-                      Price: ${product.price.toFixed(2)}
+                      Price: {formatCurrency(product.price)}
                       {product.product_variants && product.product_variants.length > 0 && (
                         <span> | {product.product_variants.length} variants</span>
                       )}
