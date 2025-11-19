@@ -1919,42 +1919,132 @@ export default function POS() {
     },
     {
       key: 'F2',
-      description: 'Quick Cash Payment (Print)',
+      description: 'Cash Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
         }
-        setQuickPaymentMethod('cash');
-        await handleQuickPayment(true);
+        
+        // Directly process cash payment and print
+        const total = calculateTotal();
+        const payment = {
+          id: '1',
+          method: 'cash',
+          amount: total
+        };
+        
+        const transactionData = await handlePaymentConfirm([payment], total);
+        
+        // Print receipt directly
+        if (transactionData) {
+          try {
+            const receiptData: any = {
+              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
+              transactionNumber: transactionData.transactionNumber,
+              date: new Date(),
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              discount: transactionData.discount,
+              tax: 0,
+              total: transactionData.total,
+              paymentMethod: 'Cash',
+              cashierName: currentCashSession?.cashier_name || 'Cashier',
+              customerName: selectedCustomer?.name,
+            };
+            await kioskPrintService.printReceipt(receiptData);
+          } catch (error) {
+            console.error('Print error:', error);
+          }
+        }
       },
     },
     {
       key: 'F3',
-      description: 'Quick Credit Payment (Print if customer)',
+      description: 'Credit Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
         }
         if (!selectedCustomer) {
-          toast.error('Please select a customer first');
+          toast.error('Please select a customer for credit payment');
           return;
         }
-        setQuickPaymentMethod('credit');
-        await handleQuickPayment(true);
+        
+        // Directly process credit payment and print
+        const total = calculateTotal();
+        const payment = {
+          id: '1',
+          method: 'credit',
+          amount: total
+        };
+        
+        const transactionData = await handlePaymentConfirm([payment], total);
+        
+        // Print receipt directly
+        if (transactionData) {
+          try {
+            const receiptData: any = {
+              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
+              transactionNumber: transactionData.transactionNumber,
+              date: new Date(),
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              discount: transactionData.discount,
+              tax: 0,
+              total: transactionData.total,
+              paymentMethod: 'Credit',
+              cashierName: currentCashSession?.cashier_name || 'Cashier',
+              customerName: selectedCustomer?.name,
+            };
+            await kioskPrintService.printReceipt(receiptData);
+          } catch (error) {
+            console.error('Print error:', error);
+          }
+        }
       },
     },
     {
       key: 'F4',
-      description: 'Quick Mobile Money Payment (Print)',
+      description: 'Mobile Money Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
           return;
         }
-        setQuickPaymentMethod('mobile_money');
-        await handleQuickPayment(true);
+        
+        // Directly process mobile money payment and print
+        const total = calculateTotal();
+        const payment = {
+          id: '1',
+          method: 'mobile_money',
+          amount: total
+        };
+        
+        const transactionData = await handlePaymentConfirm([payment], total);
+        
+        // Print receipt directly
+        if (transactionData) {
+          try {
+            const receiptData: any = {
+              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
+              transactionNumber: transactionData.transactionNumber,
+              date: new Date(),
+              items: transactionData.items,
+              subtotal: transactionData.subtotal,
+              discount: transactionData.discount,
+              tax: 0,
+              total: transactionData.total,
+              paymentMethod: 'Mobile Money',
+              cashierName: currentCashSession?.cashier_name || 'Cashier',
+              customerName: selectedCustomer?.name,
+            };
+            await kioskPrintService.printReceipt(receiptData);
+          } catch (error) {
+            console.error('Print error:', error);
+          }
+        }
       },
     },
     {
