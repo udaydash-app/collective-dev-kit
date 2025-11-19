@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Trash2, Package, Search, Eye, Edit, X } from 'lucide-react';
+import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PurchasePaymentDialog } from '@/components/admin/PurchasePaymentDialog';
+import { PurchaseUploadDialog } from '@/components/admin/PurchaseUploadDialog';
 
 interface PurchaseItem {
   product_id: string;
@@ -91,6 +92,7 @@ export default function Purchases() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [pendingPaymentPurchase, setPendingPaymentPurchase] = useState<any>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -756,10 +758,14 @@ export default function Purchases() {
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
+            <Button onClick={() => setShowUploadDialog(true)} variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Excel
+            </Button>
             <Button onClick={() => setShowNewPurchase(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Purchase
-          </Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Purchase
+            </Button>
           </div>
         </div>
 
@@ -1452,6 +1458,18 @@ export default function Purchases() {
         totalAmount={pendingPaymentPurchase?.totalAmount || 0}
         onConfirm={handlePaymentConfirm}
         currentPaymentStatus={paymentStatus}
+      />
+
+      {/* Upload Dialog */}
+      <PurchaseUploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        stores={stores || []}
+        suppliers={suppliers || []}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['purchases'] });
+          toast.success('Purchase uploaded successfully');
+        }}
       />
 
       <BottomNav />

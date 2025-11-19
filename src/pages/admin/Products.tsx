@@ -408,6 +408,19 @@ export default function Products() {
       console.log('Product data to save:', productData);
 
       if (isAddingNew) {
+        // Check for duplicate product name in the same store
+        const { data: existingProduct } = await supabase
+          .from("products")
+          .select("id, name")
+          .eq("store_id", productData.store_id)
+          .ilike("name", productData.name)
+          .maybeSingle();
+
+        if (existingProduct) {
+          toast.error(`Product "${productData.name}" already exists in this store`);
+          return;
+        }
+
         // Insert new product
         const { data: newProduct, error: insertError } = await supabase
           .from("products")
