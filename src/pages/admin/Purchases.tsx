@@ -94,13 +94,18 @@ export default function Purchases() {
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Auto-focus on newly added product
+  // Auto-focus on newly added product - with delay to ensure dialog is rendered
   useEffect(() => {
-    if (items.length > 0 && lastItemRef.current) {
-      lastItemRef.current.focus();
-      lastItemRef.current.select();
+    if (items.length > 0 && (showNewPurchase || showEditDialog) && lastItemRef.current) {
+      // Small delay to ensure the dialog and inputs are rendered
+      setTimeout(() => {
+        if (lastItemRef.current) {
+          lastItemRef.current.focus();
+          lastItemRef.current.select();
+        }
+      }, 100);
     }
-  }, [items.length]);
+  }, [items.length, showNewPurchase, showEditDialog]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
