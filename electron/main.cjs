@@ -262,10 +262,21 @@ if (autoUpdater) {
           </html>
         `);
 
-        // Wait for the window to finish loading before starting the download
+        // Start download immediately and update UI when ready
+        console.log('[AUTO-UPDATE] Starting download immediately...');
+        autoUpdater.downloadUpdate().then(() => {
+          console.log('[AUTO-UPDATE] Download started successfully');
+        }).catch((err) => {
+          console.error('[AUTO-UPDATE] Failed to start download:', err);
+          if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
+            downloadProgressWindow.close();
+          }
+          dialog.showErrorBox('Update Error', `Failed to download update: ${err.message}`);
+        });
+        
+        // Also setup window load handler for updating UI
         downloadProgressWindow.webContents.once('did-finish-load', () => {
-          console.log('[AUTO-UPDATE] Progress dialog loaded, starting download...');
-          autoUpdater.downloadUpdate();
+          console.log('[AUTO-UPDATE] Progress dialog UI loaded');
         });
       }
     });
