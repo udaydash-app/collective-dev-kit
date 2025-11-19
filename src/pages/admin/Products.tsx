@@ -304,16 +304,28 @@ export default function Products() {
   const saveVariants = async (productId: string) => {
     try {
       // Fetch existing variants for this product
-      const { data: existingVariants } = await supabase
+      const { data: existingVariants, error: fetchError } = await supabase
         .from('product_variants')
         .select('id')
         .eq('product_id', productId);
+
+      if (fetchError) {
+        console.error('Error fetching existing variants:', fetchError);
+        throw fetchError;
+      }
 
       const existingIds = existingVariants?.map(v => v.id) || [];
       const currentIds = variants.filter(v => v.id).map(v => v.id);
       
       // Find variants to delete (existing but not in current list)
       const variantsToDelete = existingIds.filter(id => !currentIds.includes(id));
+      
+      console.log('Variant deletion check:', {
+        existingIds,
+        currentIds,
+        variantsToDelete,
+        variantsInState: variants.length
+      });
       
       // Try to delete removed variants
       if (variantsToDelete.length > 0) {
@@ -329,17 +341,30 @@ export default function Products() {
           .select('variant_id')
           .in('variant_id', variantsToDelete)
           .limit(1);
+        
+        const { data: inventoryRefs } = await supabase
+          .from('inventory_layers')
+          .select('variant_id')
+          .in('variant_id', variantsToDelete)
+          .limit(1);
 
         if (purchaseRefs && purchaseRefs.length > 0) {
-          toast.error("Cannot delete variants that have purchase history");
+          toast.error("Cannot delete variants with purchase history. Please keep the variant or merge products instead.");
           return false;
         }
 
         if (cartRefs && cartRefs.length > 0) {
-          toast.error("Cannot delete variants that are in customer carts");
+          toast.error("Cannot delete variants in customer carts. Please wait or remove from carts first.");
+          return false;
+        }
+        
+        if (inventoryRefs && inventoryRefs.length > 0) {
+          toast.error("Cannot delete variants with inventory layers. Please use stock adjustment to zero out inventory first.");
           return false;
         }
 
+        console.log('Deleting variants:', variantsToDelete);
+        
         const { error: deleteError } = await supabase
           .from('product_variants')
           .delete()
@@ -347,9 +372,11 @@ export default function Products() {
 
         if (deleteError) {
           console.error('Error deleting variants:', deleteError);
-          toast.error("Cannot delete variants: " + deleteError.message);
+          toast.error("Failed to delete variants: " + deleteError.message);
           return false;
         }
+        
+        console.log('Successfully deleted variants:', variantsToDelete);
       }
 
       // Update or insert variants
@@ -565,7 +592,19 @@ export default function Products() {
         console.log('Product updated successfully with barcode:', productData.barcode);
 
         // Save variants
-        await saveVariants(editingProduct.id);
+        const variantsSaved = await saveVariants(editingProduct.id);
+        
+        if (!variantsSaved) {
+          // Variants failed to save, but product was updated
+          toast.warning("Product updated, but some variants could not be changed");
+          setIsDialogOpen(false);
+          setSelectedImage(null);
+          setPreviewUrl(null);
+          setImageUrl("");
+          setIsAddingNew(false);
+          fetchProducts();
+          return;
+        }
 
         toast.success("Product updated successfully");
       }
