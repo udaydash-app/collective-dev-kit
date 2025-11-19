@@ -1049,10 +1049,47 @@ export default function Purchases() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-            {/* Payment Info Card */}
+            {/* Header Info Card */}
             <Card>
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-supplier" className="text-sm font-semibold">Supplier *</Label>
+                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                      <SelectTrigger id="edit-supplier" className="mt-1">
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers?.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                            {(supplier.phone || supplier.email) && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {supplier.phone || supplier.email}
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-store" className="text-sm font-semibold">Store *</Label>
+                    <Select value={selectedStore} onValueChange={setSelectedStore}>
+                      <SelectTrigger id="edit-store" className="mt-1">
+                        <SelectValue placeholder="Select store" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores?.map((store) => (
+                          <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div>
                     <Label htmlFor="edit-payment-status" className="text-sm font-semibold">Payment Status</Label>
                     <Select value={paymentStatus} onValueChange={setPaymentStatus}>
@@ -1066,6 +1103,7 @@ export default function Purchases() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   <div>
                     <Label htmlFor="edit-payment-method" className="text-sm font-semibold">Payment Method</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -1209,7 +1247,7 @@ export default function Purchases() {
               </Button>
               <Button
                 onClick={handleUpdatePurchase}
-                disabled={items.length === 0 || updatePurchaseMutation.isPending}
+                disabled={!selectedSupplier || !selectedStore || items.length === 0 || updatePurchaseMutation.isPending}
                 className="flex-1"
               >
                 {updatePurchaseMutation.isPending ? 'Updating...' : 'Update Purchase'}
