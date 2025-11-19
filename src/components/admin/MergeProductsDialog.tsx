@@ -63,21 +63,6 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
     setMerging(true);
 
     try {
-      // Calculate total stock from all products
-      let totalStock = keepProduct.stock_quantity || 0;
-      
-      for (const product of mergeProducts) {
-        totalStock += product.stock_quantity || 0;
-      }
-
-      // Update the kept product's stock
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ stock_quantity: totalStock })
-        .eq('id', keepProduct.id);
-
-      if (updateError) throw updateError;
-
       // Transfer inventory layers from merged products to kept product
       for (const product of mergeProducts) {
         const { error: layerError } = await supabase
@@ -295,7 +280,7 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
             <div className="rounded-lg bg-muted p-3 text-sm">
               <strong>Result:</strong> All products will be merged into "
               {products.find(p => p.id === selectedProductId)?.name}". 
-              Total stock will be: {products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0)}
+              Stock will be automatically recalculated from inventory layers.
               {hasVariants && selectedVariantIds.length > 0 && (
                 <div className="mt-1">
                   {selectedVariantIds.length} variant(s) will be kept.
