@@ -519,14 +519,16 @@ export default function Purchases() {
     }
   };
 
-  // Handle payment confirmation for new purchase
+  // Handle payment confirmation for new or updated purchase
   const handlePaymentConfirm = async (payments: Array<{id: string; method: string; amount: number}>) => {
     const paymentDetails = payments.map(p => ({ method: p.method, amount: p.amount }));
     
-    if (pendingPaymentPurchase?.isNew) {
-      await createPurchaseMutation.mutateAsync(paymentDetails);
-    } else if (selectedPurchase) {
+    // Check if we're updating an existing purchase (selectedPurchase is set)
+    if (selectedPurchase) {
       await updatePurchaseMutation.mutateAsync({ paymentDetails });
+    } else if (pendingPaymentPurchase?.isNew) {
+      // Only create new if we don't have a selectedPurchase
+      await createPurchaseMutation.mutateAsync(paymentDetails);
     }
     
     setShowPaymentDialog(false);
