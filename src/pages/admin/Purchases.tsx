@@ -39,6 +39,7 @@ interface SavedPurchaseFormState {
   paymentStatus: string;
   paymentMethod: string;
   notes: string;
+  editingPurchaseId?: string; // Track if we're editing an existing purchase
   timestamp: number;
 }
 
@@ -248,8 +249,21 @@ export default function Purchases() {
             
             setItems(updatedItems);
             
-            // Reopen the purchase dialog
-            setShowNewPurchase(true);
+            // Check if we were editing an existing purchase
+            if (savedState.editingPurchaseId) {
+              // Restore the purchase being edited
+              const editPurchase = purchases?.find(p => p.id === savedState.editingPurchaseId);
+              if (editPurchase) {
+                setSelectedPurchase(editPurchase);
+                setShowEditDialog(true);
+              } else {
+                // Fallback to new purchase if the edited purchase is no longer found
+                setShowNewPurchase(true);
+              }
+            } else {
+              // Open new purchase dialog
+              setShowNewPurchase(true);
+            }
             
             // Clear the saved state after restoration
             clearPurchaseFormState();
@@ -1292,6 +1306,7 @@ export default function Purchases() {
                     paymentStatus,
                     paymentMethod,
                     notes,
+                    editingPurchaseId: showEditDialog ? selectedPurchase?.id : undefined,
                   });
                   
                   setShowProductSearch(false);
