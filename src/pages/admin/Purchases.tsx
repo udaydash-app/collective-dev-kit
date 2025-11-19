@@ -132,7 +132,7 @@ export default function Purchases() {
     },
   });
 
-  const { data: purchases } = useQuery({
+  const { data: purchases, isLoading: purchasesLoading } = useQuery({
     queryKey: ['purchases'],
     queryFn: async () => {
       const { data } = await supabase
@@ -251,8 +251,14 @@ export default function Purchases() {
             
             // Check if we were editing an existing purchase
             if (savedState.editingPurchaseId) {
+              // Wait for purchases to load before trying to restore
+              if (!purchases || purchasesLoading) {
+                // Purchases not loaded yet, will retry when they load
+                return;
+              }
+              
               // Restore the purchase being edited
-              const editPurchase = purchases?.find(p => p.id === savedState.editingPurchaseId);
+              const editPurchase = purchases.find(p => p.id === savedState.editingPurchaseId);
               if (editPurchase) {
                 setSelectedPurchase(editPurchase);
                 setShowEditDialog(true);
@@ -281,7 +287,7 @@ export default function Purchases() {
       // Clear the navigation state
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state?.newProductId]);
+  }, [location.state?.newProductId, purchases, purchasesLoading]);
 
   // Auto-select newly created supplier from Contacts page
   useEffect(() => {
