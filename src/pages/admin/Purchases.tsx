@@ -254,51 +254,12 @@ export default function Purchases() {
               // Wait for purchases to load before trying to restore
               if (!purchases || purchasesLoading) {
                 // Purchases not loaded yet, will retry when they load
-                // DON'T clear navigation state yet, we need to run again
                 return;
               }
               
               // Restore the purchase being edited
               const editPurchase = purchases.find(p => p.id === savedState.editingPurchaseId);
               if (editPurchase) {
-                // Load the original purchase items from the database
-                const purchaseItems = editPurchase.purchase_items.map((item: any) => ({
-                  product_id: item.product_id,
-                  variant_id: item.variant_id || undefined,
-                  quantity: item.quantity,
-                  unit_cost: item.unit_cost,
-                  total_cost: item.total_cost,
-                  product_name: item.products?.name || '',
-                  variant_label: item.product_variants ? 
-                    (item.product_variants.label || `${item.product_variants.quantity}${item.product_variants.unit}`) : 
-                    undefined,
-                }));
-                
-                // Add the new product to the purchase items
-                const existingIndex = purchaseItems.findIndex(
-                  item => item.product_id === product.id && !item.variant_id
-                );
-                
-                if (existingIndex >= 0) {
-                  // Increment quantity if product exists
-                  purchaseItems[existingIndex].quantity += 1;
-                  purchaseItems[existingIndex].total_cost = 
-                    purchaseItems[existingIndex].quantity * purchaseItems[existingIndex].unit_cost;
-                } else {
-                  // Add new item with proper structure
-                  purchaseItems.push({
-                    product_id: product.id,
-                    variant_id: undefined,
-                    quantity: 1,
-                    unit_cost: Number(unitCost),
-                    total_cost: Number(unitCost),
-                    product_name: product.name,
-                    variant_label: undefined,
-                  });
-                }
-                
-                // Set the items with original items + new product
-                setItems(purchaseItems);
                 setSelectedPurchase(editPurchase);
                 setShowEditDialog(true);
               } else {
@@ -312,21 +273,19 @@ export default function Purchases() {
             
             // Clear the saved state after restoration
             clearPurchaseFormState();
-            // Clear the navigation state
-            navigate(location.pathname, { replace: true, state: {} });
             
             toast.success(`"${product.name}" added to purchase`);
           } else {
             // No saved state, just add the product normally
             addProductToItems(product);
             toast.success(`"${product.name}" added to purchase`);
-            // Clear the navigation state
-            navigate(location.pathname, { replace: true, state: {} });
           }
         }
       };
       
       fetchNewProduct();
+      // Clear the navigation state
+      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state?.newProductId, purchases, purchasesLoading]);
 
