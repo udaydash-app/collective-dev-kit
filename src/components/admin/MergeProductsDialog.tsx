@@ -160,6 +160,18 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
 
       // Update references in other tables
       for (const product of mergeProducts) {
+        // Update purchase items
+        await supabase
+          .from('purchase_items')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        // Update order items
+        await supabase
+          .from('order_items')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
         // Update cart items
         await supabase
           .from('cart_items')
@@ -177,6 +189,24 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
           .from('wishlist')
           .update({ product_id: keepProduct.id })
           .eq('product_id', product.id);
+
+        // Update stock adjustments
+        await supabase
+          .from('stock_adjustments')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        // Update production outputs
+        await supabase
+          .from('production_outputs')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        // Update productions (source product)
+        await supabase
+          .from('productions')
+          .update({ source_product_id: keepProduct.id })
+          .eq('source_product_id', product.id);
       }
 
       // Delete the merged products
