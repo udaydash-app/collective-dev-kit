@@ -27,6 +27,7 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 export default function StockAndPrice() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'non-zero'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   // Fetch products with variants, category and store info
@@ -60,7 +61,13 @@ export default function StockAndPrice() {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
+    
+    const stockQuantity = product.stock_quantity || 0;
+    const matchesStock = stockFilter === 'all' || 
+      (stockFilter === 'zero' && stockQuantity === 0) ||
+      (stockFilter === 'non-zero' && stockQuantity > 0);
+    
+    return matchesSearch && matchesCategory && matchesStock;
   });
 
   const calculateMargin = (price: number, cost?: number) => {
@@ -103,6 +110,16 @@ export default function StockAndPrice() {
                   {category.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={stockFilter} onValueChange={(value: 'all' | 'zero' | 'non-zero') => setStockFilter(value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Stock Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stock</SelectItem>
+              <SelectItem value="zero">Zero Stock</SelectItem>
+              <SelectItem value="non-zero">In Stock</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex border rounded-lg">
