@@ -199,6 +199,7 @@ export default function Products() {
     setSelectedImage(null);
     setPreviewUrl(null);
     setImageUrl("");
+    console.log('Editing product variants:', product.product_variants);
     setVariants(product.product_variants || []);
     setShowVariants(true); // Show variants section by default
     setIsDialogOpen(true);
@@ -298,6 +299,8 @@ export default function Products() {
   };
 
   const removeVariant = (index: number) => {
+    const removedVariant = variants[index];
+    console.log('Removing variant at index', index, ':', removedVariant);
     setVariants(variants.filter((_, i) => i !== index));
   };
 
@@ -592,6 +595,7 @@ export default function Products() {
         console.log('Product updated successfully with barcode:', productData.barcode);
 
         // Save variants
+        console.log('Calling saveVariants with productId:', editingProduct.id, 'current variants:', variants);
         const variantsSaved = await saveVariants(editingProduct.id);
         
         if (!variantsSaved) {
