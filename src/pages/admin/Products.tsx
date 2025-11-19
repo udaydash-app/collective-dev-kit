@@ -303,33 +303,89 @@ export default function Products() {
 
   const saveVariants = async (productId: string) => {
     try {
-      // Delete existing variants
-      await supabase
+      // Fetch existing variants for this product
+      const { data: existingVariants } = await supabase
         .from('product_variants')
-        .delete()
+        .select('id')
         .eq('product_id', productId);
 
-      // Insert new variants
-      if (variants.length > 0) {
-        const variantsToInsert = variants.map(v => ({
-          product_id: productId,
-          unit: v.unit,
-          quantity: v.quantity,
-          label: v.label || `${v.quantity || ''} ${v.unit}`.trim(),
-          price: v.price,
-          cost_price: v.cost_price || null,
-          barcode: v.barcode?.trim() || null,
-          stock_quantity: v.stock_quantity,
-          is_available: v.is_available,
-          is_default: v.is_default,
-        }));
+      const existingIds = existingVariants?.map(v => v.id) || [];
+      const currentIds = variants.filter(v => v.id).map(v => v.id);
+      
+      // Find variants to delete (existing but not in current list)
+      const variantsToDelete = existingIds.filter(id => !currentIds.includes(id));
+      
+      // Try to delete removed variants
+      if (variantsToDelete.length > 0) {
+        // First check if any variants are referenced in other tables
+        const { data: purchaseRefs } = await supabase
+          .from('purchase_items')
+          .select('variant_id')
+          .in('variant_id', variantsToDelete)
+          .limit(1);
 
-        const { error } = await supabase
+        const { data: cartRefs } = await supabase
+          .from('cart_items')
+          .select('variant_id')
+          .in('variant_id', variantsToDelete)
+          .limit(1);
+
+        if (purchaseRefs && purchaseRefs.length > 0) {
+          toast.error("Cannot delete variants that have purchase history");
+          return false;
+        }
+
+        if (cartRefs && cartRefs.length > 0) {
+          toast.error("Cannot delete variants that are in customer carts");
+          return false;
+        }
+
+        const { error: deleteError } = await supabase
           .from('product_variants')
-          .insert(variantsToInsert);
+          .delete()
+          .in('id', variantsToDelete);
 
-        if (error) throw error;
+        if (deleteError) {
+          console.error('Error deleting variants:', deleteError);
+          toast.error("Cannot delete variants: " + deleteError.message);
+          return false;
+        }
       }
+
+      // Update or insert variants
+      for (const variant of variants) {
+        const variantData = {
+          product_id: productId,
+          unit: variant.unit,
+          quantity: variant.quantity,
+          label: variant.label || `${variant.quantity || ''} ${variant.unit}`.trim(),
+          price: variant.price,
+          cost_price: variant.cost_price || null,
+          barcode: variant.barcode?.trim() || null,
+          stock_quantity: variant.stock_quantity,
+          is_available: variant.is_available,
+          is_default: variant.is_default,
+        };
+
+        if (variant.id) {
+          // Update existing variant
+          const { error } = await supabase
+            .from('product_variants')
+            .update(variantData)
+            .eq('id', variant.id);
+
+          if (error) throw error;
+        } else {
+          // Insert new variant
+          const { error } = await supabase
+            .from('product_variants')
+            .insert(variantData);
+
+          if (error) throw error;
+        }
+      }
+
+      return true;
     } catch (error) {
       console.error('Error saving variants:', error);
       throw error;
