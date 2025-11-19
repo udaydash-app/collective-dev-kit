@@ -90,6 +90,15 @@ export default function StockAndPrice() {
     return matchesSearch && matchesCategory && matchesStock;
   });
 
+  // Helper function to check if a stock value matches the filter
+  const stockMatchesFilter = (stock: number) => {
+    if (stockFilter === 'all') return true;
+    if (stockFilter === 'zero') return stock === 0;
+    if (stockFilter === 'positive') return stock > 0;
+    if (stockFilter === 'negative') return stock < 0;
+    return true;
+  };
+
   const calculateMargin = (price: number, cost?: number) => {
     if (!cost || cost === 0) return null;
     return ((price - cost) / price * 100).toFixed(1);
@@ -200,7 +209,10 @@ export default function StockAndPrice() {
                 filteredProducts?.flatMap((product) => {
                   // If product has variants, show each variant as a separate row
                   if (product.product_variants && product.product_variants.length > 0) {
-                    return product.product_variants.map((variant: any) => (
+                    // Filter variants based on stock filter
+                    return product.product_variants
+                      .filter((variant: any) => stockMatchesFilter(variant.stock_quantity ?? 0))
+                      .map((variant: any) => (
                       <TableRow key={`${product.id}-${variant.id}`}>
                         <TableCell>
                           <div>
