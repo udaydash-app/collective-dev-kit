@@ -1,0 +1,189 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+interface Product {
+  id: string;
+  name: string;
+  stock_quantity: number;
+  price: number;
+  cost_price?: number;
+  product_variants?: Array<{
+    id: string;
+    stock_quantity: number;
+    unit: string;
+  }>;
+}
+
+interface MergeProductsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  products: Product[];
+  onSuccess: () => void;
+}
+
+export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }: MergeProductsDialogProps) {
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [merging, setMerging] = useState(false);
+
+  const handleMerge = async () => {
+    if (!selectedProductId) {
+      toast.error("Please select which product to keep");
+      return;
+    }
+
+    const keepProduct = products.find(p => p.id === selectedProductId);
+    const mergeProducts = products.filter(p => p.id !== selectedProductId);
+
+    if (!keepProduct || mergeProducts.length === 0) {
+      toast.error("Invalid selection");
+      return;
+    }
+
+    setMerging(true);
+
+    try {
+      // Calculate total stock from all products
+      let totalStock = keepProduct.stock_quantity || 0;
+      
+      for (const product of mergeProducts) {
+        totalStock += product.stock_quantity || 0;
+      }
+
+      // Update the kept product's stock
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stock_quantity: totalStock })
+        .eq('id', keepProduct.id);
+
+      if (updateError) throw updateError;
+
+      // Transfer inventory layers from merged products to kept product
+      for (const product of mergeProducts) {
+        const { error: layerError } = await supabase
+          .from('inventory_layers')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        if (layerError) console.error('Error transferring inventory layers:', layerError);
+      }
+
+      // Transfer variants from merged products to kept product
+      for (const product of mergeProducts) {
+        if (product.product_variants && product.product_variants.length > 0) {
+          const { error: variantError } = await supabase
+            .from('product_variants')
+            .update({ product_id: keepProduct.id })
+            .eq('product_id', product.id);
+
+          if (variantError) console.error('Error transferring variants:', variantError);
+        }
+      }
+
+      // Update references in other tables
+      for (const product of mergeProducts) {
+        // Update cart items
+        await supabase
+          .from('cart_items')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        // Update favorites
+        await supabase
+          .from('favorites')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+
+        // Update wishlist
+        await supabase
+          .from('wishlist')
+          .update({ product_id: keepProduct.id })
+          .eq('product_id', product.id);
+      }
+
+      // Delete the merged products
+      const { error: deleteError } = await supabase
+        .from('products')
+        .delete()
+        .in('id', mergeProducts.map(p => p.id));
+
+      if (deleteError) throw deleteError;
+
+      toast.success(`Successfully merged ${mergeProducts.length} products into "${keepProduct.name}"`);
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error merging products:', error);
+      toast.error(error.message || "Failed to merge products");
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Merge Products</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Select which product to keep. All stock quantities will be combined into the selected product.
+          </p>
+          
+          <div className="space-y-3">
+            <Label>Products to merge ({products.length})</Label>
+            <RadioGroup value={selectedProductId} onValueChange={setSelectedProductId}>
+              {products.map((product) => (
+                <div key={product.id} className="flex items-start space-x-2 rounded-lg border p-3">
+                  <RadioGroupItem value={product.id} id={product.id} className="mt-1" />
+                  <Label htmlFor={product.id} className="flex-1 cursor-pointer">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Stock: {product.stock_quantity || 0} | 
+                      Price: ${product.price.toFixed(2)}
+                      {product.product_variants && product.product_variants.length > 0 && (
+                        <span> | {product.product_variants.length} variants</span>
+                      )}
+                    </div>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+
+          {selectedProductId && (
+            <div className="rounded-lg bg-muted p-3 text-sm">
+              <strong>Result:</strong> All products will be merged into "
+              {products.find(p => p.id === selectedProductId)?.name}". 
+              Total stock will be: {products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0)}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleMerge}
+              disabled={!selectedProductId || merging}
+              className="flex-1"
+            >
+              {merging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Merge Products
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={merging}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

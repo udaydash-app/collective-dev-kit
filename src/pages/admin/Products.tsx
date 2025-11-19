@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid, Merge } from "lucide-react";
+import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -101,6 +102,7 @@ export default function Products() {
   const [returnPath, setReturnPath] = useState<string | null>(null);
   const [fromPurchases, setFromPurchases] = useState(false);
   const [fromPOS, setFromPOS] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [hasProcessedOpenDialog, setHasProcessedOpenDialog] = useState(false);
 
   useEffect(() => {
@@ -714,15 +716,28 @@ export default function Products() {
                 Add
               </Button>
               {selectedProducts.size > 0 && (
-                <Button 
-                  onClick={handleBulkDelete}
-                  variant="destructive"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete ({selectedProducts.size})
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleBulkDelete}
+                    variant="destructive"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete ({selectedProducts.size})
+                  </Button>
+                  {selectedProducts.size >= 2 && (
+                    <Button 
+                      onClick={() => setIsMergeDialogOpen(true)}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <Merge className="h-3 w-3" />
+                      Merge ({selectedProducts.size})
+                    </Button>
+                  )}
+                </>
               )}
               <Button 
                 onClick={handleEnrichAll}
@@ -1688,6 +1703,16 @@ export default function Products() {
           </DialogContent>
         </Dialog>
       </main>
+
+      <MergeProductsDialog
+        open={isMergeDialogOpen}
+        onOpenChange={setIsMergeDialogOpen}
+        products={products.filter(p => selectedProducts.has(p.id))}
+        onSuccess={() => {
+          setSelectedProducts(new Set());
+          fetchProducts();
+        }}
+      />
 
       <BottomNav />
     </div>
