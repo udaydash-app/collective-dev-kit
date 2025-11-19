@@ -96,19 +96,50 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
           .update({ product_id: keepProduct.id })
           .in('id', selectedVariantIds);
 
-        if (variantError) console.error('Error transferring selected variants:', variantError);
+        if (variantError) {
+          console.error('Error transferring selected variants:', variantError);
+          throw new Error('Failed to transfer variants');
+        }
         
-        // Delete non-selected variants from merge products
+        // Check if non-selected variants have any references before deleting
         const allVariantIds = allVariants.map(v => v.id);
         const variantsToDelete = allVariantIds.filter(id => !selectedVariantIds.includes(id));
         
         if (variantsToDelete.length > 0) {
+          // Check for references in related tables
+          const { data: cartRefs } = await supabase
+            .from('cart_items')
+            .select('id')
+            .in('variant_id', variantsToDelete)
+            .limit(1);
+            
+          const { data: purchaseRefs } = await supabase
+            .from('purchase_items')
+            .select('id')
+            .in('variant_id', variantsToDelete)
+            .limit(1);
+            
+          const { data: inventoryRefs } = await supabase
+            .from('inventory_layers')
+            .select('id')
+            .in('variant_id', variantsToDelete)
+            .limit(1);
+
+          if (cartRefs?.length || purchaseRefs?.length || inventoryRefs?.length) {
+            toast.error('Cannot delete non-selected variants: they have transaction history or are in carts');
+            throw new Error('Variants have foreign key references');
+          }
+
+          // Safe to delete - no references found
           const { error: deleteVariantError } = await supabase
             .from('product_variants')
             .delete()
             .in('id', variantsToDelete);
             
-          if (deleteVariantError) console.error('Error deleting non-selected variants:', deleteVariantError);
+          if (deleteVariantError) {
+            console.error('Error deleting non-selected variants:', deleteVariantError);
+            throw deleteVariantError;
+          }
         }
       } else {
         // No variants selected or no variants exist, transfer all variants
@@ -119,7 +150,10 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
               .update({ product_id: keepProduct.id })
               .eq('product_id', product.id);
 
-            if (variantError) console.error('Error transferring variants:', variantError);
+            if (variantError) {
+              console.error('Error transferring variants:', variantError);
+              throw variantError;
+            }
           }
         }
       }
