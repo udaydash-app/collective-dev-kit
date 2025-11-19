@@ -254,6 +254,7 @@ export default function Purchases() {
               // Wait for purchases to load before trying to restore
               if (!purchases || purchasesLoading) {
                 // Purchases not loaded yet, will retry when they load
+                // DON'T clear navigation state yet, we need to run again
                 return;
               }
               
@@ -273,19 +274,21 @@ export default function Purchases() {
             
             // Clear the saved state after restoration
             clearPurchaseFormState();
+            // Clear the navigation state
+            navigate(location.pathname, { replace: true, state: {} });
             
             toast.success(`"${product.name}" added to purchase`);
           } else {
             // No saved state, just add the product normally
             addProductToItems(product);
             toast.success(`"${product.name}" added to purchase`);
+            // Clear the navigation state
+            navigate(location.pathname, { replace: true, state: {} });
           }
         }
       };
       
       fetchNewProduct();
-      // Clear the navigation state
-      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state?.newProductId, purchases, purchasesLoading]);
 
