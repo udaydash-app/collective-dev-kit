@@ -62,11 +62,30 @@ export default function StockAndPrice() {
       product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
     
-    const stockQuantity = product.stock_quantity || 0;
-    const matchesStock = stockFilter === 'all' || 
-      (stockFilter === 'zero' && stockQuantity === 0) ||
-      (stockFilter === 'positive' && stockQuantity > 0) ||
-      (stockFilter === 'negative' && stockQuantity < 0);
+    // For products with variants, check if ANY variant matches the stock filter
+    // For products without variants, check the product's stock
+    let matchesStock = false;
+    
+    if (stockFilter === 'all') {
+      matchesStock = true;
+    } else if (product.product_variants && product.product_variants.length > 0) {
+      // Check variants
+      matchesStock = product.product_variants.some((variant: any) => {
+        const stock = variant.stock_quantity ?? 0;
+        return (
+          (stockFilter === 'zero' && stock === 0) ||
+          (stockFilter === 'positive' && stock > 0) ||
+          (stockFilter === 'negative' && stock < 0)
+        );
+      });
+    } else {
+      // Check product stock
+      const stock = product.stock_quantity ?? 0;
+      matchesStock = 
+        (stockFilter === 'zero' && stock === 0) ||
+        (stockFilter === 'positive' && stock > 0) ||
+        (stockFilter === 'negative' && stock < 0);
+    }
     
     return matchesSearch && matchesCategory && matchesStock;
   });
