@@ -18,6 +18,8 @@ interface Product {
     id: string;
     stock_quantity: number;
     unit: string;
+    label?: string;
+    price: number;
   }>;
 }
 
@@ -30,7 +32,19 @@ interface MergeProductsDialogProps {
 
 export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }: MergeProductsDialogProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [merging, setMerging] = useState(false);
+  
+  // Check if any product has variants
+  const hasVariants = products.some(p => p.product_variants && p.product_variants.length > 0);
+  
+  // Get all variants from all products
+  const allVariants = products.flatMap(p => 
+    (p.product_variants || []).map(v => ({
+      ...v,
+      productName: p.name
+    }))
+  );
 
   const handleMerge = async () => {
     if (!selectedProductId) {
@@ -74,15 +88,39 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
         if (layerError) console.error('Error transferring inventory layers:', layerError);
       }
 
-      // Transfer variants from merged products to kept product
-      for (const product of mergeProducts) {
-        if (product.product_variants && product.product_variants.length > 0) {
-          const { error: variantError } = await supabase
-            .from('product_variants')
-            .update({ product_id: keepProduct.id })
-            .eq('product_id', product.id);
+      // Handle variants based on user selection
+      if (hasVariants && selectedVariantIds.length > 0) {
+        // Transfer only selected variants to kept product
+        const { error: variantError } = await supabase
+          .from('product_variants')
+          .update({ product_id: keepProduct.id })
+          .in('id', selectedVariantIds);
 
-          if (variantError) console.error('Error transferring variants:', variantError);
+        if (variantError) console.error('Error transferring selected variants:', variantError);
+        
+        // Delete non-selected variants from merge products
+        const allVariantIds = allVariants.map(v => v.id);
+        const variantsToDelete = allVariantIds.filter(id => !selectedVariantIds.includes(id));
+        
+        if (variantsToDelete.length > 0) {
+          const { error: deleteVariantError } = await supabase
+            .from('product_variants')
+            .delete()
+            .in('id', variantsToDelete);
+            
+          if (deleteVariantError) console.error('Error deleting non-selected variants:', deleteVariantError);
+        }
+      } else {
+        // No variants selected or no variants exist, transfer all variants
+        for (const product of mergeProducts) {
+          if (product.product_variants && product.product_variants.length > 0) {
+            const { error: variantError } = await supabase
+              .from('product_variants')
+              .update({ product_id: keepProduct.id })
+              .eq('product_id', product.id);
+
+            if (variantError) console.error('Error transferring variants:', variantError);
+          }
         }
       }
 
@@ -158,18 +196,54 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
             </RadioGroup>
           </div>
 
+          {selectedProductId && hasVariants && (
+            <div className="space-y-3">
+              <Label>Select variants to keep</Label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {allVariants.map((variant) => (
+                  <div key={variant.id} className="flex items-center space-x-2 rounded-lg border p-2">
+                    <input
+                      type="checkbox"
+                      id={variant.id}
+                      checked={selectedVariantIds.includes(variant.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedVariantIds([...selectedVariantIds, variant.id]);
+                        } else {
+                          setSelectedVariantIds(selectedVariantIds.filter(id => id !== variant.id));
+                        }
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor={variant.id} className="flex-1 cursor-pointer text-sm">
+                      <div className="font-medium">{variant.productName}</div>
+                      <div className="text-muted-foreground">
+                        {variant.label || variant.unit} - Stock: {variant.stock_quantity || 0} - {formatCurrency(variant.price)}
+                      </div>
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {selectedProductId && (
             <div className="rounded-lg bg-muted p-3 text-sm">
               <strong>Result:</strong> All products will be merged into "
               {products.find(p => p.id === selectedProductId)?.name}". 
               Total stock will be: {products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0)}
+              {hasVariants && selectedVariantIds.length > 0 && (
+                <div className="mt-1">
+                  {selectedVariantIds.length} variant(s) will be kept.
+                </div>
+              )}
             </div>
           )}
 
           <div className="flex gap-2">
             <Button
               onClick={handleMerge}
-              disabled={!selectedProductId || merging}
+              disabled={!selectedProductId || merging || (hasVariants && selectedVariantIds.length === 0)}
               className="flex-1"
             >
               {merging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
