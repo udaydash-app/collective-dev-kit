@@ -104,6 +104,8 @@ export default function Products() {
   const [fromPOS, setFromPOS] = useState(false);
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [hasProcessedOpenDialog, setHasProcessedOpenDialog] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<Product[][]>([]);
+  const [showDuplicates, setShowDuplicates] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -751,6 +753,98 @@ export default function Products() {
     toast.success(`Successfully enriched ${successCount} out of ${productsToEnrich.length} products!`);
   };
 
+  const findDuplicateProducts = () => {
+    // Toggle between showing duplicates and all products
+    if (showDuplicates) {
+      setShowDuplicates(false);
+      setDuplicateGroups([]);
+      return;
+    }
+
+    console.log('Finding duplicate products...');
+    const duplicates: Product[][] = [];
+    const processed = new Set<string>();
+
+    products.forEach((product, index) => {
+      if (processed.has(product.id)) return;
+
+      const similarProducts: Product[] = [product];
+      processed.add(product.id);
+
+      // Compare with remaining products
+      for (let i = index + 1; i < products.length; i++) {
+        const otherProduct = products[i];
+        if (processed.has(otherProduct.id)) continue;
+
+        // Check if products are similar
+        const name1 = product.name.toLowerCase().trim();
+        const name2 = otherProduct.name.toLowerCase().trim();
+
+        // Exact match or very similar names
+        if (name1 === name2 || 
+            name1.includes(name2) || 
+            name2.includes(name1) ||
+            calculateSimilarity(name1, name2) > 0.8) {
+          similarProducts.push(otherProduct);
+          processed.add(otherProduct.id);
+        }
+      }
+
+      // Only add groups with 2 or more similar products
+      if (similarProducts.length >= 2) {
+        duplicates.push(similarProducts);
+      }
+    });
+
+    console.log('Found duplicate groups:', duplicates.length);
+    setDuplicateGroups(duplicates);
+    setShowDuplicates(true);
+
+    if (duplicates.length === 0) {
+      toast.info("No duplicate products found!");
+    } else {
+      toast.success(`Found ${duplicates.length} groups of duplicate products`);
+    }
+  };
+
+  const calculateSimilarity = (str1: string, str2: string): number => {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = getEditDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  };
+
+  const getEditDistance = (str1: string, str2: string): number => {
+    const matrix: number[][] = [];
+
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -763,7 +857,7 @@ export default function Products() {
     );
   }
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = (showDuplicates ? duplicateGroups.flat() : products).filter(product => {
     const query = searchQuery.toLowerCase();
     const matchesSearch = 
       product.name.toLowerCase().includes(query) ||
@@ -801,7 +895,10 @@ export default function Products() {
             <div>
               <h1 className="text-2xl font-bold">Product Management</h1>
               <p className="text-muted-foreground text-xs">
-                {filteredProducts.length} products
+                {showDuplicates 
+                  ? `${duplicateGroups.length} duplicate groups (${filteredProducts.length} products)`
+                  : `${filteredProducts.length} products`
+                }
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -845,6 +942,15 @@ export default function Products() {
               >
                 <Sparkles className="h-3 w-3" />
                 AI Enrich
+              </Button>
+              <Button 
+                onClick={findDuplicateProducts}
+                variant={showDuplicates ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+              >
+                <Search className="h-3 w-3" />
+                {showDuplicates ? "Show All" : "Find Duplicates"}
               </Button>
             </div>
           </div>
@@ -1034,38 +1140,177 @@ export default function Products() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product) => (
-                    <TableRow key={product.id} className="group">
-                      <TableCell className="py-2">
-                        <Checkbox
-                          checked={selectedProducts.has(product.id)}
-                          onCheckedChange={() => toggleProductSelection(product.id)}
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <div className="flex items-center gap-2">
-                          {product.image_url ? (
-                            <img 
-                              src={product.image_url} 
-                              alt={product.name}
-                              className="w-8 h-8 rounded object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
-                              📦
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
-                            {product.product_variants && product.product_variants.length > 0 && (
-                              <div className="text-[10px] text-muted-foreground">
-                                {product.product_variants.length} variants
+                  showDuplicates ? (
+                    // Render duplicate groups with visual separation
+                    duplicateGroups.map((group, groupIndex) => (
+                      <>
+                        {group.map((product, productIndex) => (
+                          <TableRow 
+                            key={product.id} 
+                            className={`group ${productIndex === 0 ? 'border-t-2 border-primary/20' : ''}`}
+                          >
+                            <TableCell className="py-2">
+                              <Checkbox
+                                checked={selectedProducts.has(product.id)}
+                                onCheckedChange={() => toggleProductSelection(product.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-2">
+                                {productIndex === 0 && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 mr-1">
+                                    {group.length}x
+                                  </Badge>
+                                )}
+                                {product.image_url ? (
+                                  <img 
+                                    src={product.image_url} 
+                                    alt={product.name}
+                                    className="w-8 h-8 rounded object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                                    📦
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
+                                  {product.product_variants && product.product_variants.length > 0 && (
+                                    <div className="text-[10px] text-muted-foreground">
+                                      {product.product_variants.length} variants
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            <TableCell className="text-xs text-muted-foreground py-2">
+                              {product.barcode ? (
+                                (() => {
+                                  const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
+                                  if (barcodes.length === 1) {
+                                    return barcodes[0];
+                                  }
+                                  return (
+                                    <span title={barcodes.join(', ')}>
+                                      {barcodes[0]} <span className="text-[10px] text-primary">+{barcodes.length - 1}</span>
+                                    </span>
+                                  );
+                                })()
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-xs py-2">
+                              {product.categories?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground py-2">
+                              {product.stores?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              {(() => {
+                                const stock = product.stock_quantity ?? 0;
+                                const isNegative = stock < 0;
+                                const isPositive = stock > 0;
+                                return (
+                                  <span 
+                                    className={`text-xs font-semibold ${
+                                      isNegative 
+                                        ? 'text-red-600' 
+                                        : isPositive 
+                                        ? 'text-green-600' 
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  >
+                                    {isNegative ? '-' : ''}{Math.abs(stock)}
+                                  </span>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              {product.product_variants && product.product_variants.length > 0 ? (
+                                <div className="text-xs font-medium">
+                                  {formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - {formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}
+                                </div>
+                              ) : (
+                                <span className="text-xs font-medium">{formatCurrency(product.price)}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-1">
+                                <Badge variant={product.is_available ? 'default' : 'secondary'} className="text-[10px] h-5">
+                                  {product.is_available ? 'Available' : 'N/A'}
+                                </Badge>
+                                {product.is_featured && (
+                                  <Badge variant="outline" className="text-[10px] h-5">⭐</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEnrichProduct(product)}
+                                  disabled={enrichingIds.has(product.id)}
+                                  title="AI Enrich"
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Sparkles className={`h-3 w-3 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEdit(product)}
+                                  title="Edit"
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDelete(product.id)}
+                                  title="Delete"
+                                  className="h-7 w-7 p-0 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    // Regular product list
+                    filteredProducts.map((product) => (
+                      <TableRow key={product.id} className="group">
+                        <TableCell className="py-2">
+                          <Checkbox
+                            checked={selectedProducts.has(product.id)}
+                            onCheckedChange={() => toggleProductSelection(product.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-2">
+                            {product.image_url ? (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name}
+                                className="w-8 h-8 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                                📦
                               </div>
                             )}
+                            <div className="min-w-0">
+                              <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
+                              {product.product_variants && product.product_variants.length > 0 && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  {product.product_variants.length} variants
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground py-2">
+                        </TableCell>
                         {product.barcode ? (
                           (() => {
                             const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
