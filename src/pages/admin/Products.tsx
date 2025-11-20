@@ -757,9 +757,38 @@ export default function Products() {
     // Convert to lowercase and trim
     let normalized = name.toLowerCase().trim();
     
-    // Remove common measurement units and extra spaces
+    // Replace common abbreviations and variations
+    const replacements: Record<string, string> = {
+      'pineaple': 'pineapple',
+      'bannana': 'banana',
+      'chocollate': 'chocolate',
+      'strwberry': 'strawberry',
+      'orng': 'orange',
+      'vanila': 'vanilla',
+      'coco': 'coconut',
+      'crsh': 'crush',
+      'jce': 'juice',
+      'btl': 'bottle',
+      'pk': 'pack',
+      'pkt': 'packet',
+    };
+    
+    // Apply replacements
+    Object.entries(replacements).forEach(([wrong, correct]) => {
+      normalized = normalized.replace(new RegExp(`\\b${wrong}\\b`, 'g'), correct);
+    });
+    
+    // Standardize measurement units
     normalized = normalized
-      .replace(/\s*\d+\s*(ml|l|g|kg|gm|gms|ltr|litre|liter|oz|lb|pack|pcs|pieces?)\s*/gi, ' ')
+      .replace(/(\d+)\s*m\s*l\b/gi, '$1ml')
+      .replace(/(\d+)\s*l\s*t\s*r\b/gi, '$1ltr')
+      .replace(/(\d+)\s*g\s*m\s*s?\b/gi, '$1g')
+      .replace(/(\d+)\s*k\s*g\b/gi, '$1kg')
+      .replace(/\b(litre|liter)\b/gi, 'ltr');
+    
+    // Remove measurements from the core name for comparison
+    normalized = normalized
+      .replace(/\s*\d+\s*(ml|l|ltr|litre|liter|g|gm|gms|kg|oz|lb|pack|pcs|pieces?)\s*/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     
@@ -769,6 +798,64 @@ export default function Products() {
     return normalized;
   };
 
+  const extractBrand = (name: string): string => {
+    // Common brand patterns at start of name
+    const normalized = name.toLowerCase().trim();
+    const words = normalized.split(/\s+/);
+    
+    // Typically brand is first 1-2 words
+    if (words.length >= 2) {
+      const firstTwo = words.slice(0, 2).join(' ');
+      // If first word is very short (1-2 chars), include second word
+      if (words[0].length <= 2) {
+        return words.slice(0, 2).join(' ');
+      }
+      return words[0];
+    }
+    
+    return words[0] || '';
+  };
+
+  const getSignificantTokens = (name: string): string[] => {
+    const normalized = normalizeProductName(name);
+    const tokens = normalized.split(' ').filter(t => t.length > 2);
+    
+    // Remove common filler words
+    const fillerWords = new Set(['and', 'with', 'the', 'for', 'new', 'fresh', 'pure', 'natural', 'organic']);
+    return tokens.filter(t => !fillerWords.has(t));
+  };
+
+  const calculateTokenSimilarity = (tokens1: string[], tokens2: string[]): number => {
+    if (tokens1.length === 0 || tokens2.length === 0) return 0;
+    
+    let matches = 0;
+    
+    for (const t1 of tokens1) {
+      for (const t2 of tokens2) {
+        // Exact match
+        if (t1 === t2) {
+          matches += 1;
+          break;
+        }
+        // One contains the other (for truncated words)
+        if (t1.length >= 4 && t2.length >= 4) {
+          if (t1.includes(t2) || t2.includes(t1)) {
+            matches += 0.8;
+            break;
+          }
+          // Check if they share a significant prefix (first 4 chars)
+          if (t1.substring(0, 4) === t2.substring(0, 4)) {
+            matches += 0.7;
+            break;
+          }
+        }
+      }
+    }
+    
+    const minTokens = Math.min(tokens1.length, tokens2.length);
+    return matches / minTokens;
+  };
+
   const areProductsDuplicate = (name1: string, name2: string): boolean => {
     const norm1 = normalizeProductName(name1);
     const norm2 = normalizeProductName(name2);
@@ -776,29 +863,40 @@ export default function Products() {
     // Exact match after normalization
     if (norm1 === norm2) return true;
     
-    // Split into tokens for token-based comparison
-    const tokens1 = norm1.split(' ').filter(t => t.length > 2); // Ignore very short words
-    const tokens2 = norm2.split(' ').filter(t => t.length > 2);
+    // Extract and compare brands
+    const brand1 = extractBrand(name1);
+    const brand2 = extractBrand(name2);
+    
+    // Different brands = not duplicates (unless brands are very similar)
+    if (brand1 && brand2 && brand1 !== brand2) {
+      if (!brand1.includes(brand2) && !brand2.includes(brand1)) {
+        // Check if brands are similar enough
+        if (calculateSimilarity(brand1, brand2) < 0.7) {
+          return false;
+        }
+      }
+    }
+    
+    // Get significant tokens
+    const tokens1 = getSignificantTokens(name1);
+    const tokens2 = getSignificantTokens(name2);
     
     // Need at least 2 tokens to compare meaningfully
     if (tokens1.length < 2 || tokens2.length < 2) {
-      return calculateSimilarity(norm1, norm2) > 0.9; // Higher threshold for short names
+      return calculateSimilarity(norm1, norm2) > 0.92; // Very high threshold for short names
     }
     
-    // Count matching tokens
-    const matchingTokens = tokens1.filter(t1 => 
-      tokens2.some(t2 => t1 === t2 || t1.includes(t2) || t2.includes(t1))
-    ).length;
-    
-    // Calculate token overlap ratio
-    const minTokens = Math.min(tokens1.length, tokens2.length);
-    const tokenOverlap = matchingTokens / minTokens;
+    // Calculate token similarity
+    const tokenSimilarity = calculateTokenSimilarity(tokens1, tokens2);
     
     // High token overlap means likely duplicate
-    if (tokenOverlap >= 0.8) return true;
+    if (tokenSimilarity >= 0.85) return true;
     
-    // Use Levenshtein distance as fallback with higher threshold
-    return calculateSimilarity(norm1, norm2) > 0.85;
+    // Medium token overlap with high string similarity
+    if (tokenSimilarity >= 0.7 && calculateSimilarity(norm1, norm2) > 0.85) return true;
+    
+    // Use Levenshtein distance as final check with very high threshold
+    return calculateSimilarity(norm1, norm2) > 0.9;
   };
 
   const findDuplicateProducts = () => {
@@ -809,7 +907,7 @@ export default function Products() {
       return;
     }
 
-    console.log('Finding duplicate products...');
+    console.log('Finding duplicate products with enhanced matching...');
     const duplicates: Product[][] = [];
     const processed = new Set<string>();
 
