@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +45,7 @@ import {
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   useRealtimeSync();
+  const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -51,6 +53,14 @@ export default function GeneralLedger() {
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Set selected account from URL parameter
+  useEffect(() => {
+    const accountId = searchParams.get('accountId');
+    if (accountId) {
+      setSelectedAccount(accountId);
+    }
+  }, [searchParams]);
 
   const { data: contacts } = useQuery({
     queryKey: ['contacts-for-ledger'],
