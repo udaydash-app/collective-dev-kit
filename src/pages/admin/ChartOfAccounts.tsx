@@ -30,8 +30,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, BookOpen, Merge } from 'lucide-react';
 import { toast } from 'sonner';
+import { MergeAccountsDialog } from '@/components/admin/MergeAccountsDialog';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -54,6 +55,8 @@ export default function ChartOfAccounts() {
   const [open, setOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<{
     account_code: string;
@@ -206,6 +209,27 @@ export default function ChartOfAccounts() {
     expense: 'bg-orange-500',
   };
 
+  const handleToggleAccount = (accountId: string) => {
+    setSelectedAccounts(prev =>
+      prev.includes(accountId)
+        ? prev.filter(id => id !== accountId)
+        : [...prev, accountId]
+    );
+  };
+
+  const handleOpenMergeDialog = () => {
+    if (selectedAccounts.length < 2) {
+      toast.error("Please select at least 2 accounts to merge");
+      return;
+    }
+    setMergeDialogOpen(true);
+  };
+
+  const handleMergeSuccess = () => {
+    setSelectedAccounts([]);
+    queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -215,6 +239,12 @@ export default function ChartOfAccounts() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          {selectedAccounts.length >= 2 && (
+            <Button onClick={handleOpenMergeDialog} variant="secondary">
+              <Merge className="h-4 w-4 mr-2" />
+              Merge ({selectedAccounts.length})
+            </Button>
+          )}
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleClose}>
@@ -399,6 +429,7 @@ export default function ChartOfAccounts() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12"></TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Account Name</TableHead>
               <TableHead>Type</TableHead>
@@ -411,19 +442,27 @@ export default function ChartOfAccounts() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredAccounts?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   No accounts found
                 </TableCell>
               </TableRow>
             ) : (
               filteredAccounts?.map((account) => (
                 <TableRow key={account.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedAccounts.includes(account.id)}
+                      onChange={() => handleToggleAccount(account.id)}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                  </TableCell>
                   <TableCell className="font-mono">{account.account_code}</TableCell>
                   <TableCell>
                     <div>
@@ -480,6 +519,13 @@ export default function ChartOfAccounts() {
           </TableBody>
         </Table>
       </Card>
+
+      <MergeAccountsDialog
+        open={mergeDialogOpen}
+        onOpenChange={setMergeDialogOpen}
+        accounts={accounts?.filter(a => selectedAccounts.includes(a.id)) || []}
+        onSuccess={handleMergeSuccess}
+      />
     </div>
   );
 }
