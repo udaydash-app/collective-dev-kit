@@ -413,7 +413,6 @@ export default function BarcodeManagement() {
                       justify-content: center;
                       align-items: center;
                       page-break-after: always;
-                      border: 2px solid #000 !important;
                       gap: 1cm !important;
                     }
                     .barcode-label p {
@@ -437,6 +436,9 @@ export default function BarcodeManagement() {
                     }
                     .details-text {
                       font-size: 36px !important;
+                    }
+                    .expiry-date {
+                      font-size: 64px !important;
                     }
                   }
                 `}
@@ -480,7 +482,7 @@ export default function BarcodeManagement() {
                             <p><span className="font-semibold">Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {details.expiryDate && (
-                            <p className="font-bold text-red-600 text-5xl"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p className="expiry-date font-bold text-red-600"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
                       )}
