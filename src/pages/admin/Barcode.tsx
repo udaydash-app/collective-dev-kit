@@ -392,7 +392,7 @@ export default function BarcodeManagement() {
                 {`
                   @media print {
                     @page {
-                      size: 38mm 25mm;
+                      size: 38cm 25cm;
                       margin: 0;
                       padding: 0;
                     }
@@ -404,9 +404,9 @@ export default function BarcodeManagement() {
                       display: block !important;
                     }
                     .barcode-label {
-                      width: 38mm !important;
-                      height: 25mm !important;
-                      padding: 0.5mm !important;
+                      width: 38cm !important;
+                      height: 25cm !important;
+                      padding: 1cm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
@@ -414,37 +414,29 @@ export default function BarcodeManagement() {
                       justify-content: center;
                       align-items: center;
                       page-break-after: always;
-                      overflow: hidden;
-                      gap: 0 !important;
-                    }
-                    .barcode-label > * {
-                      margin: 0 !important;
-                      padding: 0 !important;
+                      gap: 0.5cm !important;
                     }
                     .barcode-label p {
                       margin: 0 !important;
                       padding: 0 !important;
-                      line-height: 1 !important;
                     }
                     .barcode-label svg {
-                      max-width: 35mm !important;
-                      max-height: 12mm !important;
+                      max-width: 35cm !important;
+                      height: auto !important;
                     }
                     .product-name {
-                      font-size: 6px !important;
+                      font-size: 48px !important;
                       font-weight: bold !important;
-                      margin-bottom: 0 !important;
                     }
                     .variant-label {
-                      font-size: 5px !important;
+                      font-size: 36px !important;
                     }
                     .price-text {
-                      font-size: 7px !important;
+                      font-size: 60px !important;
                       font-weight: bold !important;
-                      margin-top: 0.5mm !important;
                     }
                     .details-text {
-                      font-size: 4px !important;
+                      font-size: 28px !important;
                     }
                   }
                 `}
@@ -457,38 +449,38 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label border rounded p-1 flex flex-col items-center justify-center"
-                      style={{ width: '38mm', height: '25mm' }}
+                      className="barcode-label border rounded p-4 flex flex-col items-center justify-center"
+                      style={{ width: '38cm', height: '25cm' }}
                     >
-                      <div className="w-full text-center">
-                        <p className="product-name font-bold text-[6px] leading-none truncate px-0.5">{item.name}</p>
+                      <div className="w-full text-center mb-4">
+                        <p className="product-name font-bold text-5xl leading-tight truncate px-4">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="variant-label text-[5px] leading-none truncate px-0.5">{item.variantLabel}</p>
+                          <p className="variant-label text-4xl leading-tight truncate px-4 mt-2">{item.variantLabel}</p>
                         )}
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex justify-center w-full">
+                        <div key={index} className="flex justify-center w-full my-4">
                           <Barcode
                             value={barcodeValue}
-                            width={0.8}
-                            height={20}
-                            fontSize={6}
+                            width={4}
+                            height={150}
+                            fontSize={32}
                             background="#ffffff"
                             margin={0}
                           />
                         </div>
                       ))}
-                      <p className="price-text text-[7px] font-bold leading-none">{formatCurrency(item.price)}</p>
+                      <p className="price-text text-6xl font-bold leading-none my-4">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="details-text text-[4px] leading-none w-full text-center mt-0.5">
+                        <div className="details-text text-3xl leading-relaxed w-full text-center mt-4 space-y-2">
                           {details.batchNumber && (
-                            <p className="truncate leading-none"><span className="font-semibold">B:</span> {details.batchNumber}</p>
+                            <p className="truncate"><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
                           {details.manufacturingDate && (
-                            <p className="leading-none"><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                            <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {details.expiryDate && (
-                            <p className="leading-none"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p className="font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
                       )}
