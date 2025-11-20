@@ -3797,7 +3797,8 @@ export default function POS() {
                       {topCreditCustomers.map((customer: any) => (
                         <Card 
                           key={customer.id} 
-                          className="p-2"
+                          className="p-2 cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => navigate(`/admin/general-ledger?accountId=${customer.customer_ledger_account_id}`)}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
