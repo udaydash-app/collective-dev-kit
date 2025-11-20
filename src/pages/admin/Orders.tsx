@@ -68,7 +68,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("this_month");
+  const [periodFilter, setPeriodFilter] = useState<string>("today");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
@@ -1254,6 +1254,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                       <TableHead>Items</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Payment Method</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -1319,6 +1320,11 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                             ) : (
                               getStatusBadge(order.status)
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm capitalize">
+                              {order.payment_method || 'N/A'}
+                            </span>
                           </TableCell>
                           <TableCell>
                             {new Date(order.created_at).toLocaleDateString()}
