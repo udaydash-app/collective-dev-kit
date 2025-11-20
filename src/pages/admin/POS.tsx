@@ -667,11 +667,16 @@ export default function POS() {
       console.log('Account balances fetched:', accounts);
       console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
 
-      // Map contacts with their exact current_balance from general ledger
+      // Map contacts with their balance (A/R - A/P for dual-role)
       const customersWithBalance = contacts
         .map(contact => {
-          // Get the exact current_balance from the customer ledger account
-          const balance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
+          const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
+          const supplierBalance = contact.supplier_ledger_account_id 
+            ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
+            : 0;
+          
+          // For dual-role: A/R - A/P (what they owe us minus what we owe them)
+          const balance = customerBalance - supplierBalance;
 
           return {
             ...contact,
