@@ -675,11 +675,11 @@ export default function POS() {
             ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
             : 0;
           
-          // For regular customers: show customer balance (positive or negative)
-          // For dual-role customers: show unified balance (customer - supplier, positive or negative)
+          // For accounts receivable, negate the balance to show what they owe us as negative
+          // For dual-role customers: show unified balance (-(customer + supplier))
           const displayBalance = contact.supplier_ledger_account_id 
-            ? customerBalance - supplierBalance 
-            : customerBalance;
+            ? -(customerBalance + supplierBalance) 
+            : -customerBalance;
 
           return {
             ...contact,
