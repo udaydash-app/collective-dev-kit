@@ -26,10 +26,7 @@ export default function AccountsReceivable() {
           is_customer,
           is_supplier,
           customer_ledger_account_id,
-          supplier_ledger_account_id,
-          accounts!contacts_customer_ledger_account_id_fkey(
-            current_balance
-          )
+          supplier_ledger_account_id
         `)
         .eq('is_customer', true)
         .order('name');
@@ -39,7 +36,20 @@ export default function AccountsReceivable() {
       // Calculate unified balance for each contact
       const contactsWithBalance = await Promise.all(
         contacts.map(async (contact) => {
-          let totalBalance = contact.accounts?.current_balance || 0;
+          let totalBalance = 0;
+
+          // Get customer ledger account balance directly
+          if (contact.customer_ledger_account_id) {
+            const { data: customerAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', contact.customer_ledger_account_id)
+              .single();
+
+            if (customerAccount) {
+              totalBalance = customerAccount.current_balance;
+            }
+          }
 
           // If also a supplier, subtract their supplier balance (we owe them)
           if (contact.is_supplier && contact.supplier_ledger_account_id) {
