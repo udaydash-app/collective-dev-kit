@@ -20,3 +20,9 @@ verify_jwt = true
 
 [functions.update-products-pdf]
 verify_jwt = true
+
+[functions.fix-product-stock]
+verify_jwt = true
+
+[functions.fix-maggi-stock]
+verify_jwt = false

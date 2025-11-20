@@ -63,8 +63,13 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
     setMerging(true);
 
     try {
+      console.log('=== Starting Product Merge ===');
+      console.log('Keep product:', keepProduct.name, keepProduct.id, 'Stock:', keepProduct.stock_quantity);
+      console.log('Merge products:', mergeProducts.map(p => ({ name: p.name, id: p.id, stock: p.stock_quantity })));
+      
       // Transfer inventory layers from merged products to kept product
       for (const product of mergeProducts) {
+        console.log(`Transferring layers from ${product.name} (${product.id}) to ${keepProduct.name}`);
         const { error: layerError } = await supabase
           .from('inventory_layers')
           .update({ product_id: keepProduct.id })
@@ -72,6 +77,15 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
 
         if (layerError) console.error('Error transferring inventory layers:', layerError);
       }
+
+      // Check layers after transfer
+      const { data: layersCheck } = await supabase
+        .from('inventory_layers')
+        .select('quantity_remaining')
+        .eq('product_id', keepProduct.id);
+      
+      const layerTotal = layersCheck?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
+      console.log('Total from layers after transfer:', layerTotal);
 
       // Handle variants based on user selection
       if (hasVariants && selectedVariantIds.length > 0) {
@@ -202,26 +216,35 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
 
       if (deleteError) throw deleteError;
 
-      // Recalculate stock from inventory layers using edge function to bypass triggers
-      const { error: fixStockError } = await supabase.functions.invoke('fix-product-stock', {
-        body: { productId: keepProduct.id }
-      });
+      // Get final layer total before stock update
+      const { data: finalLayers } = await supabase
+        .from('inventory_layers')
+        .select('quantity_remaining')
+        .eq('product_id', keepProduct.id);
 
-      if (fixStockError) {
-        console.error('Error fixing stock:', fixStockError);
-        // Fallback to direct update
-        const { data: layers } = await supabase
-          .from('inventory_layers')
-          .select('quantity_remaining')
-          .eq('product_id', keepProduct.id);
+      const finalStock = finalLayers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
+      console.log('Final stock from layers:', finalStock);
 
-        const totalStock = layers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
+      // Update stock directly
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stock_quantity: finalStock, updated_at: new Date().toISOString() })
+        .eq('id', keepProduct.id);
 
-        await supabase
-          .from('products')
-          .update({ stock_quantity: totalStock })
-          .eq('id', keepProduct.id);
+      if (updateError) {
+        console.error('Error updating stock:', updateError);
+        throw updateError;
       }
+
+      // Verify the update
+      const { data: verifyProduct } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', keepProduct.id)
+        .single();
+      
+      console.log('Stock after update:', verifyProduct?.stock_quantity);
+      console.log('=== Merge Complete ===');
 
       toast.success(`Successfully merged ${mergeProducts.length} products into "${keepProduct.name}"`);
       onSuccess();
