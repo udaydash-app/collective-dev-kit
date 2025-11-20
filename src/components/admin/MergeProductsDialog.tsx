@@ -73,22 +73,6 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
         if (layerError) console.error('Error transferring inventory layers:', layerError);
       }
 
-      // Recalculate stock from inventory layers
-      const { data: layers } = await supabase
-        .from('inventory_layers')
-        .select('quantity_remaining')
-        .eq('product_id', keepProduct.id);
-
-      const totalStock = layers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
-
-      // Update the kept product's stock with recalculated value
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ stock_quantity: totalStock })
-        .eq('id', keepProduct.id);
-
-      if (updateError) throw updateError;
-
       // Handle variants based on user selection
       if (hasVariants && selectedVariantIds.length > 0) {
         // Transfer only selected variants to kept product
@@ -217,6 +201,22 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
         .in('id', mergeProducts.map(p => p.id));
 
       if (deleteError) throw deleteError;
+
+      // Recalculate stock from inventory layers AFTER all updates
+      const { data: layers } = await supabase
+        .from('inventory_layers')
+        .select('quantity_remaining')
+        .eq('product_id', keepProduct.id);
+
+      const totalStock = layers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
+
+      // Update the kept product's stock with recalculated value
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stock_quantity: totalStock })
+        .eq('id', keepProduct.id);
+
+      if (updateError) throw updateError;
 
       toast.success(`Successfully merged ${mergeProducts.length} products into "${keepProduct.name}"`);
       onSuccess();
