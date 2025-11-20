@@ -2722,6 +2722,16 @@ export default function POS() {
 
   const quickActions = [
     { 
+      icon: BarChart3, 
+      label: 'Dashboard', 
+      color: 'bg-[#22C55E]', 
+      action: () => {
+        setSelectedCategory(null);
+        setSearchTerm('');
+      },
+      shortcut: null
+    },
+    { 
       icon: Clock, 
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
