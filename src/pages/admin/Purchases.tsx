@@ -974,7 +974,7 @@ export default function Purchases() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      {purchase.purchase_items.length} items • {new Date(purchase.purchased_at).toLocaleDateString()}
+                      {purchase.purchase_items.length} items • {formatDate(purchase.purchased_at)}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -1573,7 +1573,7 @@ export default function Purchases() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Date</Label>
-                  <p>{new Date(selectedPurchase.purchased_at).toLocaleDateString()}</p>
+                  <p>{formatDate(selectedPurchase.purchased_at)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Supplier</Label>

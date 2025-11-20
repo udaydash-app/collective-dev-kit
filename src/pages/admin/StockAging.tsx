@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Clock, Package } from 'lucide-react';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 export default function StockAging() {
@@ -296,7 +296,7 @@ export default function StockAging() {
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(item.total_value)}
                       </TableCell>
-                      <TableCell>{new Date(item.purchase_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDate(item.purchase_date)}</TableCell>
                       <TableCell className="text-right">{item.age_days}</TableCell>
                       <TableCell>{item.aging_category}</TableCell>
                       <TableCell>{getRiskBadge(item.risk_level)}</TableCell>

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 
@@ -256,7 +256,7 @@ export default function AdminDashboard() {
                       <div>
                         <p className="font-semibold">Order #{order.order_number || 'N/A'}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {formatDate(order.created_at)}
                         </p>
                       </div>
                       <div className="text-right">

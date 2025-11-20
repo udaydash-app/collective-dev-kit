@@ -41,7 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Package, Edit, Save, UserCircle, FileText, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 interface Customer {
@@ -1003,7 +1003,7 @@ export default function Pricing() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {new Date(bill.created_at).toLocaleDateString()}
+                            {formatDate(bill.created_at)}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {formatCurrency(bill.total)}

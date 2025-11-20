@@ -375,7 +375,7 @@ export default function Production() {
                       {production.production_number}
                     </TableCell>
                     <TableCell>
-                      {new Date(production.production_date).toLocaleDateString()}
+                      {formatDate(production.production_date)}
                     </TableCell>
                     <TableCell>
                       {production.source_product_id ? 'Product' : 'Variant'}
