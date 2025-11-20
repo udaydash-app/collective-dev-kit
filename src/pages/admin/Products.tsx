@@ -54,12 +54,14 @@ interface Product {
   image_url: string | null;
   category_id: string | null;
   store_id: string;
+  supplier_id?: string | null;
   is_available: boolean;
   is_featured?: boolean;
   stock_quantity: number;
   barcode?: string | null;
   categories?: { name: string };
   stores?: { name: string };
+  contacts?: { name: string };
   product_variants?: ProductVariant[];
 }
 
@@ -146,6 +148,7 @@ export default function Products() {
             *,
             categories(name),
             stores(name),
+            contacts!products_supplier_id_fkey(name),
             product_variants(*)
           `)
           .order("created_at", { ascending: false })
@@ -1364,7 +1367,7 @@ export default function Products() {
                               {product.categories?.name || '-'}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground py-2">
-                              -
+                              {product.contacts?.name || '-'}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground py-2">
                               {product.stores?.name || '-'}
@@ -1490,7 +1493,7 @@ export default function Products() {
                         {product.categories?.name || '-'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground py-2">
-                        -
+                        {product.contacts?.name || '-'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground py-2">
                         {product.stores?.name || '-'}

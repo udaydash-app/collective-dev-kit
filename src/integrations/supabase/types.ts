@@ -1711,6 +1711,7 @@ export type Database = {
           price: number | null
           stock_quantity: number | null
           store_id: string
+          supplier_id: string | null
           tags: string[] | null
           unit: string
           updated_at: string
@@ -1734,6 +1735,7 @@ export type Database = {
           price?: number | null
           stock_quantity?: number | null
           store_id: string
+          supplier_id?: string | null
           tags?: string[] | null
           unit: string
           updated_at?: string
@@ -1757,6 +1759,7 @@ export type Database = {
           price?: number | null
           stock_quantity?: number | null
           store_id?: string
+          supplier_id?: string | null
           tags?: string[] | null
           unit?: string
           updated_at?: string
@@ -1776,6 +1779,13 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
