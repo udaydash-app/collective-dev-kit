@@ -73,6 +73,11 @@ interface Store {
   name: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,6 +85,7 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -111,6 +117,7 @@ export default function Products() {
     fetchProducts();
     fetchCategories();
     fetchStores();
+    fetchSuppliers();
   }, []);
 
   // Handle opening add dialog after data is loaded
@@ -192,6 +199,21 @@ export default function Products() {
       setStores(data || []);
     } catch (error) {
       console.error("Error fetching stores:", error);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, name")
+        .eq("is_supplier", true)
+        .order("name");
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
     }
   };
 
@@ -1253,6 +1275,7 @@ export default function Products() {
                   <TableHead className="text-xs font-semibold h-9">Product</TableHead>
                   <TableHead className="text-xs font-semibold h-9">Barcode</TableHead>
                   <TableHead className="text-xs font-semibold h-9">Category</TableHead>
+                  <TableHead className="text-xs font-semibold h-9">Supplier</TableHead>
                   <TableHead className="text-xs font-semibold h-9">Store</TableHead>
                   <TableHead className="text-right text-xs font-semibold h-9">Stock</TableHead>
                   <TableHead className="text-right text-xs font-semibold h-9">Price</TableHead>
@@ -1262,8 +1285,8 @@ export default function Products() {
               </TableHeader>
               <TableBody>
                 {filteredProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-10 w-10 text-muted-foreground/50" />
                         <p className="text-sm text-muted-foreground">
@@ -1339,6 +1362,9 @@ export default function Products() {
                             </TableCell>
                             <TableCell className="text-xs py-2">
                               {product.categories?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground py-2">
+                              -
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground py-2">
                               {product.stores?.name || '-'}
@@ -1462,6 +1488,9 @@ export default function Products() {
                         </TableCell>
                       <TableCell className="text-xs py-2">
                         {product.categories?.name || '-'}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground py-2">
+                        -
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground py-2">
                         {product.stores?.name || '-'}
