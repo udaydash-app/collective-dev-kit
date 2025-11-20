@@ -753,6 +753,54 @@ export default function Products() {
     toast.success(`Successfully enriched ${successCount} out of ${productsToEnrich.length} products!`);
   };
 
+  const normalizeProductName = (name: string): string => {
+    // Convert to lowercase and trim
+    let normalized = name.toLowerCase().trim();
+    
+    // Remove common measurement units and extra spaces
+    normalized = normalized
+      .replace(/\s*\d+\s*(ml|l|g|kg|gm|gms|ltr|litre|liter|oz|lb|pack|pcs|pieces?)\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Remove special characters and punctuation
+    normalized = normalized.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    return normalized;
+  };
+
+  const areProductsDuplicate = (name1: string, name2: string): boolean => {
+    const norm1 = normalizeProductName(name1);
+    const norm2 = normalizeProductName(name2);
+    
+    // Exact match after normalization
+    if (norm1 === norm2) return true;
+    
+    // Split into tokens for token-based comparison
+    const tokens1 = norm1.split(' ').filter(t => t.length > 2); // Ignore very short words
+    const tokens2 = norm2.split(' ').filter(t => t.length > 2);
+    
+    // Need at least 2 tokens to compare meaningfully
+    if (tokens1.length < 2 || tokens2.length < 2) {
+      return calculateSimilarity(norm1, norm2) > 0.9; // Higher threshold for short names
+    }
+    
+    // Count matching tokens
+    const matchingTokens = tokens1.filter(t1 => 
+      tokens2.some(t2 => t1 === t2 || t1.includes(t2) || t2.includes(t1))
+    ).length;
+    
+    // Calculate token overlap ratio
+    const minTokens = Math.min(tokens1.length, tokens2.length);
+    const tokenOverlap = matchingTokens / minTokens;
+    
+    // High token overlap means likely duplicate
+    if (tokenOverlap >= 0.8) return true;
+    
+    // Use Levenshtein distance as fallback with higher threshold
+    return calculateSimilarity(norm1, norm2) > 0.85;
+  };
+
   const findDuplicateProducts = () => {
     // Toggle between showing duplicates and all products
     if (showDuplicates) {
@@ -776,15 +824,8 @@ export default function Products() {
         const otherProduct = products[i];
         if (processed.has(otherProduct.id)) continue;
 
-        // Check if products are similar
-        const name1 = product.name.toLowerCase().trim();
-        const name2 = otherProduct.name.toLowerCase().trim();
-
-        // Exact match or very similar names
-        if (name1 === name2 || 
-            name1.includes(name2) || 
-            name2.includes(name1) ||
-            calculateSimilarity(name1, name2) > 0.8) {
+        // Check if products are duplicates
+        if (areProductsDuplicate(product.name, otherProduct.name)) {
           similarProducts.push(otherProduct);
           processed.add(otherProduct.id);
         }
