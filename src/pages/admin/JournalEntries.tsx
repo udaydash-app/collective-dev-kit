@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
@@ -769,7 +769,7 @@ export default function JournalEntries() {
               filteredEntries?.map((entry: any) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-mono">{entry.entry_number}</TableCell>
-                  <TableCell>{new Date(entry.entry_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(entry.entry_date)}</TableCell>
                   <TableCell>{entry.description}</TableCell>
                   <TableCell>{entry.reference || '-'}</TableCell>
                   <TableCell className="text-right font-mono">
@@ -845,7 +845,7 @@ export default function JournalEntries() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Date</p>
-                  <p>{new Date(selectedEntry.entry_date).toLocaleDateString()}</p>
+                  <p>{formatDate(selectedEntry.entry_date)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Reference</p>

@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shield, UserCircle } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface POSUser {
   id: string;
@@ -362,7 +363,7 @@ export default function POSUsers() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.created_at).toLocaleDateString()}
+                      {formatDate(user.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

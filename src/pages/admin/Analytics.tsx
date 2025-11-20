@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { Activity, ShoppingBag, TrendingUp, Users } from "lucide-react";
 import { usePageView } from "@/hooks/useAnalytics";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 
 interface AnalyticsSummary {
@@ -227,7 +227,7 @@ export default function Analytics() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                        {new Date(log.created_at).toLocaleDateString()}
+                        {formatDate(log.created_at)}
                       </span>
                     </div>
                   ))}

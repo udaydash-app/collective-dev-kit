@@ -1327,7 +1327,7 @@ ${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
                             </span>
                           </TableCell>
                           <TableCell>
-                            {new Date(order.created_at).toLocaleDateString()}
+                            {formatDate(order.created_at)}
                             <br />
                             <span className="text-xs text-muted-foreground">
                               {new Date(order.created_at).toLocaleTimeString()}
