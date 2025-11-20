@@ -1400,7 +1400,8 @@ export default function Products() {
                       </TableCell>
                     </TableRow>
                   ))
-                )}
+                )
+              )}
               </TableBody>
             </Table>
           </Card>
