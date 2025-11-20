@@ -405,7 +405,7 @@ export default function BarcodeManagement() {
                     .barcode-label {
                       width: 37cm !important;
                       height: 23cm !important;
-                      padding: 1.5cm 0.5cm !important;
+                      padding: 0.5cm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
