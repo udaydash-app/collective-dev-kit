@@ -393,7 +393,7 @@ export default function BarcodeManagement() {
                   @media print {
                     @page {
                       size: 38cm 25cm;
-                      margin: 1cm 0.5cm;
+                      margin: 0;
                     }
                     body {
                       margin: 0;
@@ -403,9 +403,9 @@ export default function BarcodeManagement() {
                       display: block !important;
                     }
                     .barcode-label {
-                      width: 37cm !important;
-                      height: 23cm !important;
-                      padding: 0.5cm !important;
+                      width: 38cm !important;
+                      height: 25cm !important;
+                      padding: 1cm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
@@ -451,7 +451,7 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label border-2 border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center gap-6"
+                      className="barcode-label rounded-lg p-8 flex flex-col items-center justify-center gap-6"
                       style={{ width: '36cm', height: '23cm' }}
                     >
                       <div className="w-full text-center">
