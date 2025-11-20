@@ -97,6 +97,7 @@ export default function Purchases() {
   const [pendingPaymentPurchase, setPendingPaymentPurchase] = useState<any>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedPurchases, setSelectedPurchases] = useState<Set<string>>(new Set());
+  const [viewDialogSearch, setViewDialogSearch] = useState('');
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -693,6 +694,7 @@ export default function Purchases() {
 
   const handleViewPurchase = (purchase: any) => {
     setSelectedPurchase(purchase);
+    setViewDialogSearch(''); // Reset search when opening dialog
     setShowViewDialog(true);
   };
 
@@ -1180,10 +1182,10 @@ export default function Purchases() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
                     </Table>
                   </div>
                 )}
@@ -1555,6 +1557,15 @@ export default function Purchases() {
           </DialogHeader>
           {selectedPurchase && (
             <div className="space-y-4">
+              <div className="mb-4">
+                <Input
+                  placeholder="Search items..."
+                  value={viewDialogSearch}
+                  onChange={(e) => setViewDialogSearch(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Purchase Number</Label>
@@ -1585,7 +1596,12 @@ export default function Purchases() {
               <div>
                 <Label className="text-muted-foreground">Items</Label>
                 <div className="border rounded-lg divide-y mt-2">
-                  {selectedPurchase.purchase_items.map((item: any) => (
+                  {selectedPurchase.purchase_items
+                    .filter((item: any) => 
+                      item.products?.name?.toLowerCase().includes(viewDialogSearch.toLowerCase()) ||
+                      item.product_variants?.label?.toLowerCase().includes(viewDialogSearch.toLowerCase())
+                    )
+                    .map((item: any) => (
                     <div key={item.id} className="p-3 flex justify-between">
                       <div>
                         <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
@@ -1601,6 +1617,15 @@ export default function Purchases() {
                       <p className="font-semibold">{formatCurrency(item.total_cost)}</p>
                     </div>
                   ))}
+                  {selectedPurchase.purchase_items
+                    .filter((item: any) => 
+                      item.products?.name?.toLowerCase().includes(viewDialogSearch.toLowerCase()) ||
+                      item.product_variants?.label?.toLowerCase().includes(viewDialogSearch.toLowerCase())
+                    ).length === 0 && (
+                    <div className="p-3 text-center text-muted-foreground">
+                      No items found
+                    </div>
+                  )}
                 </div>
               </div>
 
