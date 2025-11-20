@@ -224,6 +224,26 @@ export default function ChartOfAccounts() {
     }
     
     return matchesSearch;
+  }).sort((a, b) => {
+    // If showing duplicates or duplicates exist, group them together
+    if (showDuplicatesOnly || duplicateAccountIds.length > 0) {
+      const aIsDuplicate = duplicateAccountIds.includes(a.id);
+      const bIsDuplicate = duplicateAccountIds.includes(b.id);
+      
+      // Sort duplicates first
+      if (aIsDuplicate && !bIsDuplicate) return -1;
+      if (!aIsDuplicate && bIsDuplicate) return 1;
+      
+      // Within duplicates, group by normalized name
+      if (aIsDuplicate && bIsDuplicate) {
+        const aName = a.account_name.toLowerCase().trim();
+        const bName = b.account_name.toLowerCase().trim();
+        if (aName !== bName) return aName.localeCompare(bName);
+      }
+    }
+    
+    // Default sort by account code
+    return a.account_code.localeCompare(b.account_code);
   });
 
   const getParentAccountName = (parentId?: string) => {
