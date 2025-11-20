@@ -393,7 +393,7 @@ export default function BarcodeManagement() {
                   @media print {
                     @page {
                       size: 38cm 25cm;
-                      margin: 1cm;
+                      margin: 1cm 0.5cm;
                     }
                     body {
                       margin: 0;
@@ -403,9 +403,9 @@ export default function BarcodeManagement() {
                       display: block !important;
                     }
                     .barcode-label {
-                      width: 36cm !important;
+                      width: 37cm !important;
                       height: 23cm !important;
-                      padding: 2cm !important;
+                      padding: 1.5cm 0.5cm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
@@ -453,9 +453,9 @@ export default function BarcodeManagement() {
                       style={{ width: '36cm', height: '23cm' }}
                     >
                       <div className="w-full text-center">
-                        <p className="product-name font-bold text-7xl leading-tight px-8">{item.name}</p>
+                        <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="variant-label text-5xl leading-tight px-8 mt-4">{item.variantLabel}</p>
+                          <p className="variant-label text-5xl leading-tight px-2 mt-4">{item.variantLabel}</p>
                         )}
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
