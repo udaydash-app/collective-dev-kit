@@ -715,13 +715,13 @@ export default function POS() {
           };
         });
 
-      // Separate dual-role and regular customers
+      // Separate dual-role and regular customers (exclude zero balances)
       const dualRoleCustomers = customersWithBalance
-        .filter(c => c.supplier_ledger_account_id)
+        .filter(c => c.supplier_ledger_account_id && c.balance !== 0)
         .sort((a, b) => b.balance - a.balance);
       
       const regularCustomers = customersWithBalance
-        .filter(c => !c.supplier_ledger_account_id)
+        .filter(c => !c.supplier_ledger_account_id && c.balance !== 0)
         .sort((a, b) => b.balance - a.balance);
 
       // Prioritize dual-role customers, then fill with regular customers
