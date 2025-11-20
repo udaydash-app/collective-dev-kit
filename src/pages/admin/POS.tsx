@@ -3782,7 +3782,12 @@ export default function POS() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-[10px] text-muted-foreground">Balance</p>
-                              <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                              <p className={cn(
+                                "text-sm font-bold",
+                                customer.balance >= 0 
+                                  ? "text-emerald-600 dark:text-emerald-400" 
+                                  : "text-red-600 dark:text-red-400"
+                              )}>
                                 {formatCurrency(customer.balance)}
                               </p>
                             </div>
