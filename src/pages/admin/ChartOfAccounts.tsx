@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, BookOpen, Merge } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, BookOpen, Merge, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { MergeAccountsDialog } from '@/components/admin/MergeAccountsDialog';
 import { usePageView } from '@/hooks/useAnalytics';
@@ -57,6 +57,7 @@ export default function ChartOfAccounts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
   const [formData, setFormData] = useState<{
     account_code: string;
@@ -190,10 +191,40 @@ export default function ChartOfAccounts() {
     }
   };
 
-  const filteredAccounts = accounts?.filter((account) =>
-    account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    account.account_code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const findDuplicates = () => {
+    if (!accounts) return [];
+    const duplicates = new Set<string>();
+    const nameMap = new Map<string, string[]>();
+
+    accounts.forEach(account => {
+      const normalizedName = account.account_name.toLowerCase().trim();
+      if (!nameMap.has(normalizedName)) {
+        nameMap.set(normalizedName, []);
+      }
+      nameMap.get(normalizedName)!.push(account.id);
+    });
+
+    nameMap.forEach((ids) => {
+      if (ids.length > 1) {
+        ids.forEach(id => duplicates.add(id));
+      }
+    });
+
+    return Array.from(duplicates);
+  };
+
+  const duplicateAccountIds = findDuplicates();
+
+  const filteredAccounts = accounts?.filter((account) => {
+    const matchesSearch = account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      account.account_code.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (showDuplicatesOnly) {
+      return matchesSearch && duplicateAccountIds.includes(account.id);
+    }
+    
+    return matchesSearch;
+  });
 
   const getParentAccountName = (parentId?: string) => {
     if (!parentId) return '-';
@@ -239,6 +270,18 @@ export default function ChartOfAccounts() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          <Button 
+            onClick={() => {
+              setShowDuplicatesOnly(!showDuplicatesOnly);
+              if (!showDuplicatesOnly && duplicateAccountIds.length === 0) {
+                toast.info("No duplicate accounts found");
+              }
+            }}
+            variant={showDuplicatesOnly ? "default" : "outline"}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            {showDuplicatesOnly ? `Duplicates (${duplicateAccountIds.length})` : 'Find Duplicates'}
+          </Button>
           {selectedAccounts.length >= 2 && (
             <Button onClick={handleOpenMergeDialog} variant="secondary">
               <Merge className="h-4 w-4 mr-2" />
@@ -454,7 +497,10 @@ export default function ChartOfAccounts() {
               </TableRow>
             ) : (
               filteredAccounts?.map((account) => (
-                <TableRow key={account.id}>
+                <TableRow 
+                  key={account.id}
+                  className={duplicateAccountIds.includes(account.id) ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}
+                >
                   <TableCell>
                     <input
                       type="checkbox"
