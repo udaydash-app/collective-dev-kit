@@ -667,7 +667,7 @@ export default function POS() {
       console.log('Account balances fetched:', accounts);
       console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
 
-      // Calculate balance for each contact (no filtering by positive/negative)
+      // Calculate balance for each contact
       const customersWithBalance = contacts
         .map(contact => {
           const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
@@ -675,16 +675,15 @@ export default function POS() {
             ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
             : 0;
           
-          // For accounts receivable, negate the balance to show what they owe us as negative
-          // For dual-role customers: show unified balance (-(customer + supplier))
-          const displayBalance = contact.supplier_ledger_account_id 
-            ? -(customerBalance + supplierBalance) 
-            : -customerBalance;
+          // Display balance should match the general ledger current_balance exactly
+          // For dual-role: show only customer balance (not combined)
+          const displayBalance = customerBalance;
 
           return {
             ...contact,
             balance: displayBalance,
             customerBalance,
+            supplierBalance,
             isDualRole: !!contact.supplier_ledger_account_id
           };
         });
