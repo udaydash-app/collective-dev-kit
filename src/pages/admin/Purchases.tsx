@@ -10,9 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/lib/utils';
-import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -93,6 +96,7 @@ export default function Purchases() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [pendingPaymentPurchase, setPendingPaymentPurchase] = useState<any>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [selectedPurchases, setSelectedPurchases] = useState<Set<string>>(new Set());
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -746,6 +750,151 @@ export default function Purchases() {
     }
   };
 
+  const togglePurchaseSelection = (purchaseId: string) => {
+    setSelectedPurchases(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(purchaseId)) {
+        newSet.delete(purchaseId);
+      } else {
+        newSet.add(purchaseId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedPurchases.size === purchases?.length) {
+      setSelectedPurchases(new Set());
+    } else {
+      setSelectedPurchases(new Set(purchases?.map((p: any) => p.id) || []));
+    }
+  };
+
+  const exportToExcel = () => {
+    if (selectedPurchases.size === 0) {
+      toast.error('Please select at least one purchase to export');
+      return;
+    }
+
+    const selectedData = purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [];
+    
+    const exportData = selectedData.flatMap((purchase: any) => 
+      purchase.purchase_items.map((item: any) => ({
+        'Purchase Number': purchase.purchase_number,
+        'Date': formatDate(purchase.purchased_at),
+        'Supplier': purchase.supplier_name,
+        'Store': purchase.stores.name,
+        'Product': item.products?.name || '',
+        'Variant': item.product_variants ? 
+          (item.product_variants.label || `${item.product_variants.quantity}${item.product_variants.unit}`) : 
+          '-',
+        'Quantity': item.quantity,
+        'Unit Cost': item.unit_cost,
+        'Total Cost': item.total_cost,
+        'Payment Status': purchase.payment_status,
+        'Payment Method': purchase.payment_method || '-',
+        'Notes': purchase.notes || '-'
+      }))
+    );
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Purchases');
+    
+    // Auto-size columns
+    const maxWidth = exportData.reduce((w: any, r: any) => {
+      return Object.keys(r).reduce((acc: any, key: string) => {
+        const value = r[key]?.toString() || '';
+        acc[key] = Math.max(acc[key] || 10, value.length);
+        return acc;
+      }, w);
+    }, {});
+    
+    ws['!cols'] = Object.keys(maxWidth).map(key => ({ wch: maxWidth[key] + 2 }));
+    
+    XLSX.writeFile(wb, `purchases_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Purchases exported to Excel successfully');
+  };
+
+  const exportToPDF = () => {
+    if (selectedPurchases.size === 0) {
+      toast.error('Please select at least one purchase to export');
+      return;
+    }
+
+    const selectedData = purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [];
+    
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Purchase Report', 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Generated: ${formatDate(new Date())}`, 14, 30);
+    
+    let yPos = 40;
+    
+    selectedData.forEach((purchase: any, index: number) => {
+      if (index > 0) {
+        yPos += 10;
+      }
+      
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Purchase: ${purchase.purchase_number}`, 14, yPos);
+      yPos += 6;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${formatDate(purchase.purchased_at)}`, 14, yPos);
+      doc.text(`Supplier: ${purchase.supplier_name}`, 80, yPos);
+      yPos += 5;
+      doc.text(`Store: ${purchase.stores.name}`, 14, yPos);
+      doc.text(`Status: ${purchase.payment_status}`, 80, yPos);
+      doc.text(`Method: ${purchase.payment_method || '-'}`, 130, yPos);
+      yPos += 8;
+      
+      const tableData = purchase.purchase_items.map((item: any) => [
+        item.products?.name || '',
+        item.product_variants ? 
+          (item.product_variants.label || `${item.product_variants.quantity}${item.product_variants.unit}`) : 
+          '-',
+        item.quantity,
+        formatCurrency(item.unit_cost),
+        formatCurrency(item.total_cost)
+      ]);
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Product', 'Variant', 'Qty', 'Unit Cost', 'Total']],
+        body: tableData,
+        foot: [[{ content: 'Total:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, 
+                { content: formatCurrency(purchase.total_amount), styles: { fontStyle: 'bold' } }]],
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246] },
+        footStyles: { fillColor: [240, 240, 240] },
+        margin: { left: 14 },
+        tableWidth: 180,
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+      
+      if (purchase.notes) {
+        doc.setFontSize(9);
+        doc.text(`Notes: ${purchase.notes}`, 14, yPos);
+        yPos += 5;
+      }
+    });
+    
+    doc.save(`purchases_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('Purchases exported to PDF successfully');
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
@@ -758,6 +907,18 @@ export default function Purchases() {
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
+            {selectedPurchases.size > 0 && (
+              <>
+                <Button onClick={exportToExcel} variant="outline">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Excel ({selectedPurchases.size})
+                </Button>
+                <Button onClick={exportToPDF} variant="outline">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export PDF ({selectedPurchases.size})
+                </Button>
+              </>
+            )}
             <Button onClick={() => setShowUploadDialog(true)} variant="outline">
               <Upload className="h-4 w-4 mr-2" />
               Upload Excel
@@ -772,13 +933,30 @@ export default function Purchases() {
         {/* Purchase History */}
         <Card>
           <CardHeader>
-            <CardTitle>Purchase History</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Purchase History</CardTitle>
+              {purchases && purchases.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                >
+                  {selectedPurchases.size === purchases.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {purchases?.map((purchase: any) => (
                 <div key={purchase.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedPurchases.has(purchase.id)}
+                      onChange={() => togglePurchaseSelection(purchase.id)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
                     <div className="flex-1">
                       <p className="font-semibold">{purchase.purchase_number}</p>
                       <p className="text-sm text-muted-foreground">
