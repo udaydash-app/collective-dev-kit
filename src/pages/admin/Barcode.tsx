@@ -394,6 +394,7 @@ export default function BarcodeManagement() {
                     @page {
                       size: 38mm 25mm;
                       margin: 0;
+                      padding: 0;
                     }
                     body {
                       margin: 0;
@@ -405,30 +406,36 @@ export default function BarcodeManagement() {
                     .barcode-label {
                       width: 38mm !important;
                       height: 25mm !important;
-                      padding: 0.5mm !important;
+                      padding: 1mm 0.5mm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
                       flex-direction: column;
-                      justify-content: center;
+                      justify-content: space-between;
                       align-items: center;
                       page-break-after: always;
+                      overflow: hidden;
                     }
                     .barcode-label p {
                       margin: 0 !important;
                       padding: 0 !important;
+                      line-height: 1 !important;
+                    }
+                    .barcode-label svg {
+                      max-width: 36mm !important;
+                      height: auto !important;
                     }
                     .barcode-label .text-\[9px\] {
-                      font-size: 9px !important;
-                    }
-                    .barcode-label .text-\[7px\] {
                       font-size: 7px !important;
                     }
+                    .barcode-label .text-\[7px\] {
+                      font-size: 5px !important;
+                    }
                     .barcode-label .text-\[11px\] {
-                      font-size: 11px !important;
+                      font-size: 8px !important;
                     }
                     .barcode-label .text-\[6px\] {
-                      font-size: 6px !important;
+                      font-size: 5px !important;
                     }
                   }
                 `}
