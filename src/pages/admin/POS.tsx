@@ -2722,16 +2722,6 @@ export default function POS() {
 
   const quickActions = [
     { 
-      icon: BarChart3, 
-      label: 'Dashboard', 
-      color: 'bg-[#22C55E]', 
-      action: () => {
-        setSelectedCategory(null);
-        setSearchTerm('');
-      },
-      shortcut: null
-    },
-    { 
       icon: Clock, 
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
@@ -3691,7 +3681,10 @@ export default function POS() {
                 {/* Analytics Cards - Vertical Stack */}
                 <div className="space-y-2">
                   {/* Sales Overview Card */}
-                  <Card className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                  <Card 
+                    className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setExpandedMetric('sales')}
+                  >
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 rounded bg-emerald-500/20">
                         <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -3706,7 +3699,10 @@ export default function POS() {
                   </Card>
 
                   {/* Top Product Card */}
-                  <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                  <Card 
+                    className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setExpandedMetric('products')}
+                  >
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 rounded bg-blue-500/20">
                         <Award className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -3724,7 +3720,10 @@ export default function POS() {
                   </Card>
 
                   {/* Top Customer Card */}
-                  <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                  <Card 
+                    className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setExpandedMetric('customers')}
+                  >
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 rounded bg-purple-500/20">
                         <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
