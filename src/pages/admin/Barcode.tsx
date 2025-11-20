@@ -393,8 +393,7 @@ export default function BarcodeManagement() {
                   @media print {
                     @page {
                       size: 38cm 25cm;
-                      margin: 0;
-                      padding: 0;
+                      margin: 1cm;
                     }
                     body {
                       margin: 0;
@@ -404,9 +403,9 @@ export default function BarcodeManagement() {
                       display: block !important;
                     }
                     .barcode-label {
-                      width: 38cm !important;
-                      height: 25cm !important;
-                      padding: 1cm !important;
+                      width: 36cm !important;
+                      height: 23cm !important;
+                      padding: 2cm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
@@ -414,29 +413,30 @@ export default function BarcodeManagement() {
                       justify-content: center;
                       align-items: center;
                       page-break-after: always;
-                      gap: 0.5cm !important;
+                      border: 2px solid #000 !important;
+                      gap: 1cm !important;
                     }
                     .barcode-label p {
                       margin: 0 !important;
                       padding: 0 !important;
                     }
                     .barcode-label svg {
-                      max-width: 35cm !important;
+                      width: 32cm !important;
                       height: auto !important;
                     }
                     .product-name {
-                      font-size: 48px !important;
+                      font-size: 72px !important;
                       font-weight: bold !important;
                     }
                     .variant-label {
-                      font-size: 36px !important;
+                      font-size: 48px !important;
                     }
                     .price-text {
-                      font-size: 60px !important;
+                      font-size: 96px !important;
                       font-weight: bold !important;
                     }
                     .details-text {
-                      font-size: 28px !important;
+                      font-size: 36px !important;
                     }
                   }
                 `}
@@ -449,38 +449,38 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label border rounded p-4 flex flex-col items-center justify-center"
-                      style={{ width: '38cm', height: '25cm' }}
+                      className="barcode-label border-2 border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center gap-6"
+                      style={{ width: '36cm', height: '23cm' }}
                     >
-                      <div className="w-full text-center mb-4">
-                        <p className="product-name font-bold text-5xl leading-tight truncate px-4">{item.name}</p>
+                      <div className="w-full text-center">
+                        <p className="product-name font-bold text-7xl leading-tight px-8">{item.name}</p>
                         {item.variantLabel && (
-                          <p className="variant-label text-4xl leading-tight truncate px-4 mt-2">{item.variantLabel}</p>
+                          <p className="variant-label text-5xl leading-tight px-8 mt-4">{item.variantLabel}</p>
                         )}
                       </div>
                       {barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex justify-center w-full my-4">
+                        <div key={index} className="flex justify-center w-full">
                           <Barcode
                             value={barcodeValue}
-                            width={4}
-                            height={150}
-                            fontSize={32}
+                            width={6}
+                            height={200}
+                            fontSize={48}
                             background="#ffffff"
-                            margin={0}
+                            margin={10}
                           />
                         </div>
                       ))}
-                      <p className="price-text text-6xl font-bold leading-none my-4">{formatCurrency(item.price)}</p>
+                      <p className="price-text text-8xl font-bold">{formatCurrency(item.price)}</p>
                       {details && (
-                        <div className="details-text text-3xl leading-relaxed w-full text-center mt-4 space-y-2">
+                        <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
                           {details.batchNumber && (
-                            <p className="truncate"><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
+                            <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
                           {details.manufacturingDate && (
-                            <p><span className="font-semibold">Mfg:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                            <p><span className="font-semibold">Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {details.expiryDate && (
-                            <p className="font-bold"><span className="font-bold">Exp:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p className="font-bold text-red-600"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
                       )}
