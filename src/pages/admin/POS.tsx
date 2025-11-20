@@ -667,34 +667,25 @@ export default function POS() {
       console.log('Account balances fetched:', accounts);
       console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
 
-      // Calculate balance for each contact
+      // Map contacts with their exact current_balance from general ledger
       const customersWithBalance = contacts
         .map(contact => {
-          const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
-          const supplierBalance = contact.supplier_ledger_account_id 
-            ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
-            : 0;
-          
-          // Display balance should match the general ledger current_balance exactly
-          // For dual-role: show only customer balance (not combined)
-          const displayBalance = customerBalance;
+          // Get the exact current_balance from the customer ledger account
+          const balance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
 
           return {
             ...contact,
-            balance: displayBalance,
-            customerBalance,
-            supplierBalance,
-            isDualRole: !!contact.supplier_ledger_account_id
+            balance: balance
           };
         });
 
       // Separate dual-role and regular customers
       const dualRoleCustomers = customersWithBalance
-        .filter(c => c.isDualRole)
+        .filter(c => c.supplier_ledger_account_id)
         .sort((a, b) => b.balance - a.balance);
       
       const regularCustomers = customersWithBalance
-        .filter(c => !c.isDualRole)
+        .filter(c => !c.supplier_ledger_account_id)
         .sort((a, b) => b.balance - a.balance);
 
       // Prioritize dual-role customers, then fill with regular customers
@@ -704,7 +695,7 @@ export default function POS() {
       ].slice(0, 10);
 
       console.log('Final customers with balance:', finalList);
-      console.log('Dual-role in final list:', finalList.filter(c => c.isDualRole));
+      console.log('Dual-role in final list:', finalList.filter(c => c.supplier_ledger_account_id));
 
       return finalList;
     },
