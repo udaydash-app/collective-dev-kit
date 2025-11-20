@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -1143,7 +1143,7 @@ export default function Products() {
                   showDuplicates ? (
                     // Render duplicate groups with visual separation
                     duplicateGroups.map((group, groupIndex) => (
-                      <>
+                      <Fragment key={groupIndex}>
                         {group.map((product, productIndex) => (
                           <TableRow 
                             key={product.id} 
@@ -1182,6 +1182,7 @@ export default function Products() {
                                   )}
                                 </div>
                               </div>
+                            </TableCell>
                             <TableCell className="text-xs text-muted-foreground py-2">
                               {product.barcode ? (
                                 (() => {
@@ -1245,28 +1246,22 @@ export default function Products() {
                             <TableCell className="text-right py-2">
                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
-                                  size="sm"
                                   variant="ghost"
-                                  onClick={() => handleEnrichProduct(product)}
-                                  disabled={enrichingIds.has(product.id)}
-                                  title="AI Enrich"
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Sparkles className={`h-3 w-3 ${enrichingIds.has(product.id) ? 'animate-spin' : ''}`} />
-                                </Button>
-                                <Button
                                   size="sm"
-                                  variant="ghost"
                                   onClick={() => handleEdit(product)}
                                   title="Edit"
-                                  className="h-7 w-7 p-0"
+                                  className="h-7 w-7 p-0 hover:text-primary"
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
                                 <Button
-                                  size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDelete(product.id)}
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm("Delete this product?")) {
+                                      handleDelete(product.id);
+                                    }
+                                  }}
                                   title="Delete"
                                   className="h-7 w-7 p-0 hover:text-destructive"
                                 >
@@ -1276,7 +1271,7 @@ export default function Products() {
                             </TableCell>
                           </TableRow>
                         ))}
-                      </React.Fragment>
+                      </Fragment>
                     ))
                   ) : (
                     // Regular product list
@@ -1311,20 +1306,21 @@ export default function Products() {
                             </div>
                           </div>
                         </TableCell>
-                        {product.barcode ? (
-                          (() => {
-                            const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
-                            if (barcodes.length === 1) {
-                              return barcodes[0];
-                            }
-                            return (
-                              <span title={barcodes.join(', ')}>
-                                {barcodes[0]} <span className="text-[10px] text-primary">+{barcodes.length - 1}</span>
-                              </span>
-                            );
-                          })()
-                        ) : '-'}
-                      </TableCell>
+                        <TableCell className="text-xs text-muted-foreground py-2">
+                          {product.barcode ? (
+                            (() => {
+                              const barcodes = product.barcode.split(',').map(b => b.trim()).filter(b => b);
+                              if (barcodes.length === 1) {
+                                return barcodes[0];
+                              }
+                              return (
+                                <span title={barcodes.join(', ')}>
+                                  {barcodes[0]} <span className="text-[10px] text-primary">+{barcodes.length - 1}</span>
+                                </span>
+                              );
+                            })()
+                          ) : '-'}
+                        </TableCell>
                       <TableCell className="text-xs py-2">
                         {product.categories?.name || '-'}
                       </TableCell>
