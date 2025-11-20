@@ -222,8 +222,15 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
         .select('quantity_remaining')
         .eq('product_id', keepProduct.id);
 
-      const finalStock = finalLayers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
-      console.log('Final stock from layers:', finalStock);
+      const layerStock = finalLayers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
+      console.log('Final stock from layers:', layerStock);
+
+      // If no layers exist, sum the stock_quantity from all original products
+      let finalStock = layerStock;
+      if (layerStock === 0) {
+        finalStock = keepProduct.stock_quantity + mergeProducts.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
+        console.log('No layers found, using direct stock sum:', finalStock);
+      }
 
       // Update stock directly
       const { error: updateError } = await supabase
