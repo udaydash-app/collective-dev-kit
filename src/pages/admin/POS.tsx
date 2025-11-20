@@ -3798,7 +3798,13 @@ export default function POS() {
                         <Card 
                           key={customer.id} 
                           className="p-2 cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => navigate(`/admin/general-ledger?accountId=${customer.customer_ledger_account_id}`)}
+                          onClick={() => {
+                            // For dual-role customers, use unified view
+                            const accountId = customer.supplier_ledger_account_id 
+                              ? `unified-${customer.id}` 
+                              : customer.customer_ledger_account_id;
+                            navigate(`/admin/general-ledger?accountId=${accountId}`);
+                          }}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
