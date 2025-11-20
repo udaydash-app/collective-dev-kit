@@ -2091,6 +2091,23 @@ export default function Products() {
         onOpenChange={setIsMergeDialogOpen}
         products={products.filter(p => selectedProducts.has(p.id))}
         onSuccess={() => {
+          const mergedProductIds = Array.from(selectedProducts);
+          
+          // Update duplicate groups immediately by removing merged products
+          if (showDuplicates && duplicateGroups.length > 0) {
+            const updatedGroups = duplicateGroups
+              .map(group => group.filter(p => !mergedProductIds.includes(p.id)))
+              .filter(group => group.length >= 2); // Keep only groups with 2+ products
+            
+            setDuplicateGroups(updatedGroups);
+            
+            // If no more duplicate groups, exit duplicate view
+            if (updatedGroups.length === 0) {
+              setShowDuplicates(false);
+              toast.info("No more duplicate groups remaining");
+            }
+          }
+          
           setSelectedProducts(new Set());
           fetchProducts();
         }}
