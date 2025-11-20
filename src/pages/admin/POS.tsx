@@ -648,23 +648,54 @@ export default function POS() {
         ...contacts.map(c => c.supplier_ledger_account_id).filter(Boolean)
       ];
 
-      // Fetch all accounts in one query
-      const { data: accounts, error: accountsError } = await supabase
-        .from('accounts')
-        .select('id, current_balance')
-        .in('id', accountIds);
-
-      if (accountsError) {
-        console.error('Error fetching accounts:', accountsError);
-        return [];
+      // Calculate account balances from journal entries (like General Ledger does)
+      const accountBalanceMap = new Map<string, number>();
+      
+      for (const accountId of accountIds) {
+        // Get the contact to determine account type
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('opening_balance, supplier_opening_balance, customer_ledger_account_id, supplier_ledger_account_id')
+          .or(`customer_ledger_account_id.eq.${accountId},supplier_ledger_account_id.eq.${accountId}`)
+          .maybeSingle();
+        
+        // Get journal entries for this account (excluding opening balance entries)
+        const { data: lines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status,
+              description
+            )
+          `)
+          .eq('account_id', accountId)
+          .eq('journal_entries.status', 'posted')
+          .not('journal_entries.description', 'ilike', '%opening balance%');
+        
+        // Calculate balance from journal entries
+        const debits = (lines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
+        const credits = (lines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+        
+        // Determine account type and opening balance
+        const isCustomerAccount = contact?.customer_ledger_account_id === accountId;
+        const isSupplierAccount = contact?.supplier_ledger_account_id === accountId;
+        
+        let balance = 0;
+        if (isCustomerAccount) {
+          // Asset account: opening + debits - credits
+          const opening = Number(contact?.opening_balance || 0);
+          balance = opening + debits - credits;
+        } else if (isSupplierAccount) {
+          // Liability account: opening + credits - debits
+          const opening = Number(contact?.supplier_opening_balance || 0);
+          balance = opening + credits - debits;
+        }
+        
+        accountBalanceMap.set(accountId, balance);
       }
-
-      // Create a map of account balances
-      const accountBalanceMap = new Map(
-        (accounts || []).map(acc => [acc.id, acc.current_balance])
-      );
-
-      console.log('Account balances fetched:', accounts);
+      
       console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
 
       // Map contacts with their balance (A/R - A/P for dual-role)
