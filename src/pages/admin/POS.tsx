@@ -3681,22 +3681,30 @@ export default function POS() {
                 {/* Analytics Cards - Vertical Stack */}
                 <div className="space-y-2">
                   {/* Sales Overview Card */}
-                  <Card 
-                    className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setExpandedMetric('sales')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded bg-emerald-500/20">
-                        <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100 block mb-1">Sales</span>
-                        <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
-                          {formatCurrency((analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0))}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
+                  {(() => {
+                    const totalSales = (analyticsData?.cashSales || 0) + (analyticsData?.creditSales || 0) + (analyticsData?.mobileMoneySales || 0);
+                    const isNegative = totalSales < 0;
+                    const textColor = isNegative ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400';
+                    
+                    return (
+                      <Card 
+                        className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => setExpandedMetric('sales')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-emerald-500/20">
+                            <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100 block mb-1">Sales</span>
+                            <p className={`text-xl font-bold ${textColor}`}>
+                              {formatCurrency(totalSales)}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Top Product Card */}
                   <Card 
@@ -3720,25 +3728,33 @@ export default function POS() {
                   </Card>
 
                   {/* Top Customer Card */}
-                  <Card 
-                    className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setExpandedMetric('customers')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded bg-purple-500/20">
-                        <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-semibold text-purple-900 dark:text-purple-100 block mb-1">Top Customer</span>
-                        <p className="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">
-                          {analyticsData?.topCustomers?.[0]?.name || 'N/A'}
-                        </p>
-                        <p className="text-xs text-purple-700 dark:text-purple-300">
-                          {formatCurrency(analyticsData?.topCustomers?.[0]?.total || 0)}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
+                  {(() => {
+                    const customerTotal = analyticsData?.topCustomers?.[0]?.total || 0;
+                    const isNegative = customerTotal < 0;
+                    const amountColor = isNegative ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400';
+                    
+                    return (
+                      <Card 
+                        className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => setExpandedMetric('customers')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-purple-500/20">
+                            <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-semibold text-purple-900 dark:text-purple-100 block mb-1">Top Customer</span>
+                            <p className="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">
+                              {analyticsData?.topCustomers?.[0]?.name || 'N/A'}
+                            </p>
+                            <p className={`text-xs font-semibold ${amountColor}`}>
+                              {formatCurrency(customerTotal)}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })()}
                 </div>
                 
                 {/* Top Credit Customers Section */}
