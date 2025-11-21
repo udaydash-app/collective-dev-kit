@@ -18,14 +18,14 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
     const handleKeyPress = (e: KeyboardEvent) => {
       const currentTime = Date.now();
       
-      // Reset buffer if more than 30ms between keys (ultra-fast detection)
-      if (currentTime - lastKeyTime > 30) {
+      // Reset buffer if more than 20ms between keys (faster detection)
+      if (currentTime - lastKeyTime > 20) {
         barcodeBuffer = '';
       }
       
       lastKeyTime = currentTime;
 
-      // Enter key signals end of barcode
+      // Enter key signals end of barcode - immediate processing
       if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
         if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -34,14 +34,14 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       } else if (e.key.length === 1) {
         barcodeBuffer += e.key;
         
-        // Auto-process if no Enter key after 15ms (ultra-fast for scanners without Enter)
+        // Auto-process if no Enter key after 5ms (instant for scanners without Enter)
         if (debounceTimeout) clearTimeout(debounceTimeout);
         debounceTimeout = setTimeout(() => {
           if (barcodeBuffer.length >= 3) { // Minimum 3 chars to avoid false triggers
             onScan(barcodeBuffer);
             barcodeBuffer = '';
           }
-        }, 15);
+        }, 5);
       }
     };
 
