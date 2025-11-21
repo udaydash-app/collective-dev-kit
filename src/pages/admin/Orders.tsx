@@ -724,16 +724,35 @@ export default function AdminOrders() {
         scale: 2,
       });
 
-      canvas.toBlob((blob) => {
+      canvas.toBlob(async (blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `receipt-${order.order_number}.png`;
-          link.click();
-          URL.revokeObjectURL(url);
+          const file = new File([blob], `receipt-${order.order_number}.png`, { type: 'image/png' });
 
-          toast.success('Receipt downloaded! Please share it via WhatsApp manually.');
+          // Check if Web Share API is supported
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: `Receipt ${order.order_number}`,
+                text: `Receipt for order ${order.order_number}`,
+              });
+              toast.success('Receipt shared successfully!');
+            } catch (err: any) {
+              if (err.name !== 'AbortError') {
+                console.error('Error sharing:', err);
+                toast.error('Failed to share receipt');
+              }
+            }
+          } else {
+            // Fallback to download
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `receipt-${order.order_number}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success('Receipt downloaded! Please share it via WhatsApp manually.');
+          }
         }
 
         root.unmount();
