@@ -2308,61 +2308,41 @@ export default function POS() {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
     
-    // Calculate customer balance from journal entries if customer is selected
+    // Calculate customer balance from account current_balance (includes opening balance + journal entries)
     let customerBalance: number | undefined;
     let isUnifiedBalance = false;
     
     if (selectedCustomer) {
       const customer = customers?.find(c => c.id === selectedCustomer.id);
       if (customer) {
-        let totalBalance = 0;
         isUnifiedBalance = customer.is_supplier && customer.is_customer;
 
-        // Calculate balance from posted journal entries for customer account
+        // Fetch current balance directly from accounts table
         if (customer.customer_ledger_account_id) {
-          const { data: customerLines } = await supabase
-            .from('journal_entry_lines')
-            .select(`
-              debit_amount,
-              credit_amount,
-              journal_entries!inner (
-                status
-              )
-            `)
-            .eq('account_id', customer.customer_ledger_account_id)
-            .eq('journal_entries.status', 'posted');
+          const { data: customerAccount } = await supabase
+            .from('accounts')
+            .select('current_balance')
+            .eq('id', customer.customer_ledger_account_id)
+            .single();
 
-          if (customerLines && customerLines.length > 0) {
-            const custReceivableBalance = customerLines.reduce((sum, line) => {
-              return sum + (line.debit_amount - line.credit_amount);
-            }, 0);
-            totalBalance = custReceivableBalance;
+          if (customerAccount) {
+            customerBalance = customerAccount.current_balance;
           }
         }
 
-        // If also a supplier, subtract supplier balance from posted journal entries
-        if (customer.is_supplier && customer.supplier_ledger_account_id) {
-          const { data: supplierLines } = await supabase
-            .from('journal_entry_lines')
-            .select(`
-              debit_amount,
-              credit_amount,
-              journal_entries!inner (
-                status
-              )
-            `)
-            .eq('account_id', customer.supplier_ledger_account_id)
-            .eq('journal_entries.status', 'posted');
+        // If dual-role (customer & supplier), calculate unified balance from account balances
+        if (customer.is_supplier && customer.supplier_ledger_account_id && customerBalance !== undefined) {
+          const { data: supplierAccount } = await supabase
+            .from('accounts')
+            .select('current_balance')
+            .eq('id', customer.supplier_ledger_account_id)
+            .single();
 
-          if (supplierLines && supplierLines.length > 0) {
-            const suppPayableBalance = supplierLines.reduce((sum, line) => {
-              return sum + (line.credit_amount - line.debit_amount);
-            }, 0);
-            totalBalance -= suppPayableBalance;
+          if (supplierAccount) {
+            // Unified balance: customer receivable minus supplier payable
+            customerBalance = customerBalance - supplierAccount.current_balance;
           }
         }
-
-        customerBalance = totalBalance;
       }
     }
     
@@ -2431,60 +2411,43 @@ export default function POS() {
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
       
       // Recalculate customer balance AFTER transaction (it would have changed)
+      // Wait briefly for database triggers to complete (journal entry creation and account balance update)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       let updatedCustomerBalance: number | undefined;
       let updatedIsUnifiedBalance = false;
       
       if (selectedCustomer) {
         const customer = customers?.find(c => c.id === selectedCustomer.id);
         if (customer) {
-          let totalBalance = 0;
           updatedIsUnifiedBalance = customer.is_supplier && customer.is_customer;
 
-          // Calculate balance from posted journal entries for customer account
+          // Fetch current balance directly from accounts table (updated by triggers)
           if (customer.customer_ledger_account_id) {
-            const { data: customerLines } = await supabase
-              .from('journal_entry_lines')
-              .select(`
-                debit_amount,
-                credit_amount,
-                journal_entries!inner (
-                  status
-                )
-              `)
-              .eq('account_id', customer.customer_ledger_account_id)
-              .eq('journal_entries.status', 'posted');
+            const { data: customerAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', customer.customer_ledger_account_id)
+              .single();
 
-            if (customerLines && customerLines.length > 0) {
-              const custReceivableBalance = customerLines.reduce((sum, line) => {
-                return sum + (line.debit_amount - line.credit_amount);
-              }, 0);
-              totalBalance = custReceivableBalance;
+            if (customerAccount) {
+              updatedCustomerBalance = customerAccount.current_balance;
             }
           }
 
-          // If also a supplier, subtract supplier balance from posted journal entries
-          if (customer.is_supplier && customer.supplier_ledger_account_id) {
-            const { data: supplierLines } = await supabase
-              .from('journal_entry_lines')
-              .select(`
-                debit_amount,
-                credit_amount,
-                journal_entries!inner (
-                  status
-                )
-              `)
-              .eq('account_id', customer.supplier_ledger_account_id)
-              .eq('journal_entries.status', 'posted');
+          // If dual-role (customer & supplier), calculate unified balance from account balances
+          if (customer.is_supplier && customer.supplier_ledger_account_id && updatedCustomerBalance !== undefined) {
+            const { data: supplierAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', customer.supplier_ledger_account_id)
+              .single();
 
-            if (supplierLines && supplierLines.length > 0) {
-              const suppPayableBalance = supplierLines.reduce((sum, line) => {
-                return sum + (line.credit_amount - line.debit_amount);
-              }, 0);
-              totalBalance -= suppPayableBalance;
+            if (supplierAccount) {
+              // Unified balance: customer receivable minus supplier payable
+              updatedCustomerBalance = updatedCustomerBalance - supplierAccount.current_balance;
             }
           }
-
-          updatedCustomerBalance = totalBalance;
         }
       }
       
