@@ -2658,56 +2658,32 @@ export default function POS() {
           customerName = contact.name;
           isUnifiedBalance = contact.is_customer && contact.is_supplier;
           
-          let totalBalance = 0;
-
-          // Fetch customer balance if they are a customer
+          // Fetch current balance directly from accounts table instead of calculating from journal entries
           if (contact.is_customer && contact.customer_ledger_account_id) {
-            const { data: customerLines } = await supabase
-              .from('journal_entry_lines')
-              .select(`
-                debit_amount,
-                credit_amount,
-                journal_entries!inner (
-                  status
-                )
-              `)
-              .eq('account_id', contact.customer_ledger_account_id)
-              .eq('journal_entries.status', 'posted');
+            const { data: customerAccount } = await supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', contact.customer_ledger_account_id)
+              .single();
 
-            if (customerLines && customerLines.length > 0) {
-              const custBalance = customerLines.reduce((sum, line) => {
-                return sum + (line.debit_amount - line.credit_amount);
-              }, 0);
-              totalBalance += custBalance;
+            if (customerAccount) {
+              customerBalance = customerAccount.current_balance;
+              
+              // If dual-role (customer & supplier), calculate unified balance
+              if (contact.is_supplier && contact.supplier_ledger_account_id) {
+                const { data: supplierAccount } = await supabase
+                  .from('accounts')
+                  .select('current_balance')
+                  .eq('id', contact.supplier_ledger_account_id)
+                  .single();
+
+                if (supplierAccount) {
+                  // Unified balance: customer receivable minus supplier payable
+                  customerBalance = customerBalance - supplierAccount.current_balance;
+                }
+              }
             }
           }
-
-          // Fetch supplier balance if they are also a supplier (unified balance)
-          if (contact.is_supplier && contact.supplier_ledger_account_id) {
-            const { data: supplierLines } = await supabase
-              .from('journal_entry_lines')
-              .select(`
-                debit_amount,
-                credit_amount,
-                journal_entries!inner (
-                  status
-                )
-              `)
-              .eq('account_id', contact.supplier_ledger_account_id)
-              .eq('journal_entries.status', 'posted');
-
-            if (supplierLines && supplierLines.length > 0) {
-              // For supplier (payable/liability) accounts: credit increases balance, debit decreases
-              // Payable balance = credit - debit (positive means we owe them)
-              // For unified view, we SUBTRACT payable from total (negative unified = we owe them net)
-              const suppPayableBalance = supplierLines.reduce((sum, line) => {
-                return sum + (line.credit_amount - line.debit_amount);
-              }, 0);
-              totalBalance -= suppPayableBalance;
-            }
-          }
-
-          customerBalance = totalBalance;
         }
       }
 
