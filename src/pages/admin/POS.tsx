@@ -2650,7 +2650,7 @@ export default function POS() {
             isUnifiedBalance={lastTransactionData.isUnifiedBalance}
           />
         );
-        setTimeout(resolve, 100);
+        setTimeout(resolve, 200);
       });
       
       // Convert to canvas
@@ -2658,9 +2658,10 @@ export default function POS() {
       if (!receiptElement) throw new Error('Receipt element not found');
       
       const canvas = await html2canvas(receiptElement, {
-        scale: 2,
+        scale: 3,
         backgroundColor: '#ffffff',
         logging: false,
+        useCORS: true,
       });
       
       // Convert canvas to blob
@@ -2668,40 +2669,27 @@ export default function POS() {
         canvas.toBlob((blob) => {
           if (blob) resolve(blob);
           else reject(new Error('Failed to create blob'));
-        }, 'image/png');
+        }, 'image/png', 1.0);
       });
       
       // Clean up
       root.unmount();
       document.body.removeChild(container);
       
-      // Check if Web Share API is available
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `receipt-${lastTransactionData.transactionNumber}.png`, { type: 'image/png' });
-        
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Receipt ${lastTransactionData.transactionNumber}`,
-            text: `Receipt for ${lastTransactionData.storeName}`,
-          });
-          toast.success('Receipt shared successfully', { id: 'whatsapp-share' });
-        } else {
-          throw new Error('File sharing not supported');
-        }
-      } else {
-        // Fallback: Download the image
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success('Receipt downloaded. Please share manually via WhatsApp', { id: 'whatsapp-share' });
-      }
+      // Download the image
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Receipt image downloaded! Now share it via WhatsApp', { id: 'whatsapp-share' });
     } catch (error) {
-      console.error('Error sharing receipt:', error);
-      toast.error('Failed to share receipt. Try downloading as PDF instead.', { id: 'whatsapp-share' });
+      console.error('Error generating receipt image:', error);
+      toast.error('Failed to generate receipt image. Try downloading as PDF instead.', { id: 'whatsapp-share' });
     }
   };
 
