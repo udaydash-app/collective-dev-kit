@@ -2679,8 +2679,10 @@ export default function POS() {
       // Create file for sharing
       const file = new File([blob], `receipt-${lastTransactionData.transactionNumber}.png`, { type: 'image/png' });
       
-      // Try Web Share API first (works on mobile devices)
-      if (navigator.share) {
+      // Check if the browser supports sharing files
+      const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+
+      if (canShareFiles) {
         try {
           await navigator.share({
             files: [file],
@@ -2692,7 +2694,8 @@ export default function POS() {
           if (err.name === 'AbortError') {
             toast.dismiss('whatsapp-share');
           } else {
-            // Web Share API doesn't support files on this device/browser
+            console.error('Share error:', err);
+            // Fallback to download
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2705,7 +2708,7 @@ export default function POS() {
           }
         }
       } else {
-        // Web Share API not available, download the file
+        // File sharing not supported, download the file
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

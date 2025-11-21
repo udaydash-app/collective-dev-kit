@@ -728,8 +728,10 @@ export default function AdminOrders() {
         if (blob) {
           const file = new File([blob], `receipt-${order.order_number}.png`, { type: 'image/png' });
 
-          // Try Web Share API first (works on mobile devices)
-          if (navigator.share) {
+          // Check if the browser supports sharing files
+          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+
+          if (canShareFiles) {
             try {
               await navigator.share({
                 files: [file],
@@ -738,11 +740,11 @@ export default function AdminOrders() {
               });
               toast.success('Receipt shared successfully!');
             } catch (err: any) {
-              // User cancelled or sharing failed
               if (err.name === 'AbortError') {
                 toast.info('Share cancelled');
               } else {
-                // Web Share API doesn't support files on this device/browser
+                console.error('Share error:', err);
+                // Fallback to download
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -753,7 +755,7 @@ export default function AdminOrders() {
               }
             }
           } else {
-            // Web Share API not available, download the file
+            // File sharing not supported, download the file
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
