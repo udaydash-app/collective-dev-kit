@@ -2679,8 +2679,8 @@ export default function POS() {
       // Create file for sharing
       const file = new File([blob], `receipt-${lastTransactionData.transactionNumber}.png`, { type: 'image/png' });
       
-      // Check if Web Share API is supported
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Try Web Share API first (works on mobile devices)
+      if (navigator.share) {
         try {
           await navigator.share({
             files: [file],
@@ -2689,15 +2689,23 @@ export default function POS() {
           });
           toast.success('Receipt shared successfully!', { id: 'whatsapp-share' });
         } catch (err: any) {
-          if (err.name !== 'AbortError') {
-            console.error('Error sharing:', err);
-            toast.error('Failed to share receipt', { id: 'whatsapp-share' });
-          } else {
+          if (err.name === 'AbortError') {
             toast.dismiss('whatsapp-share');
+          } else {
+            // Web Share API doesn't support files on this device/browser
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
           }
         }
       } else {
-        // Fallback to download
+        // Web Share API not available, download the file
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -2706,7 +2714,7 @@ export default function POS() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        toast.success('Receipt downloaded! Please share it via WhatsApp manually', { id: 'whatsapp-share' });
+        toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
       }
     } catch (error) {
       console.error('Error generating receipt image:', error);

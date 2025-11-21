@@ -728,8 +728,8 @@ export default function AdminOrders() {
         if (blob) {
           const file = new File([blob], `receipt-${order.order_number}.png`, { type: 'image/png' });
 
-          // Check if Web Share API is supported
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          // Try Web Share API first (works on mobile devices)
+          if (navigator.share) {
             try {
               await navigator.share({
                 files: [file],
@@ -738,20 +738,29 @@ export default function AdminOrders() {
               });
               toast.success('Receipt shared successfully!');
             } catch (err: any) {
-              if (err.name !== 'AbortError') {
-                console.error('Error sharing:', err);
-                toast.error('Failed to share receipt');
+              // User cancelled or sharing failed
+              if (err.name === 'AbortError') {
+                toast.info('Share cancelled');
+              } else {
+                // Web Share API doesn't support files on this device/browser
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `receipt-${order.order_number}.png`;
+                link.click();
+                URL.revokeObjectURL(url);
+                toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.');
               }
             }
           } else {
-            // Fallback to download
+            // Web Share API not available, download the file
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `receipt-${order.order_number}.png`;
             link.click();
             URL.revokeObjectURL(url);
-            toast.success('Receipt downloaded! Please share it via WhatsApp manually.');
+            toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.');
           }
         }
 
