@@ -1995,6 +1995,8 @@ export default function POS() {
               paymentMethod: 'Cash',
               cashierName: currentCashSession?.cashier_name || 'Cashier',
               customerName: selectedCustomer?.name,
+              customerBalance: transactionData.customerBalance,
+              isUnifiedBalance: transactionData.isUnifiedBalance,
             };
             await kioskPrintService.printReceipt(receiptData);
           } catch (error) {
@@ -2041,6 +2043,8 @@ export default function POS() {
               paymentMethod: 'Credit',
               cashierName: currentCashSession?.cashier_name || 'Cashier',
               customerName: selectedCustomer?.name,
+              customerBalance: transactionData.customerBalance,
+              isUnifiedBalance: transactionData.isUnifiedBalance,
             };
             await kioskPrintService.printReceipt(receiptData);
           } catch (error) {
@@ -2083,6 +2087,8 @@ export default function POS() {
               paymentMethod: 'Mobile Money',
               cashierName: currentCashSession?.cashier_name || 'Cashier',
               customerName: selectedCustomer?.name,
+              customerBalance: transactionData.customerBalance,
+              isUnifiedBalance: transactionData.isUnifiedBalance,
             };
             await kioskPrintService.printReceipt(receiptData);
           } catch (error) {
@@ -2578,6 +2584,7 @@ export default function POS() {
           date: new Date(),
           items: transactionData.items.map((item: any) => ({
             name: item.name,
+            displayName: item.displayName,
             quantity: item.quantity,
             price: item.customPrice ?? item.price,
             itemDiscount: item.itemDiscount || 0
@@ -2588,8 +2595,11 @@ export default function POS() {
           total: transactionData.total,
           paymentMethod: transactionData.paymentMethod,
           cashierName: transactionData.cashierName,
+          customerName: transactionData.customerName,
           logoUrl: transactionData.logoUrl,
-          supportPhone: transactionData.supportPhone
+          supportPhone: transactionData.supportPhone,
+          customerBalance: transactionData.customerBalance,
+          isUnifiedBalance: transactionData.isUnifiedBalance
         };
         
         console.log('🖨️ Receipt data prepared:', receiptData);
