@@ -2412,44 +2412,54 @@ export default function POS() {
       
       // Recalculate customer balance AFTER transaction (it would have changed)
       // Wait briefly for database triggers to complete (journal entry creation and account balance update)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       let updatedCustomerBalance: number | undefined;
       let updatedIsUnifiedBalance = false;
       
-      if (selectedCustomer) {
-        const customer = customers?.find(c => c.id === selectedCustomer.id);
-        if (customer) {
-          updatedIsUnifiedBalance = customer.is_supplier && customer.is_customer;
+      console.log('🔍 Fetching updated balance for customer:', selectedCustomer);
+      
+      if (selectedCustomer && selectedCustomer.customer_ledger_account_id) {
+        updatedIsUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
+        
+        console.log('📊 Fetching account balance from:', selectedCustomer.customer_ledger_account_id);
 
-          // Fetch current balance directly from accounts table (updated by triggers)
-          if (customer.customer_ledger_account_id) {
-            const { data: customerAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', customer.customer_ledger_account_id)
-              .single();
+        // Fetch current balance directly from accounts table (updated by triggers)
+        const { data: customerAccount, error: customerError } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', selectedCustomer.customer_ledger_account_id)
+          .single();
 
-            if (customerAccount) {
-              updatedCustomerBalance = customerAccount.current_balance;
-            }
-          }
+        console.log('💰 Customer account data:', customerAccount, 'Error:', customerError);
 
-          // If dual-role (customer & supplier), calculate unified balance from account balances
-          if (customer.is_supplier && customer.supplier_ledger_account_id && updatedCustomerBalance !== undefined) {
-            const { data: supplierAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', customer.supplier_ledger_account_id)
-              .single();
+        if (customerAccount) {
+          updatedCustomerBalance = customerAccount.current_balance;
+          console.log('✅ Customer balance fetched:', updatedCustomerBalance);
+        }
 
-            if (supplierAccount) {
-              // Unified balance: customer receivable minus supplier payable
-              updatedCustomerBalance = updatedCustomerBalance - supplierAccount.current_balance;
-            }
+        // If dual-role (customer & supplier), calculate unified balance from account balances
+        if (selectedCustomer.is_supplier && selectedCustomer.supplier_ledger_account_id && updatedCustomerBalance !== undefined) {
+          const { data: supplierAccount, error: supplierError } = await supabase
+            .from('accounts')
+            .select('current_balance')
+            .eq('id', selectedCustomer.supplier_ledger_account_id)
+            .single();
+
+          console.log('🏢 Supplier account data:', supplierAccount, 'Error:', supplierError);
+
+          if (supplierAccount) {
+            const supplierBalance = supplierAccount.current_balance;
+            const originalBalance = updatedCustomerBalance;
+            // Unified balance: customer receivable minus supplier payable
+            updatedCustomerBalance = updatedCustomerBalance - supplierBalance;
+            updatedIsUnifiedBalance = true;
+            console.log(`🔄 Unified balance: ${originalBalance} - ${supplierBalance} = ${updatedCustomerBalance}`);
           }
         }
       }
+      
+      console.log('📝 Final balance to be shown on receipt:', updatedCustomerBalance);
       
       const completeTransactionData = {
         ...transactionDataPrep,
