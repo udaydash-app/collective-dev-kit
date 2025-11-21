@@ -49,33 +49,49 @@ export default function Analytics() {
 
   const fetchAnalytics = async () => {
     try {
+      // Fetch POS transactions instead of orders since this is a POS system
+      const { data: transactions, error: transactionsError } = await supabase
+        .from("pos_transactions")
+        .select("total, created_at");
+
+      if (transactionsError) {
+        console.error("Error fetching transactions:", transactionsError);
+      }
+
+      const totalRevenue = transactions?.reduce((sum, tx) => sum + tx.total, 0) || 0;
+
       // Fetch events summary
-      const { count: eventsCount } = await supabase
+      const { count: eventsCount, error: eventsError } = await supabase
         .from("analytics_events")
         .select("*", { count: "exact", head: true });
 
-      // Fetch orders summary
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("total");
-
-      const totalRevenue = orders?.reduce((sum, order) => sum + order.total, 0) || 0;
+      if (eventsError) {
+        console.error("Error fetching events count:", eventsError);
+      }
 
       // Fetch active users (users with events in last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const { data: activeUsersData } = await supabase
+      const { data: activeUsersData, error: activeUsersError } = await supabase
         .from("analytics_events")
         .select("user_id")
         .gte("created_at", thirtyDaysAgo.toISOString());
 
+      if (activeUsersError) {
+        console.error("Error fetching active users:", activeUsersError);
+      }
+
       const uniqueUsers = new Set(activeUsersData?.map(e => e.user_id).filter(Boolean));
 
       // Fetch event breakdown
-      const { data: events } = await supabase
+      const { data: events, error: eventsBreakdownError } = await supabase
         .from("analytics_events")
         .select("event_type");
+
+      if (eventsBreakdownError) {
+        console.error("Error fetching event breakdown:", eventsBreakdownError);
+      }
 
       const eventCounts = events?.reduce((acc: Record<string, number>, event) => {
         acc[event.event_type] = (acc[event.event_type] || 0) + 1;
@@ -88,15 +104,19 @@ export default function Analytics() {
       }));
 
       // Fetch import logs
-      const { data: logs } = await supabase
+      const { data: logs, error: logsError } = await supabase
         .from("import_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
 
+      if (logsError) {
+        console.error("Error fetching import logs:", logsError);
+      }
+
       setSummary({
         totalEvents: eventsCount || 0,
-        totalOrders: orders?.length || 0,
+        totalOrders: transactions?.length || 0,
         totalRevenue,
         activeUsers: uniqueUsers.size,
       });
