@@ -163,9 +163,23 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!receiptRef.current) return;
     
     try {
+      // Wait for all images to load
+      const images = receiptRef.current.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = resolve; // Continue even if image fails
+            setTimeout(resolve, 3000); // Timeout after 3s
+          });
+        })
+      );
+
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
       });
       
@@ -227,8 +241,21 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
           />
         );
-        setTimeout(resolve, 200);
+        setTimeout(resolve, 500);
       });
+      
+      // Wait for all images to load
+      const images = container.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve; // Continue even if image fails
+            setTimeout(resolve, 3000); // Timeout after 3s
+          });
+        })
+      );
       
       // Convert to canvas
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
@@ -239,6 +266,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
+        allowTaint: true,
       });
       
       // Convert canvas to blob

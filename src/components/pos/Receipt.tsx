@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
@@ -41,8 +41,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     },
     ref
   ) => {
-    const [logoLoaded, setLogoLoaded] = useState(false);
-    const [logoError, setLogoError] = useState(false);
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('fr-CI', { 
       minimumFractionDigits: 0, 
@@ -141,18 +139,17 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         }
       `}</style>
       <div className="text-center mb-3">
-        {logoUrl && !logoError && (
+        {logoUrl && (
           <div className="flex justify-center mb-2">
             <img 
               src={logoUrl} 
               alt="Company Logo" 
-              style={{ maxHeight: '80px', width: 'auto', display: logoLoaded ? 'block' : 'none' }} 
-              onLoad={() => setLogoLoaded(true)}
-              onError={() => setLogoError(true)}
+              style={{ maxHeight: '80px', width: 'auto' }}
+              crossOrigin="anonymous"
             />
           </div>
         )}
-        <div className={logoUrl && logoLoaded && !logoError ? "mt-2" : ""}>
+        <div className={logoUrl ? "mt-2" : ""}>
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
