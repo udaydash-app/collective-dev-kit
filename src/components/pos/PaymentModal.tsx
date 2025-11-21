@@ -163,23 +163,24 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!receiptRef.current) return;
     
     try {
-      // Wait for all images to load
-      const images = receiptRef.current.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete) return Promise.resolve();
-          return new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = resolve; // Continue even if image fails
-            setTimeout(resolve, 3000); // Timeout after 3s
-          });
-        })
-      );
+      // Convert logo to base64 before capturing
+      if (transactionData?.logoUrl && transactionData.logoUrl.startsWith('http')) {
+        const logoImg = receiptRef.current.querySelector('img');
+        if (logoImg) {
+          try {
+            const base64 = await imageUrlToBase64(transactionData.logoUrl);
+            if (base64) {
+              logoImg.src = base64;
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          } catch (error) {
+            console.error('Failed to convert logo for PDF:', error);
+          }
+        }
+      }
 
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
-        useCORS: true,
-        allowTaint: true,
         backgroundColor: '#ffffff',
       });
       
@@ -202,6 +203,23 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
   };
 
+  // Helper function to convert image URL to base64
+  const imageUrlToBase64 = async (url: string): Promise<string> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+      return '';
+    }
+  };
+
   const handleSendWhatsApp = async () => {
     if (!transactionData) return;
     
@@ -212,13 +230,21 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       
       toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
       
+      // Convert logo to base64 if it exists
+      let logoBase64 = '';
+      if (transactionData.logoUrl) {
+        console.log('🔄 Converting logo to base64...');
+        logoBase64 = await imageUrlToBase64(transactionData.logoUrl);
+        console.log('✅ Logo converted, length:', logoBase64.length);
+      }
+      
       // Create a temporary container for the receipt
       const container = document.createElement('div');
       container.style.position = 'absolute';
       container.style.left = '-9999px';
       document.body.appendChild(container);
       
-      // Render the receipt component
+      // Render the receipt component with base64 logo
       const root = ReactDOM.createRoot(container);
       await new Promise<void>(resolve => {
         root.render(
@@ -239,48 +265,17 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             cashierName={transactionData.cashierName}
             customerName={selectedCustomerData?.name || propSelectedCustomer?.name}
             storeName={transactionData.storeName}
-            logoUrl={transactionData.logoUrl}
+            logoUrl={logoBase64 || transactionData.logoUrl}
             supportPhone={transactionData.supportPhone}
             customerBalance={customerBalance}
             isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
           />
         );
-        setTimeout(resolve, 500);
+        setTimeout(resolve, 100);
       });
       
-      // Wait for all images to load
-      const images = container.querySelectorAll('img');
-      console.log('🖼️ Found', images.length, 'images in receipt');
-      
-      if (images.length > 0) {
-        console.log('⏳ Waiting for images to load...');
-        await Promise.all(
-          Array.from(images).map((img, index) => {
-            console.log(`🖼️ Image ${index + 1} src:`, img.src);
-            if (img.complete) {
-              console.log(`✅ Image ${index + 1} already loaded`);
-              return Promise.resolve();
-            }
-            return new Promise((resolve) => {
-              img.onload = () => {
-                console.log(`✅ Image ${index + 1} loaded successfully`);
-                resolve(null);
-              };
-              img.onerror = (e) => {
-                console.error(`❌ Image ${index + 1} failed to load:`, e);
-                resolve(null); // Continue even if image fails
-              };
-              setTimeout(() => {
-                console.log(`⏱️ Image ${index + 1} timed out after 3s`);
-                resolve(null);
-              }, 3000);
-            });
-          })
-        );
-        console.log('✅ All images processed');
-      } else {
-        console.log('ℹ️ No images found in receipt');
-      }
+      // Small delay for rendering
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Convert to canvas
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
@@ -293,9 +288,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       const canvas = await html2canvas(receiptElement, {
         scale: 3,
         backgroundColor: '#ffffff',
-        logging: true,
-        useCORS: true,
-        allowTaint: true,
+        logging: false,
       });
       console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
       
