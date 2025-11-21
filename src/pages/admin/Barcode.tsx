@@ -35,6 +35,15 @@ export default function BarcodeManagement() {
   const [itemDetails, setItemDetails] = useState<Map<string, { manufacturingDate: string; expiryDate: string; batchNumber: string }>>(new Map());
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Customization settings
+  const [barcodeWidth, setBarcodeWidth] = useState(6);
+  const [barcodeHeight, setBarcodeHeight] = useState(200);
+  const [productNameSize, setProductNameSize] = useState(72);
+  const [variantLabelSize, setVariantLabelSize] = useState(48);
+  const [priceSize, setPriceSize] = useState(96);
+  const [detailsSize, setDetailsSize] = useState(36);
+  const [expirySize, setExpirySize] = useState(84);
+
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
@@ -356,6 +365,96 @@ export default function BarcodeManagement() {
           </Card>
         )}
 
+        {/* Customization Settings */}
+        {selectedItems.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Customize Barcode Appearance</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="barcode-width">Barcode Width (1-10)</Label>
+                  <Input
+                    id="barcode-width"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={barcodeWidth}
+                    onChange={(e) => setBarcodeWidth(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="barcode-height">Barcode Height (50-400)</Label>
+                  <Input
+                    id="barcode-height"
+                    type="number"
+                    min="50"
+                    max="400"
+                    value={barcodeHeight}
+                    onChange={(e) => setBarcodeHeight(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="product-name-size">Product Name Size (px)</Label>
+                  <Input
+                    id="product-name-size"
+                    type="number"
+                    min="24"
+                    max="120"
+                    value={productNameSize}
+                    onChange={(e) => setProductNameSize(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-label-size">Variant Label Size (px)</Label>
+                  <Input
+                    id="variant-label-size"
+                    type="number"
+                    min="18"
+                    max="80"
+                    value={variantLabelSize}
+                    onChange={(e) => setVariantLabelSize(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="price-size">Price Size (px)</Label>
+                  <Input
+                    id="price-size"
+                    type="number"
+                    min="36"
+                    max="150"
+                    value={priceSize}
+                    onChange={(e) => setPriceSize(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="details-size">Details Text Size (px)</Label>
+                  <Input
+                    id="details-size"
+                    type="number"
+                    min="18"
+                    max="72"
+                    value={detailsSize}
+                    onChange={(e) => setDetailsSize(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="expiry-size">Expiry Date Size (px)</Label>
+                  <Input
+                    id="expiry-size"
+                    type="number"
+                    min="24"
+                    max="120"
+                    value={expirySize}
+                    onChange={(e) => setExpirySize(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         {selectedItems.length > 0 && (
           <Card>
@@ -424,21 +523,21 @@ export default function BarcodeManagement() {
                       height: auto !important;
                     }
                     .product-name {
-                      font-size: 72px !important;
+                      font-size: ${productNameSize}px !important;
                       font-weight: bold !important;
                     }
                     .variant-label {
-                      font-size: 48px !important;
+                      font-size: ${variantLabelSize}px !important;
                     }
                     .price-text {
-                      font-size: 96px !important;
+                      font-size: ${priceSize}px !important;
                       font-weight: bold !important;
                     }
                     .details-text {
-                      font-size: 36px !important;
+                      font-size: ${detailsSize}px !important;
                     }
                     .expiry-date {
-                      font-size: 84px !important;
+                      font-size: ${expirySize}px !important;
                       font-weight: bold !important;
                     }
                   }
@@ -465,8 +564,8 @@ export default function BarcodeManagement() {
                         <div key={index} className="flex justify-center w-full">
                           <Barcode
                             value={barcodeValue}
-                            width={6}
-                            height={200}
+                            width={barcodeWidth}
+                            height={barcodeHeight}
                             fontSize={48}
                             background="#ffffff"
                             margin={10}
