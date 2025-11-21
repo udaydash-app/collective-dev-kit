@@ -2676,17 +2676,38 @@ export default function POS() {
       root.unmount();
       document.body.removeChild(container);
       
-      // Download the image
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Create file for sharing
+      const file = new File([blob], `receipt-${lastTransactionData.transactionNumber}.png`, { type: 'image/png' });
       
-      toast.success('Receipt image downloaded! Now share it via WhatsApp', { id: 'whatsapp-share' });
+      // Check if Web Share API is supported
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Receipt ${lastTransactionData.transactionNumber}`,
+            text: `Receipt for transaction ${lastTransactionData.transactionNumber}`,
+          });
+          toast.success('Receipt shared successfully!', { id: 'whatsapp-share' });
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            console.error('Error sharing:', err);
+            toast.error('Failed to share receipt', { id: 'whatsapp-share' });
+          } else {
+            toast.dismiss('whatsapp-share');
+          }
+        }
+      } else {
+        // Fallback to download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('Receipt downloaded! Please share it via WhatsApp manually', { id: 'whatsapp-share' });
+      }
     } catch (error) {
       console.error('Error generating receipt image:', error);
       toast.error('Failed to generate receipt image. Try downloading as PDF instead.', { id: 'whatsapp-share' });
