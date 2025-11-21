@@ -278,13 +278,13 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch payment method account IDs
+      // Fetch payment method account IDs - handle merged cash accounts
       const { data: paymentAccounts } = await supabase
         .from('accounts')
         .select('id, account_code, account_name')
-        .in('account_code', ['1010', '1015', '1030']); // Cash, Mobile Money, AR (credit)
+        .in('account_code', ['1010', '1110', '1015', '1030']); // Cash (both codes), Mobile Money, AR (credit)
       
-      const cashAccountId = paymentAccounts?.find(a => a.account_code === '1010')?.id;
+      const cashAccountId = paymentAccounts?.find(a => a.account_code === '1010' || a.account_code === '1110')?.id;
       const mobileMoneyAccountId = paymentAccounts?.find(a => a.account_code === '1015')?.id;
       const arAccountId = paymentAccounts?.find(a => a.account_code === '1030')?.id;
       
