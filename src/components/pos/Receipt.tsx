@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
@@ -41,6 +41,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     },
     ref
   ) => {
+    const [logoLoaded, setLogoLoaded] = useState(false);
+    const [logoError, setLogoError] = useState(false);
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('fr-CI', { 
       minimumFractionDigits: 0, 
@@ -104,7 +106,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             display: block !important;
-            max-height: 128px !important;
+            max-height: 80px !important;
             width: auto !important;
           }
         }
@@ -133,19 +135,24 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         .ml-2 { margin-left: 8px; }
         .space-y-1 > * + * { margin-top: 4px; }
         img { 
-          height: 128px;
+          max-height: 80px;
           width: auto;
           object-fit: contain;
-          max-height: 128px;
         }
       `}</style>
       <div className="text-center mb-3">
-        {logoUrl && (
+        {logoUrl && !logoError && (
           <div className="flex justify-center mb-2">
-            <img src={logoUrl} alt="Company Logo" style={{ maxHeight: '128px', width: 'auto' }} />
+            <img 
+              src={logoUrl} 
+              alt="Company Logo" 
+              style={{ maxHeight: '80px', width: 'auto', display: logoLoaded ? 'block' : 'none' }} 
+              onLoad={() => setLogoLoaded(true)}
+              onError={() => setLogoError(true)}
+            />
           </div>
         )}
-        <div className={logoUrl ? "mt-2" : ""}>
+        <div className={logoUrl && logoLoaded && !logoError ? "mt-2" : ""}>
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
