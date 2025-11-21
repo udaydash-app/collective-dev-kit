@@ -1,4 +1,5 @@
 import { Fragment, useState, useRef } from "react";
+import ReactDOM from 'react-dom/client';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -675,42 +676,75 @@ export default function AdminOrders() {
     navigate(`/admin/pos?editOrder=${order.id}`);
   };
 
-  const handleSendReceiptWhatsApp = () => {
+  const handleSendReceiptWhatsApp = async () => {
     if (!selectedReceiptOrder) return;
 
     const order = selectedReceiptOrder;
-    const itemsList = order.items.map((item: any) => {
-      const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
-      const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
-      const itemText = `${item.products?.name || item.name} - ${item.quantity} x ${formatCurrency(effectivePrice)} = ${formatCurrency(effectivePrice * item.quantity)}`;
-      return itemDiscount > 0 ? `${itemText}\n  Item Discount: -${formatCurrency(itemDiscount)}` : itemText;
-    }).join('\n');
+    
+    try {
+      const receiptContainer = document.createElement('div');
+      receiptContainer.style.position = 'absolute';
+      receiptContainer.style.left = '-9999px';
+      document.body.appendChild(receiptContainer);
 
-    const customerBalanceText = order.customerBalance !== undefined && order.customer_name && order.customer_name !== 'Walk-in Customer' 
-      ? `\n*Customer Balance:* ${formatCurrency(order.customerBalance)}\n` 
-      : '';
+      const root = ReactDOM.createRoot(receiptContainer);
+      
+      await new Promise<void>((resolve) => {
+        root.render(
+          <Receipt
+            transactionNumber={order.order_number}
+            items={order.items.map((item: any) => ({
+              id: item.id || item.products?.id,
+              name: item.products?.name || item.name,
+              displayName: item.products?.name || item.name,
+              price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+              customPrice: item.customPrice,
+              quantity: item.quantity,
+              itemDiscount: item.itemDiscount || item.item_discount || 0
+            }))}
+            subtotal={order.subtotal}
+            tax={order.tax || 0}
+            discount={order.type === 'pos' ? (order.discount || 0) : 0}
+            total={order.total}
+            paymentMethod={order.payment_method || 'Online'}
+            date={new Date(order.created_at)}
+            cashierName={order.type === 'pos' ? order.cashier_name : undefined}
+            customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
+            storeName={order.stores?.name || settings?.company_name}
+            logoUrl={settings?.logo_url}
+            supportPhone={settings?.company_phone}
+            customerBalance={order.customerBalance}
+          />
+        );
+        setTimeout(resolve, 100);
+      });
 
-    const message = `
-*${order.stores?.name || settings?.company_name || 'Global Market'}*
-Fresh groceries delivered to your doorstep
+      const canvas = await html2canvas(receiptContainer.querySelector('.receipt-container') as HTMLElement, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
 
-*Transaction:* ${order.order_number}
-*Date:* ${formatDateTime(order.created_at)}
-${order.type === 'pos' ? `*Cashier:* ${order.cashier_name}\n` : ''}${order.customer_name && order.customer_name !== 'Walk-in Customer' ? `*Customer:* ${order.customer_name}\n` : ''}${customerBalanceText}----------------------------
-*ITEMS:*
-${itemsList}
-----------------------------
-*Subtotal:* ${formatCurrency(order.subtotal)}
-*Tax:* ${formatCurrency(order.tax || 0)}
-${order.type === 'pos' && order.discount > 0 ? `*Discount:* -${formatCurrency(order.discount)}\n` : ''}*TOTAL:* ${formatCurrency(order.total)}
-----------------------------
-*Payment Method:* ${(order.payment_method || 'Online').toUpperCase()}
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `receipt-${order.order_number}.png`;
+          link.click();
+          URL.revokeObjectURL(url);
 
-Thank you for shopping with us!
-${settings?.company_phone ? `For support: ${settings.company_phone}` : ''}
-    `.trim();
+          toast.success('Receipt downloaded! Please share it via WhatsApp manually.');
+        }
 
-    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+        root.unmount();
+        document.body.removeChild(receiptContainer);
+      }, 'image/png');
+
+      setShowReceiptOptions(false);
+    } catch (error) {
+      console.error('Error generating receipt image:', error);
+      toast.error('Failed to generate receipt image');
+    }
   };
 
   const updateOrderItem = useMutation({
