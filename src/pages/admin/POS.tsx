@@ -2411,55 +2411,80 @@ export default function POS() {
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
       
       // Recalculate customer balance AFTER transaction (it would have changed)
-      // Wait briefly for database triggers to complete (journal entry creation and account balance update)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait for database triggers to complete (journal entry creation and account balance update)
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       let updatedCustomerBalance: number | undefined;
       let updatedIsUnifiedBalance = false;
       
-      console.log('🔍 Fetching updated balance for customer:', selectedCustomer);
+      console.log('🔍 [BALANCE UPDATE] Starting balance fetch for customer:', {
+        id: selectedCustomer?.id,
+        name: selectedCustomer?.name,
+        customer_ledger_account_id: selectedCustomer?.customer_ledger_account_id,
+        is_supplier: selectedCustomer?.is_supplier,
+        is_customer: selectedCustomer?.is_customer
+      });
       
-      if (selectedCustomer && selectedCustomer.customer_ledger_account_id) {
+      if (selectedCustomer?.customer_ledger_account_id) {
         updatedIsUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
         
-        console.log('📊 Fetching account balance from:', selectedCustomer.customer_ledger_account_id);
+        console.log('📊 [BALANCE UPDATE] Fetching from account ID:', selectedCustomer.customer_ledger_account_id);
 
         // Fetch current balance directly from accounts table (updated by triggers)
         const { data: customerAccount, error: customerError } = await supabase
           .from('accounts')
-          .select('current_balance')
+          .select('current_balance, account_name')
           .eq('id', selectedCustomer.customer_ledger_account_id)
           .single();
 
-        console.log('💰 Customer account data:', customerAccount, 'Error:', customerError);
+        console.log('💰 [BALANCE UPDATE] Account query result:', {
+          account: customerAccount,
+          error: customerError
+        });
 
         if (customerAccount) {
           updatedCustomerBalance = customerAccount.current_balance;
-          console.log('✅ Customer balance fetched:', updatedCustomerBalance);
+          console.log('✅ [BALANCE UPDATE] Balance fetched:', {
+            balance: updatedCustomerBalance,
+            accountName: customerAccount.account_name
+          });
+        } else {
+          console.error('❌ [BALANCE UPDATE] Failed to fetch customer account balance');
         }
 
         // If dual-role (customer & supplier), calculate unified balance from account balances
         if (selectedCustomer.is_supplier && selectedCustomer.supplier_ledger_account_id && updatedCustomerBalance !== undefined) {
+          console.log('🔄 [BALANCE UPDATE] Customer is dual-role, fetching supplier balance from:', selectedCustomer.supplier_ledger_account_id);
+          
           const { data: supplierAccount, error: supplierError } = await supabase
             .from('accounts')
-            .select('current_balance')
+            .select('current_balance, account_name')
             .eq('id', selectedCustomer.supplier_ledger_account_id)
             .single();
 
-          console.log('🏢 Supplier account data:', supplierAccount, 'Error:', supplierError);
+          console.log('🏢 [BALANCE UPDATE] Supplier account query result:', {
+            account: supplierAccount,
+            error: supplierError
+          });
 
           if (supplierAccount) {
             const supplierBalance = supplierAccount.current_balance;
             const originalBalance = updatedCustomerBalance;
             // Unified balance: customer receivable minus supplier payable
-            updatedCustomerBalance = updatedCustomerBalance - supplierBalance;
+            updatedCustomerBalance = originalBalance - supplierBalance;
             updatedIsUnifiedBalance = true;
-            console.log(`🔄 Unified balance: ${originalBalance} - ${supplierBalance} = ${updatedCustomerBalance}`);
+            console.log('🔄 [BALANCE UPDATE] Unified balance calculated:', {
+              customerBalance: originalBalance,
+              supplierBalance: supplierBalance,
+              unifiedBalance: updatedCustomerBalance
+            });
           }
         }
+      } else {
+        console.warn('⚠️ [BALANCE UPDATE] No customer_ledger_account_id found for customer');
       }
       
-      console.log('📝 Final balance to be shown on receipt:', updatedCustomerBalance);
+      console.log('📝 [BALANCE UPDATE] Final balance for receipt:', updatedCustomerBalance);
       
       const completeTransactionData = {
         ...transactionDataPrep,
