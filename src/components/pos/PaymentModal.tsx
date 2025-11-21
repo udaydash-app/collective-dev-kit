@@ -206,6 +206,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!transactionData) return;
     
     try {
+      console.log('📱 WhatsApp share started');
+      console.log('📸 Transaction data:', transactionData);
+      console.log('🖼️ Logo URL:', transactionData.logoUrl);
+      
       toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
       
       // Create a temporary container for the receipt
@@ -246,28 +250,54 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       
       // Wait for all images to load
       const images = container.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve; // Continue even if image fails
-            setTimeout(resolve, 3000); // Timeout after 3s
-          });
-        })
-      );
+      console.log('🖼️ Found', images.length, 'images in receipt');
+      
+      if (images.length > 0) {
+        console.log('⏳ Waiting for images to load...');
+        await Promise.all(
+          Array.from(images).map((img, index) => {
+            console.log(`🖼️ Image ${index + 1} src:`, img.src);
+            if (img.complete) {
+              console.log(`✅ Image ${index + 1} already loaded`);
+              return Promise.resolve();
+            }
+            return new Promise((resolve) => {
+              img.onload = () => {
+                console.log(`✅ Image ${index + 1} loaded successfully`);
+                resolve(null);
+              };
+              img.onerror = (e) => {
+                console.error(`❌ Image ${index + 1} failed to load:`, e);
+                resolve(null); // Continue even if image fails
+              };
+              setTimeout(() => {
+                console.log(`⏱️ Image ${index + 1} timed out after 3s`);
+                resolve(null);
+              }, 3000);
+            });
+          })
+        );
+        console.log('✅ All images processed');
+      } else {
+        console.log('ℹ️ No images found in receipt');
+      }
       
       // Convert to canvas
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
-      if (!receiptElement) throw new Error('Receipt element not found');
+      if (!receiptElement) {
+        console.error('❌ Receipt element not found in container');
+        throw new Error('Receipt element not found');
+      }
       
+      console.log('🎨 Converting receipt to canvas...');
       const canvas = await html2canvas(receiptElement, {
         scale: 3,
         backgroundColor: '#ffffff',
-        logging: false,
+        logging: true,
         useCORS: true,
         allowTaint: true,
       });
+      console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
       
       // Convert canvas to blob
       const blob = await new Promise<Blob>((resolve, reject) => {
