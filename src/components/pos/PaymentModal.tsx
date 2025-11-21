@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom/client';
 import { CreditCard, DollarSign, Smartphone, Printer, Plus, X, FileDown, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -187,55 +188,86 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     }
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     if (!transactionData) return;
     
-    // Format items list
-    const itemsList = transactionData.items.map(item => 
-      `${item.name}\n  ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.quantity * item.price)}`
-    ).join('\n\n');
-    
-    // Build receipt-formatted message
-    let message = `*${transactionData.storeName || 'Global Market'}*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `Receipt #${transactionData.transactionNumber}\n`;
-    message += `Date: ${formatDateTime(new Date())}\n`;
-    if (transactionData.cashierName) {
-      message += `Cashier: ${transactionData.cashierName}\n`;
+    try {
+      toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
+      
+      // Create a temporary container for the receipt
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+      
+      // Render the receipt component
+      const root = ReactDOM.createRoot(container);
+      await new Promise<void>(resolve => {
+        root.render(
+          <Receipt
+            transactionNumber={transactionData.transactionNumber}
+            items={transactionData.items.map(item => ({
+              ...item,
+              id: item.name,
+              productId: item.id || item.name,
+              subtotal: item.quantity * item.price,
+            }))}
+            subtotal={transactionData.subtotal}
+            tax={transactionData.tax}
+            discount={transactionData.discount}
+            total={transactionData.total}
+            paymentMethod={transactionData.paymentMethod}
+            date={new Date()}
+            cashierName={transactionData.cashierName}
+            customerName={selectedCustomerData?.name || propSelectedCustomer?.name}
+            storeName={transactionData.storeName}
+            logoUrl={transactionData.logoUrl}
+            supportPhone={transactionData.supportPhone}
+            customerBalance={customerBalance}
+            isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
+          />
+        );
+        setTimeout(resolve, 200);
+      });
+      
+      // Convert to canvas
+      const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
+      if (!receiptElement) throw new Error('Receipt element not found');
+      
+      const canvas = await html2canvas(receiptElement, {
+        scale: 3,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+      });
+      
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create blob'));
+        }, 'image/png', 1.0);
+      });
+      
+      // Clean up
+      root.unmount();
+      document.body.removeChild(container);
+      
+      // Download the image
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${transactionData.transactionNumber}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Receipt image downloaded! Now share it via WhatsApp', { id: 'whatsapp-share' });
+    } catch (error) {
+      console.error('Error generating receipt image:', error);
+      toast.error('Failed to generate receipt image. Try downloading as PDF instead.', { id: 'whatsapp-share' });
     }
-    if (selectedCustomerData) {
-      message += `Customer: ${selectedCustomerData.name}\n`;
-    }
-    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `*ITEMS*\n\n${itemsList}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `Subtotal: ${formatCurrency(transactionData.subtotal)}\n`;
-    if (transactionData.discount > 0) {
-      message += `Discount: -${formatCurrency(transactionData.discount)}\n`;
-    }
-    if (transactionData.tax > 0) {
-      message += `Tax: ${formatCurrency(transactionData.tax)}\n`;
-    }
-    message += `\n*TOTAL: ${formatCurrency(transactionData.total)}*\n\n`;
-    message += `Payment: ${transactionData.paymentMethod}\n`;
-    if (customerBalance !== undefined && customerBalance !== null) {
-      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      const balanceLabel = selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer 
-        ? '*Unified Balance:*' 
-        : '*Current Balance:*';
-      message += `${balanceLabel} ${formatCurrency(customerBalance)}\n`;
-      if (selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer) {
-        message += `_(Combined customer & supplier account)_\n`;
-      }
-    }
-    if (transactionData.supportPhone) {
-      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `Support: ${transactionData.supportPhone}\n`;
-    }
-    message += `\nThank you for your business!`;
-    
-    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-    toast.success('Opening WhatsApp...');
   };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
