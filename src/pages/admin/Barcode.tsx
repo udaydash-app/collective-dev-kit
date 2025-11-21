@@ -438,7 +438,8 @@ export default function BarcodeManagement() {
                       font-size: 36px !important;
                     }
                     .expiry-date {
-                      font-size: 64px !important;
+                      font-size: 84px !important;
+                      font-weight: bold !important;
                     }
                   }
                 `}
