@@ -183,15 +183,15 @@ export default function PaymentReceipts() {
 
           if (jeUpdateError) throw jeUpdateError;
 
-          // Get the payment account based on payment method
+          // Get the payment account based on payment method - use 1110 for cash
           const paymentAccountCodes: Record<string, string> = {
-            cash: '1010',
+            cash: '1110',
             mobile_money: '1015',
             bank_transfer: '1020',
             cheque: '1030'
           };
           
-          const paymentAccountCode = paymentAccountCodes[data.payment_method] || '1010';
+          const paymentAccountCode = paymentAccountCodes[data.payment_method] || '1110';
           
           const { data: paymentAccount } = await supabase
             .from('accounts')
