@@ -876,21 +876,22 @@ export default function POS() {
         return [];
       }
       
-      // Get cash account ID - use maybeSingle to handle merged accounts gracefully
-      const { data: cashAccount, error: accountError } = await supabase
+      // Get cash account ID - handle both 1010 and 1110 (merged accounts)
+      const { data: cashAccounts, error: accountError } = await supabase
         .from('accounts')
         .select('id')
-        .eq('account_code', '1010')
+        .in('account_code', ['1010', '1110'])
         .eq('is_active', true)
-        .maybeSingle();
+        .limit(1);
       
       if (accountError) {
         console.error('Error fetching cash account:', accountError);
         return [];
       }
       
+      const cashAccount = cashAccounts?.[0];
       if (!cashAccount) {
-        console.warn('No active cash account (1010) found');
+        console.warn('No active cash account (1010 or 1110) found');
         return [];
       }
       
@@ -986,19 +987,20 @@ export default function POS() {
         return [];
       }
       
-      // Get mobile money account ID - use maybeSingle to handle merged accounts gracefully
-      const { data: mobileMoneyAccount, error: accountError } = await supabase
+      // Get mobile money account ID - use limit(1) to handle merged accounts gracefully
+      const { data: mobileMoneyAccounts, error: accountError } = await supabase
         .from('accounts')
         .select('id')
-        .eq('account_code', '1015')
+        .in('account_code', ['1015'])
         .eq('is_active', true)
-        .maybeSingle();
+        .limit(1);
       
       if (accountError) {
         console.error('Error fetching mobile money account:', accountError);
         return [];
       }
       
+      const mobileMoneyAccount = mobileMoneyAccounts?.[0];
       if (!mobileMoneyAccount) {
         console.warn('No active mobile money account (1015) found');
         return [];

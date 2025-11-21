@@ -399,11 +399,11 @@ export default function Purchases() {
     supplier: any
   ) => {
     try {
-      // Get accounts
+      // Get accounts - handle merged cash accounts (1010/1110)
       const { data: accounts } = await supabase
         .from('accounts')
         .select('*')
-        .in('account_code', ['1510', '2010', '1010', '1020', '1030']);
+        .in('account_code', ['1510', '2010', '1010', '1110', '1020', '1030']);
 
       if (!accounts || accounts.length === 0) {
         console.error('Required accounts not found');
@@ -412,7 +412,7 @@ export default function Purchases() {
 
       const inventoryAccount = accounts.find(a => a.account_code === '1510'); // Inventory
       const accountsPayableAccount = accounts.find(a => a.account_code === '2010'); // Accounts Payable
-      const cashAccount = accounts.find(a => a.account_code === '1010'); // Cash
+      const cashAccount = accounts.find(a => a.account_code === '1010' || a.account_code === '1110'); // Cash
       const bankAccount = accounts.find(a => a.account_code === '1020'); // Bank
       const mobileMoneyAccount = accounts.find(a => a.account_code === '1030'); // Mobile Money
 
