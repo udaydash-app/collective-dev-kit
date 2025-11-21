@@ -256,6 +256,51 @@ export default function GeneralLedger() {
           .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', endDate);
 
+        // Fetch related payment records based on references
+        const customerRefs = customerLines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
+        const supplierRefs = supplierLines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
+        
+        const { data: paymentReceipts } = customerRefs.length > 0 ? await supabase
+          .from('payment_receipts')
+          .select('receipt_number, notes')
+          .in('receipt_number', customerRefs) : { data: [] };
+
+        const { data: supplierPayments } = supplierRefs.length > 0 ? await supabase
+          .from('supplier_payments')
+          .select('payment_number, notes')
+          .in('payment_number', supplierRefs) : { data: [] };
+
+        // Create lookup maps
+        const receiptNotesMap = new Map(
+          paymentReceipts
+            ?.filter(r => r.receipt_number && r.notes)
+            .map(r => [r.receipt_number, r.notes] as [string, string]) || []
+        );
+        const supplierPaymentNotesMap = new Map(
+          supplierPayments
+            ?.filter(s => s.payment_number && s.notes)
+            .map(s => [s.payment_number, s.notes] as [string, string]) || []
+        );
+
+        // Attach proper notes to lines
+        customerLines?.forEach(line => {
+          const ref = line.journal_entries.reference;
+          if (ref && receiptNotesMap.has(ref)) {
+            (line as any).display_notes = receiptNotesMap.get(ref);
+          } else {
+            (line as any).display_notes = line.journal_entries.notes;
+          }
+        });
+
+        supplierLines?.forEach(line => {
+          const ref = line.journal_entries.reference;
+          if (ref && supplierPaymentNotesMap.has(ref)) {
+            (line as any).display_notes = supplierPaymentNotesMap.get(ref);
+          } else {
+            (line as any).display_notes = line.journal_entries.notes;
+          }
+        });
+
         // Separate prior period and current period lines
         const priorCustomerLines = customerLines?.filter(l => l.journal_entries.entry_date < startDate) || [];
         const currentCustomerLines = customerLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
@@ -340,6 +385,43 @@ export default function GeneralLedger() {
         .lte('journal_entries.entry_date', endDate);
 
       if (error) throw error;
+
+      // Fetch related payment records based on references
+      const refs = lines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
+      
+      const { data: paymentReceipts } = refs.length > 0 ? await supabase
+        .from('payment_receipts')
+        .select('receipt_number, notes')
+        .in('receipt_number', refs) : { data: [] };
+
+      const { data: supplierPayments } = refs.length > 0 ? await supabase
+        .from('supplier_payments')
+        .select('payment_number, notes')
+        .in('payment_number', refs) : { data: [] };
+
+      // Create lookup maps
+      const receiptNotesMap = new Map(
+        paymentReceipts
+          ?.filter(r => r.receipt_number && r.notes)
+          .map(r => [r.receipt_number, r.notes] as [string, string]) || []
+      );
+      const supplierPaymentNotesMap = new Map(
+        supplierPayments
+          ?.filter(s => s.payment_number && s.notes)
+          .map(s => [s.payment_number, s.notes] as [string, string]) || []
+      );
+
+      // Attach proper notes to lines
+      lines?.forEach(line => {
+        const ref = line.journal_entries.reference;
+        if (ref && receiptNotesMap.has(ref)) {
+          (line as any).display_notes = receiptNotesMap.get(ref);
+        } else if (ref && supplierPaymentNotesMap.has(ref)) {
+          (line as any).display_notes = supplierPaymentNotesMap.get(ref);
+        } else {
+          (line as any).display_notes = line.journal_entries.notes;
+        }
+      });
 
       // Sort by entry date
       const sortedLines = lines?.sort((a, b) => 
@@ -686,7 +768,7 @@ export default function GeneralLedger() {
         entry.journal_entries.entry_number,
         entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
         entry.journal_entries.reference || '',
-        entry.journal_entries.notes || '',
+        entry.display_notes || '',
         entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
         entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
         Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
@@ -990,7 +1072,7 @@ export default function GeneralLedger() {
                         </TableCell>
                         <TableCell>{entry.journal_entries.reference || '-'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {entry.journal_entries.notes || '-'}
+                          {entry.display_notes || '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.debit_amount > 0
