@@ -55,6 +55,8 @@ import { CashInDialog } from '@/components/pos/CashInDialog';
 import { CashOutDialog } from '@/components/pos/CashOutDialog';
 import { HoldTicketDialog } from '@/components/pos/HoldTicketDialog';
 import { Receipt } from '@/components/pos/Receipt';
+import ReactDOM from 'react-dom/client';
+import html2canvas from 'html2canvas';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
@@ -2614,70 +2616,93 @@ export default function POS() {
     }
   };
 
-  const handleSendLastReceiptWhatsApp = () => {
+  const handleSendLastReceiptWhatsApp = async () => {
     if (!lastTransactionData) return;
     
-    // Format items list with proper pricing and discounts
-    const itemsList = lastTransactionData.items.map((item: any) => {
-      const isCartDiscount = item.id === 'cart-discount';
-      if (isCartDiscount) {
-        return `${item.name}: ${formatCurrency(item.price * item.quantity)}`;
-      }
+    try {
+      toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
       
-      const effectivePrice = item.customPrice ?? item.price;
-      const itemTotal = effectivePrice * item.quantity;
-      const itemDiscount = item.itemDiscount || 0;
-      const finalAmount = itemTotal - itemDiscount;
+      // Create a temporary container for the receipt
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
       
-      let line = `${item.name}\n  ${item.quantity} x ${formatCurrency(effectivePrice)}`;
-      if (itemDiscount > 0) {
-        line += ` - ${formatCurrency(itemDiscount)} disc`;
+      // Render the receipt component
+      const root = ReactDOM.createRoot(container);
+      await new Promise<void>((resolve) => {
+        root.render(
+          <Receipt
+            transactionNumber={lastTransactionData.transactionNumber}
+            items={lastTransactionData.items}
+            subtotal={lastTransactionData.subtotal}
+            tax={lastTransactionData.tax}
+            discount={lastTransactionData.discount}
+            total={lastTransactionData.total}
+            paymentMethod={lastTransactionData.paymentMethod}
+            date={lastTransactionData.date}
+            cashierName={lastTransactionData.cashierName}
+            customerName={lastTransactionData.customerName}
+            storeName={lastTransactionData.storeName}
+            logoUrl={lastTransactionData.logoUrl}
+            supportPhone={lastTransactionData.supportPhone}
+            customerBalance={lastTransactionData.customerBalance}
+            isUnifiedBalance={lastTransactionData.isUnifiedBalance}
+          />
+        );
+        setTimeout(resolve, 100);
+      });
+      
+      // Convert to canvas
+      const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
+      if (!receiptElement) throw new Error('Receipt element not found');
+      
+      const canvas = await html2canvas(receiptElement, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create blob'));
+        }, 'image/png');
+      });
+      
+      // Clean up
+      root.unmount();
+      document.body.removeChild(container);
+      
+      // Check if Web Share API is available
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], `receipt-${lastTransactionData.transactionNumber}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Receipt ${lastTransactionData.transactionNumber}`,
+            text: `Receipt for ${lastTransactionData.storeName}`,
+          });
+          toast.success('Receipt shared successfully', { id: 'whatsapp-share' });
+        } else {
+          throw new Error('File sharing not supported');
+        }
+      } else {
+        // Fallback: Download the image
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `receipt-${lastTransactionData.transactionNumber}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Receipt downloaded. Please share manually via WhatsApp', { id: 'whatsapp-share' });
       }
-      line += ` = ${formatCurrency(finalAmount)}`;
-      return line;
-    }).join('\n\n');
-    
-    // Build receipt-formatted message
-    let message = `*${lastTransactionData.storeName || 'Global Market'}*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `Receipt #${lastTransactionData.transactionNumber}\n`;
-    message += `Date: ${new Date().toLocaleString()}\n`;
-    if (lastTransactionData.cashierName) {
-      message += `Cashier: ${lastTransactionData.cashierName}\n`;
+    } catch (error) {
+      console.error('Error sharing receipt:', error);
+      toast.error('Failed to share receipt. Try downloading as PDF instead.', { id: 'whatsapp-share' });
     }
-    if (lastTransactionData.customerName) {
-      message += `Customer: ${lastTransactionData.customerName}\n`;
-    }
-    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `*ITEMS*\n\n${itemsList}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `Subtotal: ${formatCurrency(lastTransactionData.subtotal)}\n`;
-    if (lastTransactionData.discount > 0) {
-      message += `Discount: -${formatCurrency(lastTransactionData.discount)}\n`;
-    }
-    if (lastTransactionData.tax > 0) {
-      message += `Tax: ${formatCurrency(lastTransactionData.tax)}\n`;
-    }
-    message += `\n*TOTAL: ${formatCurrency(lastTransactionData.total)}*\n\n`;
-    message += `Payment: ${lastTransactionData.paymentMethod}\n`;
-    if (lastTransactionData.customerBalance !== undefined && lastTransactionData.customerBalance !== null) {
-      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      const balanceLabel = lastTransactionData.isUnifiedBalance 
-        ? '*Unified Balance:*' 
-        : '*Current Balance:*';
-      message += `${balanceLabel} ${formatCurrency(lastTransactionData.customerBalance)}\n`;
-      if (lastTransactionData.isUnifiedBalance) {
-        message += `_(Combined customer & supplier account)_\n`;
-      }
-    }
-    if (lastTransactionData.supportPhone) {
-      message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `Support: ${lastTransactionData.supportPhone}\n`;
-    }
-    message += `\nThank you for your business!`;
-    
-    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-    toast.success('Opening WhatsApp...');
   };
 
   const handleDirectPrintLastReceipt = async () => {
