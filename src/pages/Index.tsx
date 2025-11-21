@@ -1,3 +1,12 @@
-import Home from "./Home";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default Home;
+export default function Index() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate("/pos-login");
+  }, [navigate]);
+
+  return null;
+}
