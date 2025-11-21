@@ -229,6 +229,7 @@ export default function GeneralLedger() {
               entry_date,
               description,
               reference,
+              notes,
               status
             )
           `)
@@ -246,6 +247,7 @@ export default function GeneralLedger() {
               entry_date,
               description,
               reference,
+              notes,
               status
             )
           `)
@@ -327,6 +329,7 @@ export default function GeneralLedger() {
             entry_date,
             description,
             reference,
+            notes,
             status
           )
         `)
@@ -671,6 +674,7 @@ export default function GeneralLedger() {
         '',
         '',
         '',
+        '',
         Math.abs(openingBalance).toFixed(2) + (openingBalance < 0 ? ' CR' : ''),
       ]);
     }
@@ -682,6 +686,7 @@ export default function GeneralLedger() {
         entry.journal_entries.entry_number,
         entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
         entry.journal_entries.reference || '',
+        entry.journal_entries.notes || '',
         entry.debit_amount > 0 ? entry.debit_amount.toFixed(2) : '',
         entry.credit_amount > 0 ? entry.credit_amount.toFixed(2) : '',
         Math.abs(entry.running_balance).toFixed(2) + (entry.running_balance < 0 ? ' CR' : ''),
@@ -694,11 +699,11 @@ export default function GeneralLedger() {
     // Add table
     autoTable(doc, {
       startY: accountInfo.isUnified ? 48 : 38,
-      head: [['Date', 'Entry', 'Description', 'Ref', 'Debit', 'Credit', 'Balance']],
+      head: [['Date', 'Entry', 'Description', 'Ref', 'Note', 'Debit', 'Credit', 'Balance']],
       body: tableData,
       foot: [
-        ['', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
-        ['', '', '', 'Current Balance:', '', '', 
+        ['', '', '', '', 'Total:', totalDebit.toFixed(2), totalCredit.toFixed(2), ''],
+        ['', '', '', '', 'Current Balance:', '', '', 
          Math.abs(finalBalance).toFixed(2) + (finalBalance < 0 ? ' CR' : '')]
       ],
       styles: { 
@@ -719,13 +724,14 @@ export default function GeneralLedger() {
         fontSize: 8
       },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 60 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 22, halign: 'right' },
-        6: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+        0: { cellWidth: 18 },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 20, halign: 'right' },
+        7: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
       },
       margin: { left: 14, right: 14 },
     });
@@ -924,6 +930,7 @@ export default function GeneralLedger() {
                 <TableHead>Entry #</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Reference</TableHead>
+                <TableHead>Note</TableHead>
                 <TableHead className="text-right">Debit</TableHead>
                 <TableHead className="text-right">Credit</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
@@ -943,7 +950,7 @@ export default function GeneralLedger() {
                    (ledgerData?.account as any)?.opening_balance !== null && 
                    Number((ledgerData?.account as any)?.opening_balance) !== 0 && (
                     <TableRow className="bg-muted/50">
-                      <TableCell colSpan={4} className="font-semibold">
+                      <TableCell colSpan={5} className="font-semibold">
                         Opening Balance (as of {startDate})
                       </TableCell>
                       <TableCell className="text-right">-</TableCell>
@@ -958,7 +965,7 @@ export default function GeneralLedger() {
                   {/* Transaction Rows */}
                   {ledgerEntries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         No transactions found for this period
                       </TableCell>
                     </TableRow>
@@ -982,6 +989,9 @@ export default function GeneralLedger() {
                           </div>
                         </TableCell>
                         <TableCell>{entry.journal_entries.reference || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {entry.journal_entries.notes || '-'}
+                        </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.debit_amount > 0
                             ? formatCurrency(entry.debit_amount)
@@ -1004,7 +1014,7 @@ export default function GeneralLedger() {
                   {ledgerData?.account && (ledgerData?.account as any)?.current_balance !== undefined && 
                    ledgerEntries.length > 0 && (
                     <TableRow className="bg-primary/10 font-bold">
-                      <TableCell colSpan={4} className="font-semibold">
+                      <TableCell colSpan={5} className="font-semibold">
                         Current Balance (as of {endDate})
                       </TableCell>
                       <TableCell className="text-right">-</TableCell>
