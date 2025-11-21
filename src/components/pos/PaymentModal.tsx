@@ -206,16 +206,35 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
   // Helper function to convert image URL to base64
   const imageUrlToBase64 = async (url: string): Promise<string> => {
     try {
-      const response = await fetch(url);
+      console.log('🔄 Starting image fetch:', url);
+      const response = await fetch(url, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      console.log('✅ Fetch response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const blob = await response.blob();
+      console.log('✅ Blob created, size:', blob.size, 'type:', blob.type);
+      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          console.log('✅ Base64 conversion complete, length:', result.length);
+          resolve(result);
+        };
+        reader.onerror = () => {
+          console.error('❌ FileReader error:', reader.error);
+          reject(reader.error);
+        };
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error('Failed to convert image to base64:', error);
+      console.error('❌ Failed to convert image to base64:', error);
       return '';
     }
   };

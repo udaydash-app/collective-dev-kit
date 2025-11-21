@@ -147,7 +147,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               src={logoUrl} 
               alt="Company Logo" 
               style={{ maxHeight: '80px', width: 'auto' }}
-              crossOrigin="anonymous"
             />
           </div>
         )}
