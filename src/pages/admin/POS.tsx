@@ -876,14 +876,21 @@ export default function POS() {
         return [];
       }
       
-      // Get cash account ID
+      // Get cash account ID - use maybeSingle to handle merged accounts gracefully
       const { data: cashAccount, error: accountError } = await supabase
         .from('accounts')
         .select('id')
         .eq('account_code', '1010')
-        .single();
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (accountError) {
+        console.error('Error fetching cash account:', accountError);
+        return [];
+      }
       
       if (!cashAccount) {
+        console.warn('No active cash account (1010) found');
         return [];
       }
       
@@ -979,14 +986,21 @@ export default function POS() {
         return [];
       }
       
-      // Get mobile money account ID
+      // Get mobile money account ID - use maybeSingle to handle merged accounts gracefully
       const { data: mobileMoneyAccount, error: accountError } = await supabase
         .from('accounts')
         .select('id')
         .eq('account_code', '1015')
-        .single();
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (accountError) {
+        console.error('Error fetching mobile money account:', accountError);
+        return [];
+      }
       
       if (!mobileMoneyAccount) {
+        console.warn('No active mobile money account (1015) found');
         return [];
       }
       
