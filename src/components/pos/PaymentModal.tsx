@@ -448,48 +448,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     try {
       await onConfirm(payments, totalPaid);
       
-      // After payment completion, print using kiosk print service
-      console.log('🖨️ Payment completed, starting kiosk print...');
-      
-      if (transactionData) {
-        console.log('🖨️ Transaction data available, calling kioskPrintService...');
-        
-        try {
-          await kioskPrintService.printReceipt({
-            storeName: transactionData.storeName || 'Global Market',
-            transactionNumber: transactionData.transactionNumber,
-            date: new Date(),
-            items: transactionData.items.map((item: any) => ({
-              name: item.name,
-              displayName: item.displayName,
-              quantity: item.quantity,
-              price: item.price,
-              customPrice: item.customPrice,
-              itemDiscount: item.itemDiscount || 0
-            })),
-            subtotal: transactionData.subtotal,
-            tax: transactionData.tax || 0,
-            discount: transactionData.discount || 0,
-            total: transactionData.total,
-            paymentMethod: payments.map(p => p.method).join(', '),
-            cashierName: transactionData.cashierName,
-            customerName: selectedCustomerData?.name,
-            logoUrl: transactionData.logoUrl,
-            supportPhone: transactionData.supportPhone,
-            customerBalance: customerBalance,
-            isUnifiedBalance: selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer
-          });
-          
-          console.log('✅ Kiosk print completed successfully');
-        } catch (printError) {
-          console.error('❌ Kiosk print failed:', printError);
-          toast.error('Failed to print receipt', {
-            description: 'The transaction was saved but printing failed'
-          });
-        }
-      } else {
-        console.warn('⚠️ No transaction data available for printing');
-      }
+      // Kiosk printing is now handled in POS.tsx after balance recalculation
       
       // Reset and close
       setPayments([{ id: '1', method: 'cash', amount: total }]);

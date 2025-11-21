@@ -2301,6 +2301,65 @@ export default function POS() {
   const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
+    
+    // Calculate customer balance from journal entries if customer is selected
+    let customerBalance: number | undefined;
+    let isUnifiedBalance = false;
+    
+    if (selectedCustomer) {
+      const customer = customers?.find(c => c.id === selectedCustomer.id);
+      if (customer) {
+        let totalBalance = 0;
+        isUnifiedBalance = customer.is_supplier && customer.is_customer;
+
+        // Calculate balance from posted journal entries for customer account
+        if (customer.customer_ledger_account_id) {
+          const { data: customerLines } = await supabase
+            .from('journal_entry_lines')
+            .select(`
+              debit_amount,
+              credit_amount,
+              journal_entries!inner (
+                status
+              )
+            `)
+            .eq('account_id', customer.customer_ledger_account_id)
+            .eq('journal_entries.status', 'posted');
+
+          if (customerLines && customerLines.length > 0) {
+            const custReceivableBalance = customerLines.reduce((sum, line) => {
+              return sum + (line.debit_amount - line.credit_amount);
+            }, 0);
+            totalBalance = custReceivableBalance;
+          }
+        }
+
+        // If also a supplier, subtract supplier balance from posted journal entries
+        if (customer.is_supplier && customer.supplier_ledger_account_id) {
+          const { data: supplierLines } = await supabase
+            .from('journal_entry_lines')
+            .select(`
+              debit_amount,
+              credit_amount,
+              journal_entries!inner (
+                status
+              )
+            `)
+            .eq('account_id', customer.supplier_ledger_account_id)
+            .eq('journal_entries.status', 'posted');
+
+          if (supplierLines && supplierLines.length > 0) {
+            const suppPayableBalance = supplierLines.reduce((sum, line) => {
+              return sum + (line.credit_amount - line.debit_amount);
+            }, 0);
+            totalBalance -= suppPayableBalance;
+          }
+        }
+
+        customerBalance = totalBalance;
+      }
+    }
+    
     const transactionDataPrep = {
       items: allItems.map(item => ({
         id: item.id,
@@ -2314,9 +2373,13 @@ export default function POS() {
       })),
       subtotal: calculateSubtotal(),
       discount: cartDiscountAmount,
+      tax: 0,
       total: total,
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
+      customerName: selectedCustomer?.name,
+      customerBalance,
+      isUnifiedBalance,
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
@@ -2357,16 +2420,110 @@ export default function POS() {
       setSelectedCustomer(null);
       setCustomerPrices({});
       
-      // Add transaction number to the prepared data
+      // Add transaction number to the prepared data and recalculate balance after transaction
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
+      
+      // Recalculate customer balance AFTER transaction (it would have changed)
+      let updatedCustomerBalance: number | undefined;
+      let updatedIsUnifiedBalance = false;
+      
+      if (selectedCustomer) {
+        const customer = customers?.find(c => c.id === selectedCustomer.id);
+        if (customer) {
+          let totalBalance = 0;
+          updatedIsUnifiedBalance = customer.is_supplier && customer.is_customer;
+
+          // Calculate balance from posted journal entries for customer account
+          if (customer.customer_ledger_account_id) {
+            const { data: customerLines } = await supabase
+              .from('journal_entry_lines')
+              .select(`
+                debit_amount,
+                credit_amount,
+                journal_entries!inner (
+                  status
+                )
+              `)
+              .eq('account_id', customer.customer_ledger_account_id)
+              .eq('journal_entries.status', 'posted');
+
+            if (customerLines && customerLines.length > 0) {
+              const custReceivableBalance = customerLines.reduce((sum, line) => {
+                return sum + (line.debit_amount - line.credit_amount);
+              }, 0);
+              totalBalance = custReceivableBalance;
+            }
+          }
+
+          // If also a supplier, subtract supplier balance from posted journal entries
+          if (customer.is_supplier && customer.supplier_ledger_account_id) {
+            const { data: supplierLines } = await supabase
+              .from('journal_entry_lines')
+              .select(`
+                debit_amount,
+                credit_amount,
+                journal_entries!inner (
+                  status
+                )
+              `)
+              .eq('account_id', customer.supplier_ledger_account_id)
+              .eq('journal_entries.status', 'posted');
+
+            if (supplierLines && supplierLines.length > 0) {
+              const suppPayableBalance = supplierLines.reduce((sum, line) => {
+                return sum + (line.credit_amount - line.debit_amount);
+              }, 0);
+              totalBalance -= suppPayableBalance;
+            }
+          }
+
+          updatedCustomerBalance = totalBalance;
+        }
+      }
       
       const completeTransactionData = {
         ...transactionDataPrep,
         transactionNumber,
+        date: new Date(),
+        customerBalance: updatedCustomerBalance,
+        isUnifiedBalance: updatedIsUnifiedBalance,
       };
       
       setLastTransactionData(completeTransactionData);
+      
+      // Trigger kiosk printing with updated balance
+      try {
+        console.log('🖨️ Triggering kiosk print with updated balance...');
+        await kioskPrintService.printReceipt({
+          storeName: completeTransactionData.storeName || 'Global Market',
+          transactionNumber: completeTransactionData.transactionNumber,
+          date: completeTransactionData.date,
+          items: completeTransactionData.items.map((item: any) => ({
+            name: item.name,
+            displayName: item.displayName,
+            quantity: item.quantity,
+            price: item.price,
+            customPrice: item.customPrice,
+            itemDiscount: item.itemDiscount || 0
+          })),
+          subtotal: completeTransactionData.subtotal,
+          tax: completeTransactionData.tax || 0,
+          discount: completeTransactionData.discount || 0,
+          total: completeTransactionData.total,
+          paymentMethod: payments.map(p => p.method).join(', '),
+          cashierName: completeTransactionData.cashierName,
+          customerName: completeTransactionData.customerName,
+          logoUrl: completeTransactionData.logoUrl,
+          supportPhone: completeTransactionData.supportPhone,
+          customerBalance: completeTransactionData.customerBalance,
+          isUnifiedBalance: completeTransactionData.isUnifiedBalance
+        });
+        console.log('✅ Kiosk print completed successfully');
+      } catch (printError) {
+        console.error('❌ Kiosk print failed:', printError);
+        // Don't show error to user, just log it
+      }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       toast.success(`Transaction ${displayNumber} processed successfully`);
