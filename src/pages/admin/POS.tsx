@@ -2647,45 +2647,67 @@ export default function POS() {
       let customerName = undefined;
       let customerBalance = undefined;
       let isUnifiedBalance = false;
+      
+      console.log('📄 [LAST RECEIPT] Fetching receipt data for transaction:', transaction.transaction_number);
+      console.log('📄 [LAST RECEIPT] Customer ID:', transaction.customer_id);
+      
       if (transaction.customer_id) {
-        const { data: contact } = await supabase
+        const { data: contact, error: contactError } = await supabase
           .from('contacts')
           .select('name, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
           .eq('id', transaction.customer_id)
           .maybeSingle();
 
+        console.log('📄 [LAST RECEIPT] Contact data:', contact, 'Error:', contactError);
+
         if (contact) {
           customerName = contact.name;
           isUnifiedBalance = contact.is_customer && contact.is_supplier;
           
+          console.log('📄 [LAST RECEIPT] Contact name:', customerName);
+          console.log('📄 [LAST RECEIPT] Is unified?', isUnifiedBalance);
+          
           // Fetch current balance directly from accounts table instead of calculating from journal entries
           if (contact.is_customer && contact.customer_ledger_account_id) {
-            const { data: customerAccount } = await supabase
+            console.log('📄 [LAST RECEIPT] Fetching balance from account:', contact.customer_ledger_account_id);
+            
+            const { data: customerAccount, error: accountError } = await supabase
               .from('accounts')
-              .select('current_balance')
+              .select('current_balance, account_name')
               .eq('id', contact.customer_ledger_account_id)
               .single();
 
+            console.log('📄 [LAST RECEIPT] Account data:', customerAccount, 'Error:', accountError);
+
             if (customerAccount) {
               customerBalance = customerAccount.current_balance;
+              console.log('📄 [LAST RECEIPT] Customer balance from account:', customerBalance);
               
               // If dual-role (customer & supplier), calculate unified balance
               if (contact.is_supplier && contact.supplier_ledger_account_id) {
-                const { data: supplierAccount } = await supabase
+                console.log('📄 [LAST RECEIPT] Contact is dual-role, fetching supplier balance from:', contact.supplier_ledger_account_id);
+                
+                const { data: supplierAccount, error: supplierError } = await supabase
                   .from('accounts')
-                  .select('current_balance')
+                  .select('current_balance, account_name')
                   .eq('id', contact.supplier_ledger_account_id)
                   .single();
 
+                console.log('📄 [LAST RECEIPT] Supplier account data:', supplierAccount, 'Error:', supplierError);
+
                 if (supplierAccount) {
+                  const originalBalance = customerBalance;
                   // Unified balance: customer receivable minus supplier payable
                   customerBalance = customerBalance - supplierAccount.current_balance;
+                  console.log('📄 [LAST RECEIPT] Unified balance calculated:', originalBalance, '-', supplierAccount.current_balance, '=', customerBalance);
                 }
               }
             }
           }
         }
       }
+      
+      console.log('📄 [LAST RECEIPT] Final balance to show:', customerBalance);
 
       // Parse transaction items
       const items = Array.isArray(transaction.items) ? transaction.items : [];
