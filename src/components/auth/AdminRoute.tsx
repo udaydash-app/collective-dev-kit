@@ -54,7 +54,7 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth/login" replace />;
+    return <Navigate to="/pos-login" replace />;
   }
 
   if (!isAdmin) {
