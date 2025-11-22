@@ -20,6 +20,7 @@ interface Product {
     unit: string;
     label?: string;
     price: number;
+    barcode?: string;
   }>;
 }
 
@@ -89,55 +90,63 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
 
       // Handle variants based on user selection
       if (hasVariants && selectedVariantIds.length > 0) {
-        // Transfer only selected variants to kept product
-        const { error: variantError } = await supabase
-          .from('product_variants')
-          .update({ product_id: keepProduct.id })
-          .in('id', selectedVariantIds);
+        // Before transferring, check for duplicates and merge them
+        for (const variantId of selectedVariantIds) {
+          const variant = allVariants.find(v => v.id === variantId);
+          if (!variant) continue;
 
-        if (variantError) {
-          console.error('Error transferring selected variants:', variantError);
-          throw new Error('Failed to transfer variants');
+          // Check if kept product already has a variant with same barcode
+          const { data: existingVariants } = await supabase
+            .from('product_variants')
+            .select('id, stock_quantity, barcode')
+            .eq('product_id', keepProduct.id)
+            .eq('barcode', variant.barcode || '');
+
+          if (existingVariants && existingVariants.length > 0) {
+            // Merge with existing variant instead of transferring
+            const existingVariant = existingVariants[0];
+            const newStock = (existingVariant.stock_quantity || 0) + (variant.stock_quantity || 0);
+
+            // Transfer inventory layers
+            await supabase
+              .from('inventory_layers')
+              .update({ variant_id: existingVariant.id })
+              .eq('variant_id', variantId);
+
+            // Update stock
+            await supabase
+              .from('product_variants')
+              .update({ stock_quantity: newStock })
+              .eq('id', existingVariant.id);
+
+            // Mark original for deletion
+            await supabase
+              .from('product_variants')
+              .delete()
+              .eq('id', variantId);
+          } else {
+            // No duplicate, safe to transfer
+            await supabase
+              .from('product_variants')
+              .update({ product_id: keepProduct.id })
+              .eq('id', variantId);
+          }
         }
-        
-        // Check if non-selected variants have any references before deleting
-        const allVariantIds = allVariants.map(v => v.id);
-        const variantsToDelete = allVariantIds.filter(id => !selectedVariantIds.includes(id));
-        
-        if (variantsToDelete.length > 0) {
-          // Check for references in related tables
-          const { data: cartRefs } = await supabase
-            .from('cart_items')
-            .select('id')
-            .in('variant_id', variantsToDelete)
-            .limit(1);
-            
-          const { data: purchaseRefs } = await supabase
+
+        // Delete unselected variants after checking references
+        const unselectedVariantIds = allVariants
+          .filter(v => !selectedVariantIds.includes(v.id))
+          .map(v => v.id);
+
+        for (const variantId of unselectedVariantIds) {
+          const { data: hasReferences } = await supabase
             .from('purchase_items')
             .select('id')
-            .in('variant_id', variantsToDelete)
-            .limit(1);
-            
-          const { data: inventoryRefs } = await supabase
-            .from('inventory_layers')
-            .select('id')
-            .in('variant_id', variantsToDelete)
+            .eq('variant_id', variantId)
             .limit(1);
 
-          if (cartRefs?.length || purchaseRefs?.length || inventoryRefs?.length) {
-            toast.error('Cannot delete non-selected variants: they have transaction history or are in carts');
-            throw new Error('Variants have foreign key references');
-          }
-
-          // Safe to delete - no references found
-          const { error: deleteVariantError } = await supabase
-            .from('product_variants')
-            .delete()
-            .in('id', variantsToDelete);
-            
-          if (deleteVariantError) {
-            console.error('Error deleting non-selected variants:', deleteVariantError);
-            throw deleteVariantError;
+          if (!hasReferences || hasReferences.length === 0) {
+            await supabase.from('product_variants').delete().eq('id', variantId);
           }
         }
       } else {
