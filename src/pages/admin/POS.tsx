@@ -2438,13 +2438,10 @@ export default function POS() {
           supportPhone: completeTransactionData.supportPhone,
         });
         console.log('✅ Receipt printed successfully to QZ Tray');
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ QZ Tray print error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
+        console.error('Error type:', typeof error);
+        console.error('Error details:', error);
       }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
