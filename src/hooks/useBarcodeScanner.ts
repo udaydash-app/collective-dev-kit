@@ -80,7 +80,7 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       codeReaderRef.current = codeReader;
 
       let lastProcessTime = 0;
-      const processInterval = 250; // Only process every 250ms
+      const processInterval = 100; // Process every 100ms for faster scanning
 
       await codeReader.decodeFromVideoDevice(undefined, videoElement, (result, error) => {
         // Throttle processing to reduce CPU load
