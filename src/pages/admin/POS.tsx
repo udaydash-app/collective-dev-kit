@@ -153,7 +153,6 @@ export default function POS() {
   useEffect(() => {
     offlineDB.init().catch(error => {
       console.error('Failed to initialize offline database:', error);
-      toast.error('Failed to initialize offline storage');
     });
   }, []);
 
@@ -265,7 +264,7 @@ export default function POS() {
 
       if (orderError) throw orderError;
       if (!order) {
-        toast.error('Order not found');
+        console.error('Order not found');
         navigate('/admin/pos', { replace: true });
         return;
       }
@@ -317,11 +316,10 @@ export default function POS() {
         // Clear orderId from URL to prevent reloading on refresh
         navigate('/admin/pos', { replace: true });
         
-        toast.success(`Loaded order ${order.order_number} into POS and marked as confirmed`);
+        console.log(`Loaded order ${order.order_number} into POS and marked as confirmed`);
       }
     } catch (error: any) {
       console.error('Error loading order:', error);
-      toast.error('Failed to load order into POS');
       // Clear orderId from URL even on error
       navigate('/admin/pos', { replace: true });
     } finally {
@@ -337,7 +335,7 @@ export default function POS() {
       // Get order data from localStorage
       const storedData = localStorage.getItem('pos-edit-order');
       if (!storedData) {
-        toast.error('Order data not found');
+        console.error('Order data not found');
         navigate('/admin/pos', { replace: true });
         return;
       }
@@ -413,13 +411,11 @@ export default function POS() {
           
           if (customerError) {
             console.error('🔧 Error loading customer:', customerError);
-            toast.error(`Failed to load customer: ${customerError.message}`);
           } else if (customer) {
             setSelectedCustomer(customer);
             console.log(`🔧 Customer loaded: ${customer.name}`);
           } else {
             console.warn('🔧 Customer not found with ID:', orderData.customerId);
-            toast.warning('Customer from original bill not found - it may have been deleted');
           }
         } else {
           console.log('🔧 No customer ID in order data');
@@ -440,11 +436,10 @@ export default function POS() {
         // Clear URL parameter
         navigate('/admin/pos', { replace: true });
         
-        toast.success(`Loaded ${orderData.type === 'pos' ? 'sale' : 'order'} for editing`);
+        console.log(`Loaded ${orderData.type === 'pos' ? 'sale' : 'order'} for editing`);
       }
     } catch (error: any) {
       console.error('Error loading order for editing:', error);
-      toast.error('Failed to load order for editing');
       navigate('/admin/pos', { replace: true });
     } finally {
       setIsLoadingOrder(false);
@@ -1394,12 +1389,11 @@ export default function POS() {
 
       if (error) throw error;
 
-      toast.success('Cash register opened successfully');
+      console.log('Cash register opened successfully');
       setShowCashIn(false);
       await refetchCashSession();
     } catch (error: any) {
       console.error('Error opening cash register:', error);
-      toast.error('Failed to open cash register');
       throw error;
     }
   };
@@ -1512,13 +1506,12 @@ export default function POS() {
 
       if (error) throw error;
 
-      toast.success('Cash register closed successfully');
+      console.log('Cash register closed successfully');
       setCurrentCashSession(null);
       clearCart();
       await refetchCashSession();
     } catch (error: any) {
       console.error('Error closing cash register:', error);
-      toast.error('Failed to close cash register');
     }
   };
 
@@ -1566,7 +1559,7 @@ export default function POS() {
     
     // If not found in cache and we're online, try online database
     if (!navigator.onLine) {
-      toast.error('Product not found in offline cache');
+      console.error('Product not found in offline cache');
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
       return;
@@ -1761,7 +1754,7 @@ export default function POS() {
       // If customer removed, clear prices and exit
       if (!selectedCustomer) {
         setCustomerPrices({});
-        toast.info('Customer removed - prices reset to retail');
+        console.log('Customer removed - prices reset to retail');
         return;
       }
 
@@ -1818,17 +1811,16 @@ export default function POS() {
             });
             
             if (appliedCount > 0) {
-              toast.success(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
+              console.log(`Custom prices applied to ${appliedCount} items for ${selectedCustomer.name}`);
             } else {
-              toast.info(`No custom prices available for current cart items`);
+              console.log(`No custom prices available for current cart items`);
             }
           }, 100);
         } else if (Object.keys(pricesMap).length === 0) {
-          toast.info(`No custom prices set for ${selectedCustomer.name}`);
+          console.log(`No custom prices set for ${selectedCustomer.name}`);
         }
       } catch (error) {
         console.error('Error fetching customer prices:', error);
-        toast.error('Failed to fetch custom prices');
       }
     };
 
@@ -1855,11 +1847,10 @@ export default function POS() {
           if (customer) {
             setSelectedCustomer(customer);
             setShowCustomerDialog(false);
-            toast.success(`Customer "${customer.name}" selected`);
+            console.log(`Customer "${customer.name}" selected`);
           }
         } catch (error) {
           console.error('Error fetching new customer:', error);
-          toast.error('Failed to select new customer');
         }
       };
       
@@ -1919,11 +1910,10 @@ export default function POS() {
               addToCartWithCustomPrice(product);
             }
             
-            toast.success(`Added "${product.name}" to cart`);
+            console.log(`Added "${product.name}" to cart`);
           }
         } catch (error) {
           console.error('Error fetching new product:', error);
-          toast.error('Failed to add new product to cart');
         }
       };
       
@@ -1966,7 +1956,6 @@ export default function POS() {
       description: 'Cash Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
-          toast.error('Cart is empty');
           return;
         }
         
@@ -2010,11 +1999,9 @@ export default function POS() {
       description: 'Credit Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
-          toast.error('Cart is empty');
           return;
         }
         if (!selectedCustomer) {
-          toast.error('Please select a customer for credit payment');
           return;
         }
         
@@ -2058,7 +2045,6 @@ export default function POS() {
       description: 'Mobile Money Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
-          toast.error('Cart is empty');
           return;
         }
         
@@ -2104,7 +2090,7 @@ export default function POS() {
         if (cart.length > 0) {
           setShowHoldTicket(true);
         } else {
-          toast.error('No items in cart to hold');
+          return;
         }
       },
     },
@@ -2114,8 +2100,6 @@ export default function POS() {
       action: () => {
         if (heldTickets.length > 0) {
           setShowHoldTicket(true);
-        } else {
-          toast.info('No held tickets available');
         }
       },
     },
@@ -2125,8 +2109,6 @@ export default function POS() {
       action: () => {
         if (cart.length > 0) {
           handleCheckout();
-        } else {
-          toast.error('No items in cart');
         }
       },
     },
@@ -2139,7 +2121,6 @@ export default function POS() {
           if (confirmed) {
             clearCart();
             setSelectedCustomer(null);
-            toast.info('Cart cleared');
           }
         }
       },
@@ -2171,11 +2152,9 @@ export default function POS() {
 
   const handleCheckout = () => {
     if (!selectedStoreId) {
-      toast.error('Please select a store');
       return;
     }
     if (!currentCashSession) {
-      toast.error('Please open the cash register first');
       return;
     }
     
@@ -2267,7 +2246,7 @@ export default function POS() {
         });
 
       if (pricesToUpsert.length === 0) {
-        toast.info('No valid items to save');
+        console.log('No valid items to save');
         setShowCustomPriceConfirm(false);
         setShowPayment(true);
         return;
@@ -2289,10 +2268,9 @@ export default function POS() {
       });
       setCustomerPrices(updatedPrices);
       
-      toast.success(`Custom prices saved for ${pricesToUpsert.length} product(s)`);
+      console.log(`Custom prices saved for ${pricesToUpsert.length} product(s)`);
     } catch (error: any) {
       console.error('Error saving customer prices:', error);
-      toast.error('Failed to save custom prices');
     } finally {
       setShowCustomPriceConfirm(false);
       setShowPayment(true);
@@ -2530,7 +2508,7 @@ export default function POS() {
       }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
-      toast.success(`Transaction ${displayNumber} processed successfully`);
+      console.log(`Transaction ${displayNumber} processed successfully`);
       
       // Refetch journal entries to show the new transaction immediately
       queryClient.invalidateQueries({ queryKey: ['session-display-journal-entries'] });
@@ -2547,12 +2525,10 @@ export default function POS() {
     console.log('🖨️ Quick Payment triggered, shouldPrint:', shouldPrint);
     
     if (!selectedStoreId) {
-      toast.error('Please select a store');
       return;
     }
 
     if (cart.length === 0) {
-      toast.error('Cart is empty');
       return;
     }
 
@@ -2625,7 +2601,6 @@ export default function POS() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('Please log in to view receipts');
         return;
       }
 
@@ -2639,7 +2614,6 @@ export default function POS() {
         .single();
 
       if (error || !transaction) {
-        toast.error('No previous receipt available');
         return;
       }
 
@@ -2743,7 +2717,6 @@ export default function POS() {
       setShowLastReceiptOptions(true);
     } catch (error) {
       console.error('Error fetching last receipt:', error);
-      toast.error('Failed to load receipt');
     }
   };
 
@@ -2772,10 +2745,9 @@ export default function POS() {
       
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       pdf.save(`receipt-${lastTransactionData.transactionNumber}.pdf`);
-      toast.success('Receipt saved as PDF');
+      console.log('Receipt saved as PDF');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
     }
   };
 
@@ -2783,7 +2755,7 @@ export default function POS() {
     if (!lastTransactionData) return;
     
     try {
-      toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
+      console.log('Generating receipt image...');
       
       // Create a temporary container for the receipt
       const container = document.createElement('div');
@@ -2852,10 +2824,10 @@ export default function POS() {
             title: `Receipt ${lastTransactionData.transactionNumber}`,
             text: `Receipt for transaction ${lastTransactionData.transactionNumber}`,
           });
-          toast.success('Receipt shared successfully!', { id: 'whatsapp-share' });
+          console.log('Receipt shared successfully!');
         } catch (err: any) {
           if (err.name === 'AbortError') {
-            toast.dismiss('whatsapp-share');
+            console.log('Share cancelled');
           } else {
             console.error('Share error:', err);
             // Fallback to download
@@ -2867,7 +2839,7 @@ export default function POS() {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
+            console.log('Downloaded receipt. Open WhatsApp and attach the image to share.');
           }
         }
       } else {
@@ -2880,18 +2852,17 @@ export default function POS() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
+        console.log('Downloaded receipt. Open WhatsApp and attach the image to share.');
       }
     } catch (error) {
       console.error('Error generating receipt image:', error);
-      toast.error('Failed to generate receipt image. Try downloading as PDF instead.', { id: 'whatsapp-share' });
     }
   };
 
   const handleDirectPrintLastReceipt = async () => {
     if (!lastTransactionData) return;
     
-    toast.loading('Preparing receipt for printing...', { id: 'kiosk-print' });
+    console.log('Preparing receipt for printing...');
     
     try {
       console.log('🖨️ Calling kiosk print service...');
@@ -2918,11 +2889,10 @@ export default function POS() {
         supportPhone: lastTransactionData.supportPhone
       });
       
-      toast.success('✅ Print dialog opened! Check your printer.', { id: 'kiosk-print' });
+      console.log('✅ Print dialog opened! Check your printer.');
       setShowLastReceiptOptions(false);
     } catch (error: any) {
       console.error('❌ Print error:', error);
-      toast.error(error.message || 'Failed to print receipt', { id: 'kiosk-print' });
     }
   };
 
@@ -3005,7 +2975,6 @@ export default function POS() {
       color: 'bg-[#EF4444]', 
       action: () => {
         if (cart.length === 0) {
-          toast.error('Add items to cart to process refund');
           return;
         }
         setShowRefund(true);
@@ -3018,7 +2987,6 @@ export default function POS() {
       color: 'bg-[#5DADE2]',
       action: () => {
         if (!currentCashSession) {
-          toast.error('No active cash session to close');
           return;
         }
         setShowCashOut(true);
@@ -3074,7 +3042,6 @@ export default function POS() {
 
   const handleHoldTicket = (ticketName: string) => {
     if (cart.length === 0) {
-      toast.error('Cannot hold empty cart');
       return;
     }
 
@@ -3100,7 +3067,7 @@ export default function POS() {
     setCartDiscountItem(null);
     setDiscount(0);
     
-    toast.success(`Ticket "${ticketName}" held successfully`);
+    console.log(`Ticket "${ticketName}" held successfully`);
   };
 
   const handleRecallTicket = (ticket: any) => {
@@ -3131,7 +3098,7 @@ export default function POS() {
           timestamp: new Date(),
         };
         updatedTickets = [...updatedTickets, autoHoldTicket];
-        toast.info('Current cart auto-held');
+        console.log('Current cart auto-held');
       }
       
       return updatedTickets;
@@ -3176,7 +3143,7 @@ export default function POS() {
         loadCart(cartItems);
       }
       
-      toast.success(`Ticket "${ticket.name}" recalled`);
+      console.log(`Ticket "${ticket.name}" recalled`);
       
       // Clear loading flag after items are loaded
       setTimeout(() => setIsLoadingTransaction(false), 300);
@@ -3192,7 +3159,7 @@ export default function POS() {
       }
       return updatedTickets;
     });
-    toast.success('Ticket deleted');
+    console.log('Ticket deleted');
   };
 
   const handleLogout = async () => {
@@ -3205,11 +3172,10 @@ export default function POS() {
       localStorage.removeItem('pos_discount_state');
       
       await supabase.auth.signOut();
-      toast.success('Logged out successfully');
+      console.log('Logged out successfully');
       navigate('/pos-login');
     } catch (error) {
       console.error('Error logging out:', error);
-      toast.error('Failed to logout');
     }
   };
 
@@ -3240,14 +3206,12 @@ export default function POS() {
     console.log('📝 Input updated to:', newValue);
     
     if (keypadMode !== 'cartDiscount' && !selectedCartItemId) {
-      toast.error('Please select a product from the cart first');
       return;
     }
   };
 
   const handleKeypadQty = () => {
     if (!selectedCartItemId) {
-      toast.error('Please select a product from the cart first');
       return;
     }
     console.log('🔢 QTY mode activated, clearing input');
@@ -3258,7 +3222,6 @@ export default function POS() {
 
   const handleKeypadDiscount = () => {
     if (!selectedCartItemId) {
-      toast.error('Please select a product from the cart first');
       return;
     }
     setKeypadMode('discount');
@@ -3289,11 +3252,9 @@ export default function POS() {
       return;
     }
     if (!selectedCartItemId) {
-      toast.error('Please select a product or use cart discount first');
       return;
     }
     if (keypadMode !== 'discount') {
-      toast.error('Please select discount mode first');
       return;
     }
     setIsPercentMode(!isPercentMode);
@@ -3301,7 +3262,6 @@ export default function POS() {
 
   const handleKeypadPrice = () => {
     if (!selectedCartItemId) {
-      toast.error('Please select a product from the cart first');
       return;
     }
     setKeypadMode('price');
@@ -3324,13 +3284,11 @@ export default function POS() {
     
     if (!keypadMode || !keypadInputRef.current) {
       console.log('❌ Missing mode or input:', { keypadMode, keypadInput: keypadInputRef.current });
-      toast.error('Please select mode and enter a value');
       return;
     }
-    
+
     const value = parseFloat(keypadInputRef.current);
     if (isNaN(value) || value < 0) {
-      toast.error('Invalid value');
       return;
     }
 
@@ -3338,11 +3296,10 @@ export default function POS() {
       case 'qty':
         if (!selectedCartItemId) return;
         if (value === 0) {
-          toast.error('Quantity must be greater than 0');
           return;
         }
         updateQuantity(selectedCartItemId, Math.floor(value));
-        toast.success(`Quantity updated to ${Math.floor(value)}`);
+        console.log(`Quantity updated to ${Math.floor(value)}`);
         break;
       case 'discount':
         if (!selectedCartItemId) return;
@@ -3353,21 +3310,20 @@ export default function POS() {
           if (selectedItem) {
             const itemTotal = selectedItem.price * selectedItem.quantity;
             discountAmount = (itemTotal * value) / 100;
-            toast.success(`Discount updated to ${value}% (${formatCurrency(discountAmount)})`);
+            console.log(`Discount updated to ${value}% (${formatCurrency(discountAmount)})`);
           }
         } else {
-          toast.success(`Discount updated to ${formatCurrency(value)}`);
+          console.log(`Discount updated to ${formatCurrency(value)}`);
         }
         updateItemDiscount(selectedCartItemId, discountAmount);
         break;
       case 'price':
         if (!selectedCartItemId) return;
         if (value === 0) {
-          toast.error('Price must be greater than 0');
           return;
         }
         updateItemPrice(selectedCartItemId, value);
-        toast.success(`Price updated to ${formatCurrency(value)}`);
+        console.log(`Price updated to ${formatCurrency(value)}`);
         break;
       case 'cartDiscount':
         // Calculate cart discount
@@ -3375,9 +3331,9 @@ export default function POS() {
         if (isPercentMode) {
           const cartSubtotal = calculateSubtotal();
           cartDiscountAmount = (cartSubtotal * value) / 100;
-          toast.success(`Cart discount applied: ${value}% (${formatCurrency(cartDiscountAmount)})`);
+          console.log(`Cart discount applied: ${value}% (${formatCurrency(cartDiscountAmount)})`);
         } else {
-          toast.success(`Cart discount applied: ${formatCurrency(value)}`);
+          console.log(`Cart discount applied: ${formatCurrency(value)}`);
         }
         // Update the discount state for transaction processing
         setDiscount(cartDiscountAmount);
@@ -3494,7 +3450,7 @@ export default function POS() {
               if (id === 'cart-discount') {
                 setCartDiscountItem(null);
                 setDiscount(0);
-                toast.success('Cart discount removed');
+                console.log('Cart discount removed');
               } else {
                 removeFromCart(id);
               }
@@ -4144,7 +4100,7 @@ export default function POS() {
         onConfirm={handleCashIn}
         onSkip={() => {
           setShowCashIn(false);
-          toast.info('Starting POS without cash session. You can open a cash session later.');
+          console.log('Starting POS without cash session. You can open a cash session later.');
         }}
       />
 

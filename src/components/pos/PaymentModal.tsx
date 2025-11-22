@@ -163,25 +163,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!receiptRef.current) return;
     
     try {
-      // Convert logo to base64 before capturing
-      if (transactionData?.logoUrl && transactionData.logoUrl.startsWith('http')) {
-        const logoImg = receiptRef.current.querySelector('img');
-        if (logoImg) {
-          try {
-            const base64 = await imageUrlToBase64(transactionData.logoUrl);
-            if (base64) {
-              logoImg.src = base64;
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-          } catch (error) {
-            console.error('Failed to convert logo for PDF:', error);
-          }
-        }
-      }
-
+      // Simplified PDF generation without base64 conversion
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
         backgroundColor: '#ffffff',
+        useCORS: true,
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -196,10 +182,9 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
-      toast.success('Receipt saved as PDF');
+      console.log('Receipt saved as PDF');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
     }
   };
 
@@ -244,18 +229,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     
     try {
       console.log('📱 WhatsApp share started');
-      console.log('📸 Transaction data:', transactionData);
-      console.log('🖼️ Logo URL:', transactionData.logoUrl);
-      
-      toast.loading('Generating receipt image...', { id: 'whatsapp-share' });
-      
-      // Convert logo to base64 if it exists
-      let logoBase64 = '';
-      if (transactionData.logoUrl) {
-        console.log('🔄 Converting logo to base64...');
-        logoBase64 = await imageUrlToBase64(transactionData.logoUrl);
-        console.log('✅ Logo converted, length:', logoBase64.length);
-      }
       
       // Create a temporary container for the receipt
       const container = document.createElement('div');
@@ -263,7 +236,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       container.style.left = '-9999px';
       document.body.appendChild(container);
       
-      // Render the receipt component with base64 logo
+      // Render the receipt component directly without base64 conversion
       const root = ReactDOM.createRoot(container);
       await new Promise<void>(resolve => {
         root.render(
@@ -284,7 +257,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             cashierName={transactionData.cashierName}
             customerName={selectedCustomerData?.name || propSelectedCustomer?.name}
             storeName={transactionData.storeName}
-            logoUrl={logoBase64 || transactionData.logoUrl}
+            logoUrl={transactionData.logoUrl}
             supportPhone={transactionData.supportPhone}
             customerBalance={customerBalance}
             isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
@@ -293,10 +266,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
         setTimeout(resolve, 100);
       });
       
-      // Small delay for rendering
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Convert to canvas
+      // Convert to canvas with reduced scale for faster processing
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
       if (!receiptElement) {
         console.error('❌ Receipt element not found in container');
@@ -305,9 +275,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       
       console.log('🎨 Converting receipt to canvas...');
       const canvas = await html2canvas(receiptElement, {
-        scale: 3,
+        scale: 2, // Reduced from 3 for faster processing
         backgroundColor: '#ffffff',
         logging: false,
+        useCORS: true,
       });
       console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
       
@@ -336,11 +307,9 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             title: `Receipt ${transactionData.transactionNumber}`,
             text: `Receipt for transaction ${transactionData.transactionNumber}`,
           });
-          toast.success('Receipt shared successfully!', { id: 'whatsapp-share' });
+          console.log('Receipt shared successfully!');
         } catch (err: any) {
-          if (err.name === 'AbortError') {
-            toast.dismiss('whatsapp-share');
-          } else {
+          if (err.name !== 'AbortError') {
             console.error('Share error:', err);
             // Fallback to download
             const url = URL.createObjectURL(blob);
@@ -351,7 +320,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
+            console.log('Downloaded receipt. Open WhatsApp and attach the image to share.');
           }
         }
       } else {
@@ -364,11 +333,10 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        toast.info('Downloaded receipt. Open WhatsApp and attach the image to share.', { id: 'whatsapp-share' });
+        console.log('Downloaded receipt. Open WhatsApp and attach the image to share.');
       }
     } catch (error) {
       console.error('Error generating receipt image:', error);
-      toast.error('Failed to generate receipt image. Try downloading as PDF instead.', { id: 'whatsapp-share' });
     }
   };
 
