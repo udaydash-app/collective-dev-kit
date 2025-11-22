@@ -332,9 +332,9 @@ export const usePOSTransaction = () => {
         }
       }
 
-      // Show toast if multi-product BOGOs were applied
+      // Show console log if multi-product BOGOs were applied
       if (appliedBOGOs.length > 0) {
-        toast.success(`🎉 ${appliedBOGOs.length} multi-product BOGO combo${appliedBOGOs.length > 1 ? 's' : ''} applied!`);
+        console.log(`🎉 ${appliedBOGOs.length} multi-product BOGO combo${appliedBOGOs.length > 1 ? 's' : ''} applied!`);
       }
 
       // Return combined cart: regular items + applied multi-product BOGOs
@@ -466,7 +466,7 @@ export const usePOSTransaction = () => {
       if (appliedBOGOs.length > 0) {
         const bogoCount = appliedBOGOs.length;
         const totalGetQty = appliedBOGOs.reduce((sum, item) => sum + item.quantity, 0);
-        toast.success(`🎉 BOGO applied! ${totalGetQty} item${totalGetQty > 1 ? 's' : ''} added with discount`);
+        console.log(`🎉 BOGO applied! ${totalGetQty} item${totalGetQty > 1 ? 's' : ''} added with discount`);
       }
 
       // Return combined cart: regular items + applied BOGOs
@@ -649,7 +649,7 @@ export const usePOSTransaction = () => {
       if (appliedCombos.length > 0) {
         const comboCount = appliedCombos.length;
         const comboNames = [...new Set(appliedCombos.map(c => c.name))].join(', ');
-        toast.success(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
+        console.log(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
       }
 
       // Return combined cart: existing combos + regular items + newly applied combos
@@ -924,7 +924,7 @@ export const usePOSTransaction = () => {
     };
     
     setCart(prev => [...prev, comboCartItem]);
-    toast.success(`Added ${combo.name} to cart`);
+    console.log(`Added ${combo.name} to cart`);
   };
 
   const calculateSubtotal = () => {
@@ -952,12 +952,12 @@ export const usePOSTransaction = () => {
     editingTransactionType?: 'pos' | 'online'
   ) => {
     if (cart.length === 0) {
-      toast.error('Cart is empty');
+      console.error('Cart is empty');
       return null;
     }
 
     if (!storeId) {
-      toast.error('Please select a store');
+      console.error('Please select a store');
       return null;
     }
 
@@ -965,8 +965,7 @@ export const usePOSTransaction = () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        toast.error('Authentication error. Please log in again.');
-        console.error('User error:', userError);
+        console.error('Authentication error. Please log in again.', userError);
         return null;
       }
 
@@ -1126,11 +1125,10 @@ export const usePOSTransaction = () => {
 
           if (error) {
             console.error('Database update error:', error);
-            toast.error('Failed to update transaction');
             return null;
           }
 
-          toast.success('Transaction updated successfully!');
+          console.log('Transaction updated successfully!');
           clearCart();
           return data;
         } else if (editingTransactionId && editingTransactionType === 'online') {
@@ -1144,7 +1142,6 @@ export const usePOSTransaction = () => {
 
           if (error) {
             console.error('Database error:', error);
-            toast.error('Failed to create POS transaction');
             return null;
           }
 
@@ -1152,7 +1149,7 @@ export const usePOSTransaction = () => {
           await supabase.from('order_items').delete().eq('order_id', editingTransactionId);
           await supabase.from('orders').delete().eq('id', editingTransactionId);
 
-          toast.success('Order converted to POS transaction successfully!');
+          console.log('Order converted to POS transaction successfully!');
           clearCart();
           return data;
         } else {
@@ -1180,7 +1177,7 @@ export const usePOSTransaction = () => {
               timestamp: new Date().toISOString(),
               synced: false,
             });
-            toast.warning('Saved offline - will sync when connection is stable');
+            console.log('Saved offline - will sync when connection is stable');
             clearCart();
             return { ...transactionData, offline: true };
           }
@@ -1247,7 +1244,7 @@ export const usePOSTransaction = () => {
           }
         }
 
-        toast.success(editingTransactionId ? 'Transaction updated successfully!' : 'Transaction completed successfully!');
+        console.log(editingTransactionId ? 'Transaction updated successfully!' : 'Transaction completed successfully!');
         clearCart();
         return data || transactionData;
       } else {
@@ -1267,7 +1264,7 @@ export const usePOSTransaction = () => {
           synced: false,
         });
         
-        toast.success('Transaction saved offline - will sync automatically');
+        console.log('Transaction saved offline - will sync automatically');
         clearCart();
         return { ...transactionData, offline: true };
       }
@@ -1316,7 +1313,7 @@ export const usePOSTransaction = () => {
             synced: false,
           });
           
-          toast.warning('Saved offline due to error - will retry sync automatically');
+          console.log('Saved offline due to error - will retry sync automatically');
           clearCart();
           return { offline: true };
         }
@@ -1324,7 +1321,7 @@ export const usePOSTransaction = () => {
         console.error('Failed to save offline:', offlineError);
       }
       
-      toast.error(error?.message || 'Failed to process transaction');
+      console.error('Failed to process transaction:', error?.message);
       return null;
     } finally {
       setIsProcessing(false);
