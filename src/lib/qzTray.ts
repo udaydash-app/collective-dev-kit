@@ -94,12 +94,15 @@ class QZTrayService {
   }
 
   async printReceipt(data: QZReceiptData, printerName?: string): Promise<void> {
+    console.log('📡 [QZ] Connecting to QZ Tray...');
     await this.connect();
 
     const printer = printerName || await this.getDefaultPrinter();
+    console.log('🖨️ [QZ] Using printer:', printer);
     
     // Build ESC/POS commands for thermal printer
     const config = qz.configs.create(printer);
+    console.log('⚙️ [QZ] Config created for printer:', printer);
     
     // ESC/POS commands
     const ESC = '\x1B';
@@ -183,7 +186,16 @@ class QZTrayService {
     
     // Send to printer
     const printData = [commands];
-    await qz.print(config, printData);
+    console.log('📄 [QZ] Sending print data to QZ Tray, data length:', commands.length);
+    console.log('📄 [QZ] Print data preview:', commands.substring(0, 100));
+    
+    try {
+      await qz.print(config, printData);
+      console.log('✅ [QZ] qz.print() completed successfully');
+    } catch (error) {
+      console.error('❌ [QZ] qz.print() failed:', error);
+      throw error;
+    }
   }
 
   private formatCurrency(amount: number): string {
