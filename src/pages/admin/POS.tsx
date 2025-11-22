@@ -2412,27 +2412,40 @@ export default function POS() {
       setLastTransactionData(completeTransactionData);
 
       // Direct print to default printer using QZ Tray (no dialog)
-      console.log('🖨️ Starting QZ Tray print process...');
-      qzTrayService.printReceipt({
-        storeName: completeTransactionData.storeName,
+      console.log('🖨️ Starting QZ Tray print process...', {
+        hasQZTray: !!qzTrayService,
         transactionNumber: completeTransactionData.transactionNumber,
-        date: completeTransactionData.date,
-        items: completeTransactionData.items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.customPrice || item.price,
-        })),
-        subtotal: completeTransactionData.subtotal,
-        discount: completeTransactionData.discount,
-        tax: completeTransactionData.tax,
-        total: completeTransactionData.total,
-        paymentMethod: completeTransactionData.paymentMethod,
-        cashierName: completeTransactionData.cashierName,
-        customerName: completeTransactionData.customerName,
-        supportPhone: completeTransactionData.supportPhone,
-      })
-        .then(() => console.log('✅ Receipt printed successfully'))
-        .catch((error) => console.error('❌ Print error:', error));
+        itemCount: completeTransactionData.items.length
+      });
+      
+      try {
+        await qzTrayService.printReceipt({
+          storeName: completeTransactionData.storeName,
+          transactionNumber: completeTransactionData.transactionNumber,
+          date: completeTransactionData.date,
+          items: completeTransactionData.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.customPrice || item.price,
+          })),
+          subtotal: completeTransactionData.subtotal,
+          discount: completeTransactionData.discount,
+          tax: completeTransactionData.tax,
+          total: completeTransactionData.total,
+          paymentMethod: completeTransactionData.paymentMethod,
+          cashierName: completeTransactionData.cashierName,
+          customerName: completeTransactionData.customerName,
+          supportPhone: completeTransactionData.supportPhone,
+        });
+        console.log('✅ Receipt printed successfully to QZ Tray');
+      } catch (error) {
+        console.error('❌ QZ Tray print error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       console.log(`Transaction ${displayNumber} processed successfully`);
