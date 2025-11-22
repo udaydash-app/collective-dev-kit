@@ -117,7 +117,17 @@ export default function CloseDayReport() {
       if (reportType === 'sales-by-customer') {
         const { data: transactions } = await supabase
           .from('pos_transactions')
-          .select('id, total, notes, items, created_at')
+          .select(`
+            id, 
+            total, 
+            items, 
+            created_at,
+            customer_id,
+            contacts:customer_id (
+              id,
+              name
+            )
+          `)
           .eq('store_id', selectedStoreId)
           .gte('created_at', `${startDate}T00:00:00`)
           .lte('created_at', `${endDate}T23:59:59`);
@@ -125,17 +135,8 @@ export default function CloseDayReport() {
         const customerMap = new Map<string, { name: string; totalSpent: number; orderCount: number; orders: any[] }>();
         
         transactions?.forEach((t: any) => {
-          // Extract customer info from notes field
-          let customerName = 'Walk-in Customer';
-          let customerId = 'walk-in';
-          
-          if (t.notes?.includes('customer:')) {
-            const customerMatch = t.notes.match(/customer:([^,]+),([^)]+)/);
-            if (customerMatch) {
-              customerId = customerMatch[1];
-              customerName = customerMatch[2];
-            }
-          }
+          const customerId = t.customer_id || 'walk-in';
+          const customerName = t.contacts?.name || 'Walk-in Customer';
           
           const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0, orders: [] };
           customerMap.set(customerId, {
