@@ -154,8 +154,63 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      // Single optimized query to fetch products with variants
-      const { data: allProducts } = await supabase
+      const { data: allVariants } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          label,
+          quantity,
+          unit,
+          price,
+          barcode,
+          is_available,
+          product_id
+        `)
+        .eq('is_available', true)
+        .ilike('barcode', `%${barcode}%`);
+      
+      const matchedVariant = allVariants?.find((v: any) => {
+        if (!v.barcode) return false;
+        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.some((b: string) => b === barcode || b.includes(barcode) || barcode.includes(b));
+      });
+      
+      if (matchedVariant) {
+        const { data: fullProduct } = await supabase
+          .from('products')
+          .select(`
+            id,
+            name,
+            price,
+            barcode,
+            stock_quantity,
+            cost_price,
+            product_variants (
+              id,
+              label,
+              quantity,
+              unit,
+              price,
+              is_available,
+              is_default,
+              barcode
+            )
+          `)
+          .eq('id', matchedVariant.product_id)
+          .single();
+        
+        if (fullProduct) {
+          onProductSelect({
+            ...fullProduct,
+            price: matchedVariant.price,
+            selectedVariant: matchedVariant,
+          });
+          setSearchTerm('');
+          return;
+        }
+      }
+      
+      const { data: directProducts } = await supabase
         .from('products')
         .select(`
           id,
@@ -164,7 +219,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           barcode,
           stock_quantity,
           cost_price,
-          product_variants!inner (
+          product_variants (
             id,
             label,
             quantity,
@@ -176,47 +231,30 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           )
         `)
         .eq('is_available', true)
-        .eq('product_variants.is_available', true)
-        .or(`barcode.ilike.%${barcode}%,product_variants.barcode.ilike.%${barcode}%`);
+        .not('barcode', 'is', null);
 
-      // Find exact match in variants or products
-      let matchedProduct = null;
-      let matchedVariant = null;
+      const matchedDirectProduct = directProducts?.find((p: any) => {
+        if (!p.barcode) return false;
+        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return productBarcodes.includes(barcode);
+      });
 
-      if (allProducts) {
-        for (const product of allProducts) {
-          // Check product barcode
-          if (product.barcode) {
-            const productBarcodes = product.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            if (productBarcodes.includes(barcode)) {
-              matchedProduct = product;
-              const availableVariants = product.product_variants.filter((v: any) => v.is_available);
-              matchedVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-              break;
-            }
+      if (matchedDirectProduct) {
+        if (matchedDirectProduct.product_variants && matchedDirectProduct.product_variants.length > 0) {
+          const availableVariants = matchedDirectProduct.product_variants.filter((v: any) => v.is_available);
+          const defaultVariant = availableVariants.find((v: any) => v.is_default);
+          const selectedVariant = defaultVariant || availableVariants[0];
+          
+          if (selectedVariant) {
+            onProductSelect({
+              ...matchedDirectProduct,
+              price: selectedVariant.price,
+              selectedVariant,
+            });
           }
-
-          // Check variant barcodes
-          for (const variant of product.product_variants) {
-            if (variant.barcode) {
-              const variantBarcodes = variant.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-              if (variantBarcodes.includes(barcode)) {
-                matchedProduct = product;
-                matchedVariant = variant;
-                break;
-              }
-            }
-          }
-          if (matchedProduct) break;
+        } else {
+          onProductSelect(matchedDirectProduct);
         }
-      }
-
-      if (matchedProduct && matchedVariant) {
-        onProductSelect({
-          ...matchedProduct,
-          price: matchedVariant.price,
-          selectedVariant: matchedVariant,
-        });
         setSearchTerm('');
         return;
       }
