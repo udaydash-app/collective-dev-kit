@@ -2411,14 +2411,18 @@ export default function POS() {
       
       setLastTransactionData(completeTransactionData);
 
-      // Trigger kiosk printing once after transaction
+      // Direct print to default printer using QZ Tray (no dialog)
       try {
-        console.log('🖨️ Triggering kiosk print with updated balance...');
-        await kioskPrintService.printReceipt({
+        console.log('🖨️ Attempting direct print with QZ Tray...');
+        await qzTrayService.printReceipt({
           storeName: completeTransactionData.storeName,
           transactionNumber: completeTransactionData.transactionNumber,
           date: completeTransactionData.date,
-          items: completeTransactionData.items,
+          items: completeTransactionData.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.customPrice || item.price,
+          })),
           subtotal: completeTransactionData.subtotal,
           discount: completeTransactionData.discount,
           tax: completeTransactionData.tax,
@@ -2426,14 +2430,12 @@ export default function POS() {
           paymentMethod: completeTransactionData.paymentMethod,
           cashierName: completeTransactionData.cashierName,
           customerName: completeTransactionData.customerName,
-          customerBalance: updatedCustomerBalance,
-          isUnifiedBalance: updatedIsUnifiedBalance,
-          logoUrl: completeTransactionData.logoUrl,
           supportPhone: completeTransactionData.supportPhone,
         });
-        console.log('✅ Kiosk print completed successfully');
+        console.log('✅ Direct print completed successfully');
       } catch (printError) {
-        console.error('❌ Kiosk print failed:', printError);
+        console.error('❌ Direct print failed:', printError);
+        // Silently fail - user can manually print using "Last Receipt" button
       }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
