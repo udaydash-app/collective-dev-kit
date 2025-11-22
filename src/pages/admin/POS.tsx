@@ -1969,29 +1969,8 @@ export default function POS() {
         
         const transactionData = await handlePaymentConfirm([payment], total);
         
-        // Print receipt directly
-        if (transactionData) {
-          try {
-            const receiptData: any = {
-              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
-              transactionNumber: transactionData.transactionNumber,
-              date: new Date(),
-              items: transactionData.items,
-              subtotal: transactionData.subtotal,
-              discount: transactionData.discount,
-              tax: 0,
-              total: transactionData.total,
-              paymentMethod: 'Cash',
-              cashierName: currentCashSession?.cashier_name || 'Cashier',
-              customerName: selectedCustomer?.name,
-              customerBalance: transactionData.customerBalance,
-              isUnifiedBalance: transactionData.isUnifiedBalance,
-            };
-            await kioskPrintService.printReceipt(receiptData);
-          } catch (error) {
-            console.error('Print error:', error);
-          }
-        }
+        // Automatic printing disabled - use "Last Receipt" button to print
+        console.log('Cash payment completed:', transactionData?.transactionNumber);
       },
     },
     {
@@ -2015,29 +1994,8 @@ export default function POS() {
         
         const transactionData = await handlePaymentConfirm([payment], total);
         
-        // Print receipt directly
-        if (transactionData) {
-          try {
-            const receiptData: any = {
-              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
-              transactionNumber: transactionData.transactionNumber,
-              date: new Date(),
-              items: transactionData.items,
-              subtotal: transactionData.subtotal,
-              discount: transactionData.discount,
-              tax: 0,
-              total: transactionData.total,
-              paymentMethod: 'Credit',
-              cashierName: currentCashSession?.cashier_name || 'Cashier',
-              customerName: selectedCustomer?.name,
-              customerBalance: transactionData.customerBalance,
-              isUnifiedBalance: transactionData.isUnifiedBalance,
-            };
-            await kioskPrintService.printReceipt(receiptData);
-          } catch (error) {
-            console.error('Print error:', error);
-          }
-        }
+        // Automatic printing disabled - use "Last Receipt" button to print
+        console.log('Credit payment completed:', transactionData?.transactionNumber);
       },
     },
     {
@@ -2058,29 +2016,8 @@ export default function POS() {
         
         const transactionData = await handlePaymentConfirm([payment], total);
         
-        // Print receipt directly
-        if (transactionData) {
-          try {
-            const receiptData: any = {
-              storeName: stores?.find(s => s.id === selectedStoreId)?.name || 'Global Market',
-              transactionNumber: transactionData.transactionNumber,
-              date: new Date(),
-              items: transactionData.items,
-              subtotal: transactionData.subtotal,
-              discount: transactionData.discount,
-              tax: 0,
-              total: transactionData.total,
-              paymentMethod: 'Mobile Money',
-              cashierName: currentCashSession?.cashier_name || 'Cashier',
-              customerName: selectedCustomer?.name,
-              customerBalance: transactionData.customerBalance,
-              isUnifiedBalance: transactionData.isUnifiedBalance,
-            };
-            await kioskPrintService.printReceipt(receiptData);
-          } catch (error) {
-            console.error('Print error:', error);
-          }
-        }
+        // Automatic printing disabled - use "Last Receipt" button to print
+        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
       },
     },
     {
