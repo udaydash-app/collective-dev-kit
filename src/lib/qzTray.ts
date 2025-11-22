@@ -62,16 +62,30 @@ class QZTrayService {
   }
 
   async connect(): Promise<void> {
-    if (this.connected) return;
+    console.log('🔗 [QZ] connect() called, current state:', { 
+      connected: this.connected, 
+      isActive: qz.websocket.isActive() 
+    });
+    
+    if (this.connected && qz.websocket.isActive()) {
+      console.log('✅ [QZ] Already connected and active, skipping');
+      return;
+    }
 
     try {
       if (!qz.websocket.isActive()) {
+        console.log('🔌 [QZ] Websocket not active, calling qz.websocket.connect()...');
         await qz.websocket.connect();
+        console.log('✅ [QZ] qz.websocket.connect() completed');
         this.connected = true;
-        console.log('QZ Tray connected');
+        console.log('✅ [QZ] QZ Tray connected and marked as connected');
+      } else {
+        console.log('✅ [QZ] Websocket already active');
+        this.connected = true;
       }
     } catch (error) {
-      console.error('Failed to connect to QZ Tray:', error);
+      console.error('❌ [QZ] Failed to connect to QZ Tray:', error);
+      this.connected = false;
       throw new Error('Please make sure QZ Tray is running on your computer');
     }
   }
@@ -89,8 +103,9 @@ class QZTrayService {
   }
 
   async getDefaultPrinter(): Promise<string> {
+    console.log('🖨️ [QZ] getDefaultPrinter() called');
     await this.connect();
-    console.log('🔍 [QZ] Getting default printer...');
+    console.log('🔍 [QZ] Connection complete, now getting default printer...');
     try {
       const defaultPrinter = await qz.printers.getDefault();
       console.log('✅ [QZ] Default printer found:', defaultPrinter);
