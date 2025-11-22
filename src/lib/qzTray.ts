@@ -74,11 +74,28 @@ class QZTrayService {
 
     try {
       if (!qz.websocket.isActive()) {
-        console.log('🔌 [QZ] Websocket not active, calling qz.websocket.connect()...');
-        await qz.websocket.connect();
-        console.log('✅ [QZ] qz.websocket.connect() completed');
-        this.connected = true;
-        console.log('✅ [QZ] QZ Tray connected and marked as connected');
+        console.log('🔌 [QZ] Websocket not active, starting connection...');
+        
+        // Start connection (don't await the promise as it may not resolve)
+        qz.websocket.connect().catch(err => {
+          console.error('❌ [QZ] Connection promise rejected:', err);
+        });
+        
+        // Poll for connection with timeout
+        const maxAttempts = 50; // 5 seconds (50 * 100ms)
+        let attempts = 0;
+        
+        while (attempts < maxAttempts) {
+          if (qz.websocket.isActive()) {
+            console.log('✅ [QZ] Connection detected as active after', attempts * 100, 'ms');
+            this.connected = true;
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        
+        throw new Error('Connection timeout - QZ Tray did not become active');
       } else {
         console.log('✅ [QZ] Websocket already active');
         this.connected = true;
