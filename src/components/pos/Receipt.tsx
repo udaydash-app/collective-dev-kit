@@ -48,8 +48,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       }) + ' FCFA';
     };
 
-    console.log('🧾 Receipt component rendered with logoUrl:', logoUrl);
-
   return (
     <div ref={ref} className="receipt-container" style={{ width: '80mm', padding: '8px', background: 'white', color: 'black', fontFamily: 'monospace', fontSize: '14px' }}>
       <style>{`
