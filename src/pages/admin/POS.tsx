@@ -2474,7 +2474,9 @@ export default function POS() {
       
       setLastTransactionData(completeTransactionData);
       
-      // Trigger kiosk printing with updated balance
+      // Automatic printing disabled for faster transaction processing
+      // Users can print manually using the "Last Receipt" button
+      /*
       try {
         console.log('🖨️ Triggering kiosk print with updated balance...');
         await kioskPrintService.printReceipt({
@@ -2504,8 +2506,8 @@ export default function POS() {
         console.log('✅ Kiosk print completed successfully');
       } catch (printError) {
         console.error('❌ Kiosk print failed:', printError);
-        // Don't show error to user, just log it
       }
+      */
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       console.log(`Transaction ${displayNumber} processed successfully`);
@@ -2581,15 +2583,12 @@ export default function POS() {
         await kioskPrintService.printReceipt(receiptData);
         
         console.log('✅ Print completed successfully');
-        toast.success('✅ Receipt sent to printer');
       } catch (error: any) {
         console.error('❌ Print error:', error);
         console.error('❌ Error details:', { message: error.message, stack: error.stack });
-        toast.error(error.message || 'Failed to print receipt');
       }
     } else if (shouldPrint && !transactionData) {
       console.error('🖨️ No transaction data available');
-      toast.error('Failed to print - transaction may not have completed');
     }
   };
 
