@@ -6,6 +6,7 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
   const [error, setError] = useState<string | null>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -60,14 +61,40 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       setIsScanning(true);
       setError(null);
       videoRef.current = videoElement;
+      processingRef.current = false;
+
+      // Optimize camera settings for faster scanning
+      const constraints = {
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 640, max: 1280 }, // Lower resolution = faster
+          height: { ideal: 480, max: 720 },
+          frameRate: { ideal: 15, max: 20 } // Lower FPS = less processing
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoElement.srcObject = stream;
 
       const codeReader = new BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
 
+      let lastProcessTime = 0;
+      const processInterval = 250; // Only process every 250ms
+
       await codeReader.decodeFromVideoDevice(undefined, videoElement, (result, error) => {
+        // Throttle processing to reduce CPU load
+        const now = Date.now();
+        if (processingRef.current || now - lastProcessTime < processInterval) {
+          return;
+        }
+
         if (result) {
+          processingRef.current = true; // Prevent multiple scans
+          lastProcessTime = now;
           onScan(result.getText());
         }
+        
         if (error && !(error.name === 'NotFoundException')) {
           console.error('Barcode scanning error:', error);
         }
@@ -79,6 +106,8 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
   };
 
   const stopCameraScanning = () => {
+    processingRef.current = false;
+    
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
