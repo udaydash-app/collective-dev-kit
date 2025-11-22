@@ -90,15 +90,28 @@ class QZTrayService {
 
   async getDefaultPrinter(): Promise<string> {
     await this.connect();
-    return await qz.printers.getDefault();
+    console.log('🔍 [QZ] Getting default printer...');
+    try {
+      const defaultPrinter = await qz.printers.getDefault();
+      console.log('✅ [QZ] Default printer found:', defaultPrinter);
+      return defaultPrinter;
+    } catch (error) {
+      console.error('❌ [QZ] Failed to get default printer:', error);
+      throw error;
+    }
   }
 
   async printReceipt(data: QZReceiptData, printerName?: string): Promise<void> {
-    console.log('📡 [QZ] Connecting to QZ Tray...');
-    await this.connect();
+    console.log('📡 [QZ] Starting print receipt process...');
+    
+    try {
+      console.log('🔌 [QZ] Connecting to QZ Tray...');
+      await this.connect();
+      console.log('✅ [QZ] Connected successfully');
 
-    const printer = printerName || await this.getDefaultPrinter();
-    console.log('🖨️ [QZ] Using printer:', printer);
+      console.log('🖨️ [QZ] Getting printer name...');
+      const printer = printerName || await this.getDefaultPrinter();
+      console.log('🖨️ [QZ] Using printer:', printer);
     
     // Build ESC/POS commands for thermal printer
     const config = qz.configs.create(printer);
@@ -184,16 +197,15 @@ class QZTrayService {
     commands += '\n\n\n';
     commands += GS + 'V' + '\x00'; // Cut paper
     
-    // Send to printer
-    const printData = [commands];
-    console.log('📄 [QZ] Sending print data to QZ Tray, data length:', commands.length);
-    console.log('📄 [QZ] Print data preview:', commands.substring(0, 100));
-    
-    try {
+      // Send to printer
+      const printData = [commands];
+      console.log('📄 [QZ] Sending print data to QZ Tray, data length:', commands.length);
+      console.log('📄 [QZ] Print data preview:', commands.substring(0, 100));
+      
       await qz.print(config, printData);
       console.log('✅ [QZ] qz.print() completed successfully');
     } catch (error) {
-      console.error('❌ [QZ] qz.print() failed:', error);
+      console.error('❌ [QZ] Print receipt failed at step:', error);
       throw error;
     }
   }

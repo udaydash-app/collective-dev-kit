@@ -2411,38 +2411,47 @@ export default function POS() {
       
       setLastTransactionData(completeTransactionData);
 
-      // Direct print to default printer using QZ Tray (no dialog)
+      // Direct print to default printer using QZ Tray (non-blocking with timeout)
       console.log('🖨️ Starting QZ Tray print process...', {
         hasQZTray: !!qzTrayService,
         transactionNumber: completeTransactionData.transactionNumber,
         itemCount: completeTransactionData.items.length
       });
       
-      try {
-        await qzTrayService.printReceipt({
-          storeName: completeTransactionData.storeName,
-          transactionNumber: completeTransactionData.transactionNumber,
-          date: completeTransactionData.date,
-          items: completeTransactionData.items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.customPrice || item.price,
-          })),
-          subtotal: completeTransactionData.subtotal,
-          discount: completeTransactionData.discount,
-          tax: completeTransactionData.tax,
-          total: completeTransactionData.total,
-          paymentMethod: completeTransactionData.paymentMethod,
-          cashierName: completeTransactionData.cashierName,
-          customerName: completeTransactionData.customerName,
-          supportPhone: completeTransactionData.supportPhone,
+      // Create timeout promise
+      const printTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Print timeout after 10 seconds')), 10000);
+      });
+      
+      const printPromise = qzTrayService.printReceipt({
+        storeName: completeTransactionData.storeName,
+        transactionNumber: completeTransactionData.transactionNumber,
+        date: completeTransactionData.date,
+        items: completeTransactionData.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.customPrice || item.price,
+        })),
+        subtotal: completeTransactionData.subtotal,
+        discount: completeTransactionData.discount,
+        tax: completeTransactionData.tax,
+        total: completeTransactionData.total,
+        paymentMethod: completeTransactionData.paymentMethod,
+        cashierName: completeTransactionData.cashierName,
+        customerName: completeTransactionData.customerName,
+        supportPhone: completeTransactionData.supportPhone,
+      });
+      
+      // Race between print and timeout - non-blocking
+      Promise.race([printPromise, printTimeout])
+        .then(() => {
+          console.log('✅ Receipt printed successfully to QZ Tray');
+        })
+        .catch((error: any) => {
+          console.error('❌ QZ Tray print error:', error);
+          console.error('Error message:', error?.message);
+          console.error('Error stack:', error?.stack);
         });
-        console.log('✅ Receipt printed successfully to QZ Tray');
-      } catch (error: any) {
-        console.error('❌ QZ Tray print error:', error);
-        console.error('Error type:', typeof error);
-        console.error('Error details:', error);
-      }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       console.log(`Transaction ${displayNumber} processed successfully`);
