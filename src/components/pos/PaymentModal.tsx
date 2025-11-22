@@ -399,16 +399,12 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
 
   const handleConfirm = async () => {
     if (totalPaid < total) {
-      toast.error(`Please collect ${formatCurrency(remaining)} more`, {
-        description: "Insufficient Payment",
-      });
+      console.error(`Insufficient payment: need ${formatCurrency(remaining)} more`);
       return;
     }
 
     if (hasCreditPayment && !selectedCustomer) {
-      toast.error('Please select a customer for credit payment', {
-        description: "Customer Required",
-      });
+      console.error('Customer required for credit payment');
       return;
     }
 
@@ -426,9 +422,6 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       onClose();
     } catch (error) {
       console.error("Payment processing error:", error);
-      toast.error("There was an error processing the payment", {
-        description: "Payment Failed",
-      });
     } finally {
       setIsProcessing(false);
     }
