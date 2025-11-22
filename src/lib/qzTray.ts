@@ -88,9 +88,16 @@ class QZTrayService {
         while (attempts < maxAttempts) {
           if (qz.websocket.isActive()) {
             console.log('✅ [QZ] Connection detected as active after', attempts * 100, 'ms');
-            // Add a small delay to ensure connection is fully initialized
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Add longer delay to ensure connection is fully initialized
+            await new Promise(resolve => setTimeout(resolve, 1500));
             console.log('✅ [QZ] Connection initialization delay complete');
+            
+            // Verify connection object is fully initialized
+            if (!qz.websocket.connection || typeof qz.websocket.connection.sendData !== 'function') {
+              console.warn('⚠️ [QZ] Connection object not fully initialized, waiting...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
             this.connected = true;
             return;
           }
