@@ -88,6 +88,9 @@ class QZTrayService {
         while (attempts < maxAttempts) {
           if (qz.websocket.isActive()) {
             console.log('✅ [QZ] Connection detected as active after', attempts * 100, 'ms');
+            // Add a small delay to ensure connection is fully initialized
+            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('✅ [QZ] Connection initialization delay complete');
             this.connected = true;
             return;
           }
