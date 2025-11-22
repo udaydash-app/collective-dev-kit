@@ -176,7 +176,7 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       console.log('🔍 Scanning barcode:', barcode, 'Length:', barcode.length);
       
-      // Step 1: Check variant barcodes first
+      // Step 1: Check variant barcodes first - Use ilike for better matching
       const { data: allVariants, error: variantError } = await supabase
         .from('product_variants')
         .select(`
@@ -186,7 +186,30 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           unit,
           price,
           barcode,
-          product:products!inner (
+          is_available,
+          product_id
+        `)
+        .eq('is_available', true)
+        .ilike('barcode', `%${barcode}%`);
+      
+      console.log('📦 Variant search for:', barcode, 'found:', allVariants?.length, 'variants', variantError);
+      
+      // Find exact matching variant with comma-separated barcode support
+      const matchedVariant = allVariants?.find((v: any) => {
+        if (!v.barcode) return false;
+        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        const isMatch = barcodes.some((b: string) => b === barcode || b.includes(barcode) || barcode.includes(b));
+        if (isMatch) {
+          console.log('✅ Variant match:', v.label, 'barcode:', v.barcode);
+        }
+        return isMatch;
+      });
+      
+      if (matchedVariant) {
+        // Load full product details
+        const { data: fullProduct, error: productError } = await supabase
+          .from('products')
+          .select(`
             id,
             name,
             price,
@@ -203,32 +226,20 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
               is_default,
               barcode
             )
-          )
-        `)
-        .eq('is_available', true)
-        .eq('products.is_available', true)
-        .not('barcode', 'is', null)
-        .limit(100);
-      
-      console.log('📦 Variant query results:', allVariants?.length, 'variants', variantError);
-      
-      // Find matching variant
-      const matchedVariant = allVariants?.find((v: any) => {
-        if (!v.barcode) return false;
-        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        console.log('🔎 Checking variant:', v.product?.name, v.label, 'barcodes:', barcodes);
-        return barcodes.includes(barcode);
-      });
-      
-      if (matchedVariant?.product) {
-        console.log('✅ Found variant match:', matchedVariant.label);
-        onProductSelect({
-          ...matchedVariant.product,
-          price: matchedVariant.price,
-          selectedVariant: matchedVariant,
-        });
-        setSearchTerm('');
-        return;
+          `)
+          .eq('id', matchedVariant.product_id)
+          .single();
+        
+        if (fullProduct) {
+          console.log('✅ Found variant match:', matchedVariant.label, 'for product:', fullProduct.name);
+          onProductSelect({
+            ...fullProduct,
+            price: matchedVariant.price,
+            selectedVariant: matchedVariant,
+          });
+          setSearchTerm('');
+          return;
+        }
       }
       
       console.log('❌ No variant match found');
