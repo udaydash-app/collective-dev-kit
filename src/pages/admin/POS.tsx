@@ -2462,72 +2462,17 @@ export default function POS() {
   };
 
   const handleQuickPayment = async (shouldPrint: boolean) => {
-    console.log('🖨️ Quick Payment triggered, shouldPrint:', shouldPrint);
-    
-    if (!selectedStoreId) {
-      return;
-    }
+    if (!selectedStoreId) return;
+    if (cart.length === 0) return;
 
-    if (cart.length === 0) {
-      return;
-    }
-
-    // Create payment object with the selected method and full total
     const payment = {
       id: '1',
       method: quickPaymentMethod,
       amount: total
     };
 
-    // Process the transaction and get the data directly
-    const transactionData = await handlePaymentConfirm([payment], total);
-
-    // Close the quick payment dialog
+    await handlePaymentConfirm([payment], total);
     setShowQuickPayment(false);
-
-    // If shouldPrint is true and we have transaction data, print it
-    if (shouldPrint && transactionData) {
-      console.log('🖨️ Transaction completed, printing receipt...', transactionData);
-      console.log('🖨️ About to call kioskPrintService.printReceipt()');
-      
-      // Use the transaction data directly for printing
-      try {
-        const receiptData = {
-          storeName: transactionData.storeName || 'Global Market',
-          transactionNumber: transactionData.transactionNumber,
-          date: new Date(),
-          items: transactionData.items.map((item: any) => ({
-            name: item.name,
-            displayName: item.displayName,
-            quantity: item.quantity,
-            price: item.customPrice ?? item.price,
-            itemDiscount: item.itemDiscount || 0
-          })),
-          subtotal: transactionData.subtotal,
-          tax: 0,
-          discount: transactionData.discount || 0,
-          total: transactionData.total,
-          paymentMethod: transactionData.paymentMethod,
-          cashierName: transactionData.cashierName,
-          customerName: transactionData.customerName,
-          logoUrl: transactionData.logoUrl,
-          supportPhone: transactionData.supportPhone,
-          customerBalance: transactionData.customerBalance,
-          isUnifiedBalance: transactionData.isUnifiedBalance
-        };
-        
-        console.log('🖨️ Receipt data prepared:', receiptData);
-        
-        await kioskPrintService.printReceipt(receiptData);
-        
-        console.log('✅ Print completed successfully');
-      } catch (error: any) {
-        console.error('❌ Print error:', error);
-        console.error('❌ Error details:', { message: error.message, stack: error.stack });
-      }
-    } else if (shouldPrint && !transactionData) {
-      console.error('🖨️ No transaction data available');
-    }
   };
 
   const handlePrintLastReceipt = useReactToPrint({
