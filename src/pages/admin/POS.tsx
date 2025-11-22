@@ -2410,41 +2410,31 @@ export default function POS() {
       };
       
       setLastTransactionData(completeTransactionData);
-      
-      // Automatic printing disabled for faster transaction processing
-      // Users can print manually using the "Last Receipt" button
-      /*
+
+      // Trigger kiosk printing once after transaction
       try {
         console.log('🖨️ Triggering kiosk print with updated balance...');
         await kioskPrintService.printReceipt({
-          storeName: completeTransactionData.storeName || 'Global Market',
+          storeName: completeTransactionData.storeName,
           transactionNumber: completeTransactionData.transactionNumber,
           date: completeTransactionData.date,
-          items: completeTransactionData.items.map((item: any) => ({
-            name: item.name,
-            displayName: item.displayName,
-            quantity: item.quantity,
-            price: item.price,
-            customPrice: item.customPrice,
-            itemDiscount: item.itemDiscount || 0
-          })),
+          items: completeTransactionData.items,
           subtotal: completeTransactionData.subtotal,
-          tax: completeTransactionData.tax || 0,
-          discount: completeTransactionData.discount || 0,
+          discount: completeTransactionData.discount,
+          tax: completeTransactionData.tax,
           total: completeTransactionData.total,
-          paymentMethod: payments.map(p => p.method).join(', '),
+          paymentMethod: completeTransactionData.paymentMethod,
           cashierName: completeTransactionData.cashierName,
           customerName: completeTransactionData.customerName,
+          customerBalance: updatedCustomerBalance,
+          isUnifiedBalance: updatedIsUnifiedBalance,
           logoUrl: completeTransactionData.logoUrl,
           supportPhone: completeTransactionData.supportPhone,
-          customerBalance: completeTransactionData.customerBalance,
-          isUnifiedBalance: completeTransactionData.isUnifiedBalance
         });
         console.log('✅ Kiosk print completed successfully');
       } catch (printError) {
         console.error('❌ Kiosk print failed:', printError);
       }
-      */
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       console.log(`Transaction ${displayNumber} processed successfully`);
