@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   studio:
-    image: supabase/studio:20231123-64a766c
+    image: supabase/studio:latest
     container_name: supabase-studio
     ports:
       - "3000:3000"
