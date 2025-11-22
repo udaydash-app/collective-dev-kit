@@ -158,7 +158,7 @@ const AppContent = () => {
         <RouterContent />
         <Routes>
           {/* Customer-facing home */}
-          <Route path="/" element={isElectron ? <Navigate to="/pos-login" replace /> : <Index />} />
+          <Route path="/" element={<Navigate to="/pos-login" replace />} />
           
           {/* PWA Installation page */}
           <Route path="/install" element={<PWAInstall />} />
