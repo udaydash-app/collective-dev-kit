@@ -5,34 +5,8 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-console.log('🚀🚀🚀 NEW CODE LOADED - AdminRoute.tsx v2.0 🚀🚀🚀');
-
 export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  // Check for offline session FIRST - bypass all other checks
-  const offlineSessionStr = localStorage.getItem('offline_pos_session');
-  const offlineSession = offlineSessionStr ? JSON.parse(offlineSessionStr) : null;
-  
-  console.log('🔒 AdminRoute - Offline Session Check:', 
-    'hasOfflineSession:', !!offlineSession,
-    'navigatorOnline:', navigator.onLine
-  );
-  
-  // If offline session exists, grant immediate access
-  if (offlineSession) {
-    console.log('✅ AdminRoute: Granting access via offline session');
-    return <>{children}</>;
-  }
-  
-  const { isAdmin, isLoading, user, role } = useAdmin();
-
-  console.log('🔒 AdminRoute - Online Check:',
-    'isAdmin:', isAdmin,
-    'isLoading:', isLoading,
-    'hasUser:', !!user,
-    'userId:', user?.id,
-    'userEmail:', user?.email,
-    'role:', role
-  );
+  const { isAdmin, isLoading, user } = useAdmin();
 
   // Real-time order notifications for admins
   useEffect(() => {

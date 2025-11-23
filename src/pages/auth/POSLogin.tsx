@@ -74,13 +74,11 @@ export default function POSLogin() {
         const products = await offlineDB.getProducts();
         const stores = await offlineDB.getStores();
         const categories = await offlineDB.getCategories();
-        const posUsers = await offlineDB.getAllPOSUsers();
         
         console.log('Cache status:', {
           products: products.length,
           stores: stores.length,
-          categories: categories.length,
-          posUsers: posUsers.length
+          categories: categories.length
         });
         
         setCacheStatus({
@@ -148,7 +146,7 @@ export default function POSLogin() {
         
         if (cachedUsers.length === 0) {
           console.warn('🔴 No cached users found in IndexedDB');
-          throw new Error('OFFLINE MODE SETUP REQUIRED\n\nYou must login online at least once to enable offline mode.\n\nSteps:\n1. Connect to the internet\n2. Login with your PIN\n3. Your credentials will be cached\n4. Then offline mode will work');
+          throw new Error('No cached login data found. Please connect to internet and login once to enable offline mode.');
         }
         
         console.log('🔴 Cached users details:', cachedUsers.map(u => ({ 
@@ -272,8 +270,7 @@ export default function POSLogin() {
             return;
           } catch (offlineError) {
             console.error('🔴 Offline fallback failed:', offlineError);
-            const errorMsg = offlineError instanceof Error ? offlineError.message : 'Cannot connect to server and no offline data available.';
-            toast.error(errorMsg, { duration: 8000 });
+            toast.error('Cannot connect to server and no offline data available.');
             setPin('');
             setIsLoading(false);
             return;

@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
-import { offlineDB } from '@/lib/offlineDB';
 
 interface ProductSearchProps {
   onProductSelect: (product: any) => void;
@@ -41,41 +40,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
     queryFn: async () => {
-      const isOffline = !navigator.onLine;
-      
-      if (isOffline) {
-        // Use cached data from IndexedDB
-        console.log('📦 Offline mode: Loading products from cache');
-        const cachedProducts = await offlineDB.getProducts();
-        
-        if (!searchTerm) {
-          return cachedProducts.slice(0, 20);
-        }
-        
-        // Filter cached products by search term
-        const filtered = cachedProducts.filter((p: any) => 
-          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.product_variants?.some((v: any) => 
-            v.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        ).slice(0, 20);
-        
-        // Enhance with matching variants
-        return filtered.map(product => {
-          const matchingVariant = product.product_variants?.find((v: any) => {
-            if (!v.barcode) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b.includes(searchTerm.toLowerCase()));
-          });
-          return {
-            ...product,
-            _matchingVariant: matchingVariant
-          };
-        });
-      }
-      
-      // Online mode: query Supabase
       let query = supabase
         .from('products')
         .select(`
@@ -127,8 +91,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       return data;
     },
     enabled: searchTerm.length > 0,
-    staleTime: 30000,
-    gcTime: 60000,
+    staleTime: 30000, // Cache for 30 seconds for faster repeated scans
+    gcTime: 60000, // Keep in memory for 1 minute
   });
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
@@ -189,55 +153,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       }
       
       const barcode = searchTerm.trim().toLowerCase();
-      const isOffline = !navigator.onLine;
-      
-      if (isOffline) {
-        // Search in cached products
-        const cachedProducts = await offlineDB.getProducts();
-        const matchedProduct = cachedProducts.find((p: any) => {
-          if (p.barcode?.toLowerCase() === barcode) return true;
-          return p.product_variants?.some((v: any) => {
-            if (!v.barcode) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.includes(barcode);
-          });
-        });
-        
-        if (matchedProduct) {
-          const matchingVariant = matchedProduct.product_variants?.find((v: any) => {
-            if (!v.barcode) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.includes(barcode);
-          });
-          
-          if (matchingVariant) {
-            onProductSelect({
-              ...matchedProduct,
-              price: matchingVariant.price,
-              selectedVariant: matchingVariant,
-            });
-          } else {
-            const availableVariants = matchedProduct.product_variants?.filter((v: any) => v.is_available) || [];
-            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-            if (defaultVariant) {
-              onProductSelect({
-                ...matchedProduct,
-                price: defaultVariant.price,
-                selectedVariant: defaultVariant,
-              });
-            } else {
-              onProductSelect(matchedProduct);
-            }
-          }
-          setSearchTerm('');
-          return;
-        }
-        
-        setScannedBarcode(barcode);
-        setAssignBarcodeOpen(true);
-        setSearchTerm('');
-        return;
-      }
       
       const { data: allVariants } = await supabase
         .from('product_variants')
