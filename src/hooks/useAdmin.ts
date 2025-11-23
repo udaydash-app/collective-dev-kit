@@ -17,19 +17,18 @@ const getOfflineSession = () => {
 };
 
 export const useAdmin = () => {
+  // Check for offline session FIRST - this is the primary offline authentication method
   const offlineSession = getOfflineSession();
-  const isOffline = !navigator.onLine;
+  
+  console.log('🔍 useAdmin - Checking for offline session:', {
+    hasOfflineSession: !!offlineSession,
+    navigatorOnLine: navigator.onLine,
+    sessionData: offlineSession
+  });
 
-  console.log('🔍 useAdmin Debug - Offline Check:', 
-    'hasOfflineSession:', !!offlineSession,
-    'isOffline:', isOffline,
-    'navigatorOnline:', navigator.onLine,
-    'offlineSessionData:', JSON.stringify(offlineSession)
-  );
-
-  // If we have an offline session, use it immediately without any server queries
+  // If we have an offline session, bypass ALL server checks
   if (offlineSession) {
-    console.log('✅ Using offline session for authentication - skipping all server queries');
+    console.log('✅ useAdmin: Using offline session, returning admin=true immediately');
     return {
       isAdmin: true,
       isCashier: true,
@@ -45,6 +44,9 @@ export const useAdmin = () => {
       } as any,
     };
   }
+
+  console.log('🔍 useAdmin: No offline session, proceeding with online checks');
+  const isOffline = !navigator.onLine;
 
   // Only reach here if no offline session exists
   const { data: session, isLoading: isSessionLoading } = useQuery({
