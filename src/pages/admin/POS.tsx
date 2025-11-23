@@ -2834,7 +2834,7 @@ export default function POS() {
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pending sales'),
+      action: () => navigate('/admin/orders?status=pending'),
       shortcut: null
     },
     { 
