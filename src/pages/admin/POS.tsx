@@ -525,6 +525,43 @@ export default function POS() {
     enabled: !!selectedStoreId,
   });
 
+  // Fetch pending orders count with real-time updates
+  const { data: pendingOrdersCount = 0 } = useQuery({
+    queryKey: ['pending-orders-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Subscribe to real-time updates for pending orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('pending-orders-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          // Invalidate query when any order changes
+          queryClient.invalidateQueries({ queryKey: ['pending-orders-count'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   // Fetch all cash sessions for today to calculate total opening cash
   const { data: todayCashSessions } = useQuery({
     queryKey: ['today-cash-sessions', selectedStoreId, currentCashSession?.opened_at],
@@ -3741,6 +3778,11 @@ export default function POS() {
                   {action.shortcut && (
                     <div className="absolute top-0.5 right-0.5">
                       <KeyboardBadge keys={action.shortcut} className="scale-[0.65] opacity-80" />
+                    </div>
+                  )}
+                  {action.label === 'Pending sales' && pendingOrdersCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg">
+                      {pendingOrdersCount}
                     </div>
                   )}
                   <action.icon className="h-4 w-4 mb-0.5" />
