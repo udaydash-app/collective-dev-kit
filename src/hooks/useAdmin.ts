@@ -19,25 +19,6 @@ const getOfflineSession = () => {
 export const useAdmin = () => {
   const offlineSession = getOfflineSession();
 
-  // If we have an offline session, prioritize it and return immediately
-  if (offlineSession) {
-    console.log('Using offline session for authentication');
-    return {
-      isAdmin: true, // Offline POS users are always cashiers/admins
-      isCashier: true,
-      role: 'cashier' as const,
-      isLoading: false,
-      user: {
-        id: offlineSession.pos_user_id,
-        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
-        app_metadata: {},
-        user_metadata: { full_name: offlineSession.full_name },
-        aud: 'authenticated',
-        created_at: offlineSession.timestamp
-      } as any,
-    };
-  }
-
   const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
@@ -66,6 +47,25 @@ export const useAdmin = () => {
     },
     enabled: !!session?.user?.id,
   });
+
+  // If we have an offline session, use it
+  if (offlineSession && !session) {
+    console.log('Using offline session for authentication');
+    return {
+      isAdmin: true, // Offline POS users are always cashiers/admins
+      isCashier: true,
+      role: 'cashier' as const,
+      isLoading: false,
+      user: {
+        id: offlineSession.pos_user_id,
+        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: offlineSession.full_name },
+        aud: 'authenticated',
+        created_at: offlineSession.timestamp
+      } as any,
+    };
+  }
 
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
