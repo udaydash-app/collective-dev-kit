@@ -227,7 +227,7 @@ export const TransactionCart = ({
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer",
                         selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15",
-                        isKeyboardFocused && "ring-2 ring-primary/50 bg-primary/5",
+                        isKeyboardFocused && "bg-primary/5",
                         isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
                         isCombo && "bg-green-50 dark:bg-green-950/20"
                       )}

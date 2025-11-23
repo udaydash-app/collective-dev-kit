@@ -2997,13 +2997,6 @@ export default function POS() {
       shortcut: null
     },
     { 
-      icon: BarChart3, 
-      label: 'Sales Report', 
-      color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/analytics'),
-      shortcut: null
-    },
-    { 
       icon: Package, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
