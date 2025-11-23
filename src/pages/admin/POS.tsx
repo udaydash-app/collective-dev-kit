@@ -3602,6 +3602,16 @@ export default function POS() {
           </div>
         </div>
 
+        {/* Total Display - Below customer selection */}
+        <div className="border-b p-3">
+          <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
+            <span className="text-lg font-bold">TOTAL</span>
+            <span className="text-3xl font-bold text-primary">
+              {formatCurrency(total)}
+            </span>
+          </div>
+        </div>
+
         {/* Cart Items */}
         <div className="flex-1 overflow-hidden p-1">
           {editingOrderId && (
@@ -3633,16 +3643,6 @@ export default function POS() {
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
           />
-        </div>
-
-        {/* Total Display - Below cart items */}
-        <div className="border-t p-3">
-          <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
-            <span className="text-lg font-bold">TOTAL</span>
-            <span className="text-3xl font-bold text-primary">
-              {formatCurrency(total)}
-            </span>
-          </div>
         </div>
         
         {/* Resize Handle */}
