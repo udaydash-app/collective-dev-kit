@@ -78,17 +78,20 @@ export const useAdmin = () => {
   });
 
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
-  const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
+  const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id) || (!!session?.user?.id && roleData === undefined && !isOffline);
 
-  console.log('useAdmin Debug (online mode):', {
+  console.log('🔍 useAdmin Debug (online mode):', {
     userId: session?.user?.id,
+    userEmail: session?.user?.email,
     roleData,
+    roleDataRole: roleData?.role,
     isRoleLoading,
     isSessionLoading,
     isAdmin,
     isLoading,
     hasSession: !!session,
-    hasUser: !!session?.user
+    hasUser: !!session?.user,
+    navigatorOnline: navigator.onLine
   });
 
   return {
