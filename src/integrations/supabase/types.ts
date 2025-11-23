@@ -451,6 +451,45 @@ export type Database = {
           },
         ]
       }
+      cloud_backups: {
+        Row: {
+          backup_name: string
+          backup_size: number
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          record_count: number
+          status: string
+          table_count: number
+          updated_at: string
+        }
+        Insert: {
+          backup_name: string
+          backup_size?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          record_count?: number
+          status?: string
+          table_count?: number
+          updated_at?: string
+        }
+        Update: {
+          backup_name?: string
+          backup_size?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          record_count?: number
+          status?: string
+          table_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       combo_offer_items: {
         Row: {
           combo_offer_id: string
