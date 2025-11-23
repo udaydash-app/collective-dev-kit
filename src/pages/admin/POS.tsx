@@ -2900,14 +2900,14 @@ export default function POS() {
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/orders'),
-      shortcut: null
+      shortcut: 'F4'
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/orders?status=pending'),
-      shortcut: null
+      shortcut: 'F5'
     },
     { 
       icon: Clock, 
@@ -2921,7 +2921,7 @@ export default function POS() {
       label: 'Pickup orders', 
       color: 'bg-[#5DADE2]', 
       action: () => alert('No pickup orders'),
-      shortcut: null
+      shortcut: 'F6'
     },
     { 
       icon: Banknote, 
@@ -2933,7 +2933,7 @@ export default function POS() {
         }
         setShowRefund(true);
       },
-      shortcut: null
+      shortcut: 'F7'
     },
     { 
       icon: BarChart3, 
@@ -2952,7 +2952,7 @@ export default function POS() {
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/stock-and-price'),
-      shortcut: null
+      shortcut: 'F8'
     },
     { 
       icon: Clock, 
@@ -2962,26 +2962,28 @@ export default function POS() {
         const now = new Date().toLocaleTimeString();
         alert(`Clocked in at ${now}`);
       },
-      shortcut: null
+      shortcut: 'F9'
     },
     { 
       icon: Gift, 
       label: 'Gift Card', 
       color: 'bg-[#5DADE2]', 
       action: () => alert('Gift card - Coming soon'),
-      shortcut: null
+      shortcut: 'F10'
     },
     { 
       icon: Gift,
       label: 'Notes', 
       color: 'bg-[#5DADE2]', 
-      action: () => setShowNotesDialog(true)
+      action: () => setShowNotesDialog(true),
+      shortcut: 'F11'
     },
     { 
       icon: Printer, 
       label: 'Last receipt', 
       color: 'bg-[#5DADE2]', 
-      action: handleLastReceiptClick
+      action: handleLastReceiptClick,
+      shortcut: 'F12'
     },
     { 
       icon: LogOut, 
@@ -2990,9 +2992,73 @@ export default function POS() {
       action: async () => {
         await supabase.auth.signOut();
         navigate('/auth/pos-login');
-      }
+      },
+      shortcut: null
     },
   ];
+
+  // POS-specific keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: quickActions
+      .filter(action => action.shortcut)
+      .map(action => ({
+        key: action.shortcut!,
+        description: action.label,
+        action: action.action,
+        preventDefault: true,
+      })),
+    enabled: !showPayment && !showQuickPayment && !showHoldTicket && !showCashIn && !showCashOut && !variantSelectorOpen,
+  });
+
+  // Additional helpful shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: 'Escape',
+        description: 'Clear selection / Cancel',
+        action: () => {
+          setSelectedCartItemId(null);
+          setKeypadMode(null);
+          keypadInputRef.current = '';
+          setKeypadRenderKey(prev => prev + 1);
+        },
+        preventDefault: true,
+      },
+      {
+        key: 'Enter',
+        ctrlKey: true,
+        description: 'Open payment',
+        action: () => {
+          if (cart.length > 0) {
+            setShowPayment(true);
+          }
+        },
+        preventDefault: true,
+      },
+      {
+        key: 'n',
+        ctrlKey: true,
+        description: 'New sale (clear cart)',
+        action: () => {
+          clearCart();
+          setSelectedCustomer(null);
+          setCartDiscountItem(null);
+          setDiscount(0);
+          setSelectedCartItemId(null);
+          toast.success('Cart cleared');
+        },
+        preventDefault: true,
+      },
+      {
+        key: 'c',
+        ctrlKey: true,
+        description: 'Select customer',
+        action: () => setShowCustomerDialog(true),
+        preventDefault: true,
+      },
+    ],
+    enabled: !showPayment && !showQuickPayment,
+  });
 
   const handleHoldTicket = (ticketName: string) => {
     if (cart.length === 0) {
@@ -3433,6 +3499,9 @@ export default function POS() {
                   <X className="h-3 w-3 text-muted-foreground" />
                 </Button>
               )}
+              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="Arrow keys: Navigate cart items | Enter: Edit field | Delete: Remove item | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer | F2-F12: Quick actions">
+                Keyboard: ↑↓←→
+              </div>
               <Button 
                 variant="ghost" 
                 size="sm"

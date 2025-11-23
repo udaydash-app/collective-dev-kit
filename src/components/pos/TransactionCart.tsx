@@ -200,7 +200,7 @@ export const TransactionCart = ({
         </Button>
       </div>
 
-      <Card className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 border-t">
         <div className="flex-1 overflow-auto">
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
@@ -461,7 +461,7 @@ export const TransactionCart = ({
             </TableBody>
           </Table>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
