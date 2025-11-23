@@ -18,6 +18,26 @@ const getOfflineSession = () => {
 
 export const useAdmin = () => {
   const offlineSession = getOfflineSession();
+  const isOffline = !navigator.onLine;
+
+  // If we're offline and have an offline session, use it immediately
+  if (isOffline && offlineSession) {
+    console.log('Using offline session for authentication (offline mode detected)');
+    return {
+      isAdmin: true,
+      isCashier: true,
+      role: 'cashier' as const,
+      isLoading: false,
+      user: {
+        id: offlineSession.pos_user_id,
+        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: offlineSession.full_name },
+        aud: 'authenticated',
+        created_at: offlineSession.timestamp
+      } as any,
+    };
+  }
 
   const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
@@ -25,6 +45,7 @@ export const useAdmin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       return session;
     },
+    enabled: !isOffline, // Don't try to fetch session when offline
   });
 
   const { data: roleData, isLoading: isRoleLoading } = useQuery({
@@ -45,7 +66,7 @@ export const useAdmin = () => {
 
       return data;
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && !isOffline, // Don't try to fetch role when offline
   });
 
   // If we have an offline session, use it
