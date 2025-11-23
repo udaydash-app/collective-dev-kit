@@ -20,12 +20,12 @@ export const useAdmin = () => {
   const offlineSession = getOfflineSession();
   const isOffline = !navigator.onLine;
 
-  console.log('🔍 useAdmin Debug:', {
-    hasOfflineSession: !!offlineSession,
-    isOffline,
-    navigatorOnline: navigator.onLine,
-    offlineSessionData: offlineSession
-  });
+  console.log('🔍 useAdmin Debug - Offline Check:', 
+    'hasOfflineSession:', !!offlineSession,
+    'isOffline:', isOffline,
+    'navigatorOnline:', navigator.onLine,
+    'offlineSessionData:', JSON.stringify(offlineSession)
+  );
 
   // If we have an offline session, use it immediately without any server queries
   if (offlineSession) {
@@ -80,19 +80,19 @@ export const useAdmin = () => {
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id) || (!!session?.user?.id && roleData === undefined && !isOffline);
 
-  console.log('🔍 useAdmin Debug (online mode):', {
-    userId: session?.user?.id,
-    userEmail: session?.user?.email,
-    roleData,
-    roleDataRole: roleData?.role,
-    isRoleLoading,
-    isSessionLoading,
-    isAdmin,
-    isLoading,
-    hasSession: !!session,
-    hasUser: !!session?.user,
-    navigatorOnline: navigator.onLine
-  });
+  console.log('🔍 useAdmin Debug (online mode):',
+    'userId:', session?.user?.id,
+    'userEmail:', session?.user?.email,
+    'roleData:', JSON.stringify(roleData),
+    'roleDataRole:', roleData?.role,
+    'isRoleLoading:', isRoleLoading,
+    'isSessionLoading:', isSessionLoading,
+    'isAdmin:', isAdmin,
+    'isLoading:', isLoading,
+    'hasSession:', !!session,
+    'hasUser:', !!session?.user,
+    'navigatorOnline:', navigator.onLine
+  );
 
   return {
     isAdmin,
