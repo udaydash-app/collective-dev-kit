@@ -74,6 +74,13 @@ export default function AdminOrders() {
   const [periodFilter, setPeriodFilter] = useState<string>("today");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  
+  // Sync statusFilter with URL parameter
+  useEffect(() => {
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [statusParam]);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
