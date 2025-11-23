@@ -20,9 +20,16 @@ export const useAdmin = () => {
   const offlineSession = getOfflineSession();
   const isOffline = !navigator.onLine;
 
-  // If we're offline and have an offline session, use it immediately
-  if (isOffline && offlineSession) {
-    console.log('Using offline session for authentication (offline mode detected)');
+  console.log('🔍 useAdmin Debug:', {
+    hasOfflineSession: !!offlineSession,
+    isOffline,
+    navigatorOnline: navigator.onLine,
+    offlineSessionData: offlineSession
+  });
+
+  // If we have an offline session (regardless of online status), prioritize it when there's no Supabase session
+  if (offlineSession) {
+    console.log('✅ Using offline session for authentication');
     return {
       isAdmin: true,
       isCashier: true,
