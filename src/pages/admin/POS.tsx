@@ -3506,6 +3506,14 @@ export default function POS() {
       >
         {/* Header */}
         <div className="p-2 border-b space-y-2">
+          {/* Total Display - Prominent at top */}
+          <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
+            <span className="text-lg font-bold">TOTAL</span>
+            <span className="text-3xl font-bold text-primary">
+              {formatCurrency(total)}
+            </span>
+          </div>
+          
           <div className="flex items-center justify-between">
             <div 
               className="drag-handle flex items-center gap-2 cursor-move hover:bg-accent/50 px-2 py-1 rounded transition-colors select-none"
@@ -3633,16 +3641,6 @@ export default function POS() {
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
           />
-        </div>
-
-        {/* Total Section */}
-        <div className="border-t p-3">
-          <div className="flex justify-between items-center">
-            <span className="text-2xl font-bold">TOTAL</span>
-            <span className="text-4xl font-bold text-primary">
-              {formatCurrency(total)}
-            </span>
-          </div>
         </div>
         
         {/* Resize Handle */}
