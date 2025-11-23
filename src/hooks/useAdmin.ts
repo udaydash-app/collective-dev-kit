@@ -1,7 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 
 export const useAdmin = () => {
+  const [offlineSession, setOfflineSession] = useState<any>(null);
+
+  // Check for offline session
+  useEffect(() => {
+    const checkOfflineSession = () => {
+      try {
+        const offlineData = localStorage.getItem('offline_pos_session');
+        if (offlineData) {
+          const session = JSON.parse(offlineData);
+          setOfflineSession(session);
+          console.log('Found offline session:', session);
+        }
+      } catch (error) {
+        console.error('Error reading offline session:', error);
+      }
+    };
+    
+    checkOfflineSession();
+  }, []);
+
   const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
@@ -31,6 +52,25 @@ export const useAdmin = () => {
     enabled: !!session?.user?.id,
   });
 
+  // If we have an offline session, use it
+  if (offlineSession && !session) {
+    console.log('Using offline session for authentication');
+    return {
+      isAdmin: true, // Offline POS users are always cashiers/admins
+      isCashier: true,
+      role: 'cashier',
+      isLoading: false,
+      user: {
+        id: offlineSession.pos_user_id,
+        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: offlineSession.full_name },
+        aud: 'authenticated',
+        created_at: offlineSession.timestamp
+      } as any,
+    };
+  }
+
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
 
@@ -42,7 +82,8 @@ export const useAdmin = () => {
     isAdmin,
     isLoading,
     hasSession: !!session,
-    hasUser: !!session?.user
+    hasUser: !!session?.user,
+    hasOfflineSession: !!offlineSession
   });
 
   return {
