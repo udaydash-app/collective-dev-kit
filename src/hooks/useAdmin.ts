@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+console.log('🚀🚀🚀 NEW CODE LOADED - useAdmin.ts v2.0 🚀🚀🚀');
+
 // Check for offline session synchronously
 const getOfflineSession = () => {
   try {
