@@ -1468,11 +1468,10 @@ export default function AdminOrders() {
                           <TableRow>
                             <TableCell colSpan={10} className="bg-muted/50">
                               <div className="p-4 space-y-4">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-semibold">
+                                   <h4 className="font-semibold">
                                     {order.type === 'pos' ? 'Sale Items' : 'Order Products'}
                                   </h4>
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex flex-col gap-3">
                                     {order.type !== 'pos' && (
                                       <Button
                                         size="sm"
@@ -1485,18 +1484,39 @@ export default function AdminOrders() {
                                         Add Product
                                       </Button>
                                     )}
-                                    {order.addresses && (
-                                      <span className="text-sm text-muted-foreground">
-                                        Delivery: {order.addresses?.address_line1}, {order.addresses?.city}
-                                      </span>
-                                    )}
-                                    {order.type === 'pos' && (
-                                      <span className="text-sm text-muted-foreground">
-                                        Payment: {order.payment_method}
-                                      </span>
-                                    )}
+                                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                                      {order.addresses && (
+                                        <span className="text-muted-foreground">
+                                          📍 {order.addresses?.address_line1}, {order.addresses?.city}
+                                        </span>
+                                      )}
+                                      {order.type === 'online' && order.delivery_instructions && order.delivery_instructions.startsWith('Guest Order') && (
+                                        <div className="flex flex-col gap-1 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                                          <span className="font-semibold text-amber-900 dark:text-amber-100">🎯 Guest Order Details:</span>
+                                          {(() => {
+                                            const match = order.delivery_instructions.match(/Name: ([^,]+), Phone: ([^,]+), Area: ([^,]+)(?:, Instructions: (.+))?/);
+                                            if (match) {
+                                              const [_, name, phone, area, instructions] = match;
+                                              return (
+                                                <div className="text-sm space-y-1">
+                                                  <div><span className="font-medium">Name:</span> {name}</div>
+                                                  <div><span className="font-medium">Phone:</span> {phone}</div>
+                                                  <div><span className="font-medium">Area:</span> {area}</div>
+                                                  {instructions && <div><span className="font-medium">Notes:</span> {instructions}</div>}
+                                                </div>
+                                              );
+                                            }
+                                            return <span className="text-sm">{order.delivery_instructions}</span>;
+                                          })()}
+                                        </div>
+                                      )}
+                                      {order.type === 'pos' && (
+                                        <span className="text-muted-foreground">
+                                          💳 Payment: {order.payment_method}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
                                 {order.items && order.items.length > 0 ? (
                                   <div className="space-y-3">
                                     {order.type === 'pos' ? (

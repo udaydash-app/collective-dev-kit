@@ -31,7 +31,7 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
           // Play notification sound
           const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUB0KT6Xj8bJoGgU7lNn01og5BxpsveXrmU8ODEul4fGsZBUGPZPY88Z3KwU1hM3v2YhABxlpuOyplVMOCkunzO+xZxkFMobe8MV/MwU8j9Xt2YxABhJqt+mrmFMNDEuk5O6yYhgFMoje7cZ9MgU6jdTt2YpABhFqtuirlVQNCUuj5PCtYRgFMobf7MV9MgU5jNTs2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlA');
-          audio.volume = 0.3;
+          audio.volume = 0.8; // Increased from 0.3 to 0.8 for louder notification
           audio.play().catch(() => {}); // Ignore errors if audio fails
         }
       )
