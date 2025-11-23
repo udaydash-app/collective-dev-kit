@@ -3036,7 +3036,17 @@ export default function POS() {
       .map(action => ({
         key: action.shortcut!,
         description: action.label,
-        action: action.action,
+        action: () => {
+          // Only trigger if not focused on input and cart has items
+          const activeElement = document.activeElement as HTMLElement;
+          const isInputFocused = activeElement?.tagName === 'INPUT' || 
+                                activeElement?.tagName === 'TEXTAREA' || 
+                                activeElement?.tagName === 'SELECT';
+          
+          if (!isInputFocused && cart.length > 0) {
+            action.action();
+          }
+        },
         preventDefault: true,
       })),
     enabled: !showPayment && !showQuickPayment && !showHoldTicket && !showCashIn && !showCashOut && !variantSelectorOpen,
