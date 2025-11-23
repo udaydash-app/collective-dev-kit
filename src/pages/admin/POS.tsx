@@ -332,6 +332,10 @@ export default function POS() {
           
         if (updateError) {
           console.error('Error updating order status:', updateError);
+        } else {
+          // Invalidate pending orders count query to refresh notifications
+          queryClient.invalidateQueries({ queryKey: ['pending-orders-count'] });
+          toast.success('Order loaded to POS and marked as processing');
         }
         
         // Clear orderId from URL to prevent reloading on refresh
