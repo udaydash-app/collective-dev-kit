@@ -205,6 +205,81 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_logs: {
+        Row: {
+          backup_size_bytes: number | null
+          backup_type: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          records_count: Json | null
+          started_at: string
+          status: string
+          tables_backed_up: string[] | null
+          triggered_by: string | null
+        }
+        Insert: {
+          backup_size_bytes?: number | null
+          backup_type: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_count?: Json | null
+          started_at?: string
+          status: string
+          tables_backed_up?: string[] | null
+          triggered_by?: string | null
+        }
+        Update: {
+          backup_size_bytes?: number | null
+          backup_type?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_count?: Json | null
+          started_at?: string
+          status?: string
+          tables_backed_up?: string[] | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      backup_settings: {
+        Row: {
+          auto_backup_enabled: boolean | null
+          backup_frequency_hours: number | null
+          created_at: string
+          id: string
+          last_backup_at: string | null
+          next_backup_at: string | null
+          tables_to_backup: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          auto_backup_enabled?: boolean | null
+          backup_frequency_hours?: number | null
+          created_at?: string
+          id?: string
+          last_backup_at?: string | null
+          next_backup_at?: string | null
+          tables_to_backup?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          auto_backup_enabled?: boolean | null
+          backup_frequency_hours?: number | null
+          created_at?: string
+          id?: string
+          last_backup_at?: string | null
+          next_backup_at?: string | null
+          tables_to_backup?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bogo_offers: {
         Row: {
           buy_product_id: string | null
@@ -450,6 +525,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cloud_backups: {
+        Row: {
+          backup_name: string
+          backup_size: number
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          record_count: number
+          status: string
+          table_count: number
+          updated_at: string
+        }
+        Insert: {
+          backup_name: string
+          backup_size?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          record_count?: number
+          status?: string
+          table_count?: number
+          updated_at?: string
+        }
+        Update: {
+          backup_name?: string
+          backup_size?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          record_count?: number
+          status?: string
+          table_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       combo_offer_items: {
         Row: {
