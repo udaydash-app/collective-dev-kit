@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import Home from "./pages/Home";
 import Categories from "./pages/Categories";
 import SearchPage from "./pages/SearchPage";
 import Cart from "./pages/Cart";
@@ -157,7 +158,7 @@ const AppContent = () => {
         <RouterContent />
         <Routes>
           {/* Customer-facing home */}
-          <Route path="/" element={<Navigate to="/pos-login" replace />} />
+          <Route path="/" element={<Home />} />
           
           {/* PWA Installation page */}
           <Route path="/install" element={<PWAInstall />} />

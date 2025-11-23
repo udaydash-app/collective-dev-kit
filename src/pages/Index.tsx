@@ -5,7 +5,7 @@ export default function Index() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate("/pos-login");
+    navigate("/");
   }, [navigate]);
 
   return null;
