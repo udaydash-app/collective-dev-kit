@@ -143,6 +143,19 @@ export default function POS() {
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
   
+  // Cart resize and drag state
+  const [cartWidth, setCartWidth] = useState(() => {
+    const saved = localStorage.getItem('pos-cart-width');
+    return saved ? parseInt(saved) : 700;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [cartPosition, setCartPosition] = useState(() => {
+    const saved = localStorage.getItem('pos-cart-position');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  
   // Track processed customer IDs to prevent re-selecting
   const processedCustomerIdRef = useRef<string | null>(null);
   const processedProductIdRef = useRef<string | null>(null);
@@ -3220,6 +3233,80 @@ export default function POS() {
     }
   };
 
+  // Handle cart resize
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX;
+      if (newWidth >= 400 && newWidth <= 1000) {
+        setCartWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem('pos-cart-width', cartWidth.toString());
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, cartWidth]);
+
+  // Handle cart drag
+  useEffect(() => {
+    if (!isDragging || !dragStartPos.current) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartPos.current) return;
+      
+      const newPosition = {
+        x: e.clientX - dragStartPos.current.x,
+        y: e.clientY - dragStartPos.current.y,
+      };
+      
+      setCartPosition(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      if (cartPosition) {
+        localStorage.setItem('pos-cart-position', JSON.stringify(cartPosition));
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, cartPosition]);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.drag-handle')) {
+      setIsDragging(true);
+      dragStartPos.current = {
+        x: e.clientX - (cartPosition?.x || 0),
+        y: e.clientY - (cartPosition?.y || 0),
+      };
+    }
+  };
+
+  const resetCartPosition = () => {
+    setCartPosition(null);
+    setCartWidth(700);
+    localStorage.removeItem('pos-cart-position');
+    localStorage.removeItem('pos-cart-width');
+    toast.success('Cart position reset');
+  };
+
   const handleKeypadEnter = () => {
     console.log('🔢 Enter pressed:', { keypadMode, keypadInput: keypadInputRef.current, isPercentMode });
     
@@ -3299,12 +3386,49 @@ export default function POS() {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
-      <div className="w-[700px] border-r flex flex-col bg-card">
+      <div 
+        className={cn(
+          "border-r flex flex-col bg-card shadow-lg transition-shadow",
+          cartPosition && "absolute z-50 shadow-2xl",
+          isDragging && "cursor-move"
+        )}
+        style={{
+          width: `${cartWidth}px`,
+          ...(cartPosition && {
+            left: `${cartPosition.x}px`,
+            top: `${cartPosition.y}px`,
+            height: 'calc(100vh - 40px)',
+            maxHeight: '95vh',
+          })
+        }}
+      >
         {/* Header */}
         <div className="p-2 border-b space-y-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-sm font-bold">POS</h1>
+            <div 
+              className="drag-handle flex items-center gap-2 cursor-move hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+              onMouseDown={handleDragStart}
+              title="Drag to move cart"
+            >
+              <div className="flex flex-col gap-0.5">
+                <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
+                <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
+                <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
+              </div>
+              <h1 className="text-sm font-bold">POS</h1>
+            </div>
             <div className="flex items-center gap-1">
+              {cartPosition && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={resetCartPosition}
+                  title="Reset cart position"
+                  className="h-7 w-7 p-0"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -3414,6 +3538,15 @@ export default function POS() {
               {formatCurrency(total)}
             </span>
           </div>
+        </div>
+        
+        {/* Resize Handle */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 hover:w-2 bg-transparent hover:bg-primary/50 cursor-col-resize transition-all group"
+          onMouseDown={() => setIsResizing(true)}
+          title="Drag to resize cart"
+        >
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-primary/30 group-hover:bg-primary rounded-l opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </div>
       </div>
 
