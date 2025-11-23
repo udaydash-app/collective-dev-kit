@@ -65,10 +65,10 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
         .order('name');
 
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`);
+        query = query.or(`name.ilike.%${searchTerm}%,barcode.eq.${searchTerm}`);
       }
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await query.limit(10);
       if (error) throw error;
       
       // If search term looks like a barcode, check variant barcodes (supporting comma-separated barcodes)
