@@ -2905,51 +2905,16 @@ export default function POS() {
 
   const quickActions = [
     { 
-      icon: DollarSign, 
-      label: 'Cash Payment', 
-      color: 'bg-[#22C55E]', 
+      icon: FileText, 
+      label: 'End Of Day', 
+      color: 'bg-[#5DADE2]', 
       action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
+        if (!currentCashSession) {
           return;
         }
-        setQuickPaymentMethod('cash');
-        setShowQuickPayment(true);
+        setShowCashOut(true);
       },
-      shortcut: 'F2'
-    },
-    { 
-      icon: CreditCard, 
-      label: 'Credit Sales', 
-      color: 'bg-[#3B82F6]', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        if (!selectedCustomer) {
-          toast.error('Please select a customer for credit sales');
-          setShowCustomerDialog(true);
-          return;
-        }
-        setQuickPaymentMethod('credit');
-        setShowQuickPayment(true);
-      },
-      shortcut: 'F3'
-    },
-    { 
-      icon: Smartphone, 
-      label: 'Mobile Money', 
-      color: 'bg-[#F59E0B]', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('mobile_money');
-        setShowQuickPayment(true);
-      },
-      shortcut: 'F4'
+      shortcut: null
     },
     { 
       icon: ShoppingCart, 
@@ -2959,10 +2924,10 @@ export default function POS() {
       shortcut: 'F5'
     },
     { 
-      icon: Package, 
-      label: 'Pickup orders', 
+      icon: Clock, 
+      label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => alert('No pickup orders'),
+      action: () => navigate('/admin/orders?status=pending'),
       shortcut: 'F6'
     },
     { 
@@ -2971,6 +2936,13 @@ export default function POS() {
       color: 'bg-[#F97316]', 
       action: () => setShowHoldTicket(true),
       shortcut: 'F7'
+    },
+    { 
+      icon: Package, 
+      label: 'Pickup orders', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('No pickup orders'),
+      shortcut: null
     },
     { 
       icon: Banknote, 
@@ -2985,23 +2957,28 @@ export default function POS() {
       shortcut: 'F8'
     },
     { 
-      icon: BarChart3, 
-      label: 'End Of Day', 
-      color: 'bg-[#5DADE2]',
-      action: () => {
-        if (!currentCashSession) {
-          return;
-        }
-        setShowCashOut(true);
-      },
-      shortcut: 'F9'
-    },
-    { 
-      icon: ShoppingCart, 
+      icon: Package, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/stock-and-price'),
+      shortcut: 'F9'
+    },
+    { 
+      icon: Clock, 
+      label: 'Clock in/Out', 
+      color: 'bg-[#5DADE2]', 
+      action: () => {
+        const now = new Date().toLocaleTimeString();
+        alert(`Clocked in at ${now}`);
+      },
       shortcut: 'F10'
+    },
+    { 
+      icon: Gift, 
+      label: 'Gift Card', 
+      color: 'bg-[#5DADE2]', 
+      action: () => alert('Gift card - Coming soon'),
+      shortcut: null
     },
     { 
       icon: Gift,
