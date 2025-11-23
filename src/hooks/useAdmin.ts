@@ -52,7 +52,7 @@ export const useAdmin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       return session;
     },
-    enabled: !isOffline, // Don't try to fetch session when offline
+    enabled: !offlineSession && !isOffline, // Don't try to fetch if we have offline session
   });
 
   const { data: roleData, isLoading: isRoleLoading } = useQuery({
@@ -73,7 +73,7 @@ export const useAdmin = () => {
 
       return data;
     },
-    enabled: !!session?.user?.id && !isOffline, // Don't try to fetch role when offline
+    enabled: !offlineSession && !!session?.user?.id && !isOffline, // Don't try to fetch if we have offline session
   });
 
   // If we have an offline session, use it
