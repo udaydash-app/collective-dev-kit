@@ -3299,7 +3299,7 @@ export default function POS() {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
-      <div className="w-[550px] border-r flex flex-col bg-card">
+      <div className="w-[700px] border-r flex flex-col bg-card">
         {/* Header */}
         <div className="p-2 border-b space-y-2">
           <div className="flex items-center justify-between">
