@@ -53,12 +53,12 @@ export default function CloudBackup() {
         "inventory_layers", "accounts", "journal_entries", "journal_entry_lines"
       ];
       
-      const backupData: any = {};
+      const backupData: Record<string, any[]> = {};
       let totalRecords = 0;
       
       for (const table of tables) {
         try {
-          const { data, error } = await supabase.from(table).select("*");
+          const { data, error } = await supabase.from(table as any).select("*");
           if (!error && data) {
             backupData[table] = data;
             totalRecords += data.length;
@@ -113,9 +113,11 @@ export default function CloudBackup() {
         .single();
 
       if (error) throw error;
-      if (!backup.metadata?.data) throw new Error("No backup data found");
+      
+      const metadata = backup.metadata as { data?: Record<string, any[]> };
+      if (!metadata?.data) throw new Error("No backup data found");
 
-      const backupData = backup.metadata.data;
+      const backupData = metadata.data;
       const errors: string[] = [];
 
       // Restore each table
@@ -131,7 +133,7 @@ export default function CloudBackup() {
           for (let i = 0; i < records.length; i += chunkSize) {
             const chunk = records.slice(i, i + chunkSize);
             const { error: insertError } = await supabase
-              .from(tableName)
+              .from(tableName as any)
               .upsert(chunk, { onConflict: 'id' });
             
             if (insertError) {
