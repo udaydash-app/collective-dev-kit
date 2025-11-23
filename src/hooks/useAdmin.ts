@@ -95,7 +95,10 @@ export const useAdmin = () => {
     };
   }
 
-  const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
+  // FALLBACK: Check for offline session if no role data found
+  const hasValidOfflineSession = offlineSession && (!session || roleData === null);
+  const isAdminFromRole = roleData?.role === 'admin' || roleData?.role === 'cashier';
+  const isAdmin = isAdminFromRole || hasValidOfflineSession;
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
 
   console.log('useAdmin Debug:', {
@@ -104,11 +107,33 @@ export const useAdmin = () => {
     isRoleLoading,
     isSessionLoading,
     isAdmin,
+    isAdminFromRole,
+    hasValidOfflineSession,
     isLoading,
     hasSession: !!session,
     hasUser: !!session?.user,
-    hasOfflineSession: !!offlineSession
+    hasOfflineSession: !!offlineSession,
+    offlineSessionData: offlineSession
   });
+
+  // If we have offline session and no valid online role, use offline session
+  if (hasValidOfflineSession) {
+    console.log('✅ FALLBACK: Using offline session for authentication');
+    return {
+      isAdmin: true,
+      isCashier: true,
+      role: 'cashier' as const,
+      isLoading: false,
+      user: {
+        id: offlineSession.pos_user_id,
+        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: offlineSession.full_name },
+        aud: 'authenticated',
+        created_at: offlineSession.timestamp
+      } as any,
+    };
+  }
 
   return {
     isAdmin,
