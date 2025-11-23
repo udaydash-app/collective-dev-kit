@@ -35,13 +35,11 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       } else if (e.key.length === 1) {
         barcodeBuffer += e.key;
         
-        // Instant processing for barcode scanners (no debounce needed)
+        // Instant processing - no debounce for barcode scanners
         if (debounceTimeout) clearTimeout(debounceTimeout);
         if (barcodeBuffer.length >= 3) { // Minimum 3 chars
-          debounceTimeout = setTimeout(() => {
-            onScan(barcodeBuffer);
-            barcodeBuffer = '';
-          }, 1); // 1ms for near-instant processing
+          onScan(barcodeBuffer);
+          barcodeBuffer = '';
         }
       }
     };
@@ -79,19 +77,14 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       const codeReader = new BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
 
-      let lastProcessTime = 0;
-      const processInterval = 50; // Process every 50ms for faster scanning
-
       await codeReader.decodeFromVideoDevice(undefined, videoElement, (result, error) => {
-        // Throttle processing to reduce CPU load
-        const now = Date.now();
-        if (processingRef.current || now - lastProcessTime < processInterval) {
+        // Process immediately without throttling
+        if (processingRef.current) {
           return;
         }
 
         if (result) {
           processingRef.current = true; // Prevent multiple scans
-          lastProcessTime = now;
           onScan(result.getText());
         }
         
