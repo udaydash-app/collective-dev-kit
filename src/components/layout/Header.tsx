@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MapPin, Bell, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { LocationDialog } from "./LocationDialog";
 import { LanguageSelector } from "./LanguageSelector";
@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/tooltip";
 
 export const Header = () => {
+  const location = useLocation();
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Select location");
   const [companyLogo, setCompanyLogo] = useState(logo);
   const [companyName, setCompanyName] = useState("Global Market");
+  const isHomePage = location.pathname === "/";
 
   useEffect(() => {
     // Load saved location from localStorage
@@ -65,29 +67,31 @@ export const Header = () => {
           <div className="flex items-center gap-2 ml-auto">
             <LanguageSelector />
             
-            <TooltipProvider>
-              <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => {
-                    const event = new CustomEvent('show-shortcuts');
-                    window.dispatchEvent(event);
-                  }}
-                  className="relative"
-                >
-                  <Keyboard className="h-5 w-5" />
-                  <span className="absolute -bottom-1 -right-1">
-                    <KeyboardBadge keys="?" className="scale-75" />
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Keyboard shortcuts</p>
-              </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {!isHomePage && (
+              <TooltipProvider>
+                <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => {
+                      const event = new CustomEvent('show-shortcuts');
+                      window.dispatchEvent(event);
+                    }}
+                    className="relative"
+                  >
+                    <Keyboard className="h-5 w-5" />
+                    <span className="absolute -bottom-1 -right-1">
+                      <KeyboardBadge keys="?" className="scale-75" />
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Keyboard shortcuts</p>
+                </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             
             <Link to="/notifications">
               <Button variant="ghost" size="icon">
