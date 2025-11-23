@@ -225,13 +225,17 @@ export const TransactionCart = ({
                     <TableRow
                       className={cn(
                         "text-xs transition-colors",
-                        !isCartDiscount && "cursor-pointer",
-                        selectedItemId === item.id && "bg-primary/10 hover:bg-primary/15",
-                        isKeyboardFocused && "bg-primary/5",
+                        !isCartDiscount && "cursor-pointer hover:bg-muted/30",
                         isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
                         isCombo && "bg-green-50 dark:bg-green-950/20"
                       )}
-                      onClick={() => !isCartDiscount && onSelectItem?.(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isCartDiscount) {
+                          onSelectItem?.(item.id);
+                          setFocusedItemIndex(visibleIndex);
+                        }
+                      }}
                     >
                       <TableCell className="py-1 px-1">
                         <div className="flex items-center gap-1">
