@@ -20,6 +20,7 @@ import {
   Printer,
   CreditCard,
   DollarSign,
+  Smartphone,
   X,
   Tags,
   Megaphone,
@@ -2543,8 +2544,16 @@ export default function POS() {
       amount: total
     };
 
-    await handlePaymentConfirm([payment], total);
+    const transactionData = await handlePaymentConfirm([payment], total);
     setShowQuickPayment(false);
+    
+    // If user wants to print and we have transaction data, print the receipt
+    if (shouldPrint && transactionData) {
+      // Wait a moment for the receipt to be ready
+      setTimeout(() => {
+        handlePrintLastReceipt();
+      }, 300);
+    }
   };
 
   const handlePrintLastReceipt = useReactToPrint({
@@ -2896,25 +2905,58 @@ export default function POS() {
 
   const quickActions = [
     { 
-      icon: Clock, 
-      label: 'Recent sales', 
-      color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/orders'),
+      icon: DollarSign, 
+      label: 'Cash Payment', 
+      color: 'bg-[#22C55E]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('cash');
+        setShowQuickPayment(true);
+      },
+      shortcut: 'F2'
+    },
+    { 
+      icon: CreditCard, 
+      label: 'Credit Sales', 
+      color: 'bg-[#3B82F6]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        if (!selectedCustomer) {
+          toast.error('Please select a customer for credit sales');
+          setShowCustomerDialog(true);
+          return;
+        }
+        setQuickPaymentMethod('credit');
+        setShowQuickPayment(true);
+      },
+      shortcut: 'F3'
+    },
+    { 
+      icon: Smartphone, 
+      label: 'Mobile Money', 
+      color: 'bg-[#F59E0B]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('mobile_money');
+        setShowQuickPayment(true);
+      },
       shortcut: 'F4'
     },
     { 
-      icon: Clock, 
-      label: 'Pending sales', 
+      icon: ShoppingCart, 
+      label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
-      action: () => navigate('/admin/orders?status=pending'),
+      action: () => navigate('/admin/orders'),
       shortcut: 'F5'
-    },
-    { 
-      icon: Clock, 
-      label: 'Hold / Fire', 
-      color: 'bg-[#F97316]', 
-      action: () => setShowHoldTicket(true),
-      shortcut: 'F3'
     },
     { 
       icon: Package, 
@@ -2922,6 +2964,13 @@ export default function POS() {
       color: 'bg-[#5DADE2]', 
       action: () => alert('No pickup orders'),
       shortcut: 'F6'
+    },
+    { 
+      icon: Clock, 
+      label: 'Hold / Fire', 
+      color: 'bg-[#F97316]', 
+      action: () => setShowHoldTicket(true),
+      shortcut: 'F7'
     },
     { 
       icon: Banknote, 
@@ -2933,7 +2982,7 @@ export default function POS() {
         }
         setShowRefund(true);
       },
-      shortcut: 'F7'
+      shortcut: 'F8'
     },
     { 
       icon: BarChart3, 
@@ -2945,30 +2994,13 @@ export default function POS() {
         }
         setShowCashOut(true);
       },
-      shortcut: 'F2'
+      shortcut: 'F9'
     },
     { 
       icon: ShoppingCart, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/stock-and-price'),
-      shortcut: 'F8'
-    },
-    { 
-      icon: Clock, 
-      label: 'Clock in/Out', 
-      color: 'bg-[#5DADE2]', 
-      action: () => {
-        const now = new Date().toLocaleTimeString();
-        alert(`Clocked in at ${now}`);
-      },
-      shortcut: 'F9'
-    },
-    { 
-      icon: Gift, 
-      label: 'Gift Card', 
-      color: 'bg-[#5DADE2]', 
-      action: () => alert('Gift card - Coming soon'),
       shortcut: 'F10'
     },
     { 
@@ -3499,8 +3531,8 @@ export default function POS() {
                   <X className="h-3 w-3 text-muted-foreground" />
                 </Button>
               )}
-              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="Arrow keys: Navigate cart items | Enter: Edit field | Delete: Remove item | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer | F2-F12: Quick actions">
-                Keyboard: ↑↓←→
+              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Credit Sales | F4: Mobile Money | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
+                Keyboard: F2-F12 + ↑↓←→
               </div>
               <Button 
                 variant="ghost" 
