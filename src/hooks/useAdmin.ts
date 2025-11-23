@@ -1,27 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+
+// Check for offline session synchronously
+const getOfflineSession = () => {
+  try {
+    const offlineData = localStorage.getItem('offline_pos_session');
+    if (offlineData) {
+      const session = JSON.parse(offlineData);
+      console.log('Found offline session:', session);
+      return session;
+    }
+  } catch (error) {
+    console.error('Error reading offline session:', error);
+  }
+  return null;
+};
 
 export const useAdmin = () => {
-  const [offlineSession, setOfflineSession] = useState<any>(null);
-
-  // Check for offline session
-  useEffect(() => {
-    const checkOfflineSession = () => {
-      try {
-        const offlineData = localStorage.getItem('offline_pos_session');
-        if (offlineData) {
-          const session = JSON.parse(offlineData);
-          setOfflineSession(session);
-          console.log('Found offline session:', session);
-        }
-      } catch (error) {
-        console.error('Error reading offline session:', error);
-      }
-    };
-    
-    checkOfflineSession();
-  }, []);
+  const offlineSession = getOfflineSession();
 
   const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
