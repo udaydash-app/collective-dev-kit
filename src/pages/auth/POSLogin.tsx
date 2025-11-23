@@ -74,11 +74,13 @@ export default function POSLogin() {
         const products = await offlineDB.getProducts();
         const stores = await offlineDB.getStores();
         const categories = await offlineDB.getCategories();
+        const posUsers = await offlineDB.getAllPOSUsers();
         
         console.log('Cache status:', {
           products: products.length,
           stores: stores.length,
-          categories: categories.length
+          categories: categories.length,
+          posUsers: posUsers.length
         });
         
         setCacheStatus({
