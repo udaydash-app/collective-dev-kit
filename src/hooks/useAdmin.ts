@@ -27,9 +27,9 @@ export const useAdmin = () => {
     offlineSessionData: offlineSession
   });
 
-  // If we have an offline session (regardless of online status), prioritize it when there's no Supabase session
+  // If we have an offline session, use it immediately without any server queries
   if (offlineSession) {
-    console.log('✅ Using offline session for authentication');
+    console.log('✅ Using offline session for authentication - skipping all server queries');
     return {
       isAdmin: true,
       isCashier: true,
@@ -46,13 +46,14 @@ export const useAdmin = () => {
     };
   }
 
+  // Only reach here if no offline session exists
   const { data: session, isLoading: isSessionLoading } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       return session;
     },
-    enabled: !offlineSession && !isOffline, // Don't try to fetch if we have offline session
+    enabled: !isOffline,
   });
 
   const { data: roleData, isLoading: isRoleLoading } = useQuery({
@@ -73,67 +74,22 @@ export const useAdmin = () => {
 
       return data;
     },
-    enabled: !offlineSession && !!session?.user?.id && !isOffline, // Don't try to fetch if we have offline session
+    enabled: !!session?.user?.id && !isOffline,
   });
 
-  // If we have an offline session, use it
-  if (offlineSession && !session) {
-    console.log('Using offline session for authentication');
-    return {
-      isAdmin: true, // Offline POS users are always cashiers/admins
-      isCashier: true,
-      role: 'cashier' as const,
-      isLoading: false,
-      user: {
-        id: offlineSession.pos_user_id,
-        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
-        app_metadata: {},
-        user_metadata: { full_name: offlineSession.full_name },
-        aud: 'authenticated',
-        created_at: offlineSession.timestamp
-      } as any,
-    };
-  }
-
-  // FALLBACK: Check for offline session if no role data found
-  const hasValidOfflineSession = offlineSession && (!session || roleData === null);
-  const isAdminFromRole = roleData?.role === 'admin' || roleData?.role === 'cashier';
-  const isAdmin = isAdminFromRole || hasValidOfflineSession;
+  const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
 
-  console.log('useAdmin Debug:', {
+  console.log('useAdmin Debug (online mode):', {
     userId: session?.user?.id,
     roleData,
     isRoleLoading,
     isSessionLoading,
     isAdmin,
-    isAdminFromRole,
-    hasValidOfflineSession,
     isLoading,
     hasSession: !!session,
-    hasUser: !!session?.user,
-    hasOfflineSession: !!offlineSession,
-    offlineSessionData: offlineSession
+    hasUser: !!session?.user
   });
-
-  // If we have offline session and no valid online role, use offline session
-  if (hasValidOfflineSession) {
-    console.log('✅ FALLBACK: Using offline session for authentication');
-    return {
-      isAdmin: true,
-      isCashier: true,
-      role: 'cashier' as const,
-      isLoading: false,
-      user: {
-        id: offlineSession.pos_user_id,
-        email: `pos-${offlineSession.pos_user_id}@pos.globalmarket.app`,
-        app_metadata: {},
-        user_metadata: { full_name: offlineSession.full_name },
-        aud: 'authenticated',
-        created_at: offlineSession.timestamp
-      } as any,
-    };
-  }
 
   return {
     isAdmin,
