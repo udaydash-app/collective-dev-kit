@@ -465,13 +465,7 @@ export default function JournalEntries() {
 
               {/* Journal Lines */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Journal Lines</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Line
-                  </Button>
-                </div>
+                <Label>Journal Lines</Label>
 
                 {lines.map((line, index) => (
                   <Card key={index} className="p-3">
@@ -590,6 +584,11 @@ export default function JournalEntries() {
                     </div>
                   </Card>
                 ))}
+
+                <Button type="button" variant="outline" size="sm" onClick={addLine} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Line
+                </Button>
               </div>
 
               {/* Totals */}
