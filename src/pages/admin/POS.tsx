@@ -3290,13 +3290,17 @@ export default function POS() {
   }, [isDragging, cartPosition]);
 
   const handleDragStart = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.drag-handle')) {
-      setIsDragging(true);
-      dragStartPos.current = {
-        x: e.clientX - (cartPosition?.x || 0),
-        y: e.clientY - (cartPosition?.y || 0),
-      };
-    }
+    e.preventDefault();
+    setIsDragging(true);
+    
+    // If cart is in default position, calculate current position
+    const cartElement = (e.currentTarget as HTMLElement).closest('.cart-container') as HTMLElement;
+    const rect = cartElement?.getBoundingClientRect();
+    
+    dragStartPos.current = {
+      x: e.clientX - (cartPosition?.x || rect?.left || 0),
+      y: e.clientY - (cartPosition?.y || rect?.top || 0),
+    };
   };
 
   const resetCartPosition = () => {
@@ -3388,9 +3392,9 @@ export default function POS() {
       {/* Left Sidebar - Cart */}
       <div 
         className={cn(
-          "border-r flex flex-col bg-card shadow-lg transition-shadow",
+          "cart-container border-r flex flex-col bg-card shadow-lg transition-shadow relative",
           cartPosition && "absolute z-50 shadow-2xl",
-          isDragging && "cursor-move"
+          isDragging && "cursor-move select-none"
         )}
         style={{
           width: `${cartWidth}px`,
@@ -3406,16 +3410,16 @@ export default function POS() {
         <div className="p-2 border-b space-y-2">
           <div className="flex items-center justify-between">
             <div 
-              className="drag-handle flex items-center gap-2 cursor-move hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+              className="drag-handle flex items-center gap-2 cursor-move hover:bg-accent/50 px-2 py-1 rounded transition-colors select-none"
               onMouseDown={handleDragStart}
               title="Drag to move cart"
             >
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5 pointer-events-none">
                 <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
                 <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
                 <div className="h-0.5 w-4 bg-muted-foreground/50 rounded"></div>
               </div>
-              <h1 className="text-sm font-bold">POS</h1>
+              <h1 className="text-sm font-bold pointer-events-none">POS</h1>
             </div>
             <div className="flex items-center gap-1">
               {cartPosition && (
