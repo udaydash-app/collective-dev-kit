@@ -8,16 +8,16 @@ import { toast } from "@/hooks/use-toast";
 export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, isLoading, user, role } = useAdmin();
 
-  console.log('🔒 AdminRoute Check:', {
-    isAdmin,
-    isLoading,
-    hasUser: !!user,
-    userId: user?.id,
-    userEmail: user?.email,
-    role,
-    offlineSession: localStorage.getItem('offline_pos_session'),
-    navigatorOnline: navigator.onLine
-  });
+  console.log('🔒 AdminRoute Check:',
+    'isAdmin:', isAdmin,
+    'isLoading:', isLoading,
+    'hasUser:', !!user,
+    'userId:', user?.id,
+    'userEmail:', user?.email,
+    'role:', role,
+    'offlineSession:', localStorage.getItem('offline_pos_session'),
+    'navigatorOnline:', navigator.onLine
+  );
 
   // Real-time order notifications for admins
   useEffect(() => {
