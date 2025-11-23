@@ -91,8 +91,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       return data;
     },
     enabled: searchTerm.length > 0,
-    staleTime: 30000, // Cache for 30 seconds for faster repeated scans
-    gcTime: 60000, // Keep in memory for 1 minute
+    staleTime: 60000, // Cache for 60 seconds for faster repeated scans
+    gcTime: 300000, // Keep in memory for 5 minutes
   });
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
@@ -154,29 +154,23 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      const { data: allVariants } = await supabase
-        .from('product_variants')
-        .select(`
-          id,
-          label,
-          quantity,
-          unit,
-          price,
-          barcode,
-          is_available,
-          product_id
-        `)
-        .eq('is_available', true)
-        .ilike('barcode', `%${barcode}%`);
-      
-      const matchedVariant = allVariants?.find((v: any) => {
-        if (!v.barcode) return false;
-        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return barcodes.some((b: string) => b === barcode || b.includes(barcode) || barcode.includes(b));
-      });
-      
-      if (matchedVariant) {
-        const { data: fullProduct } = await supabase
+      // Execute both queries in parallel for faster results
+      const [variantsResult, productsResult] = await Promise.all([
+        supabase
+          .from('product_variants')
+          .select(`
+            id,
+            label,
+            quantity,
+            unit,
+            price,
+            barcode,
+            is_available,
+            product_id
+          `)
+          .eq('is_available', true)
+          .ilike('barcode', `%${barcode}%`),
+        supabase
           .from('products')
           .select(`
             id,
@@ -196,8 +190,21 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
               barcode
             )
           `)
-          .eq('id', matchedVariant.product_id)
-          .single();
+          .eq('is_available', true)
+          .not('barcode', 'is', null)
+      ]);
+      
+      const allVariants = variantsResult.data;
+      const directProducts = productsResult.data;
+      
+      const matchedVariant = allVariants?.find((v: any) => {
+        if (!v.barcode) return false;
+        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+        return barcodes.some((b: string) => b === barcode || b.includes(barcode) || barcode.includes(b));
+      });
+      
+      if (matchedVariant) {
+        const fullProduct = directProducts?.find((p: any) => p.id === matchedVariant.product_id);
         
         if (fullProduct) {
           onProductSelect({
@@ -209,29 +216,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
           return;
         }
       }
-      
-      const { data: directProducts } = await supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          barcode,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode
-          )
-        `)
-        .eq('is_available', true)
-        .not('barcode', 'is', null);
 
       const matchedDirectProduct = directProducts?.find((p: any) => {
         if (!p.barcode) return false;
