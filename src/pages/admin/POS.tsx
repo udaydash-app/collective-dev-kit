@@ -2921,28 +2921,68 @@ export default function POS() {
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/orders'),
-      shortcut: 'F5'
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/orders?status=pending'),
-      shortcut: 'F6'
+      shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Hold / Fire', 
       color: 'bg-[#F97316]', 
       action: () => setShowHoldTicket(true),
-      shortcut: 'F7'
+      shortcut: null
     },
     { 
-      icon: Package, 
-      label: 'Pickup orders', 
-      color: 'bg-[#5DADE2]', 
-      action: () => alert('No pickup orders'),
-      shortcut: null
+      icon: DollarSign, 
+      label: 'Cash Payment', 
+      color: 'bg-[#22C55E]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('cash');
+        setShowQuickPayment(true);
+      },
+      shortcut: 'F2'
+    },
+    { 
+      icon: CreditCard, 
+      label: 'Credit Sales', 
+      color: 'bg-[#3B82F6]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        if (!selectedCustomer) {
+          toast.error('Please select a customer for credit sales');
+          setShowCustomerDialog(true);
+          return;
+        }
+        setQuickPaymentMethod('credit');
+        setShowQuickPayment(true);
+      },
+      shortcut: 'F3'
+    },
+    { 
+      icon: Smartphone, 
+      label: 'Mobile Money', 
+      color: 'bg-[#F59E0B]', 
+      action: () => {
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('mobile_money');
+        setShowQuickPayment(true);
+      },
+      shortcut: 'F4'
     },
     { 
       icon: Banknote, 
@@ -2954,30 +2994,20 @@ export default function POS() {
         }
         setShowRefund(true);
       },
-      shortcut: 'F8'
+      shortcut: null
+    },
+    { 
+      icon: BarChart3, 
+      label: 'Sales Report', 
+      color: 'bg-[#5DADE2]', 
+      action: () => navigate('/admin/analytics'),
+      shortcut: null
     },
     { 
       icon: Package, 
       label: 'Stock & Price', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/stock-and-price'),
-      shortcut: 'F9'
-    },
-    { 
-      icon: Clock, 
-      label: 'Clock in/Out', 
-      color: 'bg-[#5DADE2]', 
-      action: () => {
-        const now = new Date().toLocaleTimeString();
-        alert(`Clocked in at ${now}`);
-      },
-      shortcut: 'F10'
-    },
-    { 
-      icon: Gift, 
-      label: 'Gift Card', 
-      color: 'bg-[#5DADE2]', 
-      action: () => alert('Gift card - Coming soon'),
       shortcut: null
     },
     { 
@@ -2985,14 +3015,14 @@ export default function POS() {
       label: 'Notes', 
       color: 'bg-[#5DADE2]', 
       action: () => setShowNotesDialog(true),
-      shortcut: 'F11'
+      shortcut: null
     },
     { 
       icon: Printer, 
       label: 'Last receipt', 
       color: 'bg-[#5DADE2]', 
       action: handleLastReceiptClick,
-      shortcut: 'F12'
+      shortcut: null
     },
     { 
       icon: LogOut, 
@@ -3017,56 +3047,6 @@ export default function POS() {
         preventDefault: true,
       })),
     enabled: !showPayment && !showQuickPayment && !showHoldTicket && !showCashIn && !showCashOut && !variantSelectorOpen,
-  });
-
-  // Additional helpful shortcuts
-  useKeyboardShortcuts({
-    shortcuts: [
-      {
-        key: 'Escape',
-        description: 'Clear selection / Cancel',
-        action: () => {
-          setSelectedCartItemId(null);
-          setKeypadMode(null);
-          keypadInputRef.current = '';
-          setKeypadRenderKey(prev => prev + 1);
-        },
-        preventDefault: true,
-      },
-      {
-        key: 'Enter',
-        ctrlKey: true,
-        description: 'Open payment',
-        action: () => {
-          if (cart.length > 0) {
-            setShowPayment(true);
-          }
-        },
-        preventDefault: true,
-      },
-      {
-        key: 'n',
-        ctrlKey: true,
-        description: 'New sale (clear cart)',
-        action: () => {
-          clearCart();
-          setSelectedCustomer(null);
-          setCartDiscountItem(null);
-          setDiscount(0);
-          setSelectedCartItemId(null);
-          toast.success('Cart cleared');
-        },
-        preventDefault: true,
-      },
-      {
-        key: 'c',
-        ctrlKey: true,
-        description: 'Select customer',
-        action: () => setShowCustomerDialog(true),
-        preventDefault: true,
-      },
-    ],
-    enabled: !showPayment && !showQuickPayment,
   });
 
   const handleHoldTicket = (ticketName: string) => {
