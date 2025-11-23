@@ -1440,16 +1440,18 @@ export default function AdminOrders() {
                                 <Printer className="h-4 w-4 mr-1" />
                                 Print
                               </Button>
-                              {order.type !== 'pos' && order.status === 'pending' && (
+                              {order.type !== 'pos' && (
                                 <>
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => navigate(`/admin/pos?orderId=${order.id}`)}
-                                  >
-                                    <ShoppingCart className="h-4 w-4 mr-1" />
-                                    Load to POS
-                                  </Button>
+                                  {order.status === 'pending' && (
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => navigate(`/admin/pos?orderId=${order.id}`)}
+                                    >
+                                      <ShoppingCart className="h-4 w-4 mr-1" />
+                                      Load to POS
+                                    </Button>
+                                  )}
                                   {order.status !== 'delivered' && order.status !== 'cancelled' && (
                                     <Select
                                       value={order.status}

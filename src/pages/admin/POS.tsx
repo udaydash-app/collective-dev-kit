@@ -252,6 +252,9 @@ export default function POS() {
 
   const loadOrderToPOS = async (orderId: string) => {
     try {
+      // Set flag to indicate we're loading an online order
+      setIsLoadingTransaction(true);
+      
       // Fetch the order with its items
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -284,6 +287,10 @@ export default function POS() {
       if (order.stores?.id) {
         setSelectedStoreId(order.stores.id);
       }
+      
+      // Set editing info to track it's an online order
+      setEditingOrderId(orderId);
+      setEditingOrderType('online');
 
       // Add items to cart with correct quantities
       if (items && items.length > 0) {
@@ -303,10 +310,10 @@ export default function POS() {
           }
         }
         
-        // Update order status to confirmed
+        // Update order status to processing when loaded to POS
         const { error: updateError } = await supabase
           .from('orders')
-          .update({ status: 'confirmed' })
+          .update({ status: 'processing' })
           .eq('id', orderId);
           
         if (updateError) {
@@ -316,7 +323,7 @@ export default function POS() {
         // Clear orderId from URL to prevent reloading on refresh
         navigate('/admin/pos', { replace: true });
         
-        console.log(`Loaded order ${order.order_number} into POS and marked as confirmed`);
+        console.log(`Loaded order ${order.order_number} into POS and marked as processing`);
       }
     } catch (error: any) {
       console.error('Error loading order:', error);
@@ -324,6 +331,7 @@ export default function POS() {
       navigate('/admin/pos', { replace: true });
     } finally {
       setIsLoadingOrder(false);
+      setIsLoadingTransaction(false);
     }
   };
 
@@ -2304,8 +2312,22 @@ export default function POS() {
     );
     
     if (result) {
-      // Clear editing state
+      // Clear editing state and update order status
       if (editingOrderId) {
+        // If it's an online order, update status to out_for_delivery
+        if (editingOrderType === 'online') {
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({ status: 'out_for_delivery' })
+            .eq('id', editingOrderId);
+            
+          if (updateError) {
+            console.error('Error updating order status:', updateError);
+          } else {
+            console.log(`Order ${editingOrderId} status updated to out_for_delivery`);
+          }
+        }
+        
         setEditingOrderId(null);
         setEditingOrderType(null);
       }
