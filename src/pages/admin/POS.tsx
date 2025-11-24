@@ -2207,6 +2207,13 @@ export default function POS() {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
     
+    // Log editing state for debugging
+    console.log('🔧 [PAYMENT] Starting payment with editing state:', {
+      editingOrderId,
+      editingOrderType,
+      cartLength: cart.length
+    });
+    
     // Calculate customer balance from account current_balance (includes opening balance + journal entries)
     let customerBalance: number | undefined;
     let isUnifiedBalance = false;
@@ -2276,6 +2283,11 @@ export default function POS() {
       ? `${orderNotes ? orderNotes + ' | ' : ''}customer:${selectedCustomer.id}`
       : orderNotes;
     
+    console.log('🔧 [PAYMENT] Calling processTransaction with editing params:', {
+      editingOrderId: editingOrderId || undefined,
+      editingOrderType: editingOrderType || undefined
+    });
+    
     const result = await processTransaction(
       payments, 
       selectedStoreId, 
@@ -2288,8 +2300,16 @@ export default function POS() {
     );
     
     if (result) {
+      console.log('🔧 [PAYMENT] Transaction result:', {
+        hasResult: !!result,
+        resultType: result ? typeof result : 'null',
+        transactionNumber: 'transaction_number' in result ? result.transaction_number : 'unknown'
+      });
+      
       // Clear editing state and update order status
       if (editingOrderId) {
+        console.log('🔧 [PAYMENT] Clearing editing state:', { editingOrderId, editingOrderType });
+        
         // If it's an online order, update status to out_for_delivery
         if (editingOrderType === 'online') {
           const { error: updateError } = await supabase
@@ -2323,98 +2343,60 @@ export default function POS() {
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
       
-      // Recalculate customer balance AFTER transaction (it would have changed)
-      // Wait for database triggers to complete (journal entry creation and account balance update)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      let updatedCustomerBalance: number | undefined;
-      let updatedIsUnifiedBalance = false;
-      
-      console.log('🔍 [BALANCE UPDATE] Starting balance fetch for customer:', {
-        id: selectedCustomer?.id,
-        name: selectedCustomer?.name,
-        customer_ledger_account_id: selectedCustomer?.customer_ledger_account_id,
-        is_supplier: selectedCustomer?.is_supplier,
-        is_customer: selectedCustomer?.is_customer
-      });
-      
-      if (selectedCustomer?.customer_ledger_account_id) {
-        updatedIsUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
+      // Optimize: Only wait for balance update if payment was on credit
+      const hasCreditPayment = payments.some(p => p.method === 'credit');
+      if (hasCreditPayment && selectedCustomer) {
+        // Reduced wait time + fast balance fetch for credit payments only
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        console.log('📊 [BALANCE UPDATE] Fetching from account ID:', selectedCustomer.customer_ledger_account_id);
+        let updatedCustomerBalance: number | undefined;
+        let updatedIsUnifiedBalance = false;
+        
+        if (selectedCustomer?.customer_ledger_account_id) {
+          updatedIsUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
 
-        // Fetch current balance directly from accounts table (updated by triggers)
-        const { data: customerAccount, error: customerError } = await supabase
-          .from('accounts')
-          .select('current_balance, account_name')
-          .eq('id', selectedCustomer.customer_ledger_account_id)
-          .single();
-
-        console.log('💰 [BALANCE UPDATE] Account query result:', {
-          account: customerAccount,
-          error: customerError
-        });
-
-        if (customerAccount) {
-          updatedCustomerBalance = customerAccount.current_balance;
-          console.log('✅ [BALANCE UPDATE] Balance fetched:', {
-            balance: updatedCustomerBalance,
-            accountName: customerAccount.account_name
-          });
-        } else {
-          console.error('❌ [BALANCE UPDATE] Failed to fetch customer account balance');
-        }
-
-        // If dual-role (customer & supplier), calculate unified balance from account balances
-        if (selectedCustomer.is_supplier && selectedCustomer.supplier_ledger_account_id && updatedCustomerBalance !== undefined) {
-          console.log('🔄 [BALANCE UPDATE] Customer is dual-role, fetching supplier balance from:', selectedCustomer.supplier_ledger_account_id);
-          
-          const { data: supplierAccount, error: supplierError } = await supabase
+          // Fast balance fetch - single query
+          const { data: customerAccount } = await supabase
             .from('accounts')
-            .select('current_balance, account_name')
-            .eq('id', selectedCustomer.supplier_ledger_account_id)
+            .select('current_balance')
+            .eq('id', selectedCustomer.customer_ledger_account_id)
             .single();
 
-          console.log('🏢 [BALANCE UPDATE] Supplier account query result:', {
-            account: supplierAccount,
-            error: supplierError
-          });
+          if (customerAccount) {
+            updatedCustomerBalance = customerAccount.current_balance;
+            
+            // If dual-role, fetch supplier balance
+            if (selectedCustomer.is_supplier && selectedCustomer.supplier_ledger_account_id) {
+              const { data: supplierAccount } = await supabase
+                .from('accounts')
+                .select('current_balance')
+                .eq('id', selectedCustomer.supplier_ledger_account_id)
+                .single();
 
-          if (supplierAccount) {
-            const supplierBalance = supplierAccount.current_balance;
-            const originalBalance = updatedCustomerBalance;
-            // Unified balance: customer receivable minus supplier payable
-            updatedCustomerBalance = originalBalance - supplierBalance;
-            updatedIsUnifiedBalance = true;
-            console.log('🔄 [BALANCE UPDATE] Unified balance calculated:', {
-              customerBalance: originalBalance,
-              supplierBalance: supplierBalance,
-              unifiedBalance: updatedCustomerBalance
-            });
+              if (supplierAccount) {
+                updatedCustomerBalance = updatedCustomerBalance - supplierAccount.current_balance;
+                updatedIsUnifiedBalance = true;
+              }
+            }
           }
         }
+        
+        transactionDataPrep.customerBalance = updatedCustomerBalance;
+        transactionDataPrep.isUnifiedBalance = updatedIsUnifiedBalance;
       } else {
-        console.warn('⚠️ [BALANCE UPDATE] No customer_ledger_account_id found for customer');
+        // No credit payment, no need to update balance
+        // Keep the original balance from before transaction
       }
-      
-      console.log('📝 [BALANCE UPDATE] Final balance for receipt:', updatedCustomerBalance);
       
       const completeTransactionData = {
         ...transactionDataPrep,
         transactionNumber,
         date: new Date(),
-        customerBalance: updatedCustomerBalance,
-        isUnifiedBalance: updatedIsUnifiedBalance,
       };
       
       setLastTransactionData(completeTransactionData);
 
-      // Direct print using browser native printing (non-blocking)
-      console.log('🖨️ Starting browser print process...', {
-        transactionNumber: completeTransactionData.transactionNumber,
-        itemCount: completeTransactionData.items.length
-      });
-      
+      // Optimized printing - no canvas generation, direct to browser print
       kioskPrintService.printReceipt({
         storeName: completeTransactionData.storeName,
         transactionNumber: completeTransactionData.transactionNumber,
