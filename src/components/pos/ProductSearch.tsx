@@ -236,6 +236,48 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         }
       }
 
+      // If no product-level match, check if barcode exists in any variant
+      const { data: variantProducts, error: variantError } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          barcode,
+          label,
+          quantity,
+          unit,
+          price,
+          is_available,
+          product_id,
+          products (
+            id,
+            name,
+            price,
+            barcode,
+            stock_quantity,
+            cost_price
+          )
+        `)
+        .eq('is_available', true)
+        .not('barcode', 'is', null);
+
+      if (variantError) throw variantError;
+
+      if (variantProducts && variantProducts.length > 0) {
+        for (const variant of variantProducts) {
+          const barcodes = variant.barcode!.split(',').map((b: string) => b.trim().toLowerCase());
+          if (barcodes.some((b: string) => b === barcode)) {
+            const product = variant.products as any;
+            onProductSelect({
+              ...product,
+              price: variant.price,
+              selectedVariant: variant,
+            });
+            setSearchTerm('');
+            return;
+          }
+        }
+      }
+
       setScannedBarcode(barcode);
       setAssignBarcodeOpen(true);
       setSearchTerm('');
