@@ -18,8 +18,8 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
     const handleKeyPress = (e: KeyboardEvent) => {
       const currentTime = Date.now();
       
-      // Reset buffer if more than 20ms between keys (optimized for scanner speed)
-      if (currentTime - lastKeyTime > 20) {
+      // Reset buffer if more than 10ms between keys (optimized for maximum scanner speed)
+      if (currentTime - lastKeyTime > 10) {
         barcodeBuffer = '';
       }
       
@@ -51,13 +51,13 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       videoRef.current = videoElement;
       processingRef.current = false;
 
-      // Optimize camera settings for faster scanning
+      // Optimize camera settings for maximum scanning speed
       const constraints = {
         video: {
           facingMode: 'environment',
-          width: { ideal: 640, max: 1280 }, // Lower resolution = faster
-          height: { ideal: 480, max: 720 },
-          frameRate: { ideal: 15, max: 20 } // Lower FPS = less processing
+          width: { ideal: 480, max: 640 }, // Lower resolution = faster processing
+          height: { ideal: 360, max: 480 },
+          frameRate: { ideal: 30, max: 30 } // Higher FPS for faster detection
         }
       };
 
@@ -68,14 +68,15 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       codeReaderRef.current = codeReader;
 
       await codeReader.decodeFromVideoDevice(undefined, videoElement, (result, error) => {
-        // Process immediately without throttling
-        if (processingRef.current) {
-          return;
-        }
-
-        if (result) {
-          processingRef.current = true; // Prevent multiple scans
+        // Immediate processing for maximum speed
+        if (result && !processingRef.current) {
+          processingRef.current = true;
+          // Process immediately without any delay
           onScan(result.getText());
+          // Reset after minimal delay to allow next scan
+          setTimeout(() => {
+            processingRef.current = false;
+          }, 100);
         }
         
         if (error && !(error.name === 'NotFoundException')) {
