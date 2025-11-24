@@ -91,8 +91,8 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       return data;
     },
     enabled: searchTerm.length > 0,
-    staleTime: 60000, // Cache for 60 seconds for faster repeated scans
-    gcTime: 300000, // Keep in memory for 5 minutes
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes for instant repeated scans
+    gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
 
   const handleProductSelect = (product: any, fromClick: boolean = false) => {
@@ -154,93 +154,75 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      // Execute both queries in parallel for faster results
-      const [variantsResult, productsResult] = await Promise.all([
-        supabase
-          .from('product_variants')
-          .select(`
+      // Single optimized query with exact barcode match
+      const { data: exactProducts, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          price,
+          barcode,
+          stock_quantity,
+          cost_price,
+          product_variants (
             id,
             label,
             quantity,
             unit,
             price,
-            barcode,
             is_available,
-            product_id
-          `)
-          .eq('is_available', true)
-          .ilike('barcode', `%${barcode}%`),
-        supabase
-          .from('products')
-          .select(`
-            id,
-            name,
-            price,
-            barcode,
-            stock_quantity,
-            cost_price,
-            product_variants (
-              id,
-              label,
-              quantity,
-              unit,
-              price,
-              is_available,
-              is_default,
-              barcode
-            )
-          `)
-          .eq('is_available', true)
-          .not('barcode', 'is', null)
-      ]);
+            is_default,
+            barcode
+          )
+        `)
+        .eq('is_available', true)
+        .or(`barcode.eq.${barcode},barcode.ilike.%${barcode}%`);
       
-      const allVariants = variantsResult.data;
-      const directProducts = productsResult.data;
+      if (error) throw error;
       
-      const matchedVariant = allVariants?.find((v: any) => {
-        if (!v.barcode) return false;
-        const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return barcodes.some((b: string) => b === barcode || b.includes(barcode) || barcode.includes(b));
-      });
-      
-      if (matchedVariant) {
-        const fullProduct = directProducts?.find((p: any) => p.id === matchedVariant.product_id);
-        
-        if (fullProduct) {
-          onProductSelect({
-            ...fullProduct,
-            price: matchedVariant.price,
-            selectedVariant: matchedVariant,
+      // Quick barcode matching with early exit
+      if (exactProducts && exactProducts.length > 0) {
+        // Check variants first (most common case)
+        for (const product of exactProducts) {
+          const matchingVariant = product.product_variants?.find((v: any) => {
+            if (!v.barcode || !v.is_available) return false;
+            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+            return barcodes.some((b: string) => b === barcode);
           });
+          
+          if (matchingVariant) {
+            onProductSelect({
+              ...product,
+              price: matchingVariant.price,
+              selectedVariant: matchingVariant,
+            });
+            setSearchTerm('');
+            return;
+          }
+        }
+        
+        // Check product-level barcodes
+        const matchedProduct = exactProducts.find((p: any) => {
+          if (!p.barcode) return false;
+          const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+          return productBarcodes.some((b: string) => b === barcode);
+        });
+        
+        if (matchedProduct) {
+          const availableVariants = matchedProduct.product_variants?.filter((v: any) => v.is_available) || [];
+          if (availableVariants.length > 0) {
+            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+            onProductSelect({
+              ...matchedProduct,
+              price: defaultVariant.price,
+              selectedVariant: defaultVariant,
+            });
+          } else {
+            onProductSelect(matchedProduct);
+          }
           setSearchTerm('');
           return;
         }
-      }
-
-      const matchedDirectProduct = directProducts?.find((p: any) => {
-        if (!p.barcode) return false;
-        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return productBarcodes.includes(barcode);
-      });
-
-      if (matchedDirectProduct) {
-        if (matchedDirectProduct.product_variants && matchedDirectProduct.product_variants.length > 0) {
-          const availableVariants = matchedDirectProduct.product_variants.filter((v: any) => v.is_available);
-          const defaultVariant = availableVariants.find((v: any) => v.is_default);
-          const selectedVariant = defaultVariant || availableVariants[0];
-          
-          if (selectedVariant) {
-            onProductSelect({
-              ...matchedDirectProduct,
-              price: selectedVariant.price,
-              selectedVariant,
-            });
-          }
-        } else {
-          onProductSelect(matchedDirectProduct);
-        }
-        setSearchTerm('');
-        return;
       }
 
       setScannedBarcode(barcode);
