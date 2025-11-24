@@ -318,4 +318,6 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       />
     </div>
   );
-};
+});
+
+ProductSearch.displayName = 'ProductSearch';
