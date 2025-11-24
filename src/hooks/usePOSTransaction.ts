@@ -1098,13 +1098,27 @@ export const usePOSTransaction = () => {
         }
       };
 
-      console.log(editingTransactionId ? 'Updating transaction:' : 'Processing new transaction:', transactionData);
+      console.log('🔧 [PROCESS] Transaction processing mode:', {
+        isEditing: !!editingTransactionId,
+        editingType: editingTransactionType,
+        transactionId: transactionData.id,
+        editingTransactionId
+      });
 
       // Check if online
       if (navigator.onLine) {
         // EDIT MODE: Update existing POS transaction
         if (editingTransactionId && editingTransactionType === 'pos') {
           console.log('🔧 UPDATE MODE: Updating existing POS transaction:', editingTransactionId);
+          console.log('🔧 UPDATE MODE: Using transaction ID:', transactionData.id);
+          
+          // Verify the IDs match
+          if (transactionData.id !== editingTransactionId) {
+            console.error('❌ ID MISMATCH:', {
+              transactionDataId: transactionData.id,
+              editingTransactionId
+            });
+          }
           
           const { data, error } = await supabase
             .from('pos_transactions')
@@ -1127,16 +1141,17 @@ export const usePOSTransaction = () => {
             .single();
 
           if (error) {
-            console.error('Database update error:', error);
+            console.error('❌ Database update error:', error);
             setIsProcessing(false);
             return null;
           }
 
-          console.log('✅ Transaction updated successfully!');
+          console.log('✅ Transaction updated successfully!', data);
           clearCart();
           setIsProcessing(false);
+          toast.success(`Sale ${data.transaction_number} updated successfully`);
           return data;
-        } 
+        }
         
         // CONVERT MODE: Convert online order to POS transaction
         if (editingTransactionId && editingTransactionType === 'online') {
