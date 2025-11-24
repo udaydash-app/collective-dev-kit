@@ -570,6 +570,18 @@ export default function POS() {
     };
   }, [queryClient]);
 
+  // Focus product search on Esc key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        productSearchRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Fetch all cash sessions for today to calculate total opening cash
   const { data: todayCashSessions } = useQuery({
     queryKey: ['today-cash-sessions', selectedStoreId, currentCashSession?.opened_at],
