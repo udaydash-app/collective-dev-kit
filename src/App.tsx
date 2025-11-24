@@ -57,7 +57,6 @@ import AdminBOGOOffers from "./pages/admin/BOGOOffers";
 import AdminMultiProductBOGO from "./pages/admin/MultiProductBOGO";
 import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
-import AdminOfflineSync from "./pages/admin/OfflineSync";
 import AdminQuotations from "./pages/admin/Quotations";
 import AdminBarcode from "./pages/admin/Barcode";
 import Wishlist from "./pages/Wishlist";
@@ -76,7 +75,6 @@ import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
-import { OfflineIndicator } from "./components/OfflineIndicator";
 import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDialog";
 import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAdminShortcuts } from "./hooks/useAdminShortcuts";
@@ -103,41 +101,6 @@ const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
 
-  // Cache essential data on app startup for offline support
-  React.useEffect(() => {
-    const initOfflineData = async () => {
-      if (!navigator.onLine) {
-        console.log('App started offline, using cached data');
-        return;
-      }
-
-      try {
-        const { cacheEssentialData, getLastCacheTime, isCacheStale } = await import('@/lib/cacheData');
-        const lastCache = getLastCacheTime();
-        
-        if (!lastCache) {
-          // First time setup - cache all data
-          console.log('First time setup: Caching all data for offline use...');
-          await cacheEssentialData(false);
-          console.log('Initial data cache completed');
-        } else if (isCacheStale(24)) {
-          // Refresh stale cache (older than 24 hours)
-          console.log('Cache is stale, refreshing data...');
-          await cacheEssentialData(false);
-          console.log('Cache refreshed successfully');
-        } else {
-          console.log('Cache is fresh, no update needed');
-        }
-      } catch (error) {
-        console.error('Failed to cache data:', error);
-      }
-    };
-
-    // Run initialization after a short delay to let app mount
-    const timer = setTimeout(initOfflineData, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
     typeof window !== 'undefined' && (window as any).electron?.isElectron === true, 
@@ -152,7 +115,6 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
-      <OfflineIndicator />
       <KeyboardShortcutsDialog />
       <Router>
         <RouterContent />
@@ -210,7 +172,6 @@ const AppContent = () => {
           <Route path="/admin/open-cash-register" element={<AdminRoute><AdminOpenCashRegister /></AdminRoute>} />
           <Route path="/admin/accounts-receivable" element={<AdminRoute><AdminAccountsReceivable /></AdminRoute>} />
           <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
-          <Route path="/admin/offline-sync" element={<AdminRoute><AdminOfflineSync /></AdminRoute>} />
           <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
           <Route path="/admin/barcode" element={<AdminRoute><AdminBarcode /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />

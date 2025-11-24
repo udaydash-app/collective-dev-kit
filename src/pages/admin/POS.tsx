@@ -68,7 +68,6 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
-import { offlineDB } from "@/lib/offlineDB";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -162,13 +161,6 @@ export default function POS() {
   const processedProductIdRef = useRef<string | null>(null);
   
   const ITEMS_PER_PAGE = 12;
-
-  // Initialize offline database
-  useEffect(() => {
-    offlineDB.init().catch(error => {
-      console.error('Failed to initialize offline database:', error);
-    });
-  }, []);
 
   // Load held tickets from localStorage only once on mount
   const loadedTicketsRef = useRef(false);
@@ -487,13 +479,11 @@ export default function POS() {
             .order('name');
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch stores online, trying offline:', error);
+          console.error('Failed to fetch stores:', error);
+          return [];
         }
       }
-      
-      // Fallback to offline data
-      const offlineStores = await offlineDB.getStores();
-      return offlineStores.filter((s: any) => s.is_active);
+      return [];
     },
   });
 
@@ -1190,13 +1180,11 @@ export default function POS() {
             .order('display_order');
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch categories online, trying offline:', error);
+          console.error('Failed to fetch categories:', error);
+          return [];
         }
       }
-      
-      // Fallback to offline data
-      const offlineCategories = await offlineDB.getCategories();
-      return offlineCategories.filter((c: any) => c.is_active);
+      return [];
     },
   });
 
@@ -1220,25 +1208,11 @@ export default function POS() {
           const { data } = await query.limit(50);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch customers online, trying offline:', error);
+          console.error('Failed to fetch customers:', error);
+          return [];
         }
       }
-      
-      // Fallback to offline data
-      let offlineCustomers = await offlineDB.getCustomers();
-      offlineCustomers = offlineCustomers.filter((c: any) => c.is_customer);
-      
-      // Apply search filter
-      if (customerSearch && customerSearch.length >= 2) {
-        const term = customerSearch.toLowerCase();
-        offlineCustomers = offlineCustomers.filter((c: any) => 
-          c.name?.toLowerCase().includes(term) || 
-          c.phone?.toLowerCase().includes(term) ||
-          c.email?.toLowerCase().includes(term)
-        );
-      }
-      
-      return offlineCustomers.slice(0, 50);
+      return [];
     },
   });
 
@@ -1276,28 +1250,11 @@ export default function POS() {
           const { data } = await query.limit(50);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch products online, trying offline:', error);
+          console.error('Failed to fetch products:', error);
+          return [];
         }
       }
-      
-      // Fallback to offline data
-      let offlineProducts = await offlineDB.getProducts();
-      
-      // Apply filters
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        offlineProducts = offlineProducts.filter((p: any) => 
-          p.name?.toLowerCase().includes(term) || 
-          p.barcode?.toLowerCase().includes(term) ||
-          p.description?.toLowerCase().includes(term)
-        );
-      }
-      
-      if (selectedCategory) {
-        offlineProducts = offlineProducts.filter((p: any) => p.category_id === selectedCategory);
-      }
-      
-      return offlineProducts.slice(0, 50);
+      return [];
     },
     enabled: !!selectedCategory || !!searchTerm,
   });
@@ -1579,55 +1536,7 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
-    // Try to find product by barcode in offline DB first (works both online and offline)
-    try {
-      const cachedProduct = await offlineDB.getProductByBarcode(barcode);
-      
-      if (cachedProduct) {
-        // Check if it has variants
-        const availableVariants = cachedProduct.product_variants?.filter((v: any) => v.is_available) || [];
-        
-        if (availableVariants.length > 0) {
-          // Check if any variant has this barcode
-          const matchingVariant = availableVariants.find((v: any) => v.barcode === barcode);
-          
-          if (matchingVariant) {
-            const productToAdd = {
-              ...cachedProduct,
-              price: matchingVariant.price,
-              selectedVariant: matchingVariant,
-            };
-            addToCartWithCustomPrice(productToAdd);
-            return;
-          }
-          
-          // Otherwise use default or first variant
-          const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-          const productToAdd = {
-            ...cachedProduct,
-            price: variantToAdd.price,
-            selectedVariant: variantToAdd,
-          };
-          addToCartWithCustomPrice(productToAdd);
-          return;
-        } else {
-          // No variants, use product price
-          addToCartWithCustomPrice(cachedProduct);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error checking offline cache:', error);
-    }
-    
-    // If not found in cache and we're online, try online database
-    if (!navigator.onLine) {
-      console.error('Product not found in offline cache');
-      setScannedBarcode(barcode);
-      setAssignBarcodeOpen(true);
-      return;
-    }
-    
+    // Query database for product by barcode
     // First, try to find a product variant with this barcode (optimized query)
     const { data: variantData, error: variantError } = await supabase
       .from('product_variants')
