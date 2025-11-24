@@ -1102,8 +1102,10 @@ export const usePOSTransaction = () => {
 
       // Check if online
       if (navigator.onLine) {
+        // EDIT MODE: Update existing POS transaction
         if (editingTransactionId && editingTransactionType === 'pos') {
-          // UPDATE existing POS transaction instead of creating new one
+          console.log('🔧 UPDATE MODE: Updating existing POS transaction:', editingTransactionId);
+          
           const { data, error } = await supabase
             .from('pos_transactions')
             .update({
@@ -1118,6 +1120,7 @@ export const usePOSTransaction = () => {
               payment_details: transactionData.payment_details,
               notes: transactionData.notes,
               metadata: transactionData.metadata,
+              updated_at: new Date().toISOString(),
             })
             .eq('id', editingTransactionId)
             .select()
@@ -1125,15 +1128,20 @@ export const usePOSTransaction = () => {
 
           if (error) {
             console.error('Database update error:', error);
+            setIsProcessing(false);
             return null;
           }
 
-          console.log('Transaction updated successfully!');
+          console.log('✅ Transaction updated successfully!');
           clearCart();
+          setIsProcessing(false);
           return data;
-        } else if (editingTransactionId && editingTransactionType === 'online') {
-          // For online orders, we still create a POS transaction and delete the order
-          // (converting order to POS transaction)
+        } 
+        
+        // CONVERT MODE: Convert online order to POS transaction
+        if (editingTransactionId && editingTransactionType === 'online') {
+          console.log('🔄 CONVERT MODE: Converting online order to POS transaction');
+          
           const { data, error } = await supabase
             .from('pos_transactions')
             .insert(transactionData)
@@ -1142,6 +1150,7 @@ export const usePOSTransaction = () => {
 
           if (error) {
             console.error('Database error:', error);
+            setIsProcessing(false);
             return null;
           }
 
@@ -1149,42 +1158,46 @@ export const usePOSTransaction = () => {
           await supabase.from('order_items').delete().eq('order_id', editingTransactionId);
           await supabase.from('orders').delete().eq('id', editingTransactionId);
 
-          console.log('Order converted to POS transaction successfully!');
+          console.log('✅ Order converted to POS transaction successfully!');
           clearCart();
+          setIsProcessing(false);
           return data;
-        } else {
-          // Create new transaction (original flow)
-          const { data, error } = await supabase
-            .from('pos_transactions')
-            .insert(transactionData)
-            .select()
-            .single();
+        }
+        
+        
+        // NEW TRANSACTION MODE: Create new POS transaction
+        console.log('✨ NEW TRANSACTION MODE: Creating new POS transaction');
+        
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .insert(transactionData)
+          .select()
+          .single();
 
-          if (error) {
-            console.error('Database error:', error);
-            // If online but failed, save offline as backup
-            await offlineDB.addTransaction({
-              id: transactionData.id,
-              storeId: transactionData.store_id,
-              cashierId: transactionData.cashier_id,
-              customerId: transactionData.customer_id,
-              items: transactionData.items,
-              subtotal: transactionData.subtotal,
-              discount: transactionData.discount,
-              total: transactionData.total,
-              paymentMethod: transactionData.payment_method,
-              notes: transactionData.notes,
-              timestamp: new Date().toISOString(),
-              synced: false,
-            });
-            console.log('Saved offline - will sync when connection is stable');
-            clearCart();
-            return { ...transactionData, offline: true };
-          }
+        if (error) {
+          console.error('Database error:', error);
+          // If online but failed, save offline as backup
+          await offlineDB.addTransaction({
+            id: transactionData.id,
+            storeId: transactionData.store_id,
+            cashierId: transactionData.cashier_id,
+            customerId: transactionData.customer_id,
+            items: transactionData.items,
+            subtotal: transactionData.subtotal,
+            discount: transactionData.discount,
+            total: transactionData.total,
+            paymentMethod: transactionData.payment_method,
+            notes: transactionData.notes,
+            timestamp: new Date().toISOString(),
+            synced: false,
+          });
+          console.log('Saved offline - will sync when connection is stable');
+          clearCart();
+          setIsProcessing(false);
+          return { ...transactionData, offline: true };
         }
         
         // Update stock quantities for sold items (only for new transactions)
-        let data = null;
         if (!editingTransactionId) {
           for (const item of cart) {
             if (item.id === 'cart-discount') continue; // Skip cart discount items
@@ -1244,9 +1257,10 @@ export const usePOSTransaction = () => {
           }
         }
 
-        console.log(editingTransactionId ? 'Transaction updated successfully!' : 'Transaction completed successfully!');
+        console.log('✅ Transaction completed successfully!');
         clearCart();
-        return data || transactionData;
+        setIsProcessing(false);
+        return data;
       } else {
         // Save offline
         await offlineDB.addTransaction({
