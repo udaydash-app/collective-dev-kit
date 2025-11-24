@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,11 @@ interface ProductSearchProps {
   onProductSelect: (product: any) => void;
 }
 
-export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
+export interface ProductSearchRef {
+  focus: () => void;
+}
+
+export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({ onProductSelect }, ref) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -21,6 +25,13 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+
+  // Expose focus method to parent
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      searchInputRef.current?.focus();
+    }
+  }));
 
   // Reset highlighted index when search term changes
   React.useEffect(() => {
@@ -318,4 +329,4 @@ export const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
       />
     </div>
   );
-};
+});
