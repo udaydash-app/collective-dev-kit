@@ -79,7 +79,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { NumericKeypad } from '@/components/pos/NumericKeypad';
-import { ProductSearch } from '@/components/pos/ProductSearch';
+import { ProductSearch, ProductSearchRef } from '@/components/pos/ProductSearch';
 import { Label } from '@/components/ui/label';
 import { UpdateButton } from '@/components/UpdateButton';
 import { APP_VERSION } from '@/config/version';
@@ -128,7 +128,7 @@ export default function POS() {
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [expandedMetric, setExpandedMetric] = useState<'sales' | 'products' | 'customers' | null>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
-  const productSearchInputRef = useRef<HTMLInputElement>(null);
+  const productSearchRef = useRef<ProductSearchRef>(null);
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
@@ -3435,6 +3435,7 @@ export default function POS() {
           <div>
             <Label className="text-xs">Search Products</Label>
             <ProductSearch 
+              ref={productSearchRef}
               onProductSelect={handleProductClick}
             />
           </div>
