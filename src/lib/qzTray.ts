@@ -62,58 +62,35 @@ class QZTrayService {
   }
 
   async connect(): Promise<void> {
-    console.log('🔗 [QZ] connect() called, current state:', { 
-      connected: this.connected, 
-      isActive: qz.websocket.isActive() 
-    });
-    
     if (this.connected && qz.websocket.isActive()) {
-      console.log('✅ [QZ] Already connected and active, skipping');
       return;
     }
 
     try {
       if (!qz.websocket.isActive()) {
-        console.log('🔌 [QZ] Websocket not active, starting connection...');
+        // Direct connection with minimal polling
+        await qz.websocket.connect();
         
-        // Start connection (don't await the promise as it may not resolve)
-        qz.websocket.connect().catch(err => {
-          console.error('❌ [QZ] Connection promise rejected:', err);
-        });
-        
-        // Poll for connection with timeout
-        const maxAttempts = 50; // 5 seconds (50 * 100ms)
+        // Quick validation - max 1 second
+        const maxAttempts = 20; // 1 second (20 * 50ms)
         let attempts = 0;
         
-        while (attempts < maxAttempts) {
-          if (qz.websocket.isActive()) {
-            console.log('✅ [QZ] Connection detected as active after', attempts * 100, 'ms');
-            // Add longer delay to ensure connection is fully initialized
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            console.log('✅ [QZ] Connection initialization delay complete');
-            
-            // Verify connection object is fully initialized
-            if (!qz.websocket.connection || typeof qz.websocket.connection.sendData !== 'function') {
-              console.warn('⚠️ [QZ] Connection object not fully initialized, waiting...');
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
-            this.connected = true;
-            return;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
+        while (attempts < maxAttempts && !qz.websocket.isActive()) {
+          await new Promise(resolve => setTimeout(resolve, 50));
           attempts++;
         }
         
-        throw new Error('Connection timeout - QZ Tray did not become active');
+        if (!qz.websocket.isActive()) {
+          throw new Error('Connection timeout');
+        }
+        
+        this.connected = true;
       } else {
-        console.log('✅ [QZ] Websocket already active');
         this.connected = true;
       }
     } catch (error) {
-      console.error('❌ [QZ] Failed to connect to QZ Tray:', error);
       this.connected = false;
-      throw new Error('Please make sure QZ Tray is running on your computer');
+      throw new Error('Please make sure QZ Tray is running');
     }
   }
 
@@ -130,124 +107,99 @@ class QZTrayService {
   }
 
   async getDefaultPrinter(): Promise<string> {
-    console.log('🖨️ [QZ] getDefaultPrinter() called');
     await this.connect();
-    console.log('🔍 [QZ] Connection complete, now getting default printer...');
-    try {
-      const defaultPrinter = await qz.printers.getDefault();
-      console.log('✅ [QZ] Default printer found:', defaultPrinter);
-      return defaultPrinter;
-    } catch (error) {
-      console.error('❌ [QZ] Failed to get default printer:', error);
-      throw error;
-    }
+    return await qz.printers.getDefault();
   }
 
   async printReceipt(data: QZReceiptData, printerName?: string): Promise<void> {
-    console.log('📡 [QZ] Starting print receipt process...');
-    
     try {
-      console.log('🔌 [QZ] Connecting to QZ Tray...');
       await this.connect();
-      console.log('✅ [QZ] Connected successfully');
-
-      console.log('🖨️ [QZ] Getting printer name...');
       const printer = printerName || await this.getDefaultPrinter();
-      console.log('🖨️ [QZ] Using printer:', printer);
+      const config = qz.configs.create(printer);
     
-    // Build ESC/POS commands for thermal printer
-    const config = qz.configs.create(printer);
-    console.log('⚙️ [QZ] Config created for printer:', printer);
+      // ESC/POS commands
+      const ESC = '\x1B';
+      const GS = '\x1D';
     
-    // ESC/POS commands
-    const ESC = '\x1B';
-    const GS = '\x1D';
+      // Initialize printer
+      let commands = ESC + '@';
     
-    // Initialize printer
-    let commands = ESC + '@';
+      // Center align
+      commands += ESC + 'a' + '1';
     
-    // Center align
-    commands += ESC + 'a' + '1';
+      // Store name - Large and bold
+      commands += ESC + '!' + '\x30'; // Double height and width
+      commands += data.storeName + '\n';
+      commands += ESC + '!' + '\x00'; // Reset
     
-    // Store name - Large and bold
-    commands += ESC + '!' + '\x30'; // Double height and width
-    commands += data.storeName + '\n';
-    commands += ESC + '!' + '\x00'; // Reset
+      // Tagline
+      commands += '\nFresh groceries delivered to your doorstep\n';
     
-    // Tagline
-    commands += '\nFresh groceries delivered to your doorstep\n';
+      // Transaction details
+      commands += '\nTransaction: ' + data.transactionNumber + '\n';
+      commands += formatDateTime(data.date) + '\n';
     
-    // Transaction details
-    commands += '\nTransaction: ' + data.transactionNumber + '\n';
-    commands += formatDateTime(data.date) + '\n';
+      if (data.cashierName) {
+        commands += 'Cashier: ' + data.cashierName + '\n';
+      }
     
-    if (data.cashierName) {
-      commands += 'Cashier: ' + data.cashierName + '\n';
-    }
+      if (data.customerName) {
+        commands += 'Customer: ' + data.customerName + '\n';
+      }
     
-    if (data.customerName) {
-      commands += 'Customer: ' + data.customerName + '\n';
-    }
+      // Left align for items
+      commands += ESC + 'a' + '0';
+      commands += '\n' + '-'.repeat(42) + '\n';
     
-    // Left align for items
-    commands += ESC + 'a' + '0';
-    commands += '\n' + '-'.repeat(42) + '\n';
-    
-    // Items
-    data.items.forEach(item => {
-      // Item name
-      commands += item.name + '\n';
+      // Items
+      data.items.forEach(item => {
+        // Item name
+        commands += item.name + '\n';
       
-      // Quantity and price
-      const qtyPrice = `${item.quantity} x ${this.formatCurrency(item.price)}`;
-      const total = this.formatCurrency(item.price * item.quantity);
-      const spaces = 42 - qtyPrice.length - total.length;
-      commands += qtyPrice + ' '.repeat(Math.max(spaces, 1)) + total + '\n';
-    });
+        // Quantity and price
+        const qtyPrice = `${item.quantity} x ${this.formatCurrency(item.price)}`;
+        const total = this.formatCurrency(item.price * item.quantity);
+        const spaces = 42 - qtyPrice.length - total.length;
+        commands += qtyPrice + ' '.repeat(Math.max(spaces, 1)) + total + '\n';
+      });
     
-    commands += '-'.repeat(42) + '\n\n';
+      commands += '-'.repeat(42) + '\n\n';
     
-    // Totals
-    commands += this.formatLine('Subtotal:', this.formatCurrency(data.subtotal));
-    commands += this.formatLine('Tax (15%):', this.formatCurrency(data.tax));
+      // Totals
+      commands += this.formatLine('Subtotal:', this.formatCurrency(data.subtotal));
+      commands += this.formatLine('Tax (15%):', this.formatCurrency(data.tax));
     
-    if (data.discount && data.discount > 0) {
-      commands += this.formatLine('Discount:', '-' + this.formatCurrency(data.discount));
-    }
+      if (data.discount && data.discount > 0) {
+        commands += this.formatLine('Discount:', '-' + this.formatCurrency(data.discount));
+      }
     
-    commands += '-'.repeat(42) + '\n';
+      commands += '-'.repeat(42) + '\n';
     
-    // Total - bold and emphasized
-    commands += ESC + '!' + '\x30'; // Double height and width
-    commands += this.formatLine('TOTAL:', this.formatCurrency(data.total));
-    commands += ESC + '!' + '\x00'; // Reset
+      // Total - bold and emphasized
+      commands += ESC + '!' + '\x30'; // Double height and width
+      commands += this.formatLine('TOTAL:', this.formatCurrency(data.total));
+      commands += ESC + '!' + '\x00'; // Reset
     
-    commands += '\n' + '-'.repeat(42) + '\n';
+      commands += '\n' + '-'.repeat(42) + '\n';
     
-    // Payment method
-    commands += 'Payment Method: ' + data.paymentMethod.toUpperCase() + '\n\n';
+      // Payment method
+      commands += 'Payment Method: ' + data.paymentMethod.toUpperCase() + '\n\n';
     
-    // Center align for footer
-    commands += ESC + 'a' + '1';
-    commands += 'Thank you for shopping with us!\n';
+      // Center align for footer
+      commands += ESC + 'a' + '1';
+      commands += 'Thank you for shopping with us!\n';
     
-    if (data.supportPhone) {
-      commands += 'For support: ' + data.supportPhone + '\n';
-    }
+      if (data.supportPhone) {
+        commands += 'For support: ' + data.supportPhone + '\n';
+      }
     
-    // Feed and cut
-    commands += '\n\n\n';
-    commands += GS + 'V' + '\x00'; // Cut paper
+      // Feed and cut
+      commands += '\n\n\n';
+      commands += GS + 'V' + '\x00'; // Cut paper
     
-      // Send to printer
-      const printData = [commands];
-      console.log('📄 [QZ] Sending print data to QZ Tray, data length:', commands.length);
-      console.log('📄 [QZ] Print data preview:', commands.substring(0, 100));
-      
-      await qz.print(config, printData);
-      console.log('✅ [QZ] qz.print() completed successfully');
+      // Send to printer immediately
+      await qz.print(config, [commands]);
     } catch (error) {
-      console.error('❌ [QZ] Print receipt failed at step:', error);
       throw error;
     }
   }

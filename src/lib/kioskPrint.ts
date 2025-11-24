@@ -52,7 +52,7 @@ class KioskPrintService {
         return;
       }
 
-      // Use hidden iframe for faster browser printing
+      // Use hidden iframe for instant browser printing
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
       iframe.style.width = '0';
@@ -67,12 +67,12 @@ class KioskPrintService {
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Print immediately
+      // Print and cleanup immediately
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-
-      // Clean up after brief delay
-      setTimeout(() => document.body.removeChild(iframe), 100);
+      
+      // Remove iframe immediately after print dialog opens
+      requestAnimationFrame(() => document.body.removeChild(iframe));
 
     } catch (error) {
       throw new Error('Print failed: ' + (error as Error).message);

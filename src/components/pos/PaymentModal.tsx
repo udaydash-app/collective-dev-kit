@@ -163,14 +163,12 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!receiptRef.current) return;
     
     try {
-      // Simplified PDF generation without base64 conversion
       const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
+        scale: 1.5,
         backgroundColor: '#ffffff',
-        useCORS: true,
+        logging: false,
       });
       
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -180,9 +178,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       const imgWidth = 80;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
       pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
-      console.log('Receipt saved as PDF');
     } catch (error) {
       console.error('Error generating PDF:', error);
     }
@@ -228,15 +225,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     if (!transactionData) return;
     
     try {
-      console.log('📱 WhatsApp share started');
-      
-      // Create a temporary container for the receipt
       const container = document.createElement('div');
       container.style.position = 'absolute';
       container.style.left = '-9999px';
       document.body.appendChild(container);
       
-      // Render the receipt component directly without base64 conversion
       const root = ReactDOM.createRoot(container);
       await new Promise<void>(resolve => {
         root.render(
@@ -263,34 +256,25 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             isUnifiedBalance={selectedCustomerData?.is_supplier && selectedCustomerData?.is_customer}
           />
         );
-        setTimeout(resolve, 100);
+        setTimeout(resolve, 50);
       });
       
-      // Convert to canvas with reduced scale for faster processing
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
-      if (!receiptElement) {
-        console.error('❌ Receipt element not found in container');
-        throw new Error('Receipt element not found');
-      }
+      if (!receiptElement) throw new Error('Receipt element not found');
       
-      console.log('🎨 Converting receipt to canvas...');
       const canvas = await html2canvas(receiptElement, {
-        scale: 2, // Reduced from 3 for faster processing
+        scale: 1.5,
         backgroundColor: '#ffffff',
         logging: false,
-        useCORS: true,
       });
-      console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
       
-      // Convert canvas to blob
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => {
           if (blob) resolve(blob);
           else reject(new Error('Failed to create blob'));
-        }, 'image/png', 1.0);
+        }, 'image/png', 0.92);
       });
       
-      // Clean up
       root.unmount();
       document.body.removeChild(container);
       
