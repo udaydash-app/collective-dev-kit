@@ -1369,7 +1369,7 @@ export default function AdminOrders() {
                 Loading orders...
               </div>
             ) : orders && orders.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="sticky-scroll-x pb-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
