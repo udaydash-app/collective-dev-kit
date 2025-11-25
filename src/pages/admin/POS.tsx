@@ -2214,44 +2214,6 @@ export default function POS() {
       cartLength: cart.length
     });
     
-    // Calculate customer balance from account current_balance (includes opening balance + journal entries)
-    let customerBalance: number | undefined;
-    let isUnifiedBalance = false;
-    
-    if (selectedCustomer) {
-      const customer = customers?.find(c => c.id === selectedCustomer.id);
-      if (customer) {
-        isUnifiedBalance = customer.is_supplier && customer.is_customer;
-
-        // Fetch current balance directly from accounts table
-        if (customer.customer_ledger_account_id) {
-          const { data: customerAccount } = await supabase
-            .from('accounts')
-            .select('current_balance')
-            .eq('id', customer.customer_ledger_account_id)
-            .single();
-
-          if (customerAccount) {
-            customerBalance = customerAccount.current_balance;
-          }
-        }
-
-        // If dual-role (customer & supplier), calculate unified balance from account balances
-        if (customer.is_supplier && customer.supplier_ledger_account_id && customerBalance !== undefined) {
-          const { data: supplierAccount } = await supabase
-            .from('accounts')
-            .select('current_balance')
-            .eq('id', customer.supplier_ledger_account_id)
-            .single();
-
-          if (supplierAccount) {
-            // Unified balance: customer receivable minus supplier payable
-            customerBalance = customerBalance - supplierAccount.current_balance;
-          }
-        }
-      }
-    }
-    
     const transactionDataPrep = {
       items: allItems.map(item => ({
         id: item.id,
@@ -2270,8 +2232,8 @@ export default function POS() {
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       customerName: selectedCustomer?.name,
-      customerBalance,
-      isUnifiedBalance,
+      customerBalance: undefined, // Will be fetched after transaction for credit payments
+      isUnifiedBalance: false,
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
@@ -2343,49 +2305,42 @@ export default function POS() {
       const transactionId = 'id' in result ? result.id : 'offline-' + Date.now();
       const transactionNumber = 'transaction_number' in result ? result.transaction_number : transactionId;
       
-      // Optimize: Only wait for balance update if payment was on credit
+      // Only fetch balance if payment was on credit
       const hasCreditPayment = payments.some(p => p.method === 'credit');
-      if (hasCreditPayment && selectedCustomer) {
-        // Reduced wait time + fast balance fetch for credit payments only
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (hasCreditPayment && selectedCustomer?.customer_ledger_account_id) {
+        const isUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
         
-        let updatedCustomerBalance: number | undefined;
-        let updatedIsUnifiedBalance = false;
-        
-        if (selectedCustomer?.customer_ledger_account_id) {
-          updatedIsUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
-
-          // Fast balance fetch - single query
+        // Parallel fetch for dual-role customers
+        if (isUnifiedBalance && selectedCustomer.supplier_ledger_account_id) {
+          const [customerResult, supplierResult] = await Promise.all([
+            supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', selectedCustomer.customer_ledger_account_id)
+              .single(),
+            supabase
+              .from('accounts')
+              .select('current_balance')
+              .eq('id', selectedCustomer.supplier_ledger_account_id)
+              .single()
+          ]);
+          
+          if (customerResult.data && supplierResult.data) {
+            transactionDataPrep.customerBalance = customerResult.data.current_balance - supplierResult.data.current_balance;
+            transactionDataPrep.isUnifiedBalance = true;
+          }
+        } else {
+          // Single account fetch
           const { data: customerAccount } = await supabase
             .from('accounts')
             .select('current_balance')
             .eq('id', selectedCustomer.customer_ledger_account_id)
             .single();
-
+          
           if (customerAccount) {
-            updatedCustomerBalance = customerAccount.current_balance;
-            
-            // If dual-role, fetch supplier balance
-            if (selectedCustomer.is_supplier && selectedCustomer.supplier_ledger_account_id) {
-              const { data: supplierAccount } = await supabase
-                .from('accounts')
-                .select('current_balance')
-                .eq('id', selectedCustomer.supplier_ledger_account_id)
-                .single();
-
-              if (supplierAccount) {
-                updatedCustomerBalance = updatedCustomerBalance - supplierAccount.current_balance;
-                updatedIsUnifiedBalance = true;
-              }
-            }
+            transactionDataPrep.customerBalance = customerAccount.current_balance;
           }
         }
-        
-        transactionDataPrep.customerBalance = updatedCustomerBalance;
-        transactionDataPrep.isUnifiedBalance = updatedIsUnifiedBalance;
-      } else {
-        // No credit payment, no need to update balance
-        // Keep the original balance from before transaction
       }
       
       const completeTransactionData = {
