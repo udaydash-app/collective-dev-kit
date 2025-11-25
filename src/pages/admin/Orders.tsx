@@ -1445,19 +1445,20 @@ export default function AdminOrders() {
                             {formatCurrency(Number(order.total))}
                           </TableCell>
                           <TableCell>
-                            {order.type === 'pos' ? (
-                              order.metadata?.sale_type === 'online_sale' ? (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                  Online Sale
-                                </Badge>
+                            <div className="flex flex-col gap-1">
+                              {order.type === 'online' ? (
+                                <>
+                                  <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
+                                    Online Sale
+                                  </Badge>
+                                  {getStatusBadge(order.status)}
+                                </>
                               ) : (
-                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 w-fit">
                                   POS Sale
                                 </Badge>
-                              )
-                            ) : (
-                              getStatusBadge(order.status)
-                            )}
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm capitalize">
