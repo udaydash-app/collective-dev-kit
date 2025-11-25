@@ -1157,9 +1157,19 @@ export const usePOSTransaction = () => {
         if (editingTransactionId && editingTransactionType === 'online') {
           console.log('🔄 CONVERT MODE: Converting online order to POS transaction');
           
+          // Add sale_type to metadata to mark as online sale
+          const onlineTransactionData = {
+            ...transactionData,
+            metadata: {
+              ...transactionData.metadata,
+              sale_type: 'online_sale',
+              original_order_id: editingTransactionId
+            }
+          };
+          
           const { data, error } = await supabase
             .from('pos_transactions')
-            .insert(transactionData)
+            .insert(onlineTransactionData)
             .select()
             .single();
 
@@ -1169,11 +1179,10 @@ export const usePOSTransaction = () => {
             return null;
           }
 
-          // Delete the original online order
-          await supabase.from('order_items').delete().eq('order_id', editingTransactionId);
-          await supabase.from('orders').delete().eq('id', editingTransactionId);
+          // DON'T delete the online order - just keep it for reference
+          // The status will be updated to 'out_for_delivery' in handlePaymentConfirm
 
-          console.log('✅ Order converted to POS transaction successfully!');
+          console.log('✅ Online order processed as POS transaction successfully!');
           clearCart();
           setIsProcessing(false);
           return data;

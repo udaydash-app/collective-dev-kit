@@ -292,7 +292,8 @@ export default function AdminOrders() {
           status: 'completed',
           payment_method: transaction.payment_method,
           cashier_name: cashierMap.get(transaction.cashier_id) || 'Unknown',
-          addresses: null
+          addresses: null,
+          metadata: transaction.metadata // Include metadata for sale_type detection
         })));
       }
 
@@ -1387,9 +1388,15 @@ export default function AdminOrders() {
                           </TableCell>
                           <TableCell>
                             {order.type === 'pos' ? (
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                POS Sale
-                              </Badge>
+                              order.metadata?.sale_type === 'online_sale' ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                  Online Sale
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                  POS Sale
+                                </Badge>
+                              )
                             ) : (
                               getStatusBadge(order.status)
                             )}
