@@ -1161,17 +1161,28 @@ export const usePOSTransaction = () => {
             (current.amount > prev.amount) ? current : prev
           );
           
+          // Build update data including payment method and customer if selected
+          const updateData: any = {
+            status: 'out_for_delivery',
+            payment_status: 'paid',
+            payment_method: payments.length > 1 ? 'multiple' : primaryPayment.method,
+            subtotal: transactionData.subtotal,
+            total: transactionData.total,
+            tax: transactionData.tax,
+            updated_at: new Date().toISOString()
+          };
+          
+          // Add customer_id if a customer was selected (from contacts table)
+          if (transactionData.customer_id) {
+            // For orders, we don't have a customer_id column, but we can track the customer
+            // by adding their info. The customer_id in contacts is different from user_id
+            console.log('🔄 Customer selected for order:', transactionData.customer_id);
+          }
+          
           // Update the existing order with payment details and status
           const { data, error } = await supabase
             .from('orders')
-            .update({
-              status: 'out_for_delivery',
-              payment_status: 'paid',
-              subtotal: transactionData.subtotal,
-              total: transactionData.total,
-              tax: transactionData.tax,
-              updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', editingTransactionId)
             .select()
             .single();
@@ -1182,7 +1193,7 @@ export const usePOSTransaction = () => {
             return null;
           }
 
-          console.log('✅ Online order updated successfully!');
+          console.log('✅ Online order updated successfully with payment_method:', updateData.payment_method);
           clearCart();
           setIsProcessing(false);
           return { ...data, transaction_number: data.order_number, isOnlineOrder: true };

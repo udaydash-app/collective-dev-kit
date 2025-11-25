@@ -1355,6 +1355,7 @@ export type Database = {
           delivery_time_slot: string | null
           id: string
           order_number: string
+          payment_method: string | null
           payment_method_id: string | null
           payment_status: string | null
           status: string
@@ -1376,6 +1377,7 @@ export type Database = {
           delivery_time_slot?: string | null
           id?: string
           order_number: string
+          payment_method?: string | null
           payment_method_id?: string | null
           payment_status?: string | null
           status?: string
@@ -1397,6 +1399,7 @@ export type Database = {
           delivery_time_slot?: string | null
           id?: string
           order_number?: string
+          payment_method?: string | null
           payment_method_id?: string | null
           payment_status?: string | null
           status?: string
