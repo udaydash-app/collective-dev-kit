@@ -106,6 +106,7 @@ export default function Products() {
   const [filterAvailability, setFilterAvailability] = useState<string>("all");
   const [filterFeatured, setFilterFeatured] = useState<string>("all");
   const [filterStock, setFilterStock] = useState<string>("all");
+  const [filterVariants, setFilterVariants] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [returnPath, setReturnPath] = useState<string | null>(null);
   const [fromPurchases, setFromPurchases] = useState(false);
@@ -1042,8 +1043,12 @@ export default function Products() {
       filterStock === "all" ||
       (filterStock === "in-stock" && product.stock_quantity > 0) ||
       (filterStock === "out-of-stock" && product.stock_quantity === 0);
+    const matchesVariants = 
+      filterVariants === "all" ||
+      (filterVariants === "with-variants" && product.product_variants && product.product_variants.length > 0) ||
+      (filterVariants === "without-variants" && (!product.product_variants || product.product_variants.length === 0));
 
-    return matchesSearch && matchesCategory && matchesStore && matchesAvailability && matchesFeatured && matchesStock;
+    return matchesSearch && matchesCategory && matchesStore && matchesAvailability && matchesFeatured && matchesStock && matchesVariants;
   });
 
   console.log('Admin: Total products:', products.length, 'Filtered:', filteredProducts.length, 'Search:', searchQuery);
@@ -1124,7 +1129,7 @@ export default function Products() {
           {/* Modern Filters Section */}
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="filter-category" className="text-xs font-medium">Category</Label>
                   <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -1193,6 +1198,20 @@ export default function Products() {
                       <SelectItem value="all">All Stock</SelectItem>
                       <SelectItem value="in-stock">In Stock</SelectItem>
                       <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-variants" className="text-xs font-medium">Variants</Label>
+                  <Select value={filterVariants} onValueChange={setFilterVariants}>
+                    <SelectTrigger id="filter-variants" className="h-9 text-sm">
+                      <SelectValue placeholder="All Products" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Products</SelectItem>
+                      <SelectItem value="with-variants">With Variants</SelectItem>
+                      <SelectItem value="without-variants">Without Variants</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
