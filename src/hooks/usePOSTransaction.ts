@@ -1153,39 +1153,39 @@ export const usePOSTransaction = () => {
           return data;
         }
         
-        // CONVERT MODE: Convert online order to POS transaction
+        // CONVERT MODE: Update existing online order with payment info (don't create duplicate)
         if (editingTransactionId && editingTransactionType === 'online') {
-          console.log('🔄 CONVERT MODE: Converting online order to POS transaction');
+          console.log('🔄 CONVERT MODE: Updating online order with payment info');
           
-          // Add sale_type to metadata to mark as online sale
-          const onlineTransactionData = {
-            ...transactionData,
-            metadata: {
-              ...transactionData.metadata,
-              sale_type: 'online_sale',
-              original_order_id: editingTransactionId
-            }
-          };
+          const primaryPayment = payments.reduce((prev, current) => 
+            (current.amount > prev.amount) ? current : prev
+          );
           
+          // Update the existing order with payment details and status
           const { data, error } = await supabase
-            .from('pos_transactions')
-            .insert(onlineTransactionData)
+            .from('orders')
+            .update({
+              status: 'out_for_delivery',
+              payment_status: 'paid',
+              subtotal: transactionData.subtotal,
+              total: transactionData.total,
+              tax: transactionData.tax,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', editingTransactionId)
             .select()
             .single();
 
           if (error) {
-            console.error('Database error:', error);
+            console.error('Database error updating online order:', error);
             setIsProcessing(false);
             return null;
           }
 
-          // DON'T delete the online order - just keep it for reference
-          // The status will be updated to 'out_for_delivery' in handlePaymentConfirm
-
-          console.log('✅ Online order processed as POS transaction successfully!');
+          console.log('✅ Online order updated successfully!');
           clearCart();
           setIsProcessing(false);
-          return data;
+          return { ...data, transaction_number: data.order_number, isOnlineOrder: true };
         }
         
         

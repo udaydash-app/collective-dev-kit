@@ -2268,24 +2268,9 @@ export default function POS() {
         transactionNumber: 'transaction_number' in result ? result.transaction_number : 'unknown'
       });
       
-      // Clear editing state and update order status
+      // Clear editing state (status update is handled in usePOSTransaction)
       if (editingOrderId) {
         console.log('🔧 [PAYMENT] Clearing editing state:', { editingOrderId, editingOrderType });
-        
-        // If it's an online order, update status to out_for_delivery
-        if (editingOrderType === 'online') {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: 'out_for_delivery' })
-            .eq('id', editingOrderId);
-            
-          if (updateError) {
-            console.error('Error updating order status:', updateError);
-          } else {
-            console.log(`Order ${editingOrderId} status updated to out_for_delivery`);
-          }
-        }
-        
         setEditingOrderId(null);
         setEditingOrderType(null);
       }
