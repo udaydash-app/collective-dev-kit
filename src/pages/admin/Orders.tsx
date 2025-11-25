@@ -164,7 +164,8 @@ export default function AdminOrders() {
         .select(`
           *,
           stores(name),
-          addresses(address_line1, city)
+          addresses(address_line1, city),
+          payment_methods(type, label)
         `)
         .order('created_at', { ascending: false });
 
@@ -1477,30 +1478,11 @@ export default function AdminOrders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="space-y-1">
-                              <span className="text-sm capitalize">
-                                {order.payment_method || 'N/A'}
-                              </span>
-                              {order.type === 'online' && (
-                                <Select
-                                  value={order.payment_status || 'pending'}
-                                  onValueChange={(value) => updatePaymentStatus.mutate({ 
-                                    orderId: order.id, 
-                                    paymentStatus: value 
-                                  })}
-                                >
-                                  <SelectTrigger className="w-[110px] h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="paid">Paid</SelectItem>
-                                    <SelectItem value="partial">Partial</SelectItem>
-                                    <SelectItem value="failed">Failed</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
+                            <span className="text-sm capitalize">
+                              {order.type === 'online' 
+                                ? (order.payment_methods?.label || order.payment_methods?.type || 'Not set')
+                                : (order.payment_method || 'N/A')}
+                            </span>
                           </TableCell>
                           <TableCell>
                             {formatDate(order.created_at)}
