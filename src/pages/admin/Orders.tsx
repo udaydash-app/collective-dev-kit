@@ -644,8 +644,34 @@ export default function AdminOrders() {
     }
   };
 
-  const handleEditOrder = (order: any) => {
+  const handleEditOrder = async (order: any) => {
     console.log('🔧 handleEditOrder called with order:', order);
+    
+    // For online orders, try to find the customer by user_id or customer name
+    let customerId = order.type === 'pos' ? order.customer_id : null;
+    
+    // If it's an online order and has a user_id, try to find the customer contact
+    if (order.type === 'online' && !customerId && order.user_id) {
+      // Try to find a contact linked to this user
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', order.user_id)
+        .maybeSingle();
+      
+      if (profile?.phone) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('phone', profile.phone)
+          .eq('is_customer', true)
+          .maybeSingle();
+        
+        if (contact) {
+          customerId = contact.id;
+        }
+      }
+    }
     
     // Store the order data in localStorage so POS can load it
     const orderData = {
@@ -676,7 +702,7 @@ export default function AdminOrders() {
       }),
       discount: order.type === 'pos' ? (order.discount || 0) : 0,
       customer: order.customer_name,
-      customerId: order.type === 'pos' ? order.customer_id : null,
+      customerId: customerId,
       storeId: order.store_id
     };
     
@@ -1480,7 +1506,7 @@ export default function AdminOrders() {
                           <TableCell>
                             <span className="text-sm capitalize">
                               {order.type === 'online' 
-                                ? (order.payment_methods?.label || order.payment_methods?.type || 'Not set')
+                                ? (order.payment_method || order.payment_methods?.label || order.payment_methods?.type || 'Not set')
                                 : (order.payment_method || 'N/A')}
                             </span>
                           </TableCell>
