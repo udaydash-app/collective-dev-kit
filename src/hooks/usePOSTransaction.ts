@@ -1174,8 +1174,7 @@ export const usePOSTransaction = () => {
           
           // Add customer_id if a customer was selected (from contacts table)
           if (transactionData.customer_id) {
-            // For orders, we don't have a customer_id column, but we can track the customer
-            // by adding their info. The customer_id in contacts is different from user_id
+            updateData.customer_id = transactionData.customer_id;
             console.log('🔄 Customer selected for order:', transactionData.customer_id);
           }
           
