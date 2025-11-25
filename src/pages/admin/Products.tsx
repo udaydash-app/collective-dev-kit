@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid, Merge } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1356,10 +1357,19 @@ export default function Products() {
                                   <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                     📦
                                   </div>
-                                )}
-                                <div className="min-w-0">
-                                  <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
-                                  {product.product_variants && product.product_variants.length > 0 && (
+                                 )}
+                                 <div className="min-w-0">
+                                   <TooltipProvider>
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <div className="font-medium text-xs truncate max-w-[200px] cursor-help">{product.name}</div>
+                                       </TooltipTrigger>
+                                       <TooltipContent>
+                                         <p className="max-w-xs">{product.name}</p>
+                                       </TooltipContent>
+                                     </Tooltip>
+                                   </TooltipProvider>
+                                   {product.product_variants && product.product_variants.length > 0 && (
                                     <div className="text-[10px] text-muted-foreground">
                                       {product.product_variants.length} variants
                                     </div>
@@ -1482,10 +1492,19 @@ export default function Products() {
                               <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                 📦
                               </div>
-                            )}
-                            <div className="min-w-0">
-                              <div className="font-medium text-xs truncate max-w-[200px]">{product.name}</div>
-                              {product.product_variants && product.product_variants.length > 0 && (
+                             )}
+                             <div className="min-w-0">
+                               <TooltipProvider>
+                                 <Tooltip>
+                                   <TooltipTrigger asChild>
+                                     <div className="font-medium text-xs truncate max-w-[200px] cursor-help">{product.name}</div>
+                                   </TooltipTrigger>
+                                   <TooltipContent>
+                                     <p className="max-w-xs">{product.name}</p>
+                                   </TooltipContent>
+                                 </Tooltip>
+                               </TooltipProvider>
+                               {product.product_variants && product.product_variants.length > 0 && (
                                 <div className="text-[10px] text-muted-foreground">
                                   {product.product_variants.length} variants
                                 </div>
@@ -1637,11 +1656,20 @@ export default function Products() {
                       />
                     ) : (
                       <div className="w-full h-24 bg-muted rounded flex items-center justify-center text-3xl">
-                        📦
-                      </div>
-                    )}
-                    <CardTitle className="text-sm mt-2 line-clamp-2 leading-tight">{product.name}</CardTitle>
-                    <CardDescription className="text-xs">
+                         📦
+                       </div>
+                     )}
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <CardTitle className="text-sm mt-2 line-clamp-2 leading-tight cursor-help">{product.name}</CardTitle>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p className="max-w-xs">{product.name}</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                     <CardDescription className="text-xs">
                       {product.categories?.name || 'Uncategorized'}
                     </CardDescription>
                   </CardHeader>
