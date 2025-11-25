@@ -298,23 +298,22 @@ export default function POS() {
       setEditingOrderId(orderId);
       setEditingOrderType('online');
 
-      // Add items to cart with correct quantities
+      // Add items to cart with correct quantities - load all at once to avoid race conditions
       if (items && items.length > 0) {
-        // Process items sequentially to avoid race conditions
-        for (const item of items) {
-          if (item.products) {
-            // Add product to cart with the correct quantity directly
-            for (let i = 0; i < item.quantity; i++) {
-              await addToCart({
-                id: item.products.id,
-                name: item.products.name,
-                price: item.products.price,
-                image_url: item.products.image_url,
-                barcode: item.products.barcode,
-              });
-            }
-          }
-        }
+        const cartItems = items
+          .filter(item => item.products)
+          .map(item => ({
+            id: item.products.id,
+            productId: item.products.id,
+            name: item.products.name,
+            price: item.unit_price || item.products.price,
+            quantity: item.quantity,
+            image_url: item.products.image_url,
+            barcode: item.products.barcode,
+          }));
+        
+        // Load all items at once
+        loadCart(cartItems);
         
         // Update order status to processing when loaded to POS
         const { error: updateError } = await supabase
@@ -327,6 +326,7 @@ export default function POS() {
         } else {
           // Invalidate pending orders count query to refresh notifications
           queryClient.invalidateQueries({ queryKey: ['pending-orders-count'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
           toast.success('Order loaded to POS and marked as processing');
         }
         
