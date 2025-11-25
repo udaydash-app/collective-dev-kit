@@ -16,6 +16,8 @@ interface Transaction {
   total: number;
   payment_method: string;
   created_at: string;
+  customer_name?: string;
+  transaction_number?: string;
 }
 
 interface Purchase {
@@ -259,13 +261,16 @@ export const CashOutDialog = ({
                           <div className="space-y-1">
                             {transactions.map((txn) => (
                               <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
-                                <div className="flex items-center gap-2">
-                                  {txn.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-emerald-600" />}
-                                  {txn.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600" />}
-                                  {txn.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600" />}
-                                  <span className="text-muted-foreground">{formatDateTime(txn.created_at)}</span>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {txn.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-emerald-600 flex-shrink-0" />}
+                                  {txn.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600 flex-shrink-0" />}
+                                  {txn.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600 flex-shrink-0" />}
+                                  <span className="font-medium truncate">{txn.customer_name || 'Walk-in Customer'}</span>
+                                  <span className="text-muted-foreground capitalize flex-shrink-0">
+                                    ({txn.payment_method === 'mobile_money' ? 'Mobile' : txn.payment_method})
+                                  </span>
                                 </div>
-                                <span className="font-semibold">{formatCurrency(txn.total)}</span>
+                                <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
                               </div>
                             ))}
                           </div>

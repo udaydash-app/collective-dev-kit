@@ -620,12 +620,15 @@ export default function POS() {
 
       const { data } = await supabase
         .from('pos_transactions')
-        .select('id, total, payment_method, created_at')
+        .select('id, total, payment_method, created_at, transaction_number, customer_id, contacts:customer_id(name)')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
         .order('created_at', { ascending: false });
 
-      return data || [];
+      return (data || []).map(t => ({
+        ...t,
+        customer_name: t.contacts?.name || null
+      }));
     },
     enabled: !!currentCashSession,
   });
