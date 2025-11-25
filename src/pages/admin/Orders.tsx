@@ -1477,29 +1477,30 @@ export default function AdminOrders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {order.type === 'online' ? (
-                              <Select
-                                value={order.payment_status || 'pending'}
-                                onValueChange={(value) => updatePaymentStatus.mutate({ 
-                                  orderId: order.id, 
-                                  paymentStatus: value 
-                                })}
-                              >
-                                <SelectTrigger className="w-[120px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pending">Pending</SelectItem>
-                                  <SelectItem value="paid">Paid</SelectItem>
-                                  <SelectItem value="partial">Partial</SelectItem>
-                                  <SelectItem value="failed">Failed</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            ) : (
+                            <div className="space-y-1">
                               <span className="text-sm capitalize">
                                 {order.payment_method || 'N/A'}
                               </span>
-                            )}
+                              {order.type === 'online' && (
+                                <Select
+                                  value={order.payment_status || 'pending'}
+                                  onValueChange={(value) => updatePaymentStatus.mutate({ 
+                                    orderId: order.id, 
+                                    paymentStatus: value 
+                                  })}
+                                >
+                                  <SelectTrigger className="w-[110px] h-7 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="paid">Paid</SelectItem>
+                                    <SelectItem value="partial">Partial</SelectItem>
+                                    <SelectItem value="failed">Failed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {formatDate(order.created_at)}
