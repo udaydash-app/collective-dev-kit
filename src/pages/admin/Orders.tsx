@@ -648,10 +648,11 @@ export default function AdminOrders() {
   const handleEditOrder = async (order: any) => {
     console.log('🔧 handleEditOrder called with order:', order);
     
-    // For online orders, try to find the customer by user_id or customer name
-    let customerId = order.type === 'pos' ? order.customer_id : null;
+    // For POS orders, use the customer_id directly
+    // For online orders, first check if customer_id is set (from contacts table)
+    let customerId = order.customer_id || null;
     
-    // If it's an online order and has a user_id, try to find the customer contact
+    // If it's an online order without a customer_id, try to find by user_id
     if (order.type === 'online' && !customerId && order.user_id) {
       // Try to find a contact linked to this user
       const { data: profile } = await supabase
