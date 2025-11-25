@@ -165,7 +165,8 @@ export default function AdminOrders() {
           *,
           stores(name),
           addresses(address_line1, city),
-          payment_methods(type, label)
+          payment_methods(type, label),
+          contacts(id, name)
         `)
         .order('created_at', { ascending: false });
 
@@ -242,7 +243,7 @@ export default function AdminOrders() {
         allOrders.push(...filteredOnlineOrders.map(order => ({
           ...order,
           order_number: order.order_number,
-          customer_name: profileMap.get(order.user_id) || 'Guest',
+          customer_name: order.contacts?.name || profileMap.get(order.user_id) || 'Guest',
           items: itemsByOrder.get(order.id) || [],
           type: 'online',
           status: order.status
