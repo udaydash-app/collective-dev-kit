@@ -1199,6 +1199,22 @@ export default function AdminOrders() {
     }
   });
 
+  const updatePaymentStatus = useMutation({
+    mutationFn: async ({ orderId, paymentStatus }: { orderId: string; paymentStatus: string }) => {
+      const { error } = await supabase
+        .from('orders')
+        .update({ payment_status: paymentStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      toast.success('Payment status updated');
+    },
+    onError: () => toast.error('Failed to update payment status')
+  });
+
   const toggleOrderSelection = (orderId: string) => {
     setSelectedOrders(prev => {
       const newSet = new Set(prev);
@@ -1461,9 +1477,29 @@ export default function AdminOrders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm capitalize">
-                              {order.payment_method || 'N/A'}
-                            </span>
+                            {order.type === 'online' ? (
+                              <Select
+                                value={order.payment_status || 'pending'}
+                                onValueChange={(value) => updatePaymentStatus.mutate({ 
+                                  orderId: order.id, 
+                                  paymentStatus: value 
+                                })}
+                              >
+                                <SelectTrigger className="w-[120px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="paid">Paid</SelectItem>
+                                  <SelectItem value="partial">Partial</SelectItem>
+                                  <SelectItem value="failed">Failed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-sm capitalize">
+                                {order.payment_method || 'N/A'}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>
                             {formatDate(order.created_at)}
