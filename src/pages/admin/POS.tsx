@@ -3424,7 +3424,7 @@ export default function POS() {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-hidden p-1">
+        <div className="flex-1 min-h-0 overflow-hidden p-1 flex flex-col">
           {editingOrderId && (
             <div className="mb-2 p-2 bg-amber-100 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded text-xs text-amber-900 dark:text-amber-200">
               <div className="font-semibold">Editing {editingOrderType === 'pos' ? 'Sale' : 'Order'}</div>
