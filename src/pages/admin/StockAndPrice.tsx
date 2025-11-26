@@ -28,16 +28,30 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, Grid, List, Pencil } from 'lucide-react';
+import { Search, Grid, List, Pencil, Save, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { toast } from 'sonner';
+
+type EditedPrices = {
+  [key: string]: {
+    costPrice: number | null;
+    retailPrice: number | null;
+    wholesalePrice: number | null;
+    vipPrice: number | null;
+    isVariant: boolean;
+  };
+};
 
 export default function StockAndPrice() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'positive' | 'negative'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  
+  // Bulk edit mode state
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [editedPrices, setEditedPrices] = useState<EditedPrices>({});
   
   // Edit prices dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -201,6 +215,77 @@ export default function StockAndPrice() {
     });
   };
 
+  // Bulk save mutation
+  const bulkSaveMutation = useMutation({
+    mutationFn: async () => {
+      const updates = Object.entries(editedPrices);
+      for (const [key, prices] of updates) {
+        if (prices.isVariant) {
+          const { error } = await supabase
+            .from('product_variants')
+            .update({
+              cost_price: prices.costPrice,
+              price: prices.retailPrice,
+              wholesale_price: prices.wholesalePrice,
+              vip_price: prices.vipPrice,
+            })
+            .eq('id', key);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('products')
+            .update({
+              cost_price: prices.costPrice,
+              price: prices.retailPrice,
+              wholesale_price: prices.wholesalePrice,
+              vip_price: prices.vipPrice,
+            })
+            .eq('id', key);
+          if (error) throw error;
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+      toast.success('All prices saved successfully');
+      setBulkEditMode(false);
+      setEditedPrices({});
+    },
+    onError: (error) => {
+      toast.error('Failed to save prices: ' + error.message);
+    },
+  });
+
+  const handleBulkPriceChange = (
+    id: string,
+    field: 'costPrice' | 'retailPrice' | 'wholesalePrice' | 'vipPrice',
+    value: string,
+    isVariant: boolean,
+    currentPrices: { costPrice: number | null; retailPrice: number | null; wholesalePrice: number | null; vipPrice: number | null }
+  ) => {
+    setEditedPrices(prev => ({
+      ...prev,
+      [id]: {
+        ...currentPrices,
+        ...(prev[id] || {}),
+        [field]: value ? parseFloat(value) : null,
+        isVariant,
+      },
+    }));
+  };
+
+  const getEditedPrice = (id: string, field: 'costPrice' | 'retailPrice' | 'wholesalePrice' | 'vipPrice', originalValue: number | null) => {
+    if (editedPrices[id] && editedPrices[id][field] !== undefined) {
+      return editedPrices[id][field];
+    }
+    return originalValue;
+  };
+
+  const cancelBulkEdit = () => {
+    setBulkEditMode(false);
+    setEditedPrices({});
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -210,7 +295,35 @@ export default function StockAndPrice() {
             View all product details, stock levels, and pricing
           </p>
         </div>
-        <ReturnToPOSButton inline />
+        <div className="flex items-center gap-2">
+          {bulkEditMode ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={cancelBulkEdit}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                onClick={() => bulkSaveMutation.mutate()}
+                disabled={bulkSaveMutation.isPending || Object.keys(editedPrices).length === 0}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {bulkSaveMutation.isPending ? 'Saving...' : 'Save All'}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => setBulkEditMode(true)}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit All Prices
+            </Button>
+          )}
+          <ReturnToPOSButton inline />
+        </div>
       </div>
 
       {/* Filters and View Toggle */}
@@ -348,20 +461,84 @@ export default function StockAndPrice() {
                           })()}
                         </TableCell>
                         <TableCell className="text-right">
-                          {variant.cost_price ? formatCurrency(variant.cost_price) : 
-                           product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(variant.id, 'costPrice', variant.cost_price ?? product.cost_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                variant.id,
+                                'costPrice',
+                                e.target.value,
+                                true,
+                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            variant.cost_price ? formatCurrency(variant.cost_price) : 
+                            product.cost_price ? formatCurrency(product.cost_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {variant.price ? formatCurrency(variant.price) : 
-                           product.price ? formatCurrency(product.price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(variant.id, 'retailPrice', variant.price ?? product.price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                variant.id,
+                                'retailPrice',
+                                e.target.value,
+                                true,
+                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            variant.price ? formatCurrency(variant.price) : 
+                            product.price ? formatCurrency(product.price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right text-blue-600">
-                          {variant.wholesale_price ? formatCurrency(variant.wholesale_price) : 
-                           product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(variant.id, 'wholesalePrice', variant.wholesale_price ?? product.wholesale_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                variant.id,
+                                'wholesalePrice',
+                                e.target.value,
+                                true,
+                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            variant.wholesale_price ? formatCurrency(variant.wholesale_price) : 
+                            product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {variant.vip_price ? formatCurrency(variant.vip_price) : 
-                           product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(variant.id, 'vipPrice', variant.vip_price ?? product.vip_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                variant.id,
+                                'vipPrice',
+                                e.target.value,
+                                true,
+                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            variant.vip_price ? formatCurrency(variant.vip_price) : 
+                            product.vip_price ? formatCurrency(product.vip_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {(() => {
@@ -380,21 +557,23 @@ export default function StockAndPrice() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditPrices(
-                              product.id,
-                              product.name,
-                              variant.cost_price ?? product.cost_price,
-                              variant.wholesale_price ?? product.wholesale_price,
-                              variant.vip_price ?? product.vip_price,
-                              variant.id,
-                              variant.label
-                            )}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {!bulkEditMode && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditPrices(
+                                product.id,
+                                product.name,
+                                variant.cost_price ?? product.cost_price,
+                                variant.wholesale_price ?? product.wholesale_price,
+                                variant.vip_price ?? product.vip_price,
+                                variant.id,
+                                variant.label
+                              )}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ));
@@ -435,16 +614,80 @@ export default function StockAndPrice() {
                           })()}
                         </TableCell>
                         <TableCell className="text-right">
-                          {product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(product.id, 'costPrice', product.cost_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                product.id,
+                                'costPrice',
+                                e.target.value,
+                                false,
+                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            product.cost_price ? formatCurrency(product.cost_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {product.price ? formatCurrency(product.price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(product.id, 'retailPrice', product.price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                product.id,
+                                'retailPrice',
+                                e.target.value,
+                                false,
+                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            product.price ? formatCurrency(product.price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right text-blue-600">
-                          {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(product.id, 'wholesalePrice', product.wholesale_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                product.id,
+                                'wholesalePrice',
+                                e.target.value,
+                                false,
+                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                          {bulkEditMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-20 h-8 text-right"
+                              value={getEditedPrice(product.id, 'vipPrice', product.vip_price) ?? ''}
+                              onChange={(e) => handleBulkPriceChange(
+                                product.id,
+                                'vipPrice',
+                                e.target.value,
+                                false,
+                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
+                              )}
+                            />
+                          ) : (
+                            product.vip_price ? formatCurrency(product.vip_price) : '-'
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {product.price && product.cost_price ? (
@@ -459,19 +702,21 @@ export default function StockAndPrice() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditPrices(
-                              product.id,
-                              product.name,
-                              product.cost_price,
-                              product.wholesale_price,
-                              product.vip_price
-                            )}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {!bulkEditMode && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditPrices(
+                                product.id,
+                                product.name,
+                                product.cost_price,
+                                product.wholesale_price,
+                                product.vip_price
+                              )}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
