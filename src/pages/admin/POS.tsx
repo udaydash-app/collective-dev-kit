@@ -404,6 +404,7 @@ export default function POS() {
             id: productId,
             productId: productId,
             name: item.name,
+            displayName: item.display_name || item.displayName, // Map from DB or existing
             price: item.price,
             quantity: item.quantity || 1,
             barcode: item.barcode,
@@ -2592,6 +2593,7 @@ export default function POS() {
         items: items.map((item: any) => ({
           id: item.id || 'unknown',
           name: item.name || 'Unknown Item',
+          displayName: item.display_name, // Map snake_case from DB to camelCase
           quantity: item.quantity || 1,
           price: item.customPrice !== undefined ? item.customPrice : (item.price !== undefined ? item.price : 0), // Preserve negative prices for cart-discount
           customPrice: item.customPrice,
@@ -2773,6 +2775,7 @@ export default function POS() {
         date: new Date(),
         items: lastTransactionData.items.map((item: any) => ({
           name: item.name,
+          displayName: item.displayName,
           quantity: item.quantity,
           price: item.customPrice ?? item.price,
           itemDiscount: item.itemDiscount || 0
@@ -3078,6 +3081,7 @@ export default function POS() {
           id: item.id,
           productId: item.productId || item.id,
           name: item.name,
+          displayName: item.display_name || item.displayName, // Map from stored or existing
           price: item.price,
           quantity: item.quantity || 1,
           barcode: item.barcode,
