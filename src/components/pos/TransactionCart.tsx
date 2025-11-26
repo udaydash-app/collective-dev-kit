@@ -192,16 +192,15 @@ export const TransactionCart = ({
   };
 
   return (
-    <div ref={cartContainerRef} data-cart-container="true" className="space-y-1 h-full flex flex-col" tabIndex={-1}>
-      <div className="flex items-center justify-between px-2">
+    <div ref={cartContainerRef} data-cart-container="true" className="h-full flex flex-col min-h-0" tabIndex={-1}>
+      <div className="flex items-center justify-between px-2 py-1 flex-shrink-0">
         <h3 className="font-semibold text-sm">Cart Items ({items.filter(item => item.id !== 'cart-discount').length})</h3>
         <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs px-2">
           Clear All
         </Button>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 border-t">
-        <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 border-t overflow-auto">
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
@@ -464,8 +463,7 @@ export const TransactionCart = ({
               })}
             </TableBody>
           </Table>
-        </div>
-      </div>
     </div>
+  </div>
   );
 };
