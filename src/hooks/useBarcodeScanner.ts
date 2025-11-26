@@ -76,7 +76,7 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
           // Reset after minimal delay to allow next scan
           setTimeout(() => {
             processingRef.current = false;
-          }, 100);
+          }, 50);
         }
         
         if (error && !(error.name === 'NotFoundException')) {

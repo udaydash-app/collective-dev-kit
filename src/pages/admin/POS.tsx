@@ -1551,87 +1551,55 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
-    // Query database for product by barcode
-    // First, try to find a product variant with this barcode (optimized query)
-    const { data: variantData, error: variantError } = await supabase
-      .from('product_variants')
-      .select(`
-        id,
-        label,
-        quantity,
-        unit,
-        price,
-        is_available,
-        is_default,
-        barcode,
-        product_id,
-        products (
-          id,
-          name,
-          barcode,
-          image_url,
-          is_available
-        )
-      `)
-      .eq('barcode', barcode)
-      .eq('is_available', true)
-      .limit(1)
-      .single();
+    // Query variant and product barcode in PARALLEL for maximum speed
+    const [variantResult, productResult] = await Promise.all([
+      supabase
+        .from('product_variants')
+        .select(`
+          id, label, quantity, unit, price, is_available, is_default, barcode, product_id,
+          products (id, name, barcode, image_url, is_available)
+        `)
+        .eq('barcode', barcode)
+        .eq('is_available', true)
+        .limit(1)
+        .single(),
+      supabase
+        .from('products')
+        .select(`
+          *, product_variants (id, label, quantity, unit, price, is_available, is_default, barcode)
+        `)
+        .eq('barcode', barcode)
+        .eq('is_available', true)
+        .limit(1)
+        .single()
+    ]);
 
-    if (variantData && variantData.products) {
-      // Found a variant with this barcode
+    // Check variant first (priority)
+    if (variantResult.data?.products) {
       const productToAdd = {
-        ...variantData.products,
-        price: variantData.price,
-        selectedVariant: variantData,
+        ...variantResult.data.products,
+        price: variantResult.data.price,
+        selectedVariant: variantResult.data,
       };
       addToCartWithCustomPrice(productToAdd);
       return;
     }
 
-    // If no variant found, check main product barcode (optimized query)
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        product_variants (
-          id,
-          label,
-          quantity,
-          unit,
-          price,
-          is_available,
-          is_default,
-          barcode
-        )
-      `)
-      .eq('barcode', barcode)
-      .eq('is_available', true)
-      .limit(1)
-      .single();
-
-    if (data) {
-      // For barcode scans, add directly to cart with smart variant selection
-      const availableVariants = data.product_variants?.filter((v: any) => v.is_available) || [];
-      
+    // Then check product
+    if (productResult.data) {
+      const availableVariants = productResult.data.product_variants?.filter((v: any) => v.is_available) || [];
       if (availableVariants.length > 0) {
-        // Prioritize default variant, otherwise use first available
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-        const productToAdd = {
-          ...data,
-          price: variantToAdd.price,
-          selectedVariant: variantToAdd,
-        };
-        addToCartWithCustomPrice(productToAdd);
+        addToCartWithCustomPrice({ ...productResult.data, price: variantToAdd.price, selectedVariant: variantToAdd });
       } else {
-        // No variants, use product price
-        addToCartWithCustomPrice(data);
+        addToCartWithCustomPrice(productResult.data);
       }
-    } else {
-      // Product not found - open assign barcode dialog
-      setScannedBarcode(barcode);
-      setAssignBarcodeOpen(true);
+      return;
     }
+
+    // Not found - open assign dialog
+    setScannedBarcode(barcode);
+    setAssignBarcodeOpen(true);
   };
 
   const handleProductClick = (product: any) => {

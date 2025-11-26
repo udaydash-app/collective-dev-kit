@@ -1241,64 +1241,45 @@ export const usePOSTransaction = () => {
           return { ...transactionData, offline: true };
         }
         
-        // Update stock quantities for sold items (only for new transactions)
+        // Update stock quantities for sold items in PARALLEL (only for new transactions)
         if (!editingTransactionId) {
+          const stockUpdatePromises: Promise<any>[] = [];
+          
           for (const item of cart) {
-            if (item.id === 'cart-discount') continue; // Skip cart discount items
+            if (item.id === 'cart-discount') continue;
             
-            // Handle combo items - deduct stock from each product in the combo
             if (item.isCombo && item.comboItems) {
               for (const comboProduct of item.comboItems) {
                 const stockToDeduct = comboProduct.quantity * item.quantity;
-                
                 if (comboProduct.variant_id) {
-                  const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                    p_variant_id: comboProduct.variant_id,
-                    p_quantity: stockToDeduct
-                  });
-                  
-                  if (variantError) {
-                    console.error('Error updating combo variant stock:', variantError);
-                  }
+                  stockUpdatePromises.push(
+                    (async () => supabase.rpc('decrement_variant_stock', { p_variant_id: comboProduct.variant_id, p_quantity: stockToDeduct }))()
+                  );
                 } else {
-                  const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                    p_product_id: comboProduct.product_id,
-                    p_quantity: stockToDeduct
-                  });
-                  
-                  if (stockError) {
-                    console.error('Error updating combo product stock:', stockError);
-                  }
+                  stockUpdatePromises.push(
+                    (async () => supabase.rpc('decrement_product_stock', { p_product_id: comboProduct.product_id, p_quantity: stockToDeduct }))()
+                  );
                 }
               }
             } else {
-              // Regular product stock deduction
-              // Check if this is a variant or base product
               const isVariant = item.id !== item.productId;
-              
               if (isVariant) {
-                // Update variant stock
-                const { error: variantError } = await supabase.rpc('decrement_variant_stock', {
-                  p_variant_id: item.id,
-                  p_quantity: item.quantity
-                });
-                
-                if (variantError) {
-                  console.error('Error updating variant stock:', variantError);
-                }
+                stockUpdatePromises.push(
+                  (async () => supabase.rpc('decrement_variant_stock', { p_variant_id: item.id, p_quantity: item.quantity }))()
+                );
               } else {
-                // Update base product stock
-                const { error: stockError } = await supabase.rpc('decrement_product_stock', {
-                  p_product_id: item.id,
-                  p_quantity: item.quantity
-                });
-                
-                if (stockError) {
-                  console.error('Error updating product stock:', stockError);
-                }
+                stockUpdatePromises.push(
+                  (async () => supabase.rpc('decrement_product_stock', { p_product_id: item.id, p_quantity: item.quantity }))()
+                );
               }
             }
           }
+          
+          // Execute all stock updates in parallel
+          const stockResults = await Promise.all(stockUpdatePromises);
+          stockResults.forEach((result) => {
+            if (result.error) console.error('Stock update error:', result.error);
+          });
         }
 
         console.log('✅ Transaction completed successfully!');
