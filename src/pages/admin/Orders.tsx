@@ -591,6 +591,7 @@ export default function AdminOrders() {
         date: new Date(order.created_at),
         items: order.items.map((item: any) => ({
           name: item.products?.name || item.name,
+          displayName: item.display_name || item.displayName,
           quantity: item.quantity,
           price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
           itemDiscount: item.itemDiscount || item.item_discount || 0
@@ -735,7 +736,7 @@ export default function AdminOrders() {
             items={order.items.map((item: any) => ({
               id: item.id || item.products?.id,
               name: item.products?.name || item.name,
-              displayName: item.products?.name || item.name,
+              displayName: item.display_name || item.displayName || item.products?.name || item.name,
               price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
               customPrice: item.customPrice,
               quantity: item.quantity,

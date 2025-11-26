@@ -7,6 +7,7 @@ export interface QZReceiptData {
   date: Date;
   items: Array<{
     name: string;
+    displayName?: string;
     quantity: number;
     price: number;
   }>;
@@ -153,8 +154,8 @@ class QZTrayService {
     
       // Items
       data.items.forEach(item => {
-        // Item name
-        commands += item.name + '\n';
+        // Item name (use displayName if available)
+        commands += (item.displayName ?? item.name) + '\n';
       
         // Quantity and price
         const qtyPrice = `${item.quantity} x ${this.formatCurrency(item.price)}`;
