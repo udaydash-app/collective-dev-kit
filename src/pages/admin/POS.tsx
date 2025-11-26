@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
+import { barcodeCache } from '@/hooks/useBarcodeCache';
 import { formatCurrency } from '@/lib/utils';
 import { 
   Search, 
@@ -1554,6 +1555,23 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
+    // Check cache first for instant response
+    const cached = barcodeCache.get(barcode);
+    if (cached) {
+      if (cached.type === 'variant') {
+        addToCartWithCustomPrice(cached.data);
+      } else {
+        const availableVariants = cached.data.product_variants?.filter((v: any) => v.is_available) || [];
+        if (availableVariants.length > 0) {
+          const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+          addToCartWithCustomPrice({ ...cached.data, price: variantToAdd.price, selectedVariant: variantToAdd });
+        } else {
+          addToCartWithCustomPrice(cached.data);
+        }
+      }
+      return;
+    }
+
     // Query variant and product barcode in PARALLEL for maximum speed
     const [variantResult, productResult] = await Promise.all([
       supabase
@@ -1584,12 +1602,16 @@ export default function POS() {
         price: variantResult.data.price,
         selectedVariant: variantResult.data,
       };
+      // Cache for future scans
+      barcodeCache.set(barcode, 'variant', productToAdd);
       addToCartWithCustomPrice(productToAdd);
       return;
     }
 
     // Then check product
     if (productResult.data) {
+      // Cache for future scans
+      barcodeCache.set(barcode, 'product', productResult.data);
       const availableVariants = productResult.data.product_variants?.filter((v: any) => v.is_available) || [];
       if (availableVariants.length > 0) {
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
