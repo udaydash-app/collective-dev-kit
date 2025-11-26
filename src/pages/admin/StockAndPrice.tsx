@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +19,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, Grid, List } from 'lucide-react';
+import { Search, Grid, List, Pencil } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { toast } from 'sonner';
 
 export default function StockAndPrice() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'positive' | 'negative'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  
+  // Edit prices dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<{
+    id: string;
+    name: string;
+    variantId?: string;
+    variantLabel?: string;
+    costPrice: number | null;
+    wholesalePrice: number | null;
+    vipPrice: number | null;
+  } | null>(null);
+  
+  const queryClient = useQueryClient();
 
   // Fetch products with variants, category and store info
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -102,6 +125,80 @@ export default function StockAndPrice() {
   const calculateMargin = (price: number, cost?: number) => {
     if (!cost || cost === 0) return null;
     return ((price - cost) / price * 100).toFixed(1);
+  };
+
+  // Mutation for updating prices
+  const updatePricesMutation = useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      variantId?: string;
+      costPrice: number | null;
+      wholesalePrice: number | null;
+      vipPrice: number | null;
+    }) => {
+      if (data.variantId) {
+        const { error } = await supabase
+          .from('product_variants')
+          .update({
+            cost_price: data.costPrice,
+            wholesale_price: data.wholesalePrice,
+            vip_price: data.vipPrice,
+          })
+          .eq('id', data.variantId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('products')
+          .update({
+            cost_price: data.costPrice,
+            wholesale_price: data.wholesalePrice,
+            vip_price: data.vipPrice,
+          })
+          .eq('id', data.productId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+      toast.success('Prices updated successfully');
+      setEditDialogOpen(false);
+      setEditingItem(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update prices: ' + error.message);
+    },
+  });
+
+  const handleEditPrices = (
+    productId: string,
+    productName: string,
+    costPrice: number | null,
+    wholesalePrice: number | null,
+    vipPrice: number | null,
+    variantId?: string,
+    variantLabel?: string
+  ) => {
+    setEditingItem({
+      id: productId,
+      name: productName,
+      variantId,
+      variantLabel,
+      costPrice,
+      wholesalePrice,
+      vipPrice,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSavePrices = () => {
+    if (!editingItem) return;
+    updatePricesMutation.mutate({
+      productId: editingItem.id,
+      variantId: editingItem.variantId,
+      costPrice: editingItem.costPrice,
+      wholesalePrice: editingItem.wholesalePrice,
+      vipPrice: editingItem.vipPrice,
+    });
   };
 
   return (
@@ -190,18 +287,19 @@ export default function StockAndPrice() {
                 <TableHead className="text-right">VIP Price</TableHead>
                 <TableHead className="text-right">Margin %</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {productsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
+                  <TableCell colSpan={12} className="text-center py-8">
                     Loading products...
                   </TableCell>
                 </TableRow>
               ) : filteredProducts?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
+                  <TableCell colSpan={12} className="text-center py-8">
                     No products found
                   </TableCell>
                 </TableRow>
@@ -281,6 +379,23 @@ export default function StockAndPrice() {
                             {product.is_available ? 'Available' : 'Unavailable'}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditPrices(
+                              product.id,
+                              product.name,
+                              variant.cost_price ?? product.cost_price,
+                              variant.wholesale_price ?? product.wholesale_price,
+                              variant.vip_price ?? product.vip_price,
+                              variant.id,
+                              variant.label
+                            )}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ));
                   } else {
@@ -342,6 +457,21 @@ export default function StockAndPrice() {
                           <Badge variant={product.is_available ? 'default' : 'secondary'}>
                             {product.is_available ? 'Available' : 'Unavailable'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditPrices(
+                              product.id,
+                              product.name,
+                              product.cost_price,
+                              product.wholesale_price,
+                              product.vip_price
+                            )}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -434,6 +564,21 @@ export default function StockAndPrice() {
                       <span className="text-xs">{product.stores.name}</span>
                     </div>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => handleEditPrices(
+                      product.id,
+                      product.name,
+                      product.cost_price,
+                      product.wholesale_price,
+                      product.vip_price
+                    )}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Prices
+                  </Button>
                 </CardContent>
               </Card>
             ))
@@ -446,6 +591,71 @@ export default function StockAndPrice() {
           Showing {filteredProducts.length} of {products?.length || 0} products
         </div>
       )}
+
+      {/* Edit Prices Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Edit Prices - {editingItem?.name}
+              {editingItem?.variantLabel && (
+                <span className="text-muted-foreground text-sm ml-2">
+                  ({editingItem.variantLabel})
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="costPrice">Cost Price</Label>
+              <Input
+                id="costPrice"
+                type="number"
+                step="0.01"
+                value={editingItem?.costPrice ?? ''}
+                onChange={(e) => setEditingItem(prev => 
+                  prev ? { ...prev, costPrice: e.target.value ? parseFloat(e.target.value) : null } : null
+                )}
+                placeholder="Enter cost price"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wholesalePrice">Wholesale Price</Label>
+              <Input
+                id="wholesalePrice"
+                type="number"
+                step="0.01"
+                value={editingItem?.wholesalePrice ?? ''}
+                onChange={(e) => setEditingItem(prev => 
+                  prev ? { ...prev, wholesalePrice: e.target.value ? parseFloat(e.target.value) : null } : null
+                )}
+                placeholder="Enter wholesale price"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vipPrice">VIP Price</Label>
+              <Input
+                id="vipPrice"
+                type="number"
+                step="0.01"
+                value={editingItem?.vipPrice ?? ''}
+                onChange={(e) => setEditingItem(prev => 
+                  prev ? { ...prev, vipPrice: e.target.value ? parseFloat(e.target.value) : null } : null
+                )}
+                placeholder="Enter VIP price"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePrices} disabled={updatePricesMutation.isPending}>
+              {updatePricesMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
