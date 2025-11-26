@@ -85,10 +85,12 @@ Deno.serve(async (req) => {
     console.log(`Loaded ${allStoreProducts.length} products from store`);
 
     // Create lookup maps for fast matching
+    const idMap = new Map<string, string>(); // id -> product_id
     const barcodeMap = new Map<string, string>(); // barcode -> product_id
     const nameMap = new Map<string, { id: string; name: string }>(); // lowercase name -> product
     
     for (const product of allStoreProducts) {
+      idMap.set(product.id, product.id);
       if (product.barcode) {
         barcodeMap.set(String(product.barcode).trim(), product.id);
       }
@@ -101,23 +103,27 @@ Deno.serve(async (req) => {
 
     // Process each product
     for (const product of products) {
-      const nameValue = product.name || product.Name;
+      // Extract all possible field names (case insensitive)
+      const getId = product['Product ID'] || product['product_id'] || product.id;
+      const nameValue = product.name || product.Name || product['Product Name'];
       const name = nameValue ? String(nameValue).trim() : null;
       
-      if (!name) {
-        console.log('Skipping product without name');
-        continue;
-      }
-
-      // Extract fields early
-      const barcode = product.barcode || product.Barcode;
-      const stockQty = product.stock_quantity || product.Stock_quantity || product.Stock_Quantity || product['Stock_quantity'];
-      const costPrice = product.cost_price || product.Cost_price || product.Cost_Price || product['Cost_Price'];
-
-      // Try to find by barcode first if available
+      // Try to find by Product ID first (most reliable)
       let productId = null;
       
-      if (barcode !== undefined && barcode !== null && barcode !== '') {
+      if (getId) {
+        const idStr = String(getId).trim();
+        productId = idMap.get(idStr);
+        if (productId) {
+          console.log(`Found by ID: "${name || idStr}"`);
+        }
+      }
+
+      // Extract barcode field
+      const barcode = product.barcode || product.Barcode;
+      
+      // Try to find by barcode if not found by ID
+      if (!productId && barcode !== undefined && barcode !== null && barcode !== '') {
         const barcodeStr = String(barcode).trim();
         productId = barcodeMap.get(barcodeStr);
         if (productId) {
@@ -125,8 +131,8 @@ Deno.serve(async (req) => {
         }
       }
       
-      // If not found by barcode, try exact name match
-      if (!productId) {
+      // If not found by ID/barcode, try exact name match
+      if (!productId && name) {
         const exactMatch = nameMap.get(name.toLowerCase());
         if (exactMatch) {
           productId = exactMatch.id;
@@ -135,8 +141,7 @@ Deno.serve(async (req) => {
       }
 
       // If still not found, try fuzzy matching with higher threshold
-      if (!productId) {
-        // Only do fuzzy matching for stores with reasonable product counts
+      if (!productId && name) {
         if (allStoreProducts.length > 5000) {
           console.log(`Skipping fuzzy match for "${name}" - store too large`);
           notFoundProducts.push(name);
@@ -146,20 +151,14 @@ Deno.serve(async (req) => {
         let bestMatch = null;
         let bestScore = 0;
         const nameLower = name.toLowerCase();
-        
-        // Only check products that start with similar characters for efficiency
         const firstChars = nameLower.substring(0, 3);
         
         for (const [_, productInfo] of nameMap) {
           const productNameLower = productInfo.name.toLowerCase();
-          
-          // Quick pre-filter: check if they share first few characters
-          if (!productNameLower.startsWith(firstChars[0])) {
-            continue;
-          }
+          if (!productNameLower.startsWith(firstChars[0])) continue;
           
           const score = calculateSimilarity(nameLower, productNameLower);
-          if (score > bestScore && score >= 0.7) { // Increased threshold to 70%
+          if (score > bestScore && score >= 0.7) {
             bestScore = score;
             bestMatch = productInfo;
           }
@@ -167,8 +166,7 @@ Deno.serve(async (req) => {
         
         if (bestMatch) {
           productId = bestMatch.id;
-          const similarity = Math.round(bestScore * 100);
-          console.log(`Found fuzzy match (${similarity}%): "${name}" -> "${bestMatch.name}"`);
+          console.log(`Found fuzzy match (${Math.round(bestScore * 100)}%): "${name}" -> "${bestMatch.name}"`);
         } else {
           console.log(`Not found: "${name}"`);
           notFoundProducts.push(name);
@@ -176,13 +174,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Build update object with only provided fields
+      if (!productId) {
+        notFoundProducts.push(name || 'Unknown');
+        continue;
+      }
+
+      // Build update object with all supported fields
       const updateData: any = {};
       
+      // Barcode
       if (barcode !== undefined && barcode !== null && barcode !== '') {
         updateData.barcode = String(barcode).trim();
       }
       
+      // Stock quantity
+      const stockQty = product.stock_quantity || product.Stock_quantity || product.Stock_Quantity || product['Stock Quantity'];
       if (stockQty !== undefined && stockQty !== null && stockQty !== '') {
         const stockQtyNum = Number(stockQty);
         if (!isNaN(stockQtyNum)) {
@@ -190,11 +196,52 @@ Deno.serve(async (req) => {
         }
       }
       
+      // Cost price
+      const costPrice = product.cost_price || product.Cost_price || product.Cost_Price || product['Cost Price'];
       if (costPrice !== undefined && costPrice !== null && costPrice !== '') {
         const costPriceNum = Number(costPrice);
         if (!isNaN(costPriceNum) && costPriceNum >= 0) {
           updateData.cost_price = costPriceNum;
         }
+      }
+
+      // Retail price
+      const retailPrice = product.price || product.Price || product['Retail Price'];
+      if (retailPrice !== undefined && retailPrice !== null && retailPrice !== '') {
+        const retailPriceNum = Number(retailPrice);
+        if (!isNaN(retailPriceNum) && retailPriceNum >= 0) {
+          updateData.price = retailPriceNum;
+        }
+      }
+
+      // Wholesale price
+      const wholesalePrice = product.wholesale_price || product.Wholesale_price || product.Wholesale_Price || product['Wholesale Price'];
+      if (wholesalePrice !== undefined && wholesalePrice !== null && wholesalePrice !== '') {
+        const wholesalePriceNum = Number(wholesalePrice);
+        if (!isNaN(wholesalePriceNum) && wholesalePriceNum >= 0) {
+          updateData.wholesale_price = wholesalePriceNum;
+        }
+      }
+
+      // VIP price
+      const vipPrice = product.vip_price || product.Vip_price || product.VIP_Price || product['VIP Price'];
+      if (vipPrice !== undefined && vipPrice !== null && vipPrice !== '') {
+        const vipPriceNum = Number(vipPrice);
+        if (!isNaN(vipPriceNum) && vipPriceNum >= 0) {
+          updateData.vip_price = vipPriceNum;
+        }
+      }
+
+      // Unit
+      const unit = product.unit || product.Unit;
+      if (unit !== undefined && unit !== null && unit !== '') {
+        updateData.unit = String(unit).trim();
+      }
+
+      // Description
+      const description = product.description || product.Description;
+      if (description !== undefined && description !== null && description !== '') {
+        updateData.description = String(description).trim();
       }
 
       // Only queue update if there's something to update
