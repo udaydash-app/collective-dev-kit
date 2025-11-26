@@ -142,6 +142,8 @@ export default function POS() {
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
+  const [isWholesaleMode, setIsWholesaleMode] = useState(false);
+  const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
   
   // Cart resize and drag state
   const [cartWidth, setCartWidth] = useState(() => {
@@ -2253,6 +2255,10 @@ export default function POS() {
       setCartDiscountItem(null);
       setDiscount(0);
       
+      // Reset wholesale mode after transaction
+      setIsWholesaleMode(false);
+      setOriginalRetailPrices(new Map());
+      
       // Reset customer selection to walk-in customer
       setSelectedCustomer(null);
       setCustomerPrices({});
@@ -2371,6 +2377,119 @@ export default function POS() {
       setTimeout(() => {
         handlePrintLastReceipt();
       }, 300);
+    }
+  };
+
+  // Toggle wholesale prices for all cart items
+  const handleToggleWholesale = async () => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return;
+    }
+
+    if (isWholesaleMode) {
+      // Revert to retail prices
+      const updatedCart = cart.map(item => {
+        const originalPrice = originalRetailPrices.get(item.id);
+        if (originalPrice !== undefined) {
+          return { ...item, customPrice: undefined, price: originalPrice };
+        }
+        return item;
+      });
+      
+      // Use loadCart to update all items at once
+      loadCart(updatedCart);
+      setIsWholesaleMode(false);
+      setOriginalRetailPrices(new Map());
+      toast.success('Reverted to retail prices');
+    } else {
+      // Apply wholesale prices
+      const productIds = cart
+        .filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount')
+        .map(item => item.productId);
+      
+      if (productIds.length === 0) {
+        toast.info('No products to apply wholesale prices');
+        return;
+      }
+
+      try {
+        // Fetch wholesale prices for products
+        const { data: products, error: productsError } = await supabase
+          .from('products')
+          .select('id, wholesale_price, price')
+          .in('id', productIds);
+
+        // Also fetch variant wholesale prices
+        const variantIds = cart
+          .filter(item => item.id !== item.productId && !item.isCombo && !item.isBogo)
+          .map(item => item.id);
+
+        let variants: any[] = [];
+        if (variantIds.length > 0) {
+          const { data: variantData } = await supabase
+            .from('product_variants')
+            .select('id, wholesale_price, price')
+            .in('id', variantIds);
+          variants = variantData || [];
+        }
+
+        if (productsError) {
+          console.error('Error fetching wholesale prices:', productsError);
+          toast.error('Failed to fetch wholesale prices');
+          return;
+        }
+
+        // Create a map of wholesale prices
+        const wholesalePriceMap = new Map<string, number>();
+        products?.forEach(p => {
+          if (p.wholesale_price && p.wholesale_price > 0) {
+            wholesalePriceMap.set(p.id, p.wholesale_price);
+          }
+        });
+        variants?.forEach(v => {
+          if (v.wholesale_price && v.wholesale_price > 0) {
+            wholesalePriceMap.set(v.id, v.wholesale_price);
+          }
+        });
+
+        // Store original retail prices and update cart
+        const newOriginalPrices = new Map<string, number>();
+        let appliedCount = 0;
+
+        const updatedCart = cart.map(item => {
+          if (item.isCombo || item.isBogo || item.id === 'cart-discount') {
+            return item;
+          }
+
+          // Store original price
+          newOriginalPrices.set(item.id, item.customPrice ?? item.price);
+
+          // Check for wholesale price (variant first, then product)
+          const wholesalePrice = wholesalePriceMap.get(item.id) || wholesalePriceMap.get(item.productId);
+          
+          if (wholesalePrice && wholesalePrice > 0) {
+            appliedCount++;
+            return { ...item, customPrice: wholesalePrice };
+          }
+          
+          return item;
+        });
+
+        // Use loadCart to update all items at once
+        loadCart(updatedCart);
+        setOriginalRetailPrices(newOriginalPrices);
+        setIsWholesaleMode(true);
+        
+        if (appliedCount > 0) {
+          toast.success(`Wholesale prices applied to ${appliedCount} item(s)`);
+        } else {
+          toast.info('No wholesale prices available for cart items');
+        }
+      } catch (error) {
+        console.error('Error applying wholesale prices:', error);
+        toast.error('Failed to apply wholesale prices');
+      }
     }
   };
 
@@ -2829,10 +2948,10 @@ export default function POS() {
       shortcut: null
     },
     { 
-      icon: Printer, 
-      label: 'Last receipt', 
-      color: 'bg-[#5DADE2]', 
-      action: handleLastReceiptClick,
+      icon: Tag, 
+      label: isWholesaleMode ? 'Remove Wholesale' : 'Apply Wholesale', 
+      color: isWholesaleMode ? 'bg-[#F97316]' : 'bg-[#8B5CF6]', 
+      action: handleToggleWholesale,
       shortcut: null
     },
     { 
