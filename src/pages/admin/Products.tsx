@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid, Merge } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid, Merge, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
+import { ExportProductsDialog } from "@/components/admin/ExportProductsDialog";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -116,6 +117,7 @@ export default function Products() {
   const [hasProcessedOpenDialog, setHasProcessedOpenDialog] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<Product[][]>([]);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -1121,6 +1123,15 @@ export default function Products() {
               >
                 <Search className="h-3 w-3" />
                 {showDuplicates ? "Show All" : "Find Duplicates"}
+              </Button>
+              <Button 
+                onClick={() => setIsExportDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="h-3 w-3" />
+                Export
               </Button>
             </div>
           </div>
@@ -2288,6 +2299,12 @@ export default function Products() {
           setSelectedProducts(new Set());
           fetchProducts();
         }}
+      />
+
+      <ExportProductsDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        products={filteredProducts}
       />
 
       <BottomNav />
