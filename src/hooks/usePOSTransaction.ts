@@ -1181,14 +1181,12 @@ export const usePOSTransaction = () => {
             subtotal: transactionData.subtotal,
             total: transactionData.total,
             tax: transactionData.tax,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            // Always set customer_id - null if removed, otherwise the selected customer
+            customer_id: transactionData.customer_id || null
           };
           
-          // Add customer_id if a customer was selected (from contacts table)
-          if (transactionData.customer_id) {
-            updateData.customer_id = transactionData.customer_id;
-            console.log('🔄 Customer selected for order:', transactionData.customer_id);
-          }
+          console.log('🔄 Customer for order:', transactionData.customer_id || 'removed/none');
           
           // Update the existing order with payment details and status
           const { data, error } = await supabase
