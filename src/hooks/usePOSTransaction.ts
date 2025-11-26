@@ -65,6 +65,9 @@ export const usePOSTransaction = () => {
   const [cachedMultiBOGOs, setCachedMultiBOGOs] = useState<any[]>([]);
   const [offersLoaded, setOffersLoaded] = useState(false);
   
+  // Cache authenticated user to avoid repeated auth calls
+  const cachedUserRef = useRef<{ id: string } | null>(null);
+  
   // Debounce timer for offer detection
   const offerDetectionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cartUpdateQueueRef = useRef<CartItem[]>([]);
@@ -963,10 +966,17 @@ export const usePOSTransaction = () => {
 
     setIsProcessing(true);
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('Authentication error. Please log in again.', userError);
-        return null;
+      // Use cached user for faster processing, fallback to fresh fetch if not cached
+      let user = cachedUserRef.current;
+      if (!user) {
+        const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
+        if (userError || !freshUser) {
+          console.error('Authentication error. Please log in again.', userError);
+          setIsProcessing(false);
+          return null;
+        }
+        user = freshUser;
+        cachedUserRef.current = freshUser;
       }
 
       const subtotal = calculateSubtotal();
@@ -1241,45 +1251,53 @@ export const usePOSTransaction = () => {
           return { ...transactionData, offline: true };
         }
         
-        // Update stock quantities for sold items in PARALLEL (only for new transactions)
+        // Run stock updates in BACKGROUND (non-blocking) for faster transaction completion
+        // Only for new transactions - don't block the user waiting for stock updates
         if (!editingTransactionId) {
-          const stockUpdatePromises: Promise<any>[] = [];
-          
-          for (const item of cart) {
-            if (item.id === 'cart-discount') continue;
+          // Fire and forget - don't await
+          (async () => {
+            const stockUpdatePromises: Promise<any>[] = [];
             
-            if (item.isCombo && item.comboItems) {
-              for (const comboProduct of item.comboItems) {
-                const stockToDeduct = comboProduct.quantity * item.quantity;
-                if (comboProduct.variant_id) {
+            for (const item of cart) {
+              if (item.id === 'cart-discount') continue;
+              
+              if (item.isCombo && item.comboItems) {
+                for (const comboProduct of item.comboItems) {
+                  const stockToDeduct = comboProduct.quantity * item.quantity;
+                  if (comboProduct.variant_id) {
+                    stockUpdatePromises.push(
+                      (async () => await supabase.rpc('decrement_variant_stock', { p_variant_id: comboProduct.variant_id, p_quantity: stockToDeduct }))()
+                    );
+                  } else {
+                    stockUpdatePromises.push(
+                      (async () => await supabase.rpc('decrement_product_stock', { p_product_id: comboProduct.product_id, p_quantity: stockToDeduct }))()
+                    );
+                  }
+                }
+              } else {
+                const isVariant = item.id !== item.productId;
+                if (isVariant) {
                   stockUpdatePromises.push(
-                    (async () => supabase.rpc('decrement_variant_stock', { p_variant_id: comboProduct.variant_id, p_quantity: stockToDeduct }))()
+                    (async () => await supabase.rpc('decrement_variant_stock', { p_variant_id: item.id, p_quantity: item.quantity }))()
                   );
                 } else {
                   stockUpdatePromises.push(
-                    (async () => supabase.rpc('decrement_product_stock', { p_product_id: comboProduct.product_id, p_quantity: stockToDeduct }))()
+                    (async () => await supabase.rpc('decrement_product_stock', { p_product_id: item.id, p_quantity: item.quantity }))()
                   );
                 }
               }
-            } else {
-              const isVariant = item.id !== item.productId;
-              if (isVariant) {
-                stockUpdatePromises.push(
-                  (async () => supabase.rpc('decrement_variant_stock', { p_variant_id: item.id, p_quantity: item.quantity }))()
-                );
-              } else {
-                stockUpdatePromises.push(
-                  (async () => supabase.rpc('decrement_product_stock', { p_product_id: item.id, p_quantity: item.quantity }))()
-                );
-              }
             }
-          }
-          
-          // Execute all stock updates in parallel
-          const stockResults = await Promise.all(stockUpdatePromises);
-          stockResults.forEach((result) => {
-            if (result.error) console.error('Stock update error:', result.error);
-          });
+            
+            // Execute all stock updates in parallel (background)
+            try {
+              const stockResults = await Promise.all(stockUpdatePromises);
+              stockResults.forEach((result) => {
+                if (result.error) console.error('Stock update error:', result.error);
+              });
+            } catch (stockError) {
+              console.error('Background stock update error:', stockError);
+            }
+          })();
         }
 
         console.log('✅ Transaction completed successfully!');
