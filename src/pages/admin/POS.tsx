@@ -2060,6 +2060,7 @@ export default function POS() {
       items: allItems.map(item => ({
         id: item.id,
         name: item.name,
+        displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
@@ -2192,6 +2193,7 @@ export default function POS() {
       items: allItems.map(item => ({
         id: item.id,
         name: item.name,
+        displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
         customPrice: item.customPrice, // Custom/modified price if any
@@ -2321,6 +2323,7 @@ export default function POS() {
         date: completeTransactionData.date,
         items: completeTransactionData.items.map(item => ({
           name: item.name,
+          displayName: item.displayName,
           quantity: item.quantity,
           price: item.price,
           customPrice: item.customPrice,
