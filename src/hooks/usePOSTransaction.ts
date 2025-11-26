@@ -1090,7 +1090,7 @@ export const usePOSTransaction = () => {
         id: editingTransactionId || uuidv4(),  // Use existing ID if editing
         cashier_id: user.id,
         store_id: storeId,
-        customer_id: customerId,
+        customer_id: customerId || null,  // Explicitly null if no customer to clear on edit
         items: itemsToSave as any,
         subtotal: parseFloat(subtotal.toFixed(2)),
         tax: 0,
