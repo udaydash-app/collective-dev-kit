@@ -59,7 +59,7 @@ export const useCart = () => {
         id,
         quantity,
         product_id,
-        products (
+        products!inner (
           id,
           name,
           price,
@@ -67,7 +67,8 @@ export const useCart = () => {
           image_url
         )
       `)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('products.is_available', true);
 
     if (error) throw error;
     setCartItems(data || []);
@@ -91,7 +92,8 @@ export const useCart = () => {
     const { data: products, error } = await supabase
       .from('products')
       .select('id, name, price, unit, image_url')
-      .in('id', productIds);
+      .in('id', productIds)
+      .eq('is_available', true);
 
     if (error) throw error;
 

@@ -45,7 +45,7 @@ export default function Wishlist() {
         .select(`
           id,
           product_id,
-          products (
+          products!inner (
             id,
             name,
             price,
@@ -53,7 +53,8 @@ export default function Wishlist() {
             description
           )
         `)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("products.is_available", true);
 
       if (error) throw error;
       setWishlist(data || []);
