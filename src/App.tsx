@@ -119,8 +119,11 @@ const AppContent = () => {
       <Router>
         <RouterContent />
         <Routes>
+          {/* Redirect root to POS Login */}
+          <Route path="/" element={<Navigate to="/pos-login" replace />} />
+          
           {/* Customer-facing home */}
-          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
           
           {/* PWA Installation page */}
           <Route path="/install" element={<PWAInstall />} />
