@@ -60,6 +60,7 @@ export default function ProductDetails() {
           product_variants(*)
         `)
         .eq("id", id)
+        .eq("is_available", true)
         .single();
 
       if (error) throw error;
