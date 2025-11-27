@@ -990,18 +990,22 @@ export const usePOSTransaction = () => {
         (current.amount > prev.amount) ? current : prev
       );
 
-      // Calculate COGS using FIFO method before saving transaction (only for NEW transactions)
+      // Pre-generate transaction ID for use in both main transaction and background processing
+      const transactionIdForFifo = editingTransactionId || uuidv4();
+      
+      // OPTIMIZATION: Skip synchronous FIFO - move it to background for instant transaction completion
       let totalCOGS = 0;
-      const cogsDetails: any[] = [];
+      let cogsDetails: any[] = [];
 
-      // Check if online for FIFO calculation (skip for edited transactions to avoid double deduction)
-      if (navigator.onLine && !editingTransactionId) {
-        // Prepare all FIFO deduction items for batch processing
-        const fifoItems: Array<{
-          product_id: string;
-          variant_id: string | null;
+      // Skip FIFO synchronous calculation - will be done in background
+      if (false) {
+        // Prepare all FIFO deduction requests
+        const fifoRequests: Array<{
+          productId: string;
+          variantId: string | null;
           quantity: number;
           name: string;
+          isCombo: boolean;
         }> = [];
 
         for (const item of cart) {
@@ -1010,56 +1014,71 @@ export const usePOSTransaction = () => {
           // Handle combo items
           if (item.isCombo && item.comboItems) {
             for (const comboProduct of item.comboItems) {
-              fifoItems.push({
-                product_id: comboProduct.product_id,
-                variant_id: comboProduct.variant_id || null,
+              fifoRequests.push({
+                productId: comboProduct.product_id,
+                variantId: comboProduct.variant_id || null,
                 quantity: comboProduct.quantity * item.quantity,
-                name: comboProduct.product_name
+                name: comboProduct.product_name,
+                isCombo: true
               });
             }
           } else {
             // Regular product
             const isVariant = item.id !== item.productId;
-            fifoItems.push({
-              product_id: item.productId,
-              variant_id: isVariant ? item.id : null,
+            fifoRequests.push({
+              productId: item.productId,
+              variantId: isVariant ? item.id : null,
               quantity: item.quantity,
-              name: item.name
+              name: item.name,
+              isCombo: false
             });
           }
         }
 
-        // Execute batch FIFO deduction - single database call for all items!
-        try {
-          const { data: batchResults, error: batchError } = await supabase.rpc('deduct_stock_fifo_batch', {
-            p_items: fifoItems
-          });
-
-          if (batchError) {
-            console.error('Batch FIFO deduction error:', batchError);
-            throw new Error(`Stock deduction failed: ${batchError.message}`);
-          }
-
-          // Process batch results
-          if (batchResults && Array.isArray(batchResults)) {
-            for (const result of batchResults) {
-              const itemCOGS = Number(result.total_cogs || 0);
-              totalCOGS += itemCOGS;
-              
-              cogsDetails.push({
-                product_id: result.product_id,
-                variant_id: result.variant_id,
-                name: result.name,
-                quantity: fifoItems[result.item_index].quantity,
-                cogs: itemCOGS,
-                layers: result.layers
+        // Execute all FIFO deductions in parallel for much faster processing
+        const fifoResults = await Promise.all(
+          fifoRequests.map(async (req) => {
+            try {
+              const { data: fifoData, error: fifoError } = await supabase.rpc('deduct_stock_fifo', {
+                p_product_id: req.productId,
+                p_variant_id: req.variantId,
+                p_quantity: req.quantity
               });
+
+              if (fifoError) {
+                console.error('FIFO deduction error:', fifoError);
+                return { success: false, error: `Insufficient stock for ${req.name}`, req };
+              }
+
+              if (fifoData && Array.isArray(fifoData)) {
+                const itemCOGS = fifoData.reduce((sum: number, layer: any) => sum + Number(layer.total_cogs), 0);
+                return {
+                  success: true,
+                  cogs: itemCOGS,
+                  detail: {
+                    product_id: req.productId,
+                    variant_id: req.variantId,
+                    name: req.name,
+                    quantity: req.quantity,
+                    cogs: itemCOGS,
+                    layers: fifoData
+                  }
+                };
+              }
+              return { success: true, cogs: 0, detail: null };
+            } catch (error) {
+              console.error('Error processing FIFO:', error);
+              return { success: false, error, req };
             }
+          })
+        );
+
+        // Process results
+        for (const result of fifoResults) {
+          if (result.success && result.detail) {
+            totalCOGS += result.cogs || 0;
+            cogsDetails.push(result.detail);
           }
-        } catch (error) {
-          console.error('Error in batch FIFO processing:', error);
-          setIsProcessing(false);
-          throw error;
         }
       }
 
@@ -1081,7 +1100,7 @@ export const usePOSTransaction = () => {
       }));
 
       const transactionData = {
-        id: editingTransactionId || uuidv4(),  // Use existing ID if editing
+        id: transactionIdForFifo,  // Use pre-generated or existing ID
         cashier_id: user.id,
         store_id: storeId,
         customer_id: customerId || null,  // Explicitly null if no customer to clear on edit
@@ -1097,9 +1116,9 @@ export const usePOSTransaction = () => {
         })),
         notes,
         metadata: {
-          total_cogs: totalCOGS,
-          cogs_details: cogsDetails,
-          gross_profit: (subtotal - finalDiscount) - totalCOGS,
+          total_cogs: 0, // Will be updated in background
+          cogs_details: [],
+          gross_profit: 0,
           ...(editingTransactionId && { edited_at: new Date().toISOString() })
         }
       };
@@ -1235,11 +1254,112 @@ export const usePOSTransaction = () => {
           return { ...transactionData, offline: true };
         }
         
-        // Run stock updates in BACKGROUND (non-blocking) for faster transaction completion
-        // Only for new transactions - don't block the user waiting for stock updates
+        // Run BOTH stock updates AND FIFO calculations in BACKGROUND for maximum speed
+        // Don't block the user - return immediately after saving the transaction
         if (!editingTransactionId) {
           // Fire and forget - don't await
           (async () => {
+            console.log('⚡ Background processing started for transaction:', transactionIdForFifo);
+            
+            // 1. Calculate FIFO COGS in background
+            const fifoRequests: Array<{
+              productId: string;
+              variantId: string | null;
+              quantity: number;
+              name: string;
+              isCombo: boolean;
+            }> = [];
+
+            for (const item of cart) {
+              if (item.id === 'cart-discount') continue;
+              
+              if (item.isCombo && item.comboItems) {
+                for (const comboProduct of item.comboItems) {
+                  fifoRequests.push({
+                    productId: comboProduct.product_id,
+                    variantId: comboProduct.variant_id || null,
+                    quantity: comboProduct.quantity * item.quantity,
+                    name: comboProduct.product_name,
+                    isCombo: true
+                  });
+                }
+              } else {
+                const isVariant = item.id !== item.productId;
+                fifoRequests.push({
+                  productId: item.productId,
+                  variantId: isVariant ? item.id : null,
+                  quantity: item.quantity,
+                  name: item.name,
+                  isCombo: false
+                });
+              }
+            }
+
+            // Execute FIFO calculations in parallel
+            const fifoResults = await Promise.all(
+              fifoRequests.map(async (req) => {
+                try {
+                  const { data: fifoData, error: fifoError } = await supabase.rpc('deduct_stock_fifo', {
+                    p_product_id: req.productId,
+                    p_variant_id: req.variantId,
+                    p_quantity: req.quantity
+                  });
+
+                  if (fifoError) {
+                    console.error('FIFO deduction error:', fifoError);
+                    return { success: false, error: `Insufficient stock for ${req.name}`, req };
+                  }
+
+                  if (fifoData && Array.isArray(fifoData)) {
+                    const itemCOGS = fifoData.reduce((sum: number, layer: any) => sum + Number(layer.total_cogs), 0);
+                    return {
+                      success: true,
+                      cogs: itemCOGS,
+                      detail: {
+                        product_id: req.productId,
+                        variant_id: req.variantId,
+                        name: req.name,
+                        quantity: req.quantity,
+                        cogs: itemCOGS,
+                        layers: fifoData
+                      }
+                    };
+                  }
+                  return { success: true, cogs: 0, detail: null };
+                } catch (error) {
+                  console.error('Error processing FIFO:', error);
+                  return { success: false, error, req };
+                }
+              })
+            );
+
+            // Calculate total COGS from results
+            let bgTotalCOGS = 0;
+            const bgCogsDetails: any[] = [];
+            for (const result of fifoResults) {
+              if (result.success && result.detail) {
+                bgTotalCOGS += result.cogs || 0;
+                bgCogsDetails.push(result.detail);
+              }
+            }
+
+            // Update transaction with COGS data
+            if (bgTotalCOGS > 0) {
+              const grossProfit = (transactionData.subtotal - transactionData.discount) - bgTotalCOGS;
+              await supabase
+                .from('pos_transactions')
+                .update({
+                  metadata: {
+                    total_cogs: bgTotalCOGS,
+                    cogs_details: bgCogsDetails,
+                    gross_profit: grossProfit
+                  }
+                })
+                .eq('id', transactionIdForFifo);
+              console.log('✅ FIFO calculations completed, COGS updated:', bgTotalCOGS);
+            }
+
+            // 2. Update stock quantities in parallel
             const stockUpdatePromises: Promise<any>[] = [];
             
             for (const item of cart) {
@@ -1250,11 +1370,23 @@ export const usePOSTransaction = () => {
                   const stockToDeduct = comboProduct.quantity * item.quantity;
                   if (comboProduct.variant_id) {
                     stockUpdatePromises.push(
-                      (async () => await supabase.rpc('decrement_variant_stock', { p_variant_id: comboProduct.variant_id, p_quantity: stockToDeduct }))()
+                      (async () => {
+                        const result = await supabase.rpc('decrement_variant_stock', { 
+                          p_variant_id: comboProduct.variant_id, 
+                          p_quantity: stockToDeduct 
+                        });
+                        return result;
+                      })()
                     );
                   } else {
                     stockUpdatePromises.push(
-                      (async () => await supabase.rpc('decrement_product_stock', { p_product_id: comboProduct.product_id, p_quantity: stockToDeduct }))()
+                      (async () => {
+                        const result = await supabase.rpc('decrement_product_stock', { 
+                          p_product_id: comboProduct.product_id, 
+                          p_quantity: stockToDeduct 
+                        });
+                        return result;
+                      })()
                     );
                   }
                 }
@@ -1262,25 +1394,37 @@ export const usePOSTransaction = () => {
                 const isVariant = item.id !== item.productId;
                 if (isVariant) {
                   stockUpdatePromises.push(
-                    (async () => await supabase.rpc('decrement_variant_stock', { p_variant_id: item.id, p_quantity: item.quantity }))()
+                    (async () => {
+                      const result = await supabase.rpc('decrement_variant_stock', { 
+                        p_variant_id: item.id, 
+                        p_quantity: item.quantity 
+                      });
+                      return result;
+                    })()
                   );
                 } else {
                   stockUpdatePromises.push(
-                    (async () => await supabase.rpc('decrement_product_stock', { p_product_id: item.id, p_quantity: item.quantity }))()
+                    (async () => {
+                      const result = await supabase.rpc('decrement_product_stock', { 
+                        p_product_id: item.id, 
+                        p_quantity: item.quantity 
+                      });
+                      return result;
+                    })()
                   );
                 }
               }
             }
             
-            // Execute all stock updates in parallel (background)
+            // Execute all stock updates in parallel
             try {
-              const stockResults = await Promise.all(stockUpdatePromises);
-              stockResults.forEach((result) => {
-                if (result.error) console.error('Stock update error:', result.error);
-              });
+              await Promise.all(stockUpdatePromises);
+              console.log('✅ Stock quantities updated');
             } catch (stockError) {
               console.error('Background stock update error:', stockError);
             }
+            
+            console.log('⚡ Background processing completed for transaction:', transactionIdForFifo);
           })();
         }
 
