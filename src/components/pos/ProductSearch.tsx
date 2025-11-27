@@ -1,7 +1,7 @@
-import React, { useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
@@ -16,6 +16,7 @@ interface ProductSearchProps {
 }
 
 export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({ onProductSelect }, ref) => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -47,6 +48,41 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       });
     }
   }, [highlightedIndex]);
+
+  // Listen for real-time stock updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('product-stock-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'products'
+        },
+        () => {
+          // Invalidate product query when any product stock changes
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'product_variants'
+        },
+        () => {
+          // Invalidate product query when any variant stock changes
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm],
