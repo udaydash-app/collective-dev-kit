@@ -87,6 +87,7 @@ import { APP_VERSION } from '@/config/version';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -4558,6 +4559,9 @@ export default function POS() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Offline Status Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }
