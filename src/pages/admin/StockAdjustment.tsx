@@ -50,9 +50,14 @@ export default function StockAdjustment() {
   });
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['stock-products', selectedStoreId, selectedCategoryId],
+    queryKey: ['stock-products', selectedStoreId, selectedCategoryId, searchQuery],
     queryFn: async () => {
       if (!selectedStoreId) return [];
+      
+      // Only load if user has filtered by category or searched
+      if (selectedCategoryId === 'all' && !searchQuery.trim()) {
+        return [];
+      }
 
       let query = supabase
         .from('products')
@@ -63,16 +68,21 @@ export default function StockAdjustment() {
         `)
         .eq('store_id', selectedStoreId)
         .eq('is_available', true)
-        .order('name');
+        .order('name')
+        .limit(100);
 
       if (selectedCategoryId !== 'all') {
         query = query.eq('category_id', selectedCategoryId);
       }
 
+      if (searchQuery.trim()) {
+        query = query.or(`name.ilike.%${searchQuery}%,barcode.ilike.%${searchQuery}%`);
+      }
+
       const { data } = await query;
       return data || [];
     },
-    enabled: !!selectedStoreId,
+    enabled: !!selectedStoreId && (selectedCategoryId !== 'all' || !!searchQuery.trim()),
   });
 
   const updateStockMutation = useMutation({
@@ -412,14 +422,8 @@ export default function StockAdjustment() {
     });
   };
 
-  const filteredProducts = products?.filter((product) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      product.name.toLowerCase().includes(query) ||
-      product.barcode?.toLowerCase().includes(query)
-    );
-  });
+  // Products are already filtered by the query, no need to filter again
+  const filteredProducts = products || [];
 
   const calculateDifference = (key: string, systemStock: number) => {
     const inputValue = stockInputs[key];
@@ -484,19 +488,18 @@ export default function StockAdjustment() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="barcode">Scan Barcode</Label>
-              <Input
-                id="barcode"
-                placeholder="Scan or enter barcode..."
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleBarcodeScanned(barcodeInput);
-                  }
-                }}
-                autoComplete="off"
-              />
+              <Label htmlFor="search">Search Products</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Search by name or barcode..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  autoComplete="off"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -566,7 +569,12 @@ export default function StockAdjustment() {
       ) : filteredProducts && filteredProducts.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">No products found</p>
+            <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground mb-2">
+              {selectedCategoryId === 'all' && !searchQuery.trim() 
+                ? 'Please select a category or search for products to begin'
+                : 'No products found matching your filters'}
+            </p>
           </CardContent>
         </Card>
       ) : (
