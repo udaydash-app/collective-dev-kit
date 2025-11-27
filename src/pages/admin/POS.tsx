@@ -43,8 +43,7 @@ import {
   Award,
   Banknote,
   Factory,
-  ScanBarcode as BarcodeIcon,
-  Database
+  ScanBarcode as BarcodeIcon
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -88,8 +87,6 @@ import { APP_VERSION } from '@/config/version';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
-import { syncService } from '@/lib/syncService';
-import { offlineDB } from '@/lib/offlineDB';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -148,8 +145,6 @@ export default function POS() {
   const [showRefund, setShowRefund] = useState(false);
   const [isWholesaleMode, setIsWholesaleMode] = useState(false);
   const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
-  const [unsyncedCount, setUnsyncedCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
   
   // Cart resize and drag state
   const [cartWidth, setCartWidth] = useState(() => {
@@ -263,22 +258,6 @@ export default function POS() {
       loadEditOrderToPOS(editOrderId);
     }
   }, [searchParams, isLoadingOrder, cart.length]);
-
-  // Check for unsynced transactions count
-  const checkUnsyncedCount = async () => {
-    try {
-      const transactions = await offlineDB.getUnsyncedTransactions();
-      setUnsyncedCount(transactions.length);
-    } catch (error) {
-      console.error('Error checking unsynced count:', error);
-    }
-  };
-
-  useEffect(() => {
-    checkUnsyncedCount();
-    const interval = setInterval(checkUnsyncedCount, 5000); // Check every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
 
   const loadOrderToPOS = async (orderId: string) => {
     try {
@@ -2907,25 +2886,6 @@ export default function POS() {
       label: 'Recent sales', 
       color: 'bg-[#5DADE2]', 
       action: () => navigate('/admin/orders'),
-      shortcut: null
-    },
-    { 
-      icon: Database, 
-      label: unsyncedCount > 0 ? `Sync (${unsyncedCount})` : 'Sync Offline', 
-      color: unsyncedCount > 0 ? 'bg-[#F97316]' : 'bg-[#5DADE2]', 
-      action: async () => {
-        if (isSyncing) return;
-        setIsSyncing(true);
-        try {
-          const result = await syncService.syncTransactions();
-          if (result.success > 0) {
-            await checkUnsyncedCount();
-            queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-          }
-        } finally {
-          setIsSyncing(false);
-        }
-      },
       shortcut: null
     },
     { 
