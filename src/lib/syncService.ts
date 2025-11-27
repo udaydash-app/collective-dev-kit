@@ -95,8 +95,7 @@ class SyncService {
       total: transaction.total
     });
 
-    // Just insert the transaction - stock was already deducted during POS sale
-    // The backend trigger will handle COGS calculation
+    // Insert the transaction - stock deduction and COGS are handled by database triggers
     const { error } = await supabase
       .from('pos_transactions')
       .insert({
