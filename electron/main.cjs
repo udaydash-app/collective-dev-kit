@@ -70,8 +70,8 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // Production mode - load built files and start at POS login
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/pos-login' });
+    // Production mode - load built files
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
   // Handle window closed

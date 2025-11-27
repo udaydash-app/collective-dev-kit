@@ -996,12 +996,13 @@ export const usePOSTransaction = () => {
 
       // Check if online for FIFO calculation (skip for edited transactions to avoid double deduction)
       if (navigator.onLine && !editingTransactionId) {
-        // Prepare all FIFO deduction items for batch processing
-        const fifoItems: Array<{
-          product_id: string;
-          variant_id: string | null;
+        // Prepare all FIFO deduction requests
+        const fifoRequests: Array<{
+          productId: string;
+          variantId: string | null;
           quantity: number;
           name: string;
+          isCombo: boolean;
         }> = [];
 
         for (const item of cart) {
@@ -1010,56 +1011,71 @@ export const usePOSTransaction = () => {
           // Handle combo items
           if (item.isCombo && item.comboItems) {
             for (const comboProduct of item.comboItems) {
-              fifoItems.push({
-                product_id: comboProduct.product_id,
-                variant_id: comboProduct.variant_id || null,
+              fifoRequests.push({
+                productId: comboProduct.product_id,
+                variantId: comboProduct.variant_id || null,
                 quantity: comboProduct.quantity * item.quantity,
-                name: comboProduct.product_name
+                name: comboProduct.product_name,
+                isCombo: true
               });
             }
           } else {
             // Regular product
             const isVariant = item.id !== item.productId;
-            fifoItems.push({
-              product_id: item.productId,
-              variant_id: isVariant ? item.id : null,
+            fifoRequests.push({
+              productId: item.productId,
+              variantId: isVariant ? item.id : null,
               quantity: item.quantity,
-              name: item.name
+              name: item.name,
+              isCombo: false
             });
           }
         }
 
-        // Execute batch FIFO deduction - single database call for all items!
-        try {
-          const { data: batchResults, error: batchError } = await supabase.rpc('deduct_stock_fifo_batch', {
-            p_items: fifoItems
-          });
-
-          if (batchError) {
-            console.error('Batch FIFO deduction error:', batchError);
-            throw new Error(`Stock deduction failed: ${batchError.message}`);
-          }
-
-          // Process batch results
-          if (batchResults && Array.isArray(batchResults)) {
-            for (const result of batchResults) {
-              const itemCOGS = Number(result.total_cogs || 0);
-              totalCOGS += itemCOGS;
-              
-              cogsDetails.push({
-                product_id: result.product_id,
-                variant_id: result.variant_id,
-                name: result.name,
-                quantity: fifoItems[result.item_index].quantity,
-                cogs: itemCOGS,
-                layers: result.layers
+        // Execute all FIFO deductions in parallel for much faster processing
+        const fifoResults = await Promise.all(
+          fifoRequests.map(async (req) => {
+            try {
+              const { data: fifoData, error: fifoError } = await supabase.rpc('deduct_stock_fifo', {
+                p_product_id: req.productId,
+                p_variant_id: req.variantId,
+                p_quantity: req.quantity
               });
+
+              if (fifoError) {
+                console.error('FIFO deduction error:', fifoError);
+                return { success: false, error: `Insufficient stock for ${req.name}`, req };
+              }
+
+              if (fifoData && Array.isArray(fifoData)) {
+                const itemCOGS = fifoData.reduce((sum: number, layer: any) => sum + Number(layer.total_cogs), 0);
+                return {
+                  success: true,
+                  cogs: itemCOGS,
+                  detail: {
+                    product_id: req.productId,
+                    variant_id: req.variantId,
+                    name: req.name,
+                    quantity: req.quantity,
+                    cogs: itemCOGS,
+                    layers: fifoData
+                  }
+                };
+              }
+              return { success: true, cogs: 0, detail: null };
+            } catch (error) {
+              console.error('Error processing FIFO:', error);
+              return { success: false, error, req };
             }
+          })
+        );
+
+        // Process results
+        for (const result of fifoResults) {
+          if (result.success && result.detail) {
+            totalCOGS += result.cogs || 0;
+            cogsDetails.push(result.detail);
           }
-        } catch (error) {
-          console.error('Error in batch FIFO processing:', error);
-          setIsProcessing(false);
-          throw error;
         }
       }
 
@@ -1096,7 +1112,6 @@ export const usePOSTransaction = () => {
           amount: parseFloat(p.amount.toFixed(2)),
         })),
         notes,
-        created_at: new Date().toISOString(), // Ensure consistent timestamp for filtering
         metadata: {
           total_cogs: totalCOGS,
           cogs_details: cogsDetails,

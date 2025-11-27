@@ -2502,17 +2502,6 @@ export type Database = {
           unit_cost: number
         }[]
       }
-      deduct_stock_fifo_batch: {
-        Args: { p_items: Json }
-        Returns: {
-          item_index: number
-          layers: Json
-          name: string
-          product_id: string
-          total_cogs: number
-          variant_id: string
-        }[]
-      }
       find_similar_products: {
         Args: {
           p_search_name: string
