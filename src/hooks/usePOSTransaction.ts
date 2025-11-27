@@ -1096,6 +1096,7 @@ export const usePOSTransaction = () => {
           amount: parseFloat(p.amount.toFixed(2)),
         })),
         notes,
+        created_at: new Date().toISOString(), // Ensure consistent timestamp for filtering
         metadata: {
           total_cogs: totalCOGS,
           cogs_details: cogsDetails,
