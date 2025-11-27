@@ -1290,10 +1290,8 @@ export default function Products() {
     const matchesCategory = filterCategory === "all" || product.category_id === filterCategory;
     const matchesStore = filterStore === "all" || product.store_id === filterStore;
     const matchesAvailability = 
-      filterAvailability === "all" || 
-      (filterAvailability === "available" && product.is_available) ||
-      (filterAvailability === "unavailable" && !product.is_available);
-    const matchesFeatured = 
+      filterAvailability === "unavailable" ? !product.is_available : product.is_available;
+    const matchesFeatured =
       filterFeatured === "all" ||
       (filterFeatured === "featured" && product.is_featured) ||
       (filterFeatured === "not-featured" && !product.is_featured);
