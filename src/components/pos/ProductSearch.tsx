@@ -115,7 +115,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
             price,
             is_available,
             is_default,
-            barcode
+            barcode,
+            stock_quantity
           )
         `)
         .eq('is_available', true)
@@ -229,7 +230,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
             price,
             is_available,
             is_default,
-            barcode
+            barcode,
+            stock_quantity
           )
         `)
         .eq('is_available', true)
@@ -300,7 +302,15 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
             price,
             barcode,
             stock_quantity,
-            cost_price
+            cost_price,
+            product_variants (
+              id,
+              label,
+              quantity,
+              unit,
+              price,
+              stock_quantity
+            )
           )
         `)
         .eq('is_available', true)
@@ -372,7 +382,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
                   ? defaultVariant?.price 
                   : product.price;
                 const displayStock = availableVariants.length > 0
-                  ? defaultVariant?.quantity || 0
+                  ? defaultVariant?.stock_quantity || 0
                   : product.stock_quantity || 0;
                 const isHighlighted = index === highlightedIndex;
 
