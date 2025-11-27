@@ -96,6 +96,7 @@ export const useRealtimeSync = () => {
         (payload) => {
           console.log('POS Transaction changed:', payload);
           queryClient.invalidateQueries({ queryKey: ['pos-transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
           queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
           
           if (payload.eventType === 'INSERT') {
