@@ -61,8 +61,12 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'products'
         },
         () => {
-          // Invalidate product query when any product stock changes
-          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+          console.log('Product stock changed - invalidating queries');
+          // Invalidate all pos-products queries regardless of search term
+          queryClient.invalidateQueries({ 
+            queryKey: ['pos-products'],
+            exact: false 
+          });
         }
       )
       .on(
@@ -73,11 +77,17 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'product_variants'
         },
         () => {
-          // Invalidate product query when any variant stock changes
-          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+          console.log('Variant stock changed - invalidating queries');
+          // Invalidate all pos-products queries regardless of search term
+          queryClient.invalidateQueries({ 
+            queryKey: ['pos-products'],
+            exact: false 
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
