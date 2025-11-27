@@ -61,9 +61,9 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'products'
         },
         () => {
-          console.log('Product stock changed - invalidating queries');
-          // Invalidate all pos-products queries regardless of search term
-          queryClient.invalidateQueries({ 
+          console.log('Product stock changed - refetching queries');
+          // Force refetch all pos-products queries to get fresh stock data
+          queryClient.refetchQueries({ 
             queryKey: ['pos-products'],
             exact: false 
           });
@@ -77,9 +77,9 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'product_variants'
         },
         () => {
-          console.log('Variant stock changed - invalidating queries');
-          // Invalidate all pos-products queries regardless of search term
-          queryClient.invalidateQueries({ 
+          console.log('Variant stock changed - refetching queries');
+          // Force refetch all pos-products queries to get fresh stock data
+          queryClient.refetchQueries({ 
             queryKey: ['pos-products'],
             exact: false 
           });
