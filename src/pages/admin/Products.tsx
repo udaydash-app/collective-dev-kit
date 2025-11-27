@@ -335,6 +335,49 @@ export default function Products() {
     setVariants(variants.filter((_, i) => i !== index));
   };
 
+  const extractVariantAsProduct = (variant: ProductVariant) => {
+    if (!editingProduct) return;
+    
+    // Create a new product from the variant details
+    const variantLabel = variant.label || `${variant.quantity} ${variant.unit}`;
+    const newProductName = `${editingProduct.name} - ${variantLabel}`;
+    
+    const newProduct: Product = {
+      id: 'new',
+      name: newProductName,
+      description: editingProduct.description || '',
+      price: variant.price,
+      unit: variant.unit,
+      image_url: editingProduct.image_url,
+      category_id: editingProduct.category_id,
+      store_id: editingProduct.store_id,
+      supplier_id: editingProduct.supplier_id,
+      is_available: variant.is_available,
+      is_featured: editingProduct.is_featured || false,
+      stock_quantity: variant.stock_quantity || 0,
+      barcode: variant.barcode || null,
+      cost_price: variant.cost_price || null,
+      wholesale_price: variant.wholesale_price || null,
+      vip_price: variant.vip_price || null,
+    } as Product;
+    
+    // Close current dialog
+    setIsDialogOpen(false);
+    
+    // Small delay to allow dialog to close, then open with new product
+    setTimeout(() => {
+      setIsAddingNew(true);
+      setEditingProduct(newProduct);
+      setSelectedImage(null);
+      setPreviewUrl(null);
+      setImageUrl(editingProduct.image_url || "");
+      setVariants([]);
+      setShowVariants(false);
+      setIsDialogOpen(true);
+      toast.info("Variant extracted as new product. Review and save.");
+    }, 100);
+  };
+
   const saveVariants = async (productId: string) => {
     try {
       // Fetch existing variants for this product
@@ -2093,13 +2136,24 @@ export default function Products() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              <div className="col-span-6 md:col-span-1 flex items-end">
+                              <div className="col-span-6 md:col-span-2 flex items-end gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => extractVariantAsProduct(variant)}
+                                  className="h-8 flex-1 hover:bg-primary/10"
+                                  title="Extract as new product"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => removeVariant(index)}
-                                  className="h-8 w-full text-destructive hover:text-destructive hover:bg-destructive/20"
+                                  className="h-8 flex-1 text-destructive hover:text-destructive hover:bg-destructive/20"
+                                  title="Delete variant"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
