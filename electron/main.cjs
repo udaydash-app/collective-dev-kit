@@ -67,11 +67,11 @@ function createWindow() {
   // Load the app
   if (process.env.ELECTRON_DEV) {
     // Development mode - connect to Vite dev server
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173/#/pos-login');
     mainWindow.webContents.openDevTools();
   } else {
-    // Production mode - load built files
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Production mode - load built files with direct route to POS login
+    mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/pos-login`);
   }
 
   // Handle window closed
