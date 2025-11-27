@@ -770,7 +770,7 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
-      // Store current discounts and custom prices before offer detection
+      // Store discounts and custom prices
       const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
       cartToProcess.forEach(item => {
         if (item.itemDiscount || item.customPrice) {
@@ -787,24 +787,18 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Extract regular items from combo result (which already has products removed)
       const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      // Restore custom prices and discounts to regular items
       const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
-        if (savedDiscount) {
-          return { ...item, ...savedDiscount };
-        }
-        return item;
+        return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
-      setCart(finalCart);
-    }, 300);
+      setCart([...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems]);
+    }, 150);
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
@@ -830,7 +824,7 @@ export const usePOSTransaction = () => {
     offerDetectionTimerRef.current = setTimeout(async () => {
       const cartToProcess = cartUpdateQueueRef.current;
       
-      // Store current discounts and custom prices before offer detection
+      // Store discounts and custom prices
       const existingDiscounts = new Map<string, { itemDiscount?: number; customPrice?: number }>();
       cartToProcess.forEach(item => {
         if (item.itemDiscount || item.customPrice) {
@@ -847,24 +841,18 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Extract regular items from combo result (which already has products removed)
       const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
       const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      // Restore custom prices and discounts to regular items
       const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
-        if (savedDiscount) {
-          return { ...item, ...savedDiscount };
-        }
-        return item;
+        return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
-      setCart(finalCart);
-    }, 300);
+      setCart([...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems]);
+    }, 150);
   };
 
   const updateItemPrice = (productId: string, price: number, isManual: boolean = true) => {
@@ -931,18 +919,15 @@ export const usePOSTransaction = () => {
   };
 
   const calculateSubtotal = () => {
-    return cart.reduce((sum, item) => {
+    let sum = 0;
+    for (const item of cart) {
       const effectivePrice = item.customPrice ?? item.price;
-      const itemTotal = effectivePrice * item.quantity;
-      const itemDiscountAmount = (item.itemDiscount ?? 0) * item.quantity;
-      return sum + itemTotal - itemDiscountAmount;
-    }, 0);
+      sum += (effectivePrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
+    }
+    return sum;
   };
 
-  const calculateTotal = () => {
-    const subtotal = calculateSubtotal();
-    return subtotal - discount;
-  };
+  const calculateTotal = () => calculateSubtotal() - discount;
 
   const processTransaction = async (
     payments: Array<{ id: string; method: string; amount: number }>,
@@ -966,7 +951,7 @@ export const usePOSTransaction = () => {
 
     setIsProcessing(true);
     try {
-      // Use cached user for faster processing, fallback to fresh fetch if not cached
+      // Use cached user for faster processing
       let user = cachedUserRef.current;
       if (!user) {
         const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
@@ -980,10 +965,8 @@ export const usePOSTransaction = () => {
       }
 
       const subtotal = calculateSubtotal();
-      const total = calculateTotal();
-      
-      // Use discount override if provided (for cart-level discounts), otherwise use item-level discount
       const finalDiscount = discountOverride !== undefined ? discountOverride : discount;
+      const total = subtotal - finalDiscount;
 
       // Determine primary payment method (highest amount)
       const primaryPayment = payments.reduce((prev, current) => 
@@ -991,19 +974,18 @@ export const usePOSTransaction = () => {
       );
 
       // Pre-generate transaction ID
-      const transactionIdForFifo = editingTransactionId || uuidv4();
+      const transactionId = editingTransactionId || uuidv4();
 
-      // Combine cart items with any additional items (like cart discount)
-      // Map items to include all necessary fields
+      // Map items - simplified structure
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
       const itemsToSave = allItems.map(item => ({
         id: item.id,
-        productId: item.productId, // Base product ID for custom pricing
+        productId: item.productId,
         name: item.name,
-        display_name: item.displayName, // Custom name for this order only
+        display_name: item.displayName,
         quantity: item.quantity,
-        price: item.price, // Original price (can be negative for cart-discount)
-        customPrice: item.customPrice, // Custom/modified price if any
+        price: item.price,
+        customPrice: item.customPrice,
         itemDiscount: item.itemDiscount || 0,
         barcode: item.barcode,
         isCombo: item.isCombo,
@@ -1011,51 +993,28 @@ export const usePOSTransaction = () => {
       }));
 
       const transactionData = {
-        id: transactionIdForFifo,  // Use pre-generated or existing ID
+        id: transactionId,
         cashier_id: user.id,
         store_id: storeId,
-        customer_id: customerId || null,  // Explicitly null if no customer to clear on edit
+        customer_id: customerId || null,
         items: itemsToSave as any,
-        subtotal: parseFloat(subtotal.toFixed(2)),
+        subtotal: Math.round(subtotal * 100) / 100,
         tax: 0,
-        discount: parseFloat(finalDiscount.toFixed(2)),
-        total: parseFloat((subtotal - finalDiscount).toFixed(2)),
+        discount: Math.round(finalDiscount * 100) / 100,
+        total: Math.round(total * 100) / 100,
         payment_method: primaryPayment.method,
         payment_details: payments.map(p => ({
           method: p.method,
-          amount: parseFloat(p.amount.toFixed(2)),
+          amount: Math.round(p.amount * 100) / 100,
         })),
         notes,
-        metadata: {
-          total_cogs: 0, // Will be updated in background
-          cogs_details: [],
-          gross_profit: 0,
-          ...(editingTransactionId && { edited_at: new Date().toISOString() })
-        }
+        metadata: editingTransactionId ? { edited_at: new Date().toISOString() } : {}
       };
-
-      console.log('🔧 [PROCESS] Transaction processing mode:', {
-        isEditing: !!editingTransactionId,
-        editingType: editingTransactionType,
-        transactionId: transactionData.id,
-        editingTransactionId
-      });
 
       // Check if online
       if (navigator.onLine) {
         // EDIT MODE: Update existing POS transaction
         if (editingTransactionId && editingTransactionType === 'pos') {
-          console.log('🔧 UPDATE MODE: Updating existing POS transaction:', editingTransactionId);
-          console.log('🔧 UPDATE MODE: Using transaction ID:', transactionData.id);
-          
-          // Verify the IDs match
-          if (transactionData.id !== editingTransactionId) {
-            console.error('❌ ID MISMATCH:', {
-              transactionDataId: transactionData.id,
-              editingTransactionId
-            });
-          }
-          
           const { data, error } = await supabase
             .from('pos_transactions')
             .update({
@@ -1077,45 +1036,31 @@ export const usePOSTransaction = () => {
             .single();
 
           if (error) {
-            console.error('❌ Database update error:', error);
+            console.error('Database update error:', error);
             setIsProcessing(false);
             return null;
           }
 
-          console.log('✅ Transaction updated successfully!', data);
           clearCart();
           setIsProcessing(false);
           toast.success(`Sale ${data.transaction_number} updated successfully`);
           return data;
         }
         
-        // CONVERT MODE: Update existing online order with payment info (don't create duplicate)
+        // CONVERT MODE: Update existing online order
         if (editingTransactionId && editingTransactionType === 'online') {
-          console.log('🔄 CONVERT MODE: Updating online order with payment info');
-          
-          const primaryPayment = payments.reduce((prev, current) => 
-            (current.amount > prev.amount) ? current : prev
-          );
-          
-          // Build update data including payment method and customer if selected
-          const updateData: any = {
-            status: 'out_for_delivery',
-            payment_status: 'paid',
-            payment_method: payments.length > 1 ? 'multiple' : primaryPayment.method,
-            subtotal: transactionData.subtotal,
-            total: transactionData.total,
-            tax: transactionData.tax,
-            updated_at: new Date().toISOString(),
-            // Always set customer_id - null if removed, otherwise the selected customer
-            customer_id: transactionData.customer_id || null
-          };
-          
-          console.log('🔄 Customer for order:', transactionData.customer_id || 'removed/none');
-          
-          // Update the existing order with payment details and status
           const { data, error } = await supabase
             .from('orders')
-            .update(updateData)
+            .update({
+              status: 'out_for_delivery',
+              payment_status: 'paid',
+              payment_method: payments.length > 1 ? 'multiple' : primaryPayment.method,
+              subtotal: transactionData.subtotal,
+              total: transactionData.total,
+              tax: transactionData.tax,
+              updated_at: new Date().toISOString(),
+              customer_id: transactionData.customer_id || null
+            })
             .eq('id', editingTransactionId)
             .select()
             .single();
@@ -1126,16 +1071,12 @@ export const usePOSTransaction = () => {
             return null;
           }
 
-          console.log('✅ Online order updated successfully with payment_method:', updateData.payment_method);
           clearCart();
           setIsProcessing(false);
           return { ...data, transaction_number: data.order_number, isOnlineOrder: true };
         }
         
-        
         // NEW TRANSACTION MODE: Create new POS transaction
-        console.log('✨ NEW TRANSACTION MODE: Creating new POS transaction');
-        
         const { data, error } = await supabase
           .from('pos_transactions')
           .insert(transactionData)
@@ -1144,7 +1085,7 @@ export const usePOSTransaction = () => {
 
         if (error) {
           console.error('Database error:', error);
-          // If online but failed, save offline as backup
+          // Save offline as backup
           await offlineDB.addTransaction({
             id: transactionData.id,
             storeId: transactionData.store_id,
@@ -1159,16 +1100,12 @@ export const usePOSTransaction = () => {
             timestamp: new Date().toISOString(),
             synced: false,
           });
-          console.log('Saved offline - will sync when connection is stable');
           clearCart();
           setIsProcessing(false);
           return { ...transactionData, offline: true };
         }
         
-        // Stock deduction is now handled automatically by database trigger (deduct_stock_simple)
-        // No background processing needed - trigger runs on INSERT to pos_transactions
-
-        console.log('✅ Transaction completed successfully!');
+        // Stock deduction handled by database trigger - no additional processing needed
         clearCart();
         setIsProcessing(false);
         return data;
