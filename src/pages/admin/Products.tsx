@@ -383,7 +383,7 @@ export default function Products() {
       // Fetch existing variants for this product
       const { data: existingVariants, error: fetchError } = await supabase
         .from('product_variants')
-        .select('id')
+        .select('id, label')
         .eq('product_id', productId);
 
       if (fetchError) {
@@ -392,7 +392,7 @@ export default function Products() {
       }
 
       const existingIds = existingVariants?.map(v => v.id) || [];
-      const currentIds = variants.filter(v => v.id).map(v => v.id);
+      const currentIds = variants.filter(v => v.id && !v.id.startsWith('temp-')).map(v => v.id);
       
       // Find variants to delete (existing but not in current list)
       const variantsToDelete = existingIds.filter(id => !currentIds.includes(id));
@@ -406,41 +406,50 @@ export default function Products() {
       
       // Try to delete removed variants
       if (variantsToDelete.length > 0) {
-        // First check if any variants are referenced in other tables
-        const { data: purchaseRefs } = await supabase
-          .from('purchase_items')
-          .select('variant_id')
-          .in('variant_id', variantsToDelete)
-          .limit(1);
-
-        const { data: cartRefs } = await supabase
-          .from('cart_items')
-          .select('variant_id')
-          .in('variant_id', variantsToDelete)
-          .limit(1);
+        console.log(`Attempting to delete ${variantsToDelete.length} variant(s)...`);
         
-        const { data: inventoryRefs } = await supabase
+        // First check if any variants are referenced in other tables
+        const { data: purchaseRefs, error: purchaseError } = await supabase
+          .from('purchase_items')
+          .select('variant_id, id')
+          .in('variant_id', variantsToDelete);
+
+        const { data: cartRefs, error: cartError } = await supabase
+          .from('cart_items')
+          .select('variant_id, id')
+          .in('variant_id', variantsToDelete);
+        
+        const { data: inventoryRefs, error: inventoryError } = await supabase
           .from('inventory_layers')
-          .select('variant_id')
-          .in('variant_id', variantsToDelete)
-          .limit(1);
+          .select('variant_id, id, quantity_remaining')
+          .in('variant_id', variantsToDelete);
 
         if (purchaseRefs && purchaseRefs.length > 0) {
-          toast.error("Cannot delete variants with purchase history. Please keep the variant or merge products instead.");
+          const variantLabel = existingVariants?.find(v => v.id === purchaseRefs[0].variant_id)?.label || 'Unknown';
+          toast.error(`Cannot delete variant "${variantLabel}" - it has ${purchaseRefs.length} purchase record(s). Keep the variant or use Extract to Product feature.`, {
+            duration: 5000
+          });
           return false;
         }
 
         if (cartRefs && cartRefs.length > 0) {
-          toast.error("Cannot delete variants in customer carts. Please wait or remove from carts first.");
+          const variantLabel = existingVariants?.find(v => v.id === cartRefs[0].variant_id)?.label || 'Unknown';
+          toast.error(`Cannot delete variant "${variantLabel}" - it's in ${cartRefs.length} customer cart(s). Please wait or contact customers to remove.`, {
+            duration: 5000
+          });
           return false;
         }
         
         if (inventoryRefs && inventoryRefs.length > 0) {
-          toast.error("Cannot delete variants with inventory layers. Please use stock adjustment to zero out inventory first.");
+          const totalInventory = inventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
+          const variantLabel = existingVariants?.find(v => v.id === inventoryRefs[0].variant_id)?.label || 'Unknown';
+          toast.error(`Cannot delete variant "${variantLabel}" - it has ${inventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment to zero out inventory first.`, {
+            duration: 6000
+          });
           return false;
         }
 
-        console.log('Deleting variants:', variantsToDelete);
+        console.log('No references found, proceeding with deletion...');
         
         const { error: deleteError } = await supabase
           .from('product_variants')
@@ -449,10 +458,13 @@ export default function Products() {
 
         if (deleteError) {
           console.error('Error deleting variants:', deleteError);
-          toast.error("Failed to delete variants: " + deleteError.message);
+          toast.error("Database error while deleting variants: " + deleteError.message, {
+            duration: 5000
+          });
           return false;
         }
         
+        toast.success(`Successfully deleted ${variantsToDelete.length} variant(s)`);
         console.log('Successfully deleted variants:', variantsToDelete);
       }
 
