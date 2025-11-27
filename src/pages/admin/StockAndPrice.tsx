@@ -74,6 +74,7 @@ export default function StockAndPrice() {
       const { data, error } = await supabase
         .from('products')
         .select('*, categories(name), stores(name), product_variants(*)')
+        .eq('is_available', true)
         .order('name');
       if (error) throw error;
       return data;
