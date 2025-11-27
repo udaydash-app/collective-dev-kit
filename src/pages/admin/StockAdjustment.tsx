@@ -62,6 +62,7 @@ export default function StockAdjustment() {
           product_variants(id, label, stock_quantity, is_available, barcode, cost_price)
         `)
         .eq('store_id', selectedStoreId)
+        .eq('is_available', true)
         .order('name');
 
       if (selectedCategoryId !== 'all') {
