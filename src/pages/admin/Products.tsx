@@ -726,6 +726,121 @@ export default function Products() {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
     try {
+      // First check if product has variants
+      const { data: productVariants, error: variantsError } = await supabase
+        .from('product_variants')
+        .select('id, label')
+        .eq('product_id', id);
+
+      if (variantsError) throw variantsError;
+
+      // Check for variant references
+      if (productVariants && productVariants.length > 0) {
+        const variantIds = productVariants.map(v => v.id);
+
+        const { data: purchaseRefs } = await supabase
+          .from('purchase_items')
+          .select('variant_id, id')
+          .in('variant_id', variantIds);
+
+        const { data: cartRefs } = await supabase
+          .from('cart_items')
+          .select('variant_id, id')
+          .in('variant_id', variantIds);
+        
+        const { data: inventoryRefs } = await supabase
+          .from('inventory_layers')
+          .select('variant_id, id, quantity_remaining')
+          .in('variant_id', variantIds);
+
+        if (purchaseRefs && purchaseRefs.length > 0) {
+          const affectedVariants = [...new Set(purchaseRefs.map(r => r.variant_id))];
+          const variantLabels = affectedVariants.map(vid => 
+            productVariants.find(v => v.id === vid)?.label
+          ).filter(Boolean).join(', ');
+          
+          toast.error(`Cannot delete product - variant(s) [${variantLabels}] have ${purchaseRefs.length} purchase record(s). Use Extract to Product feature for each variant first.`, {
+            duration: 6000
+          });
+          return;
+        }
+
+        if (cartRefs && cartRefs.length > 0) {
+          const affectedVariants = [...new Set(cartRefs.map(r => r.variant_id))];
+          const variantLabels = affectedVariants.map(vid => 
+            productVariants.find(v => v.id === vid)?.label
+          ).filter(Boolean).join(', ');
+          
+          toast.error(`Cannot delete product - variant(s) [${variantLabels}] are in ${cartRefs.length} customer cart(s).`, {
+            duration: 5000
+          });
+          return;
+        }
+        
+        if (inventoryRefs && inventoryRefs.length > 0) {
+          const totalInventory = inventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
+          const affectedVariants = [...new Set(inventoryRefs.map(r => r.variant_id))];
+          const variantLabels = affectedVariants.map(vid => 
+            productVariants.find(v => v.id === vid)?.label
+          ).filter(Boolean).join(', ');
+          
+          toast.error(`Cannot delete product - variant(s) [${variantLabels}] have ${inventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment first.`, {
+            duration: 6000
+          });
+          return;
+        }
+
+        // Delete variants first if no references
+        const { error: deleteVariantsError } = await supabase
+          .from('product_variants')
+          .delete()
+          .eq('product_id', id);
+
+        if (deleteVariantsError) throw deleteVariantsError;
+      }
+
+      // Check for product-level references
+      const { data: productPurchaseRefs } = await supabase
+        .from('purchase_items')
+        .select('id')
+        .eq('product_id', id)
+        .is('variant_id', null);
+
+      const { data: productCartRefs } = await supabase
+        .from('cart_items')
+        .select('id')
+        .eq('product_id', id)
+        .is('variant_id', null);
+
+      const { data: productInventoryRefs } = await supabase
+        .from('inventory_layers')
+        .select('id, quantity_remaining')
+        .eq('product_id', id)
+        .is('variant_id', null);
+
+      if (productPurchaseRefs && productPurchaseRefs.length > 0) {
+        toast.error(`Cannot delete product - it has ${productPurchaseRefs.length} purchase record(s).`, {
+          duration: 5000
+        });
+        return;
+      }
+
+      if (productCartRefs && productCartRefs.length > 0) {
+        toast.error(`Cannot delete product - it's in ${productCartRefs.length} customer cart(s).`, {
+          duration: 5000
+        });
+        return;
+      }
+
+      if (productInventoryRefs && productInventoryRefs.length > 0) {
+        const totalInventory = productInventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
+        toast.error(`Cannot delete product - it has ${productInventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment first.`, {
+          duration: 6000
+        });
+        return;
+      }
+
+      // Finally delete the product
       const { error } = await supabase
         .from("products")
         .delete()
@@ -737,7 +852,7 @@ export default function Products() {
       fetchProducts();
     } catch (error) {
       console.error("Error deleting product:", error);
-      toast.error("Failed to delete product");
+      toast.error("Failed to delete product: " + (error as Error).message);
     }
   };
 
