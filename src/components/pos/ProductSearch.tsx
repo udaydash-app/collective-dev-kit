@@ -61,11 +61,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'products'
         },
         () => {
-          console.log('Product stock changed - refetching queries');
-          // Force refetch all pos-products queries to get fresh stock data
-          queryClient.refetchQueries({ 
-            queryKey: ['pos-products'],
-            exact: false 
+          console.log('Product stock changed - invalidating queries');
+          // Invalidate queries to force immediate refetch
+          queryClient.invalidateQueries({ 
+            queryKey: ['pos-products']
           });
         }
       )
@@ -77,11 +76,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           table: 'product_variants'
         },
         () => {
-          console.log('Variant stock changed - refetching queries');
-          // Force refetch all pos-products queries to get fresh stock data
-          queryClient.refetchQueries({ 
-            queryKey: ['pos-products'],
-            exact: false 
+          console.log('Variant stock changed - invalidating queries');
+          // Invalidate queries to force immediate refetch
+          queryClient.invalidateQueries({ 
+            queryKey: ['pos-products']
           });
         }
       )
@@ -149,7 +147,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       return data;
     },
     enabled: searchTerm.length > 0,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes for instant repeated scans
+    staleTime: 0, // Always fetch fresh data to show realtime stock updates
     gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
 
