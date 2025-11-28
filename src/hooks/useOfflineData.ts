@@ -217,7 +217,6 @@ export const useOfflineAccounts = () => {
 
       if (error) throw error;
 
-      // Cache accounts offline
       if (data) {
         await offlineDB.saveAccounts(data);
       }
@@ -237,6 +236,310 @@ export const useOfflineAccounts = () => {
 
   return {
     accounts: isOffline ? offlineAccounts : (onlineAccounts || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineBogoOffers = () => {
+  const [offlineOffers, setOfflineOffers] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlineOffers, isLoading } = useQuery({
+    queryKey: ['bogo-offers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bogo_offers')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveBogoOffers(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getBogoOffers().then(offers => {
+        setOfflineOffers(offers);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    offers: isOffline ? offlineOffers : (onlineOffers || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineMultiProductBogoOffers = () => {
+  const [offlineOffers, setOfflineOffers] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlineOffers, isLoading } = useQuery({
+    queryKey: ['multi-product-bogo-offers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('multi_product_bogo_offers')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveMultiProductBogoOffers(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getMultiProductBogoOffers().then(offers => {
+        setOfflineOffers(offers);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    offers: isOffline ? offlineOffers : (onlineOffers || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineAnnouncements = () => {
+  const [offlineAnnouncements, setOfflineAnnouncements] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlineAnnouncements, isLoading } = useQuery({
+    queryKey: ['announcements'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveAnnouncements(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getAnnouncements().then(announcements => {
+        setOfflineAnnouncements(announcements);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    announcements: isOffline ? offlineAnnouncements : (onlineAnnouncements || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineCustomPriceTiers = () => {
+  const [offlineTiers, setOfflineTiers] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlineTiers, isLoading } = useQuery({
+    queryKey: ['custom-price-tiers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('custom_price_tiers')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveCustomPriceTiers(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getCustomPriceTiers().then(tiers => {
+        setOfflineTiers(tiers);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    tiers: isOffline ? offlineTiers : (onlineTiers || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineCustomTierPrices = () => {
+  const [offlinePrices, setOfflinePrices] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlinePrices, isLoading } = useQuery({
+    queryKey: ['custom-tier-prices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('custom_tier_prices')
+        .select('*');
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveCustomTierPrices(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getCustomTierPrices().then(prices => {
+        setOfflinePrices(prices);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    prices: isOffline ? offlinePrices : (onlinePrices || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};
+
+export const useOfflineCustomerProductPrices = () => {
+  const [offlinePrices, setOfflinePrices] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlinePrices, isLoading } = useQuery({
+    queryKey: ['customer-product-prices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_product_prices')
+        .select('*');
+
+      if (error) throw error;
+
+      if (data) {
+        await offlineDB.saveCustomerProductPrices(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getCustomerProductPrices().then(prices => {
+        setOfflinePrices(prices);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    prices: isOffline ? offlinePrices : (onlinePrices || []),
     isLoading: isOffline ? false : isLoading,
     isOffline,
   };
