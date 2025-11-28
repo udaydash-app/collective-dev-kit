@@ -147,6 +147,107 @@ export async function cacheEssentialData(showProgress = false) {
       console.log(`Cached ${accounts.length} accounts`);
     }
 
+    // Fetch and cache BOGO offers
+    if (showProgress) toast.loading('Caching BOGO offers...');
+    const bogoOffersQuery = supabase
+      .from('bogo_offers')
+      .select('*')
+      .eq('is_active', true);
+    
+    const bogoOffersResult: any = await bogoOffersQuery;
+    const bogoOffers = bogoOffersResult.data;
+
+    if (bogoOffers && Array.isArray(bogoOffers)) {
+      await offlineDB.saveBogoOffers(bogoOffers);
+      console.log(`Cached ${bogoOffers.length} BOGO offers`);
+    }
+
+    // Fetch and cache multi-product BOGO offers
+    if (showProgress) toast.loading('Caching multi-product BOGO offers...');
+    const multiBogoOffersQuery = supabase
+      .from('multi_product_bogo_offers')
+      .select('*')
+      .eq('is_active', true);
+    
+    const multiBogoOffersResult: any = await multiBogoOffersQuery;
+    const multiBogoOffers = multiBogoOffersResult.data;
+
+    if (multiBogoOffers && Array.isArray(multiBogoOffers)) {
+      await offlineDB.saveMultiProductBogoOffers(multiBogoOffers);
+      console.log(`Cached ${multiBogoOffers.length} multi-product BOGO offers`);
+
+      // Fetch and cache multi-product BOGO items
+      const multiBogoItemsQuery = supabase
+        .from('multi_product_bogo_items')
+        .select('*');
+      
+      const multiBogoItemsResult: any = await multiBogoItemsQuery;
+      const multiBogoItems = multiBogoItemsResult.data;
+
+      if (multiBogoItems && Array.isArray(multiBogoItems)) {
+        await offlineDB.saveMultiProductBogoItems(multiBogoItems);
+        console.log(`Cached ${multiBogoItems.length} multi-product BOGO items`);
+      }
+    }
+
+    // Fetch and cache announcements
+    if (showProgress) toast.loading('Caching announcements...');
+    const announcementsQuery = supabase
+      .from('announcements')
+      .select('*')
+      .eq('is_active', true);
+    
+    const announcementsResult: any = await announcementsQuery;
+    const announcements = announcementsResult.data;
+
+    if (announcements && Array.isArray(announcements)) {
+      await offlineDB.saveAnnouncements(announcements);
+      console.log(`Cached ${announcements.length} announcements`);
+    }
+
+    // Fetch and cache custom price tiers
+    if (showProgress) toast.loading('Caching custom price tiers...');
+    const customTiersQuery = supabase
+      .from('custom_price_tiers')
+      .select('*')
+      .eq('is_active', true);
+    
+    const customTiersResult: any = await customTiersQuery;
+    const customTiers = customTiersResult.data;
+
+    if (customTiers && Array.isArray(customTiers)) {
+      await offlineDB.saveCustomPriceTiers(customTiers);
+      console.log(`Cached ${customTiers.length} custom price tiers`);
+    }
+
+    // Fetch and cache custom tier prices
+    if (showProgress) toast.loading('Caching custom tier prices...');
+    const customTierPricesQuery = supabase
+      .from('custom_tier_prices')
+      .select('*');
+    
+    const customTierPricesResult: any = await customTierPricesQuery;
+    const customTierPrices = customTierPricesResult.data;
+
+    if (customTierPrices && Array.isArray(customTierPrices)) {
+      await offlineDB.saveCustomTierPrices(customTierPrices);
+      console.log(`Cached ${customTierPrices.length} custom tier prices`);
+    }
+
+    // Fetch and cache customer product prices
+    if (showProgress) toast.loading('Caching customer product prices...');
+    const customerPricesQuery = supabase
+      .from('customer_product_prices')
+      .select('*');
+    
+    const customerPricesResult: any = await customerPricesQuery;
+    const customerPrices = customerPricesResult.data;
+
+    if (customerPrices && Array.isArray(customerPrices)) {
+      await offlineDB.saveCustomerProductPrices(customerPrices);
+      console.log(`Cached ${customerPrices.length} customer product prices`);
+    }
+
     // Store last cache timestamp
     localStorage.setItem('lastCacheTime', new Date().toISOString());
     
