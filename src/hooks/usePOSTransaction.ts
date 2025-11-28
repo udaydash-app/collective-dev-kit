@@ -205,31 +205,24 @@ export const usePOSTransaction = () => {
   // Automatic multi-product BOGO detection and application
   const detectAndApplyMultiProductBOGO = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
-      console.log('🎁 detectAndApplyMultiProductBOGO START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
+      console.log('🎁 detectAndApplyMultiProductBOGO START');
       const offers = useCache ? cachedMultiBOGOs : await fetchActiveMultiProductBOGOOffers();
-      console.log('🎉 Fetched multi-product BOGO offers:', offers);
       
       if (!offers || offers.length === 0) {
-        console.log('❌ No active multi-product BOGO offers found');
         return currentCart;
       }
 
       let updatedCart = [...currentCart];
 
-      // Apply each multi-product BOGO offer
       for (const offer of offers) {
-        console.log('🎁 Processing multi-product BOGO:', offer.name);
-        
         if (!offer.multi_product_bogo_items || offer.multi_product_bogo_items.length === 0) {
-          console.log('⚠️ Offer has no products');
           continue;
         }
 
-        // Get eligible product/variant IDs from the offer
         const eligibleItems = offer.multi_product_bogo_items;
         
-        // Find and count matching cart items
-        let matchCount = 0;
+        // Find matching cart items and count total quantity
+        let totalCount = 0;
         const matchingIndices: number[] = [];
         
         updatedCart.forEach((item, index) => {
@@ -244,25 +237,22 @@ export const usePOSTransaction = () => {
           });
           
           if (matches) {
-            matchCount += item.quantity;
+            totalCount += item.quantity;
             matchingIndices.push(index);
           }
         });
 
-        console.log('🔍 Found matching items count:', matchCount);
-        
-        // If 1 or more matching products, apply 50% discount
-        if (matchCount >= 1) {
-          console.log(`✅ Applying 50% discount to ${matchingIndices.length} matching items`);
+        // Apply 50% discount if count > 1
+        if (totalCount > 1) {
+          console.log(`✅ ${offer.name}: ${totalCount} items found, applying 50% discount`);
           
           matchingIndices.forEach(index => {
             const item = updatedCart[index];
             if (!item.originalPrice) {
-              // Store original price if not already stored
               updatedCart[index] = {
                 ...item,
                 originalPrice: item.price,
-                price: item.price * 0.5, // 50% discount
+                price: item.price * 0.5,
                 isBogo: true,
                 bogoOfferId: offer.id,
               };
