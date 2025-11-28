@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 4; // Bumped to add accounts store
+const DB_VERSION = 5; // Bumped to add all offline stores
 
 export interface OfflineTransaction {
   id: string;
@@ -119,6 +119,46 @@ class OfflineDB {
       if (!db.objectStoreNames.contains('accounts')) {
         const accountsStore = db.createObjectStore('accounts', { keyPath: 'id' });
         accountsStore.createIndex('account_type', 'account_type', { unique: false });
+      }
+
+      // BOGO offers cache
+      if (!db.objectStoreNames.contains('bogo_offers')) {
+        db.createObjectStore('bogo_offers', { keyPath: 'id' });
+      }
+
+      // Multi-product BOGO offers cache
+      if (!db.objectStoreNames.contains('multi_product_bogo_offers')) {
+        db.createObjectStore('multi_product_bogo_offers', { keyPath: 'id' });
+      }
+
+      // Multi-product BOGO items cache
+      if (!db.objectStoreNames.contains('multi_product_bogo_items')) {
+        const multiBogoItemsStore = db.createObjectStore('multi_product_bogo_items', { keyPath: 'id' });
+        multiBogoItemsStore.createIndex('offer_id', 'offer_id', { unique: false });
+      }
+
+      // Announcements cache
+      if (!db.objectStoreNames.contains('announcements')) {
+        db.createObjectStore('announcements', { keyPath: 'id' });
+      }
+
+      // Custom price tiers cache
+      if (!db.objectStoreNames.contains('custom_price_tiers')) {
+        db.createObjectStore('custom_price_tiers', { keyPath: 'id' });
+      }
+
+      // Custom tier prices cache
+      if (!db.objectStoreNames.contains('custom_tier_prices')) {
+        const customTierPricesStore = db.createObjectStore('custom_tier_prices', { keyPath: 'id' });
+        customTierPricesStore.createIndex('tier_id', 'tier_id', { unique: false });
+        customTierPricesStore.createIndex('product_id', 'product_id', { unique: false });
+      }
+
+      // Customer product prices cache
+      if (!db.objectStoreNames.contains('customer_product_prices')) {
+        const customerPricesStore = db.createObjectStore('customer_product_prices', { keyPath: 'id' });
+        customerPricesStore.createIndex('customer_id', 'customer_id', { unique: false });
+        customerPricesStore.createIndex('product_id', 'product_id', { unique: false });
       }
     };
   });
@@ -323,7 +363,12 @@ class OfflineDB {
   // Clear all data
   async clearAll(): Promise<void> {
     if (!this.db) await this.init();
-    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 'combo_offers', 'combo_offer_items', 'accounts'];
+    const storeNames = [
+      'transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 
+      'combo_offers', 'combo_offer_items', 'accounts', 'bogo_offers', 
+      'multi_product_bogo_offers', 'multi_product_bogo_items', 'announcements',
+      'custom_price_tiers', 'custom_tier_prices', 'customer_product_prices'
+    ];
     
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(storeNames, 'readwrite');
@@ -454,6 +499,195 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('accounts', 'readonly');
       const store = tx.objectStore('accounts');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // BOGO Offers methods
+  async saveBogoOffers(offers: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('bogo_offers', 'readwrite');
+      const store = tx.objectStore('bogo_offers');
+      
+      offers.forEach(offer => {
+        store.put({ ...offer, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getBogoOffers(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('bogo_offers', 'readonly');
+      const store = tx.objectStore('bogo_offers');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Multi-product BOGO Offers methods
+  async saveMultiProductBogoOffers(offers: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('multi_product_bogo_offers', 'readwrite');
+      const store = tx.objectStore('multi_product_bogo_offers');
+      
+      offers.forEach(offer => {
+        store.put({ ...offer, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getMultiProductBogoOffers(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('multi_product_bogo_offers', 'readonly');
+      const store = tx.objectStore('multi_product_bogo_offers');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Multi-product BOGO Items methods
+  async saveMultiProductBogoItems(items: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('multi_product_bogo_items', 'readwrite');
+      const store = tx.objectStore('multi_product_bogo_items');
+      
+      items.forEach(item => {
+        store.put({ ...item, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getMultiProductBogoItems(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('multi_product_bogo_items', 'readonly');
+      const store = tx.objectStore('multi_product_bogo_items');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Announcements methods
+  async saveAnnouncements(announcements: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('announcements', 'readwrite');
+      const store = tx.objectStore('announcements');
+      
+      announcements.forEach(announcement => {
+        store.put({ ...announcement, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getAnnouncements(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('announcements', 'readonly');
+      const store = tx.objectStore('announcements');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Custom Price Tiers methods
+  async saveCustomPriceTiers(tiers: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('custom_price_tiers', 'readwrite');
+      const store = tx.objectStore('custom_price_tiers');
+      
+      tiers.forEach(tier => {
+        store.put({ ...tier, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getCustomPriceTiers(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('custom_price_tiers', 'readonly');
+      const store = tx.objectStore('custom_price_tiers');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Custom Tier Prices methods
+  async saveCustomTierPrices(prices: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('custom_tier_prices', 'readwrite');
+      const store = tx.objectStore('custom_tier_prices');
+      
+      prices.forEach(price => {
+        store.put({ ...price, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getCustomTierPrices(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('custom_tier_prices', 'readonly');
+      const store = tx.objectStore('custom_tier_prices');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Customer Product Prices methods
+  async saveCustomerProductPrices(prices: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('customer_product_prices', 'readwrite');
+      const store = tx.objectStore('customer_product_prices');
+      
+      prices.forEach(price => {
+        store.put({ ...price, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getCustomerProductPrices(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('customer_product_prices', 'readonly');
+      const store = tx.objectStore('customer_product_prices');
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
