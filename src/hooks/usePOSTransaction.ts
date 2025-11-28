@@ -205,7 +205,6 @@ export const usePOSTransaction = () => {
   // Automatic multi-product BOGO detection and application
   const detectAndApplyMultiProductBOGO = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
-      console.log('🎁 detectAndApplyMultiProductBOGO START');
       const offers = useCache ? cachedMultiBOGOs : await fetchActiveMultiProductBOGOOffers();
       
       if (!offers || offers.length === 0) {
@@ -226,7 +225,8 @@ export const usePOSTransaction = () => {
         const matchingIndices: number[] = [];
         
         updatedCart.forEach((item, index) => {
-          if (item.isBogo || item.isCombo || item.id === 'cart-discount') return;
+          // Skip combo items and cart discount
+          if (item.isCombo || item.id === 'cart-discount') return;
           
           const matches = eligibleItems.some((eligible: any) => {
             if (eligible.variant_id) {
@@ -242,23 +242,33 @@ export const usePOSTransaction = () => {
           }
         });
 
-        // Apply 50% discount if count > 1
-        if (totalCount > 1) {
-          console.log(`✅ ${offer.name}: ${totalCount} items found, applying 50% discount`);
+        // Apply or remove 50% discount based on count
+        matchingIndices.forEach(index => {
+          const item = updatedCart[index];
           
-          matchingIndices.forEach(index => {
-            const item = updatedCart[index];
-            if (!item.originalPrice) {
+          if (totalCount > 1) {
+            // Apply discount
+            const basePrice = item.originalPrice || item.price;
+            updatedCart[index] = {
+              ...item,
+              originalPrice: basePrice,
+              price: basePrice * 0.5,
+              isBogo: true,
+              bogoOfferId: offer.id,
+            };
+          } else {
+            // Remove discount if count drops to 1 or less
+            if (item.originalPrice) {
               updatedCart[index] = {
                 ...item,
-                originalPrice: item.price,
-                price: item.price * 0.5,
-                isBogo: true,
-                bogoOfferId: offer.id,
+                price: item.originalPrice,
+                originalPrice: undefined,
+                isBogo: false,
+                bogoOfferId: undefined,
               };
             }
-          });
-        }
+          }
+        });
       }
 
       return updatedCart;
@@ -654,13 +664,18 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Multi-BOGO modifies items in place, use those as base
-      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
-      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      // Multi-BOGO modifies items in place with isBogo flag
+      // Extract only regular and multi-BOGO items (not single BOGO or combos)
+      const regularAndMultiBogoItems = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      
+      // Get single-product BOGO items (these are separate items added to cart)
+      const singleBogoItems = cartWithBOGOs.filter(item => item.isBogo && item.id.startsWith('bogo-'));
+      
+      // Get combo items
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       // Restore custom prices and discounts to regular items
-      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+      const itemsWithDiscounts = regularAndMultiBogoItems.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         if (savedDiscount) {
           return { ...item, ...savedDiscount };
@@ -668,7 +683,7 @@ export const usePOSTransaction = () => {
         return item;
       });
       
-      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...comboItems];
+      const finalCart = [...itemsWithDiscounts, ...singleBogoItems, ...comboItems];
       setCart(finalCart);
     }, 300); // Wait 300ms after last scan before applying offers
   };
@@ -706,17 +721,22 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Multi-BOGO modifies items in place, so we use those as base
-      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
-      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      // Multi-BOGO modifies items in place with isBogo flag
+      // Extract only regular and multi-BOGO items (not single BOGO or combos)
+      const regularAndMultiBogoItems = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      
+      // Get single-product BOGO items (these are separate items added to cart)
+      const singleBogoItems = cartWithBOGOs.filter(item => item.isBogo && item.id.startsWith('bogo-'));
+      
+      // Get combo items
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+      const regularItemsWithDiscounts = regularAndMultiBogoItems.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      setCart([...regularItemsWithDiscounts, ...bogoItems, ...comboItems]);
+      setCart([...regularItemsWithDiscounts, ...singleBogoItems, ...comboItems]);
     }, 150);
   };
 
@@ -760,17 +780,17 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Multi-BOGO modifies items in place, so we use those as base
-      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
-      const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
+      // Multi-BOGO modifies items in place with isBogo flag
+      const regularAndMultiBogoItems = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
+      const singleBogoItems = cartWithBOGOs.filter(item => item.isBogo && item.id.startsWith('bogo-'));
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
-      const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
+      const regularItemsWithDiscounts = regularAndMultiBogoItems.map(item => {
         const savedDiscount = existingDiscounts.get(item.id);
         return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      setCart([...regularItemsWithDiscounts, ...bogoItems, ...comboItems]);
+      setCart([...regularItemsWithDiscounts, ...singleBogoItems, ...comboItems]);
     }, 150);
   };
 
