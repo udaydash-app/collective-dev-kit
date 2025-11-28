@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 3; // Bumped to add combo_offers and combo_offer_items stores
+const DB_VERSION = 4; // Bumped to add accounts store
 
 export interface OfflineTransaction {
   id: string;
@@ -113,6 +113,12 @@ class OfflineDB {
       if (!db.objectStoreNames.contains('combo_offer_items')) {
         const comboItemsStore = db.createObjectStore('combo_offer_items', { keyPath: 'id' });
         comboItemsStore.createIndex('combo_offer_id', 'combo_offer_id', { unique: false });
+      }
+
+      // Accounts cache
+      if (!db.objectStoreNames.contains('accounts')) {
+        const accountsStore = db.createObjectStore('accounts', { keyPath: 'id' });
+        accountsStore.createIndex('account_type', 'account_type', { unique: false });
       }
     };
   });
@@ -317,7 +323,7 @@ class OfflineDB {
   // Clear all data
   async clearAll(): Promise<void> {
     if (!this.db) await this.init();
-    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 'combo_offers', 'combo_offer_items'];
+    const storeNames = ['transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 'combo_offers', 'combo_offer_items', 'accounts'];
     
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(storeNames, 'readwrite');
@@ -421,6 +427,33 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('combo_offer_items', 'readonly');
       const store = tx.objectStore('combo_offer_items');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Accounts methods
+  async saveAccounts(accounts: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('accounts', 'readwrite');
+      const store = tx.objectStore('accounts');
+      
+      accounts.forEach(account => {
+        store.put({ ...account, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getAccounts(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('accounts', 'readonly');
+      const store = tx.objectStore('accounts');
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
