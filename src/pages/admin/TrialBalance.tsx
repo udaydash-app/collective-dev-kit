@@ -53,26 +53,39 @@ export default function TrialBalance() {
             .eq('journal_entries.status', 'posted')
             .lte('journal_entries.entry_date', asOfDate);
 
-          let balance = 0;
-          if (lines && lines.length > 0) {
-            const totalDebit = lines.reduce((sum, line) => sum + line.debit_amount, 0);
-            const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
+          const totalDebit = lines?.reduce((sum, line) => sum + line.debit_amount, 0) || 0;
+          const totalCredit = lines?.reduce((sum, line) => sum + line.credit_amount, 0) || 0;
 
-            // For assets and expenses: debit increases, credit decreases
-            // For liabilities, equity, and revenue: credit increases, debit decreases
-            if (['asset', 'expense'].includes(account.account_type)) {
-              balance = totalDebit - totalCredit;
+          // Calculate net balance for each account based on its natural balance
+          // Assets and Expenses have natural debit balances (debit - credit)
+          // Liabilities, Equity, and Revenue have natural credit balances (credit - debit)
+          let debit_balance = 0;
+          let credit_balance = 0;
+
+          if (['asset', 'expense'].includes(account.account_type)) {
+            // Natural debit balance accounts
+            const netBalance = totalDebit - totalCredit;
+            if (netBalance > 0) {
+              debit_balance = netBalance;
             } else {
-              balance = totalCredit - totalDebit;
+              credit_balance = Math.abs(netBalance);
+            }
+          } else {
+            // Natural credit balance accounts (liability, equity, revenue)
+            const netBalance = totalCredit - totalDebit;
+            if (netBalance > 0) {
+              credit_balance = netBalance;
+            } else {
+              debit_balance = Math.abs(netBalance);
             }
           }
 
           return {
             ...account,
-            debit_balance: balance > 0 ? balance : 0,
-            credit_balance: balance < 0 ? Math.abs(balance) : 0,
-            total_debit: lines?.reduce((sum, line) => sum + line.debit_amount, 0) || 0,
-            total_credit: lines?.reduce((sum, line) => sum + line.credit_amount, 0) || 0,
+            debit_balance,
+            credit_balance,
+            total_debit: totalDebit,
+            total_credit: totalCredit,
           };
         })
       );
