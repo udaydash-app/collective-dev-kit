@@ -63,6 +63,7 @@ export default function ProfitLoss() {
 
           // For revenue: credit increases (credit - debit)
           // For expense: debit increases (debit - credit)
+          // Keep the sign to properly show contra accounts (negative revenue, negative expense)
           const balance =
             account.account_type === 'revenue'
               ? totalCredit - totalDebit
@@ -70,13 +71,15 @@ export default function ProfitLoss() {
 
           return {
             ...account,
-            balance: Math.abs(balance),
-            isCredit: balance > 0,
+            balance: balance,
+            totalDebit,
+            totalCredit,
           };
         })
       );
 
-      const activeAccounts = accountsWithBalances.filter((acc) => acc !== null && acc.balance > 0);
+      // Include all accounts with non-zero balance (positive or negative)
+      const activeAccounts = accountsWithBalances.filter((acc) => acc !== null && acc.balance !== 0);
 
       const revenueAccounts = activeAccounts.filter((a) => a.account_type === 'revenue');
       const expenseAccounts = activeAccounts.filter((a) => a.account_type === 'expense');
@@ -92,6 +95,7 @@ export default function ProfitLoss() {
         totalExpenses,
         netIncome,
         isProfit: netIncome >= 0,
+        grossProfit: totalRevenue,
       };
     },
   });
@@ -208,8 +212,10 @@ export default function ProfitLoss() {
                         <TableCell className="pl-8">
                           {account.account_code} - {account.account_name}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(account.balance)}
+                        <TableCell className={`text-right font-mono ${account.balance < 0 ? 'text-red-600' : ''}`}>
+                          {account.balance < 0 ? '(' : ''}
+                          {formatCurrency(Math.abs(account.balance))}
+                          {account.balance < 0 ? ')' : ''}
                         </TableCell>
                       </TableRow>
                     ))
@@ -244,8 +250,10 @@ export default function ProfitLoss() {
                         <TableCell className="pl-8">
                           {account.account_code} - {account.account_name}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(account.balance)}
+                        <TableCell className={`text-right font-mono ${account.balance < 0 ? 'text-green-600' : ''}`}>
+                          {account.balance < 0 ? '(' : ''}
+                          {formatCurrency(Math.abs(account.balance))}
+                          {account.balance < 0 ? ')' : ''}
                         </TableCell>
                       </TableRow>
                     ))
