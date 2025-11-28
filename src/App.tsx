@@ -119,8 +119,8 @@ const AppContent = () => {
       <Router>
         <RouterContent />
         <Routes>
-          {/* Redirect root to POS Login */}
-          <Route path="/" element={<Navigate to="/pos-login" replace />} />
+          {/* Root shows customer home page */}
+          <Route path="/" element={<Home />} />
           
           {/* Customer-facing home */}
           <Route path="/home" element={<Home />} />
