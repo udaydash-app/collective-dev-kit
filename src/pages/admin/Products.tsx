@@ -2401,7 +2401,7 @@ export default function Products() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <Label htmlFor="category_id" className="text-xs">Category</Label>
                         <Select name="category_id" defaultValue={editingProduct.category_id || ""}>
@@ -2412,6 +2412,22 @@ export default function Products() {
                             {categories.map((category) => (
                               <SelectItem key={category.id} value={category.id}>
                                 {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="supplier_id" className="text-xs">Supplier</Label>
+                        <Select name="supplier_id" defaultValue={editingProduct.supplier_id || ""}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select supplier" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
