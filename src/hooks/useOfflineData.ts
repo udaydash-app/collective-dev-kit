@@ -188,3 +188,56 @@ export const useOfflineCategories = () => {
     isOffline,
   };
 };
+
+export const useOfflineAccounts = () => {
+  const [offlineAccounts, setOfflineAccounts] = useState<any[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const { data: onlineAccounts, isLoading } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_code');
+
+      if (error) throw error;
+
+      // Cache accounts offline
+      if (data) {
+        await offlineDB.saveAccounts(data);
+      }
+
+      return data || [];
+    },
+    enabled: !isOffline,
+  });
+
+  useEffect(() => {
+    if (isOffline) {
+      offlineDB.getAccounts().then(accounts => {
+        setOfflineAccounts(accounts);
+      });
+    }
+  }, [isOffline]);
+
+  return {
+    accounts: isOffline ? offlineAccounts : (onlineAccounts || []),
+    isLoading: isOffline ? false : isLoading,
+    isOffline,
+  };
+};

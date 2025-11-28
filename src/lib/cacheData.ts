@@ -132,6 +132,21 @@ export async function cacheEssentialData(showProgress = false) {
       }
     }
 
+    // Fetch and cache accounts
+    if (showProgress) toast.loading('Caching accounts...');
+    const accountsQuery = supabase
+      .from('accounts')
+      .select('*')
+      .eq('is_active', true);
+    
+    const accountsResult: any = await accountsQuery;
+    const accounts = accountsResult.data;
+
+    if (accounts && Array.isArray(accounts)) {
+      await offlineDB.saveAccounts(accounts);
+      console.log(`Cached ${accounts.length} accounts`);
+    }
+
     // Store last cache timestamp
     localStorage.setItem('lastCacheTime', new Date().toISOString());
     
