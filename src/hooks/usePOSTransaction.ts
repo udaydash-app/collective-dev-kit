@@ -654,10 +654,9 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      // Extract regular items from combo result (which already has products removed)
-      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
+      // Multi-BOGO modifies items in place, use those as base
+      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
-      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       // Restore custom prices and discounts to regular items
@@ -669,7 +668,7 @@ export const usePOSTransaction = () => {
         return item;
       });
       
-      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems];
+      const finalCart = [...regularItemsWithDiscounts, ...bogoItems, ...comboItems];
       setCart(finalCart);
     }, 300); // Wait 300ms after last scan before applying offers
   };
@@ -707,9 +706,9 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
+      // Multi-BOGO modifies items in place, so we use those as base
+      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
-      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
@@ -717,7 +716,7 @@ export const usePOSTransaction = () => {
         return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      setCart([...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems]);
+      setCart([...regularItemsWithDiscounts, ...bogoItems, ...comboItems]);
     }, 150);
   };
 
@@ -761,9 +760,9 @@ export const usePOSTransaction = () => {
         detectAndApplyCombos(cartToProcess, true)
       ]);
       
-      const regularItemsFromCombos = cartWithCombos.filter(item => !item.isCombo && !item.isBogo && item.id !== 'cart-discount');
+      // Multi-BOGO modifies items in place, so we use those as base
+      const regularItemsFromCombos = cartWithMultiBOGOs.filter(item => !item.isCombo && item.id !== 'cart-discount');
       const bogoItems = cartWithBOGOs.filter(item => item.isBogo);
-      const multiBogoItems = cartWithMultiBOGOs.filter(item => item.isBogo);
       const comboItems = cartWithCombos.filter(item => item.isCombo);
       
       const regularItemsWithDiscounts = regularItemsFromCombos.map(item => {
@@ -771,7 +770,7 @@ export const usePOSTransaction = () => {
         return savedDiscount ? { ...item, ...savedDiscount } : item;
       });
       
-      setCart([...regularItemsWithDiscounts, ...bogoItems, ...multiBogoItems, ...comboItems]);
+      setCart([...regularItemsWithDiscounts, ...bogoItems, ...comboItems]);
     }, 150);
   };
 
