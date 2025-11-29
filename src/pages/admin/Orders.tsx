@@ -74,6 +74,7 @@ export default function AdminOrders() {
   const [periodFilter, setPeriodFilter] = useState<string>("today");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   
   // Sync statusFilter with URL parameter
   useEffect(() => {
@@ -153,7 +154,7 @@ export default function AdminOrders() {
     }
   };
 
-  const { data: orders, isLoading, error: queryError } = useQuery({
+  const { data: allOrders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate],
     queryFn: async () => {
       const dateRange = getDateRange();
@@ -304,6 +305,22 @@ export default function AdminOrders() {
       
       return allOrders;
     }
+  });
+
+  // Filter orders based on search query
+  const orders = allOrders?.filter(order => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      order.order_number?.toLowerCase().includes(query) ||
+      order.customer_name?.toLowerCase().includes(query) ||
+      order.stores?.name?.toLowerCase().includes(query) ||
+      order.addresses?.city?.toLowerCase().includes(query) ||
+      order.payment_method?.toLowerCase().includes(query) ||
+      order.cashier_name?.toLowerCase().includes(query) ||
+      order.status?.toLowerCase().includes(query)
+    );
   });
 
   // Fetch company settings for receipts
@@ -1328,12 +1345,18 @@ export default function AdminOrders() {
         </div>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
               All Orders
             </CardTitle>
             <div className="flex gap-2">
+              <Input
+                placeholder="Search orders..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-[250px]"
+              />
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by period" />
