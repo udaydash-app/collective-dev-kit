@@ -89,6 +89,7 @@ export default function Pricing() {
   const [selectAllImport, setSelectAllImport] = useState(true);
   const [priceToDelete, setPriceToDelete] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -266,6 +267,28 @@ export default function Pricing() {
     },
     onError: (error: any) => {
       toast.error('Failed to delete price: ' + error.message);
+    },
+  });
+
+  // Delete all customer product prices
+  const deleteAllCustomerPricesMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      const { error } = await supabase
+        .from('customer_product_prices')
+        .delete()
+        .eq('customer_id', customerId);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-product-prices'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-with-prices'] });
+      toast.success('All custom prices removed for customer');
+      setShowDeleteAllDialog(false);
+      setSelectedCustomer(null);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to remove customer pricing: ' + error.message);
     },
   });
 
@@ -584,9 +607,9 @@ export default function Pricing() {
                       {category.name}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  </SelectContent>
+                </Select>
+              </div>
           </Card>
 
           {/* Products Table */}
@@ -689,6 +712,14 @@ export default function Pricing() {
                   <Button variant="outline" onClick={() => setShowImportBillsDialog(true)}>
                     <Receipt className="h-4 w-4 mr-2" />
                     Import from Bills
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteAllDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove All Prices
                   </Button>
                 </>
               )}
@@ -1191,6 +1222,37 @@ export default function Pricing() {
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Prices Confirmation Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove All Custom Prices</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove all custom prices for {selectedCustomerData?.name}? 
+              This will delete all {customerPrices?.length || 0} custom product price(s) for this customer. 
+              All products will revert to standard pricing. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteAllDialog(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (selectedCustomer) {
+                  deleteAllCustomerPricesMutation.mutate(selectedCustomer);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Remove All Prices
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
