@@ -39,7 +39,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Package, Edit, Save, UserCircle, FileText, Receipt } from 'lucide-react';
+import { Search, Package, Edit, Save, UserCircle, FileText, Receipt, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -87,6 +87,8 @@ export default function Pricing() {
   const [importPricesData, setImportPricesData] = useState<Array<{ product_id: string; product_name: string; price: number }>>([]);
   const [selectedImportProducts, setSelectedImportProducts] = useState<Set<string>>(new Set());
   const [selectAllImport, setSelectAllImport] = useState(true);
+  const [priceToDelete, setPriceToDelete] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -233,6 +235,7 @@ export default function Pricing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer-product-prices'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-with-prices'] });
       toast.success('Customer prices updated');
       setShowAssignProductsDialog(false);
       setCustomerProductPrices({});
@@ -241,6 +244,28 @@ export default function Pricing() {
     },
     onError: (error: any) => {
       toast.error('Failed to update prices: ' + error.message);
+    },
+  });
+
+  // Delete customer product price
+  const deleteCustomerPriceMutation = useMutation({
+    mutationFn: async (priceId: string) => {
+      const { error } = await supabase
+        .from('customer_product_prices')
+        .delete()
+        .eq('id', priceId);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-product-prices'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-with-prices'] });
+      toast.success('Custom price removed');
+      setShowDeleteDialog(false);
+      setPriceToDelete(null);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to delete price: ' + error.message);
     },
   });
 
@@ -682,6 +707,7 @@ export default function Pricing() {
                       <TableHead className="text-right">Standard Price</TableHead>
                       <TableHead className="text-right">Custom Price</TableHead>
                       <TableHead className="text-right">Savings</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -713,12 +739,24 @@ export default function Pricing() {
                                 {savingsPercent}% off
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setPriceToDelete(item.id);
+                                  setShowDeleteDialog(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No custom prices set for this customer yet. Click "Manage Prices" to apply discounts.
                         </TableCell>
                       </TableRow>
@@ -1123,6 +1161,36 @@ export default function Pricing() {
               disabled={selectedImportProducts.size === 0}
             >
               Import {selectedImportProducts.size > 0 ? `(${selectedImportProducts.size})` : ''} Selected
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Custom Price</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this custom price? The product will revert to standard pricing for this customer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteDialog(false);
+              setPriceToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (priceToDelete) {
+                  deleteCustomerPriceMutation.mutate(priceToDelete);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
