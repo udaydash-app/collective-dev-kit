@@ -751,14 +751,17 @@ export default function CloseDayReport() {
                             <span className="text-sm font-bold">{formatCurrency(order.total)}</span>
                           </div>
                           <div className="space-y-1">
-                            {order.items?.map((item: any, itemIndex: number) => (
-                              <div key={itemIndex} className="flex justify-between text-sm text-muted-foreground pl-4">
-                                <span>
-                                  {item.quantity}x {item.name} {item.variant && `(${item.variant})`}
-                                </span>
-                                <span>{formatCurrency(item.total)}</span>
-                              </div>
-                            ))}
+                            {order.items?.map((item: any, itemIndex: number) => {
+                              const itemTotal = item.total || item.subtotal || (item.price * item.quantity) || 0;
+                              return (
+                                <div key={itemIndex} className="flex justify-between text-sm text-muted-foreground pl-4">
+                                  <span>
+                                    {item.quantity}x {item.name} {item.variant && `(${item.variant})`}
+                                  </span>
+                                  <span>{formatCurrency(itemTotal)}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       ))}
