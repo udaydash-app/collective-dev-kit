@@ -106,16 +106,24 @@ export function ConvertToPurchaseDialog({
 
     // Calculate total value of all items (converted to base currency)
     const totalValue = responses.reduce(
-      (sum: number, r: any) => sum + (r.price * exchangeRate) * r.purchase_order_items.requested_quantity,
+      (sum: number, r: any) => sum + (r.price * exchangeRate),
       0
     );
 
     // Calculate landed cost for each item (all in base currency)
     return responses.map((response: any) => {
-      const priceInBaseCurrency = response.price * exchangeRate;
-      const itemValue = priceInBaseCurrency * response.purchase_order_items.requested_quantity;
-      const itemChargeShare = totalValue > 0 ? (itemValue / totalValue) * totalCharges : 0;
-      const landedCostPerUnit = priceInBaseCurrency + itemChargeShare / response.purchase_order_items.requested_quantity;
+      const totalPriceInBaseCurrency = response.price * exchangeRate;
+      const quantity = response.purchase_order_items.requested_quantity;
+      
+      // Price per piece = total price / quantity
+      const pricePerPiece = totalPriceInBaseCurrency / quantity;
+      
+      // Distribute charges proportionally based on item value
+      const itemChargeShare = totalValue > 0 ? (totalPriceInBaseCurrency / totalValue) * totalCharges : 0;
+      const chargePerPiece = itemChargeShare / quantity;
+      
+      // Landed cost per piece = price per piece + charge per piece
+      const landedCostPerUnit = pricePerPiece + chargePerPiece;
       
       const wholesalePrice = landedCostPerUnit * (1 + wholesaleMargin / 100);
       const retailPrice = landedCostPerUnit * (1 + retailMargin / 100);
