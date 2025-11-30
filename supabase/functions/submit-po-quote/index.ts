@@ -8,13 +8,9 @@ const corsHeaders = {
 interface QuoteItem {
   itemId: string;
   cartons: number;
-  bags: number;
   pieces: number;
-  weight: number;
-  weightUnit: string;
   price: number;
   currency: string;
-  notes?: string;
 }
 
 Deno.serve(async (req) => {
@@ -82,13 +78,9 @@ Deno.serve(async (req) => {
       purchase_order_id: po.id,
       item_id: item.itemId,
       cartons: item.cartons || 0,
-      bags: item.bags || 0,
       pieces: item.pieces || 0,
-      weight: item.weight || 0,
-      weight_unit: item.weightUnit || 'kg',
       price: item.price,
       currency: item.currency || 'USD',
-      notes: item.notes || null,
     }));
 
     const { error: insertError } = await supabase
