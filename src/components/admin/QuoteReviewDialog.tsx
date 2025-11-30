@@ -94,57 +94,38 @@ export function QuoteReviewDialog({
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-4 text-sm">
-                        {response.cartons > 0 && (
-                          <div>
-                            <p className="text-muted-foreground">Cartons</p>
-                            <p className="font-semibold">{response.cartons}</p>
-                          </div>
-                        )}
-                        {response.bags > 0 && (
-                          <div>
-                            <p className="text-muted-foreground">Bags</p>
-                            <p className="font-semibold">{response.bags}</p>
-                          </div>
-                        )}
-                        {response.pieces > 0 && (
-                          <div>
-                            <p className="text-muted-foreground">Pieces</p>
-                            <p className="font-semibold">{response.pieces}</p>
-                          </div>
-                        )}
-                        {response.weight > 0 && (
-                          <div>
-                            <p className="text-muted-foreground">Weight</p>
-                            <p className="font-semibold">
-                              {response.weight} {response.weight_unit}
-                            </p>
-                          </div>
-                        )}
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">No of Cartons</p>
+                          <p className="font-semibold">{response.cartons}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Total Pieces</p>
+                          <p className="font-semibold">{response.pieces}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Pcs in Carton</p>
+                          <p className="font-semibold">
+                            {response.cartons > 0 ? Math.round(response.pieces / response.cartons) : 0}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between pt-3 border-t">
                         <div>
-                          <p className="text-sm text-muted-foreground">Price per unit</p>
+                          <p className="text-sm text-muted-foreground">Price per Carton</p>
                           <p className="text-2xl font-bold">
                             {response.price} {response.currency}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Total</p>
+                          <p className="text-sm text-muted-foreground">Total Price</p>
                           <p className="text-xl font-semibold">
-                            {(response.price * response.purchase_order_items.requested_quantity).toFixed(2)}{" "}
+                            {(response.price * response.cartons).toFixed(2)}{" "}
                             {response.currency}
                           </p>
                         </div>
                       </div>
-
-                      {response.notes && (
-                        <div className="pt-3 border-t">
-                          <p className="text-sm text-muted-foreground">Notes:</p>
-                          <p className="text-sm">{response.notes}</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </Card>
@@ -156,8 +137,7 @@ export function QuoteReviewDialog({
                   <p className="text-2xl font-bold">
                     {responses
                       .reduce(
-                        (sum: number, r: any) =>
-                          sum + r.price * r.purchase_order_items.requested_quantity,
+                        (sum: number, r: any) => sum + r.price * r.cartons,
                         0
                       )
                       .toFixed(2)}{" "}

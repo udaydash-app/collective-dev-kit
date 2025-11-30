@@ -5,21 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { CheckCircle, Package } from "lucide-react";
 
 const currencies = ["USD", "EUR", "INR", "FCFA", "GBP", "JPY", "CNY"];
-const weightUnits = ["kg", "lb", "g", "ton"];
 
 export default function SupplierQuoteForm() {
   const { shareToken } = useParams();
@@ -70,14 +68,10 @@ export default function SupplierQuoteForm() {
       const initialData: Record<string, any> = {};
       poData.purchase_order_items.forEach((item: any) => {
         initialData[item.id] = {
-          cartons: 0,
-          bags: 0,
-          pieces: 0,
-          weight: 0,
-          weightUnit: "kg",
-          price: "",
+          noOfCarton: "",
+          pcsInCarton: "",
+          pricePerCarton: "",
           currency: "USD",
-          notes: "",
         };
       });
       setFormData(initialData);
@@ -102,20 +96,31 @@ export default function SupplierQuoteForm() {
     },
   });
 
+  const calculateTotalPcs = (noOfCarton: string, pcsInCarton: string) => {
+    const cartons = parseInt(noOfCarton) || 0;
+    const pcs = parseInt(pcsInCarton) || 0;
+    return cartons * pcs;
+  };
+
+  const calculateTotalPrice = (noOfCarton: string, pricePerCarton: string) => {
+    const cartons = parseInt(noOfCarton) || 0;
+    const price = parseFloat(pricePerCarton) || 0;
+    return (cartons * price).toFixed(2);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const items = Object.entries(formData).map(([itemId, data]: [string, any]) => ({
-      itemId,
-      cartons: parseInt(data.cartons) || 0,
-      bags: parseInt(data.bags) || 0,
-      pieces: parseInt(data.pieces) || 0,
-      weight: parseFloat(data.weight) || 0,
-      weightUnit: data.weightUnit,
-      price: parseFloat(data.price),
-      currency: data.currency,
-      notes: data.notes,
-    }));
+    const items = Object.entries(formData).map(([itemId, data]: [string, any]) => {
+      const totalPcs = calculateTotalPcs(data.noOfCarton, data.pcsInCarton);
+      return {
+        itemId,
+        cartons: parseInt(data.noOfCarton) || 0,
+        pieces: totalPcs,
+        price: parseFloat(data.pricePerCarton) || 0,
+        currency: data.currency,
+      };
+    });
 
     // Validate at least one item has a price
     if (!items.some(item => item.price > 0)) {
@@ -253,132 +258,111 @@ export default function SupplierQuoteForm() {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {poData.purchase_order_items?.map((item: any, index: number) => (
-              <Card key={item.id} className="p-6 border-2">
-                <div className="flex items-start gap-4 mb-4">
-                  {item.products?.image_url && (
-                    <img
-                      src={item.products.image_url}
-                      alt={item.product_name}
-                      className="w-20 h-20 object-cover rounded"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">
-                      {index + 1}. {item.product_name}
-                      {item.variant_name && (
-                        <span className="text-muted-foreground ml-2">({item.variant_name})</span>
-                      )}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Requested Quantity: {item.requested_quantity}{" "}
-                      {item.variant_name ? item.product_variants?.unit : item.products?.unit}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label>Cartons</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={formData[item.id]?.cartons || ""}
-                      onChange={(e) => updateField(item.id, "cartons", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Bags</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={formData[item.id]?.bags || ""}
-                      onChange={(e) => updateField(item.id, "bags", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Pieces</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={formData[item.id]?.pieces || ""}
-                      onChange={(e) => updateField(item.id, "pieces", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label>Weight</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData[item.id]?.weight || ""}
-                        onChange={(e) => updateField(item.id, "weight", e.target.value)}
-                        className="flex-1"
-                      />
-                      <Select
-                        value={formData[item.id]?.weightUnit || "kg"}
-                        onValueChange={(value) => updateField(item.id, "weightUnit", value)}
-                      >
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {weightUnits.map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Price *</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={formData[item.id]?.price || ""}
-                        onChange={(e) => updateField(item.id, "price", e.target.value)}
-                        className="flex-1"
-                      />
-                      <Select
-                        value={formData[item.id]?.currency || "USD"}
-                        onValueChange={(value) => updateField(item.id, "currency", value)}
-                      >
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {currencies.map((curr) => (
-                            <SelectItem key={curr} value={curr}>
-                              {curr}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <Label>Notes (optional)</Label>
-                  <Textarea
-                    value={formData[item.id]?.notes || ""}
-                    onChange={(e) => updateField(item.id, "notes", e.target.value)}
-                    placeholder="Any additional information about this item..."
-                    rows={2}
-                  />
-                </div>
-              </Card>
-            ))}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="overflow-x-auto border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold">Product Name</TableHead>
+                    <TableHead className="font-semibold w-32">No of Carton</TableHead>
+                    <TableHead className="font-semibold w-32">Pcs in Carton</TableHead>
+                    <TableHead className="font-semibold w-32">Total Pcs</TableHead>
+                    <TableHead className="font-semibold w-40">Price per Carton</TableHead>
+                    <TableHead className="font-semibold w-40">Total Price</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {poData.purchase_order_items?.map((item: any) => {
+                    const itemData = formData[item.id] || {};
+                    const totalPcs = calculateTotalPcs(itemData.noOfCarton, itemData.pcsInCarton);
+                    const totalPrice = calculateTotalPrice(itemData.noOfCarton, itemData.pricePerCarton);
+                    
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {item.products?.image_url && (
+                              <img
+                                src={item.products.image_url}
+                                alt={item.product_name}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            )}
+                            <div>
+                              <p className="font-medium">{item.product_name}</p>
+                              {item.variant_name && (
+                                <p className="text-sm text-muted-foreground">({item.variant_name})</p>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                Requested: {item.requested_quantity}{" "}
+                                {item.variant_name ? item.product_variants?.unit : item.products?.unit}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={itemData.noOfCarton || ""}
+                            onChange={(e) => updateField(item.id, "noOfCarton", e.target.value)}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={itemData.pcsInCarton || ""}
+                            onChange={(e) => updateField(item.id, "pcsInCarton", e.target.value)}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center h-10 px-3 bg-muted rounded-md">
+                            <span className="font-medium">{totalPcs}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              required
+                              value={itemData.pricePerCarton || ""}
+                              onChange={(e) => updateField(item.id, "pricePerCarton", e.target.value)}
+                              className="flex-1"
+                            />
+                            <select
+                              value={itemData.currency || "USD"}
+                              onChange={(e) => updateField(item.id, "currency", e.target.value)}
+                              className="w-20 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                            >
+                              {currencies.map((curr) => (
+                                <option key={curr} value={curr}>
+                                  {curr}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center h-10 px-3 bg-muted rounded-md">
+                            <span className="font-semibold">
+                              {totalPrice} {itemData.currency || "USD"}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={submitMutation.isPending}>
               {submitMutation.isPending ? "Submitting..." : "Submit Quote"}
