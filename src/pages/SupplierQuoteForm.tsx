@@ -26,9 +26,11 @@ export default function SupplierQuoteForm() {
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
-  const { data: poData, isLoading } = useQuery({
+  const { data: poData, isLoading, error: queryError } = useQuery({
     queryKey: ["public-po", shareToken],
     queryFn: async () => {
+      console.log("Fetching PO with share token:", shareToken);
+      
       const { data, error } = await supabase
         .from("purchase_orders")
         .select(`
@@ -40,12 +42,22 @@ export default function SupplierQuoteForm() {
           )
         `)
         .eq("share_token", shareToken)
-        .single();
+        .maybeSingle();
+
+      console.log("PO Query result:", { data, error });
 
       if (error) throw error;
       return data;
     },
     enabled: !!shareToken,
+  });
+
+  // Log query state for debugging
+  console.log("SupplierQuoteForm state:", { 
+    shareToken, 
+    isLoading, 
+    hasData: !!poData, 
+    queryError: queryError?.message 
   });
 
   useEffect(() => {
@@ -130,13 +142,32 @@ export default function SupplierQuoteForm() {
     );
   }
 
+  if (queryError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="p-8 max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-2 text-destructive">Error Loading Purchase Order</h1>
+          <p className="text-muted-foreground mb-4">
+            {queryError.message || "An error occurred while loading the purchase order."}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Share Token: {shareToken || "missing"}
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   if (!poData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="p-8 max-w-md text-center">
           <h1 className="text-2xl font-bold mb-2">Purchase Order Not Found</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             This purchase order link is invalid or has expired.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Share Token: {shareToken || "missing"}
           </p>
         </Card>
       </div>
