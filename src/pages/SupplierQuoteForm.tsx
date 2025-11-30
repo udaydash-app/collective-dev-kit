@@ -26,6 +26,11 @@ export default function SupplierQuoteForm() {
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
+  // Log component mount
+  useEffect(() => {
+    console.log("SupplierQuoteForm mounted with shareToken:", shareToken);
+  }, [shareToken]);
+
   const { data: poData, isLoading, error: queryError } = useQuery({
     queryKey: ["public-po", shareToken],
     queryFn: async () => {
@@ -130,6 +135,20 @@ export default function SupplierQuoteForm() {
       },
     }));
   };
+
+  // Early return if no share token
+  if (!shareToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
+        <Card className="p-8 max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-2 text-destructive">Invalid Link</h1>
+          <p className="text-muted-foreground">
+            No share token provided in the URL.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
