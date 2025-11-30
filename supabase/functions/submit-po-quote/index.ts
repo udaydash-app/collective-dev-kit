@@ -11,6 +11,7 @@ interface QuoteItem {
   pieces: number;
   price: number;
   currency: string;
+  weight: number;
 }
 
 Deno.serve(async (req) => {
@@ -89,6 +90,7 @@ Deno.serve(async (req) => {
       pieces: item.pieces || 0,
       price: item.price,
       currency: item.currency || 'USD',
+      weight: item.weight || 0,
     }));
 
     const { error: insertError } = await supabase
