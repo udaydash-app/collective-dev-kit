@@ -67,6 +67,17 @@ serve(async (req) => {
       return acc;
     }, {} as Record<string, string>) || {};
 
+    // Get suppliers for matching
+    const { data: suppliers } = await supabase
+      .from('contacts')
+      .select('id, name')
+      .eq('is_supplier', true);
+
+    const supplierMap = suppliers?.reduce((acc, sup) => {
+      acc[sup.name.toLowerCase()] = sup.id;
+      return acc;
+    }, {} as Record<string, string>) || {};
+
     // Process each product row
     const productsToInsert = products.map((row: any) => {
       // Handle different possible column names (case-insensitive)
@@ -96,6 +107,22 @@ serve(async (req) => {
                row.cat || row.Cat || null;
       };
       
+      const getSupplier = () => {
+        return row.supplier || row.Supplier || row.SUPPLIER || 
+               row.vendor || row.Vendor || null;
+      };
+      
+      const getAvailability = () => {
+        const availValue = row.availability || row.Availability || row.AVAILABILITY || 
+                          row.is_available || row['Is Available'] || row.available || true;
+        if (typeof availValue === 'boolean') return availValue;
+        if (typeof availValue === 'string') {
+          const lower = availValue.toLowerCase();
+          return lower === 'true' || lower === 'yes' || lower === '1' || lower === 'available';
+        }
+        return true;
+      };
+      
       const getStockQuantity = () => {
         const stockValue = row.stock_quantity || row['Stock Quantity'] || 
                           row.stock || row.Stock || row.quantity || row.Quantity || 0;
@@ -104,6 +131,9 @@ serve(async (req) => {
 
       const categoryName = getCategory();
       const categoryId = categoryName ? categoryMap[categoryName.toLowerCase()] : null;
+      
+      const supplierName = getSupplier();
+      const supplierId = supplierName ? supplierMap[supplierName.toLowerCase()] : null;
 
       return {
         name: getName(),
@@ -111,9 +141,10 @@ serve(async (req) => {
         price: getPrice(),
         unit: getUnit(),
         category_id: categoryId,
+        supplier_id: supplierId,
         store_id: storeId,
         stock_quantity: getStockQuantity(),
-        is_available: true,
+        is_available: getAvailability(),
       };
     }).filter((p: any) => p.name); // Only include rows with a name
 
