@@ -117,10 +117,6 @@ export function ConvertToPurchaseDialog({
     // Calculate charges per kg
     const chargesPerKg = totalWeight > 0 ? totalCharges / totalWeight : 0;
 
-    console.log('Total charges:', totalCharges);
-    console.log('Total weight:', totalWeight);
-    console.log('Charges per kg:', chargesPerKg);
-
     return responses.map((item: any) => {
       const cartons = item.cartons || 0;
       const totalPieces = item.pieces || 0;
@@ -137,13 +133,6 @@ export function ConvertToPurchaseDialog({
       const chargesPerCarton = chargesPerKg * weightPerCarton;
       // 2. charges per carton / pcs in carton = charges per piece
       const chargePerPiece = piecesPerCarton > 0 ? chargesPerCarton / piecesPerCarton : 0;
-      
-      console.log(`Item: ${item.purchase_order_items?.products?.name}`);
-      console.log('  Base cost per piece:', baseCostPerPiece);
-      console.log('  Charge per piece:', chargePerPiece);
-      console.log('  Weight per carton:', weightPerCarton);
-      console.log('  Charges per carton:', chargesPerCarton);
-      console.log('  Pieces per carton:', piecesPerCarton);
       
       // Landed cost = base cost + additional charges per piece
       const landedCostPerUnit = baseCostPerPiece + chargePerPiece;
