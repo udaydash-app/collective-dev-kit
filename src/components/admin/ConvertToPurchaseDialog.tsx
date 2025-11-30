@@ -104,44 +104,33 @@ export function ConvertToPurchaseDialog({
       0
     );
 
-    // Calculate landed cost for each item (all in base currency)
-    const itemsWithWeight = responses.map((response: any) => {
-      const cartons = response.cartons || 0;
-      const totalPieces = response.pieces || 0; // pieces is already total, not per carton
-      const pricePerCarton = response.price;
-      const totalPriceInSupplierCurrency = pricePerCarton * cartons;
-      const totalPriceInBaseCurrency = totalPriceInSupplierCurrency * exchangeRate;
-      const totalWeight = response.weight || 0;
-      
-      return {
-        ...response,
-        totalPieces,
-        totalPriceInBaseCurrency,
-        totalWeight
-      };
-    });
-
-    // Calculate total weight of all items for proportional charge distribution
-    const totalWeight = itemsWithWeight.reduce(
-      (sum: number, item: any) => sum + item.totalWeight,
+    // Calculate total weight of all items
+    const totalWeight = responses.reduce(
+      (sum: number, response: any) => sum + (response.weight || 0),
       0
     );
 
-    return itemsWithWeight.map((item: any) => {
+    // Calculate charges per kg
+    const chargesPerKg = totalWeight > 0 ? totalCharges / totalWeight : 0;
+
+    return responses.map((item: any) => {
       const cartons = item.cartons || 0;
       const totalPieces = item.pieces || 0; // pieces is already total, not per carton
+      const piecesPerCarton = totalPieces / cartons;
       const pricePerCarton = item.price;
+      const weightPerCarton = cartons > 0 ? (item.weight || 0) / cartons : 0;
       
       // Follow formula: landing cost = total price / total pcs × exchange rate
       const totalPrice = cartons * pricePerCarton;
       const baseCostPerPiece = (totalPrice / totalPieces) * exchangeRate;
       
-      // Distribute charges proportionally based on item weight
-      const itemWeight = item.totalWeight || 0;
-      const itemChargeShare = totalWeight > 0 ? (itemWeight / totalWeight) * totalCharges : 0;
-      const chargePerPiece = totalPieces > 0 ? itemChargeShare / totalPieces : 0;
+      // Additional charges calculation:
+      // 1. charges per kg × weight per carton = charges per carton
+      const chargesPerCarton = chargesPerKg * weightPerCarton;
+      // 2. charges per carton / no of pcs in carton = charges per piece
+      const chargePerPiece = piecesPerCarton > 0 ? chargesPerCarton / piecesPerCarton : 0;
       
-      // Landed cost per piece = base cost per piece + charge per piece
+      // Landing cost + additional charges per piece
       const landedCostPerUnit = baseCostPerPiece + chargePerPiece;
       
       const wholesalePrice = landedCostPerUnit * (1 + wholesaleMargin / 100);
