@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -63,25 +64,59 @@ export default function SupplierQuoteForm() {
     queryError: queryError?.message 
   });
 
+  // Fetch existing responses if any
+  const { data: existingResponses } = useQuery({
+    queryKey: ["po-responses", poData?.id],
+    queryFn: async () => {
+      if (!poData?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("purchase_order_responses")
+        .select("*")
+        .eq("purchase_order_id", poData.id);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!poData?.id,
+  });
+
   useEffect(() => {
     if (poData?.purchase_order_items) {
       const initialData: Record<string, any> = {};
+      
       poData.purchase_order_items.forEach((item: any) => {
-        initialData[item.id] = {
-          noOfCarton: "",
-          pcsInCarton: "",
-          pricePerCarton: "",
-          currency: "USD",
-        };
+        // Check if there's an existing response for this item
+        const existingResponse = existingResponses?.find((r: any) => r.item_id === item.id);
+        
+        if (existingResponse) {
+          // Pre-populate with existing data
+          initialData[item.id] = {
+            noOfCarton: existingResponse.cartons || "",
+            pcsInCarton: existingResponse.pieces && existingResponse.cartons 
+              ? Math.round(existingResponse.pieces / existingResponse.cartons) 
+              : "",
+            pricePerCarton: existingResponse.price || "",
+            currency: existingResponse.currency || "USD",
+          };
+        } else {
+          // Empty form
+          initialData[item.id] = {
+            noOfCarton: "",
+            pcsInCarton: "",
+            pricePerCarton: "",
+            currency: "USD",
+          };
+        }
       });
       setFormData(initialData);
     }
-  }, [poData]);
+  }, [poData, existingResponses]);
 
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await supabase.functions.invoke("submit-po-quote", {
-        body: data,
+        body: { ...data, isDraft: false },
       });
 
       if (response.error) throw response.error;
@@ -96,6 +131,23 @@ export default function SupplierQuoteForm() {
     },
   });
 
+  const saveDraftMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await supabase.functions.invoke("submit-po-quote", {
+        body: { ...data, isDraft: true },
+      });
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Draft saved successfully!");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to save draft: " + error.message);
+    },
+  });
+
   const calculateTotalPcs = (noOfCarton: string, pcsInCarton: string) => {
     const cartons = parseInt(noOfCarton) || 0;
     const pcs = parseInt(pcsInCarton) || 0;
@@ -106,6 +158,21 @@ export default function SupplierQuoteForm() {
     const cartons = parseInt(noOfCarton) || 0;
     const price = parseFloat(pricePerCarton) || 0;
     return (cartons * price).toFixed(2);
+  };
+
+  const handleSaveDraft = () => {
+    const items = Object.entries(formData).map(([itemId, data]: [string, any]) => {
+      const totalPcs = calculateTotalPcs(data.noOfCarton, data.pcsInCarton);
+      return {
+        itemId,
+        cartons: parseInt(data.noOfCarton) || 0,
+        pieces: totalPcs,
+        price: parseFloat(data.pricePerCarton) || 0,
+        currency: data.currency,
+      };
+    });
+
+    saveDraftMutation.mutate({ shareToken, items });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -233,6 +300,11 @@ export default function SupplierQuoteForm() {
             <div className="flex items-center gap-3 mb-4">
               <Package className="h-8 w-8 text-primary" />
               <h1 className="text-3xl font-bold">Supplier Quote Form</h1>
+              {existingResponses && existingResponses.length > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  Draft Saved
+                </Badge>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -364,9 +436,26 @@ export default function SupplierQuoteForm() {
               </Table>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={submitMutation.isPending}>
-              {submitMutation.isPending ? "Submitting..." : "Submit Quote"}
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                type="button"
+                variant="outline" 
+                size="lg" 
+                className="flex-1" 
+                onClick={handleSaveDraft}
+                disabled={saveDraftMutation.isPending}
+              >
+                {saveDraftMutation.isPending ? "Saving..." : "Save Draft"}
+              </Button>
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="flex-1" 
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "Submitting..." : "Submit Quote"}
+              </Button>
+            </div>
           </form>
         </Card>
       </div>
