@@ -107,8 +107,7 @@ export function ConvertToPurchaseDialog({
     // Calculate landed cost for each item (all in base currency)
     const itemsWithTotalValue = responses.map((response: any) => {
       const cartons = response.cartons || 0;
-      const piecesPerCarton = response.pieces || 0;
-      const totalPieces = cartons * piecesPerCarton;
+      const totalPieces = response.pieces || 0; // pieces is already total, not per carton
       const pricePerCarton = response.price;
       const totalPriceInSupplierCurrency = pricePerCarton * cartons;
       const totalPriceInBaseCurrency = totalPriceInSupplierCurrency * exchangeRate;
@@ -128,8 +127,7 @@ export function ConvertToPurchaseDialog({
 
     return itemsWithTotalValue.map((item: any) => {
       const cartons = item.cartons || 0;
-      const piecesPerCarton = item.pieces || 0;
-      const totalPieces = cartons * piecesPerCarton;
+      const totalPieces = item.pieces || 0; // pieces is already total, not per carton
       const pricePerCarton = item.price;
       
       // Follow formula: landing cost = total price / total pcs × exchange rate
