@@ -359,22 +359,24 @@ export function ConvertToPurchaseDialog({
                       </span>
                     )}
                   </p>
-                  <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div className="space-y-2 text-sm">
                     <div>
                       <p className="text-muted-foreground">Landed Cost</p>
-                      <p className="font-semibold">{item.landedCostPerUnit} FCFA</p>
+                      <p className="font-semibold">
+                        {item.landedCostPerUnit} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Wholesale Price</p>
-                      <p className="font-semibold">{item.wholesalePrice} FCFA</p>
+                      <p className="font-semibold">
+                        {item.wholesalePrice} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.wholesalePrice) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Retail Price</p>
-                      <p className="font-semibold">{item.retailPrice} FCFA</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Quantity</p>
-                      <p className="font-semibold">{item.purchase_order_items.requested_quantity}</p>
+                      <p className="font-semibold">
+                        {item.retailPrice} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.retailPrice) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
+                      </p>
                     </div>
                   </div>
                 </Card>
