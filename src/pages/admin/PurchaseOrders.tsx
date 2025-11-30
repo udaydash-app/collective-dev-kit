@@ -114,8 +114,7 @@ export default function PurchaseOrders() {
   };
 
   const copyShareLink = (shareToken: string) => {
-    const encodedToken = encodeURIComponent(shareToken);
-    const link = `${window.location.origin}/po/quote/${encodedToken}`;
+    const link = `${window.location.origin}/po/quote/${shareToken}`;
     navigator.clipboard.writeText(link);
     toast.success("Link copied to clipboard");
   };
