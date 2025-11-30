@@ -59,6 +59,7 @@ import AdminAccountsReceivable from "./pages/admin/AccountsReceivable";
 import AdminAccountsPayable from "./pages/admin/AccountsPayable";
 import AdminQuotations from "./pages/admin/Quotations";
 import AdminBarcode from "./pages/admin/Barcode";
+import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -69,6 +70,7 @@ import Payment from "./pages/Payment";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import GuestCheckout from "./pages/GuestCheckout";
 import OrderDetails from "./pages/OrderDetails";
+import SupplierQuoteForm from "./pages/SupplierQuoteForm";
 import Addresses from "./pages/profile/Addresses";
 import PaymentMethods from "./pages/profile/PaymentMethods";
 import NotFound from "./pages/NotFound";
@@ -177,6 +179,7 @@ const AppContent = () => {
           <Route path="/admin/accounts-payable" element={<AdminRoute><AdminAccountsPayable /></AdminRoute>} />
           <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
           <Route path="/admin/barcode" element={<AdminRoute><AdminBarcode /></AdminRoute>} />
+          <Route path="/admin/purchase-orders" element={<AdminRoute><AdminPurchaseOrders /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
@@ -185,6 +188,7 @@ const AppContent = () => {
           <Route path="/checkout/payment" element={<Payment />} />
           <Route path="/order/confirmation/:orderId" element={<OrderConfirmation />} />
           <Route path="/order/:id" element={<OrderDetails />} />
+          <Route path="/po/quote/:shareToken" element={<SupplierQuoteForm />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/addresses" element={<Addresses />} />
           <Route path="/profile/payment-methods" element={<PaymentMethods />} />
