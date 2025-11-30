@@ -98,9 +98,15 @@ export function ConvertToPurchaseDialog({
   const calculateLandedCosts = () => {
     if (!responses || responses.length === 0) return [];
 
-    // Convert all charges to base currency (FCFA) using exchange rate
+    // Convert all charges to base currency (FCFA)
+    // If charge is already in FCFA, use as-is; otherwise convert using exchange rate
     const totalCharges = charges.reduce(
-      (sum, charge) => sum + (parseFloat(charge.amount || 0) * exchangeRate),
+      (sum, charge) => {
+        const amount = parseFloat(charge.amount || 0);
+        // If charge is already in base currency (FCFA), don't convert
+        const convertedAmount = charge.currency === 'FCFA' ? amount : amount * exchangeRate;
+        return sum + convertedAmount;
+      },
       0
     );
 
@@ -191,7 +197,9 @@ export function ConvertToPurchaseDialog({
             purchase_order_id: purchaseOrder.id,
             charge_type: charge.type,
             description: charge.description,
-            amount: parseFloat(charge.amount) * exchangeRate,
+            amount: charge.currency === 'FCFA' 
+              ? parseFloat(charge.amount) 
+              : parseFloat(charge.amount) * exchangeRate,
             currency: "FCFA",
           }))
         );
