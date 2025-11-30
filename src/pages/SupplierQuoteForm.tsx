@@ -25,6 +25,12 @@ export default function SupplierQuoteForm() {
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
+  const calculateTotalWeight = (noOfCarton: string, weightPerCarton: string) => {
+    const cartons = parseInt(noOfCarton) || 0;
+    const weight = parseFloat(weightPerCarton) || 0;
+    return (cartons * weight).toFixed(2);
+  };
+
   // Log component mount
   useEffect(() => {
     console.log("SupplierQuoteForm mounted with shareToken:", shareToken);
@@ -103,6 +109,9 @@ export default function SupplierQuoteForm() {
               : "",
             pricePerCarton: existingResponse.price || "",
             currency: existingResponse.currency || "USD",
+            weightPerCarton: existingResponse.weight && existingResponse.cartons
+              ? (existingResponse.weight / existingResponse.cartons).toFixed(2)
+              : "",
           };
         } else {
           // Empty form
@@ -111,6 +120,7 @@ export default function SupplierQuoteForm() {
             pcsInCarton: "",
             pricePerCarton: "",
             currency: "USD",
+            weightPerCarton: "",
           };
         }
       });
@@ -168,12 +178,14 @@ export default function SupplierQuoteForm() {
   const handleSaveDraft = () => {
     const items = Object.entries(formData).map(([itemId, data]: [string, any]) => {
       const totalPcs = calculateTotalPcs(data.noOfCarton, data.pcsInCarton);
+      const totalWeight = parseFloat(calculateTotalWeight(data.noOfCarton, data.weightPerCarton)) || 0;
       return {
         itemId,
         cartons: parseInt(data.noOfCarton) || 0,
         pieces: totalPcs,
         price: parseFloat(data.pricePerCarton) || 0,
         currency: data.currency,
+        weight: totalWeight,
       };
     });
 
@@ -185,12 +197,14 @@ export default function SupplierQuoteForm() {
 
     const items = Object.entries(formData).map(([itemId, data]: [string, any]) => {
       const totalPcs = calculateTotalPcs(data.noOfCarton, data.pcsInCarton);
+      const totalWeight = parseFloat(calculateTotalWeight(data.noOfCarton, data.weightPerCarton)) || 0;
       return {
         itemId,
         cartons: parseInt(data.noOfCarton) || 0,
         pieces: totalPcs,
         price: parseFloat(data.pricePerCarton) || 0,
         currency: data.currency,
+        weight: totalWeight,
       };
     });
 
@@ -345,6 +359,8 @@ export default function SupplierQuoteForm() {
                     <TableHead className="font-semibold min-w-[150px]">No of Carton</TableHead>
                     <TableHead className="font-semibold min-w-[150px]">Pcs in Carton</TableHead>
                     <TableHead className="font-semibold min-w-[150px]">Total Pcs</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Weight per Carton (kg)</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Total Weight (kg)</TableHead>
                     <TableHead className="font-semibold min-w-[200px]">Price per Carton</TableHead>
                     <TableHead className="font-semibold min-w-[200px]">Total Price</TableHead>
                   </TableRow>
@@ -353,6 +369,7 @@ export default function SupplierQuoteForm() {
                   {poData.purchase_order_items?.map((item: any) => {
                     const itemData = formData[item.id] || {};
                     const totalPcs = calculateTotalPcs(itemData.noOfCarton, itemData.pcsInCarton);
+                    const totalWeight = calculateTotalWeight(itemData.noOfCarton, itemData.weightPerCarton);
                     const totalPrice = calculateTotalPrice(itemData.noOfCarton, itemData.pricePerCarton);
                     
                     return (
@@ -405,6 +422,22 @@ export default function SupplierQuoteForm() {
                         <TableCell>
                           <div className="flex items-center h-10 px-3 bg-muted rounded-md">
                             <span className="font-medium">{totalPcs}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={itemData.weightPerCarton || ""}
+                            onChange={(e) => updateField(item.id, "weightPerCarton", e.target.value)}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center h-10 px-3 bg-muted rounded-md">
+                            <span className="font-medium">{totalWeight}</span>
                           </div>
                         </TableCell>
                         <TableCell>
