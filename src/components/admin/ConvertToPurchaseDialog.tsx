@@ -225,7 +225,7 @@ export function ConvertToPurchaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Convert to Purchase</DialogTitle>
         </DialogHeader>
@@ -345,42 +345,53 @@ export function ConvertToPurchaseDialog({
             </div>
           </div>
 
-          {/* Cost Preview */}
+          {/* Cost Preview Table */}
           <div>
             <Label className="text-lg font-semibold mb-4">Price Calculation Preview</Label>
-            <div className="space-y-3">
-              {costData.map((item: any) => (
-                <Card key={item.id} className="p-4">
-                  <p className="font-semibold mb-3">
-                    {item.purchase_order_items.products.name}
-                    {item.purchase_order_items.variant_name && (
-                      <span className="text-muted-foreground ml-2">
-                        ({item.purchase_order_items.variant_name})
-                      </span>
-                    )}
-                  </p>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Landed Cost</p>
-                      <p className="font-semibold">
-                        {item.landedCostPerUnit} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Wholesale Price</p>
-                      <p className="font-semibold">
-                        {item.wholesalePrice} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.wholesalePrice) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Retail Price</p>
-                      <p className="font-semibold">
-                        {item.retailPrice} FCFA × {item.purchase_order_items.requested_quantity} pcs = {(parseFloat(item.retailPrice) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted">
+                    <th className="text-left p-4 font-semibold text-base">Product Name</th>
+                    <th className="text-right p-4 font-semibold text-base">Quantity</th>
+                    <th className="text-right p-4 font-semibold text-base">Landed Cost/pcs</th>
+                    <th className="text-right p-4 font-semibold text-base">Wholesale Price/pcs</th>
+                    <th className="text-right p-4 font-semibold text-base">Retail Price/pcs</th>
+                    <th className="text-right p-4 font-semibold text-base">Total (Landed)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costData.map((item: any, index: number) => (
+                    <tr key={item.id} className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}>
+                      <td className="p-4 text-base">
+                        <div className="font-medium">
+                          {item.purchase_order_items.products.name}
+                          {item.purchase_order_items.variant_name && (
+                            <span className="text-muted-foreground text-sm ml-2">
+                              ({item.purchase_order_items.variant_name})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right text-base font-medium">
+                        {item.purchase_order_items.requested_quantity}
+                      </td>
+                      <td className="p-4 text-right text-base font-medium">
+                        {item.landedCostPerUnit} FCFA
+                      </td>
+                      <td className="p-4 text-right text-base font-medium">
+                        {item.wholesalePrice} FCFA
+                      </td>
+                      <td className="p-4 text-right text-base font-medium">
+                        {item.retailPrice} FCFA
+                      </td>
+                      <td className="p-4 text-right text-base font-semibold">
+                        {(parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
