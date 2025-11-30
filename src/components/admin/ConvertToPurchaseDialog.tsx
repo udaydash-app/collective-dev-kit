@@ -105,27 +105,29 @@ export function ConvertToPurchaseDialog({
     );
 
     // Calculate landed cost for each item (all in base currency)
-    const itemsWithTotalValue = responses.map((response: any) => {
+    const itemsWithWeight = responses.map((response: any) => {
       const cartons = response.cartons || 0;
       const totalPieces = response.pieces || 0; // pieces is already total, not per carton
       const pricePerCarton = response.price;
       const totalPriceInSupplierCurrency = pricePerCarton * cartons;
       const totalPriceInBaseCurrency = totalPriceInSupplierCurrency * exchangeRate;
+      const totalWeight = response.weight || 0;
       
       return {
         ...response,
         totalPieces,
-        totalPriceInBaseCurrency
+        totalPriceInBaseCurrency,
+        totalWeight
       };
     });
 
-    // Calculate total value of all items (converted to base currency)
-    const totalValue = itemsWithTotalValue.reduce(
-      (sum: number, item: any) => sum + item.totalPriceInBaseCurrency,
+    // Calculate total weight of all items for proportional charge distribution
+    const totalWeight = itemsWithWeight.reduce(
+      (sum: number, item: any) => sum + item.totalWeight,
       0
     );
 
-    return itemsWithTotalValue.map((item: any) => {
+    return itemsWithWeight.map((item: any) => {
       const cartons = item.cartons || 0;
       const totalPieces = item.pieces || 0; // pieces is already total, not per carton
       const pricePerCarton = item.price;
@@ -134,12 +136,10 @@ export function ConvertToPurchaseDialog({
       const totalPrice = cartons * pricePerCarton;
       const baseCostPerPiece = (totalPrice / totalPieces) * exchangeRate;
       
-      // Total price in base currency for proportional charge distribution
-      const totalPriceInBaseCurrency = totalPrice * exchangeRate;
-      
-      // Distribute charges proportionally based on item value
-      const itemChargeShare = totalValue > 0 ? (totalPriceInBaseCurrency / totalValue) * totalCharges : 0;
-      const chargePerPiece = itemChargeShare / totalPieces;
+      // Distribute charges proportionally based on item weight
+      const itemWeight = item.totalWeight || 0;
+      const itemChargeShare = totalWeight > 0 ? (itemWeight / totalWeight) * totalCharges : 0;
+      const chargePerPiece = totalPieces > 0 ? itemChargeShare / totalPieces : 0;
       
       // Landed cost per piece = base cost per piece + charge per piece
       const landedCostPerUnit = baseCostPerPiece + chargePerPiece;
