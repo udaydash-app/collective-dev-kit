@@ -335,13 +335,13 @@ export default function SupplierQuoteForm() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold w-96">Product Name</TableHead>
-                    <TableHead className="font-semibold w-40">Requested Qty</TableHead>
-                    <TableHead className="font-semibold w-40">No of Carton</TableHead>
-                    <TableHead className="font-semibold w-40">Pcs in Carton</TableHead>
-                    <TableHead className="font-semibold w-40">Total Pcs</TableHead>
-                    <TableHead className="font-semibold w-64">Price per Carton</TableHead>
-                    <TableHead className="font-semibold w-64">Total Price</TableHead>
+                    <TableHead className="font-semibold min-w-[400px]">Product Name</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Requested Qty</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">No of Carton</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Pcs in Carton</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Total Pcs</TableHead>
+                    <TableHead className="font-semibold min-w-[200px]">Price per Carton</TableHead>
+                    <TableHead className="font-semibold min-w-[200px]">Total Price</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
