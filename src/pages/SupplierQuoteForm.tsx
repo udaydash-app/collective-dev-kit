@@ -70,15 +70,20 @@ export default function SupplierQuoteForm() {
     queryFn: async () => {
       if (!poData?.id) return null;
       
+      console.log("Fetching existing responses for PO:", poData.id);
+      
       const { data, error } = await supabase
         .from("purchase_order_responses")
         .select("*")
         .eq("purchase_order_id", poData.id);
 
+      console.log("Existing responses fetched:", data);
       if (error) throw error;
       return data;
     },
     enabled: !!poData?.id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
