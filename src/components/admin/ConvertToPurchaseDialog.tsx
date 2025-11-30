@@ -99,11 +99,9 @@ export function ConvertToPurchaseDialog({
     if (!responses || responses.length === 0) return [];
 
     // Convert all charges to base currency (FCFA)
-    // If charge is already in FCFA, use as-is; otherwise convert using exchange rate
     const totalCharges = charges.reduce(
       (sum, charge) => {
         const amount = parseFloat(charge.amount || 0);
-        // If charge is already in base currency (FCFA), don't convert
         const convertedAmount = charge.currency === 'FCFA' ? amount : amount * exchangeRate;
         return sum + convertedAmount;
       },
@@ -119,24 +117,35 @@ export function ConvertToPurchaseDialog({
     // Calculate charges per kg
     const chargesPerKg = totalWeight > 0 ? totalCharges / totalWeight : 0;
 
+    console.log('Total charges:', totalCharges);
+    console.log('Total weight:', totalWeight);
+    console.log('Charges per kg:', chargesPerKg);
+
     return responses.map((item: any) => {
       const cartons = item.cartons || 0;
-      const totalPieces = item.pieces || 0; // pieces is already total, not per carton
-      const piecesPerCarton = totalPieces / cartons;
+      const totalPieces = item.pieces || 0;
+      const piecesPerCarton = cartons > 0 ? totalPieces / cartons : 0;
       const pricePerCarton = item.price;
       const weightPerCarton = cartons > 0 ? (item.weight || 0) / cartons : 0;
       
-      // Follow formula: landing cost = total price / total pcs × exchange rate
+      // Base cost = (total price / total pieces) × exchange rate
       const totalPrice = cartons * pricePerCarton;
-      const baseCostPerPiece = (totalPrice / totalPieces) * exchangeRate;
+      const baseCostPerPiece = totalPieces > 0 ? (totalPrice / totalPieces) * exchangeRate : 0;
       
-      // Additional charges calculation:
+      // Additional charges per piece:
       // 1. charges per kg × weight per carton = charges per carton
       const chargesPerCarton = chargesPerKg * weightPerCarton;
-      // 2. charges per carton / no of pcs in carton = charges per piece
+      // 2. charges per carton / pcs in carton = charges per piece
       const chargePerPiece = piecesPerCarton > 0 ? chargesPerCarton / piecesPerCarton : 0;
       
-      // Landing cost + additional charges per piece
+      console.log(`Item: ${item.purchase_order_items?.products?.name}`);
+      console.log('  Base cost per piece:', baseCostPerPiece);
+      console.log('  Charge per piece:', chargePerPiece);
+      console.log('  Weight per carton:', weightPerCarton);
+      console.log('  Charges per carton:', chargesPerCarton);
+      console.log('  Pieces per carton:', piecesPerCarton);
+      
+      // Landed cost = base cost + additional charges per piece
       const landedCostPerUnit = baseCostPerPiece + chargePerPiece;
       
       const wholesalePrice = landedCostPerUnit * (1 + wholesaleMargin / 100);
