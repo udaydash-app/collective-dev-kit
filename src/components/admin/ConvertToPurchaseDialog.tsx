@@ -127,11 +127,17 @@ export function ConvertToPurchaseDialog({
     );
 
     return itemsWithTotalValue.map((item: any) => {
-      const totalPieces = item.totalPieces;
-      const totalPriceInBaseCurrency = item.totalPriceInBaseCurrency;
+      const cartons = item.cartons || 0;
+      const piecesPerCarton = item.pieces || 0;
+      const totalPieces = cartons * piecesPerCarton;
+      const pricePerCarton = item.price;
       
-      // Base cost per piece = total price / total pieces
-      const baseCostPerPiece = totalPriceInBaseCurrency / totalPieces;
+      // Follow formula: landing cost = total price / total pcs × exchange rate
+      const totalPrice = cartons * pricePerCarton;
+      const baseCostPerPiece = (totalPrice / totalPieces) * exchangeRate;
+      
+      // Total price in base currency for proportional charge distribution
+      const totalPriceInBaseCurrency = totalPrice * exchangeRate;
       
       // Distribute charges proportionally based on item value
       const itemChargeShare = totalValue > 0 ? (totalPriceInBaseCurrency / totalValue) * totalCharges : 0;
