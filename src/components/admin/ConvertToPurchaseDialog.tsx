@@ -46,6 +46,7 @@ export function ConvertToPurchaseDialog({
   const [charges, setCharges] = useState<any[]>([]);
   const [wholesaleMargin, setWholesaleMargin] = useState(20);
   const [retailMargin, setRetailMargin] = useState(50);
+  const [exchangeRate, setExchangeRate] = useState(1);
 
   const { data: responses } = useQuery({
     queryKey: ["po-responses", purchaseOrder?.id],
@@ -73,6 +74,7 @@ export function ConvertToPurchaseDialog({
       setCharges([]);
       setWholesaleMargin(20);
       setRetailMargin(50);
+      setExchangeRate(1);
     }
   }, [open]);
 
@@ -96,20 +98,24 @@ export function ConvertToPurchaseDialog({
   const calculateLandedCosts = () => {
     if (!responses || responses.length === 0) return [];
 
-    // Calculate total charge amount (assume same currency for simplicity)
-    const totalCharges = charges.reduce((sum, charge) => sum + parseFloat(charge.amount || 0), 0);
-
-    // Calculate total value of all items
-    const totalValue = responses.reduce(
-      (sum: number, r: any) => sum + r.price * r.purchase_order_items.requested_quantity,
+    // Convert all charges to base currency (FCFA) using exchange rate
+    const totalCharges = charges.reduce(
+      (sum, charge) => sum + (parseFloat(charge.amount || 0) * exchangeRate),
       0
     );
 
-    // Calculate landed cost for each item
+    // Calculate total value of all items (converted to base currency)
+    const totalValue = responses.reduce(
+      (sum: number, r: any) => sum + (r.price * exchangeRate) * r.purchase_order_items.requested_quantity,
+      0
+    );
+
+    // Calculate landed cost for each item (all in base currency)
     return responses.map((response: any) => {
-      const itemValue = response.price * response.purchase_order_items.requested_quantity;
+      const priceInBaseCurrency = response.price * exchangeRate;
+      const itemValue = priceInBaseCurrency * response.purchase_order_items.requested_quantity;
       const itemChargeShare = totalValue > 0 ? (itemValue / totalValue) * totalCharges : 0;
-      const landedCostPerUnit = response.price + itemChargeShare / response.purchase_order_items.requested_quantity;
+      const landedCostPerUnit = priceInBaseCurrency + itemChargeShare / response.purchase_order_items.requested_quantity;
       
       const wholesalePrice = landedCostPerUnit * (1 + wholesaleMargin / 100);
       const retailPrice = landedCostPerUnit * (1 + retailMargin / 100);
@@ -160,15 +166,15 @@ export function ConvertToPurchaseDialog({
       const { error: itemsError } = await supabase.from("purchase_items").insert(purchaseItems);
       if (itemsError) throw itemsError;
 
-      // Save charges
+      // Save charges (converted to base currency)
       if (charges.length > 0) {
         const { error: chargesError } = await supabase.from("purchase_order_charges").insert(
           charges.map((charge) => ({
             purchase_order_id: purchaseOrder.id,
             charge_type: charge.type,
             description: charge.description,
-            amount: parseFloat(charge.amount),
-            currency: charge.currency,
+            amount: parseFloat(charge.amount) * exchangeRate,
+            currency: "FCFA",
           }))
         );
         if (chargesError) throw chargesError;
@@ -304,8 +310,21 @@ export function ConvertToPurchaseDialog({
             )}
           </div>
 
-          {/* Margin Settings */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Exchange Rate and Margin Settings */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label>Exchange Rate to FCFA</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 1)}
+                placeholder="1.00"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                1 {responses?.[0]?.currency || "USD"} = {exchangeRate} FCFA
+              </p>
+            </div>
             <div>
               <Label>Wholesale Margin (%)</Label>
               <Input
@@ -343,15 +362,15 @@ export function ConvertToPurchaseDialog({
                   <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Landed Cost</p>
-                      <p className="font-semibold">{item.landedCostPerUnit} {item.currency}</p>
+                      <p className="font-semibold">{item.landedCostPerUnit} FCFA</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Wholesale Price</p>
-                      <p className="font-semibold">{item.wholesalePrice} {item.currency}</p>
+                      <p className="font-semibold">{item.wholesalePrice} FCFA</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Retail Price</p>
-                      <p className="font-semibold">{item.retailPrice} {item.currency}</p>
+                      <p className="font-semibold">{item.retailPrice} FCFA</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Quantity</p>
