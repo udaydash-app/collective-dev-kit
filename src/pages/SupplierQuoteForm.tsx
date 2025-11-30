@@ -335,7 +335,8 @@ export default function SupplierQuoteForm() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold min-w-[200px]">Product Name</TableHead>
+                    <TableHead className="font-semibold min-w-[350px]">Product Name</TableHead>
+                    <TableHead className="font-semibold w-32">Requested Qty</TableHead>
                     <TableHead className="font-semibold w-32">No of Carton</TableHead>
                     <TableHead className="font-semibold w-32">Pcs in Carton</TableHead>
                     <TableHead className="font-semibold w-32">Total Pcs</TableHead>
@@ -365,11 +366,15 @@ export default function SupplierQuoteForm() {
                               {item.variant_name && (
                                 <p className="text-sm text-muted-foreground">({item.variant_name})</p>
                               )}
-                              <p className="text-xs text-muted-foreground">
-                                Requested: {item.requested_quantity}{" "}
-                                {item.variant_name ? item.product_variants?.unit : item.products?.unit}
-                              </p>
                             </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center h-10 px-3 bg-muted rounded-md">
+                            <span className="font-medium">
+                              {item.requested_quantity}{" "}
+                              {item.variant_name ? item.product_variants?.unit : item.products?.unit}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
