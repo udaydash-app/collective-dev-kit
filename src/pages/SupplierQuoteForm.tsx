@@ -22,7 +22,8 @@ const currencies = ["USD", "EUR", "INR", "FCFA", "GBP", "JPY", "CNY"];
 const weightUnits = ["kg", "lb", "g", "ton"];
 
 export default function SupplierQuoteForm() {
-  const { shareToken } = useParams();
+  const { shareToken: rawToken } = useParams();
+  const shareToken = rawToken ? decodeURIComponent(rawToken) : undefined;
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
