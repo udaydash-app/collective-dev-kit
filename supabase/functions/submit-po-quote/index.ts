@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { shareToken, items } = await req.json();
+    const { shareToken, items, isDraft } = await req.json();
 
     if (!shareToken || !items || !Array.isArray(items)) {
       return new Response(
@@ -59,10 +59,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if already converted or cancelled
+    // Check if already converted or cancelled (but allow drafts for quote_received status)
     if (po.status === 'converted' || po.status === 'cancelled') {
       return new Response(
         JSON.stringify({ error: 'Purchase order is no longer active' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate final submission has at least one price (skip for drafts)
+    if (!isDraft && !items.some((item: QuoteItem) => item.price > 0)) {
+      return new Response(
+        JSON.stringify({ error: 'At least one item must have a price for final submission' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -92,21 +100,26 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    // Update PO status to quote_received
-    const { error: updateError } = await supabase
-      .from('purchase_orders')
-      .update({ status: 'quote_received', updated_at: new Date().toISOString() })
-      .eq('id', po.id);
+    // Update PO status to quote_received only for final submission
+    if (!isDraft) {
+      const { error: updateError } = await supabase
+        .from('purchase_orders')
+        .update({ status: 'quote_received', updated_at: new Date().toISOString() })
+        .eq('id', po.id);
 
-    if (updateError) {
-      console.error('Error updating PO status:', updateError);
-      throw updateError;
+      if (updateError) {
+        console.error('Error updating PO status:', updateError);
+        throw updateError;
+      }
     }
 
-    console.log('Quote submitted successfully for PO:', po.id);
+    console.log(isDraft ? 'Draft saved successfully for PO:' : 'Quote submitted successfully for PO:', po.id);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Quote submitted successfully' }),
+      JSON.stringify({ 
+        success: true, 
+        message: isDraft ? 'Draft saved successfully' : 'Quote submitted successfully' 
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
