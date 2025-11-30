@@ -104,35 +104,52 @@ export function ConvertToPurchaseDialog({
       0
     );
 
+    // Calculate landed cost for each item (all in base currency)
+    const itemsWithTotalValue = responses.map((response: any) => {
+      const cartons = response.cartons || 0;
+      const piecesPerCarton = response.pieces || 0;
+      const totalPieces = cartons * piecesPerCarton;
+      const pricePerCarton = response.price;
+      const totalPriceInSupplierCurrency = pricePerCarton * cartons;
+      const totalPriceInBaseCurrency = totalPriceInSupplierCurrency * exchangeRate;
+      
+      return {
+        ...response,
+        totalPieces,
+        totalPriceInBaseCurrency
+      };
+    });
+
     // Calculate total value of all items (converted to base currency)
-    const totalValue = responses.reduce(
-      (sum: number, r: any) => sum + (r.price * exchangeRate),
+    const totalValue = itemsWithTotalValue.reduce(
+      (sum: number, item: any) => sum + item.totalPriceInBaseCurrency,
       0
     );
 
-    // Calculate landed cost for each item (all in base currency)
-    return responses.map((response: any) => {
-      const totalPriceInBaseCurrency = response.price * exchangeRate;
-      const quantity = response.purchase_order_items.requested_quantity;
+    return itemsWithTotalValue.map((item: any) => {
+      const totalPieces = item.totalPieces;
+      const totalPriceInBaseCurrency = item.totalPriceInBaseCurrency;
       
-      // Price per piece = total price / quantity
-      const pricePerPiece = totalPriceInBaseCurrency / quantity;
+      // Base cost per piece = total price / total pieces
+      const baseCostPerPiece = totalPriceInBaseCurrency / totalPieces;
       
       // Distribute charges proportionally based on item value
       const itemChargeShare = totalValue > 0 ? (totalPriceInBaseCurrency / totalValue) * totalCharges : 0;
-      const chargePerPiece = itemChargeShare / quantity;
+      const chargePerPiece = itemChargeShare / totalPieces;
       
-      // Landed cost per piece = price per piece + charge per piece
-      const landedCostPerUnit = pricePerPiece + chargePerPiece;
+      // Landed cost per piece = base cost per piece + charge per piece
+      const landedCostPerUnit = baseCostPerPiece + chargePerPiece;
       
       const wholesalePrice = landedCostPerUnit * (1 + wholesaleMargin / 100);
       const retailPrice = landedCostPerUnit * (1 + retailMargin / 100);
 
       return {
-        ...response,
-        landedCostPerUnit: landedCostPerUnit.toFixed(2),
-        wholesalePrice: wholesalePrice.toFixed(2),
-        retailPrice: retailPrice.toFixed(2),
+        ...item,
+        landedCostPerUnit,
+        wholesalePrice,
+        retailPrice,
+        totalPieces,
+        totalLandedCost: landedCostPerUnit * totalPieces,
       };
     });
   };
@@ -152,7 +169,7 @@ export function ConvertToPurchaseDialog({
           payment_status: "pending",
           total_amount: costData.reduce(
             (sum: number, item: any) =>
-              sum + parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity,
+              sum + item.landedCostPerUnit * item.totalPieces,
             0
           ),
         })
@@ -166,9 +183,9 @@ export function ConvertToPurchaseDialog({
         purchase_id: purchase.id,
         product_id: item.purchase_order_items.products.id,
         variant_id: item.purchase_order_items.product_variants?.id || null,
-        quantity: item.purchase_order_items.requested_quantity,
-        unit_cost: parseFloat(item.landedCostPerUnit),
-        total_cost: parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity,
+        quantity: item.totalPieces,
+        unit_cost: item.landedCostPerUnit,
+        total_cost: item.landedCostPerUnit * item.totalPieces,
       }));
 
       const { error: itemsError } = await supabase.from("purchase_items").insert(purchaseItems);
@@ -191,9 +208,9 @@ export function ConvertToPurchaseDialog({
       // Update product prices
       for (const item of costData) {
         const updateData: any = {
-          cost_price: parseFloat(item.landedCostPerUnit),
-          wholesale_price: parseFloat(item.wholesalePrice),
-          price: parseFloat(item.retailPrice),
+          cost_price: item.landedCostPerUnit,
+          wholesale_price: item.wholesalePrice,
+          price: item.retailPrice,
         };
 
         if (item.purchase_order_items.product_variants?.id) {
@@ -382,19 +399,19 @@ export function ConvertToPurchaseDialog({
                         </div>
                       </td>
                       <td className="p-4 text-right text-base font-medium">
-                        {item.purchase_order_items.requested_quantity}
+                        {item.totalPieces}
                       </td>
                       <td className="p-4 text-right text-base font-medium">
-                        {item.landedCostPerUnit} FCFA
+                        {item.landedCostPerUnit.toFixed(2)} FCFA
                       </td>
                       <td className="p-4 text-right text-base font-medium">
-                        {item.wholesalePrice} FCFA
+                        {item.wholesalePrice.toFixed(2)} FCFA
                       </td>
                       <td className="p-4 text-right text-base font-medium">
-                        {item.retailPrice} FCFA
+                        {item.retailPrice.toFixed(2)} FCFA
                       </td>
                       <td className="p-4 text-right text-base font-semibold">
-                        {(parseFloat(item.landedCostPerUnit) * item.purchase_order_items.requested_quantity).toFixed(2)} FCFA
+                        {item.totalLandedCost.toFixed(2)} FCFA
                       </td>
                     </tr>
                   ))}
