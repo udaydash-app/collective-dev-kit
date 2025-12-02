@@ -120,11 +120,11 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
-      <AdminChatNotifications />
       <KeyboardShortcutsDialog />
       <ChatWidget />
       <Router>
         <RouterContent />
+        <AdminChatNotifications />
         <Routes>
           {/* Root shows customer home page */}
           <Route path="/" element={<Home />} />
