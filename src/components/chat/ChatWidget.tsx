@@ -3,6 +3,7 @@ import { MessageCircle, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +14,9 @@ export const ChatWidget = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
   const { messages, loading } = useChatMessages(conversationId);
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,18 +25,36 @@ export const ChatWidget = () => {
   useEffect(() => {
     const initConversation = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (user) {
+        // Check for existing conversation
+        const { data: existingConversation } = await supabase
+          .from('chat_conversations')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'open')
+          .single();
 
-      // Check for existing conversation
-      const { data: existingConversation } = await supabase
-        .from('chat_conversations')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'open')
-        .single();
-
-      if (existingConversation) {
-        setConversationId(existingConversation.id);
+        if (existingConversation) {
+          setConversationId(existingConversation.id);
+        }
+      } else {
+        // Check for anonymous conversation in localStorage
+        const storedConversationId = localStorage.getItem('anonymous_chat_conversation_id');
+        if (storedConversationId) {
+          const { data: existingConversation } = await supabase
+            .from('chat_conversations')
+            .select('id')
+            .eq('id', storedConversationId)
+            .eq('status', 'open')
+            .single();
+          
+          if (existingConversation) {
+            setConversationId(storedConversationId);
+          } else {
+            localStorage.removeItem('anonymous_chat_conversation_id');
+          }
+        }
       }
     };
 
@@ -69,23 +91,36 @@ export const ChatWidget = () => {
     }
   };
 
-  const createConversation = async () => {
+  const createConversation = async (isGuest: boolean = false) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({
-        title: "Please login",
-        description: "You need to be logged in to start a chat",
-        variant: "destructive"
-      });
+    
+    if (!user && !isGuest) {
+      setShowGuestForm(true);
       return null;
+    }
+
+    let conversationData: any = {
+      status: 'open',
+    };
+
+    if (user) {
+      conversationData = {
+        ...conversationData,
+        user_id: user.id,
+      };
+    } else {
+      // Guest user
+      conversationData = {
+        ...conversationData,
+        user_id: null,
+        customer_name: guestName,
+        customer_phone: guestPhone,
+      };
     }
 
     const { data, error } = await supabase
       .from('chat_conversations')
-      .insert({
-        user_id: user.id,
-        status: 'open'
-      })
+      .insert(conversationData)
       .select()
       .single();
 
@@ -99,7 +134,29 @@ export const ChatWidget = () => {
       return null;
     }
 
+    // For anonymous users, store conversation ID in localStorage
+    if (!user) {
+      localStorage.setItem('anonymous_chat_conversation_id', data.id);
+    }
+
     return data.id;
+  };
+
+  const handleGuestFormSubmit = async () => {
+    if (!guestName.trim() || !guestPhone.trim()) {
+      toast({
+        title: "Required fields",
+        description: "Please enter your name and phone number",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newConversationId = await createConversation(true);
+    if (newConversationId) {
+      setConversationId(newConversationId);
+      setShowGuestForm(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -110,8 +167,19 @@ export const ChatWidget = () => {
       let currentConversationId = conversationId;
 
       if (!currentConversationId) {
-        currentConversationId = await createConversation();
-        if (!currentConversationId) return;
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setShowGuestForm(true);
+          setSending(false);
+          return;
+        }
+
+        currentConversationId = await createConversation(false);
+        if (!currentConversationId) {
+          setSending(false);
+          return;
+        }
         setConversationId(currentConversationId);
       }
 
@@ -171,9 +239,40 @@ export const ChatWidget = () => {
             <p className="text-sm opacity-90">We're here to help</p>
           </div>
 
-          {/* Messages */}
+          {/* Messages or Guest Form */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            {loading ? (
+            {showGuestForm ? (
+              <div className="space-y-4 p-4">
+                <div className="text-center mb-4">
+                  <h4 className="font-semibold mb-2">Welcome!</h4>
+                  <p className="text-sm text-muted-foreground">Please enter your details to start chatting</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guest-name">Name</Label>
+                  <Input
+                    id="guest-name"
+                    placeholder="Enter your name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guest-phone">Phone Number</Label>
+                  <Input
+                    id="guest-phone"
+                    placeholder="Enter your phone number"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  onClick={handleGuestFormSubmit}
+                  className="w-full"
+                >
+                  Start Chat
+                </Button>
+              </div>
+            ) : loading ? (
               <div className="flex justify-center items-center h-full">
                 <p className="text-muted-foreground">Loading...</p>
               </div>
@@ -213,24 +312,26 @@ export const ChatWidget = () => {
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t border-border">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={sending}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!message.trim() || sending}
-                size="icon"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+          {!showGuestForm && (
+            <div className="p-4 border-t border-border">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type your message..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={sending}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!message.trim() || sending}
+                  size="icon"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </>
