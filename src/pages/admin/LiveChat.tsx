@@ -1,21 +1,32 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatConversations, useChatMessages } from '@/hooks/useChatMessages';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AdminRoute } from '@/components/auth/AdminRoute';
+import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const LiveChatPage = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const { conversations, loading: conversationsLoading } = useChatConversations(true);
+  const { conversations, loading: conversationsLoading, refetch } = useChatConversations(true);
   const { messages, loading: messagesLoading } = useChatMessages(selectedConversationId);
   const { toast } = useToast();
 
@@ -76,6 +87,43 @@ const LiveChatPage = () => {
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      // Delete messages first (foreign key constraint)
+      const { error: messagesError } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      if (messagesError) throw messagesError;
+
+      // Then delete conversation
+      const { error: convError } = await supabase
+        .from('chat_conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (convError) throw convError;
+
+      toast({
+        title: "Success",
+        description: "Conversation deleted"
+      });
+
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+      }
+      refetch();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete conversation",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <AdminRoute>
       <div className="container mx-auto p-6 h-[calc(100vh-4rem)]">
@@ -86,6 +134,7 @@ const LiveChatPage = () => {
               {unreadCount > 0 && `${unreadCount} open conversation${unreadCount > 1 ? 's' : ''}`}
             </p>
           </div>
+          <ReturnToPOSButton />
         </div>
 
         <div className="grid grid-cols-12 gap-4 h-[calc(100%-5rem)]">
@@ -100,26 +149,55 @@ const LiveChatPage = () => {
               ) : (
                 <div className="space-y-2">
                   {conversations.map((conv) => (
-                    <Button
-                      key={conv.id}
-                      variant={selectedConversationId === conv.id ? "default" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => setSelectedConversationId(conv.id)}
-                    >
-                      <div className="flex flex-col items-start w-full">
-                        <div className="flex items-center justify-between w-full">
-                          <span className="font-medium">
-                            {conv.customer_name || 'Anonymous User'}
+                    <div key={conv.id} className="flex items-center gap-1">
+                      <Button
+                        variant={selectedConversationId === conv.id ? "default" : "ghost"}
+                        className="flex-1 justify-start"
+                        onClick={() => setSelectedConversationId(conv.id)}
+                      >
+                        <div className="flex flex-col items-start w-full">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium">
+                              {conv.customer_name || 'Anonymous User'}
+                            </span>
+                            {conv.status === 'open' && (
+                              <span className="h-2 w-2 bg-green-500 rounded-full" />
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(conv.last_message_at).toLocaleString()}
                           </span>
-                          {conv.status === 'open' && (
-                            <span className="h-2 w-2 bg-green-500 rounded-full" />
-                          )}
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(conv.last_message_at).toLocaleString()}
-                        </span>
-                      </div>
-                    </Button>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete this conversation and all its messages. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteConversation(conv.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   ))}
                 </div>
               )}
