@@ -90,7 +90,10 @@ export const useChatMessages = (conversationId: string | null) => {
 export const useChatConversations = (isAdmin: boolean = false) => {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   const { toast } = useToast();
+
+  const refetch = () => setRefetchTrigger(prev => prev + 1);
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -142,7 +145,7 @@ export const useChatConversations = (isAdmin: boolean = false) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, toast]);
+  }, [isAdmin, toast, refetchTrigger]);
 
-  return { conversations, loading };
+  return { conversations, loading, refetch };
 };

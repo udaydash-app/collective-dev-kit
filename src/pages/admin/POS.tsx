@@ -88,6 +88,7 @@ import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShort
 import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -2985,14 +2986,7 @@ export default function POS() {
       shortcut: null
     },
     { 
-      icon: MessageCircle, 
-      label: 'Live Chat', 
-      color: 'bg-[#10B981]', 
-      action: () => navigate('/admin/live-chat'),
-      shortcut: null
-    },
-    { 
-      icon: LogOut, 
+      icon: LogOut,
       label: 'Logout', 
       color: 'bg-[#EF4444]', 
       action: async () => {
@@ -4570,6 +4564,9 @@ export default function POS() {
       
       {/* Offline Status Indicator */}
       <OfflineIndicator />
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton />
     </div>
   );
 }
