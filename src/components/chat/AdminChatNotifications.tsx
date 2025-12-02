@@ -13,8 +13,11 @@ export const AdminChatNotifications = () => {
   useEffect(() => {
     // Only enable notifications for authenticated admin users
     if (!isAdmin) {
+      console.log('AdminChatNotifications: Not admin, skipping');
       return;
     }
+
+    console.log('AdminChatNotifications: Setting up realtime subscription for chat messages');
 
     const channel = supabase
       .channel('admin_chat_notifications')
@@ -27,6 +30,7 @@ export const AdminChatNotifications = () => {
           filter: 'sender_type=eq.customer'
         },
         async (payload) => {
+          console.log('AdminChatNotifications: New message received!', payload);
           const message = payload.new;
           
           // Fetch conversation details to show customer name
@@ -35,6 +39,9 @@ export const AdminChatNotifications = () => {
             .select('customer_name, user_id')
             .eq('id', message.conversation_id)
             .single();
+
+          console.log('AdminChatNotifications: Conversation data:', conversation);
+          console.log('AdminChatNotifications: Showing toast notification');
 
           toast({
             title: "New Chat Message",
@@ -61,9 +68,12 @@ export const AdminChatNotifications = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('AdminChatNotifications: Subscription status:', status);
+      });
 
     return () => {
+      console.log('AdminChatNotifications: Cleaning up subscription');
       supabase.removeChannel(channel);
     };
   }, [isAdmin, toast, navigate]);
