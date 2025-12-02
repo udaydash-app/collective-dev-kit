@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAdmin } from './useAdmin';
 
 export interface KeyboardShortcut {
   key: string;
@@ -59,6 +60,12 @@ export const useKeyboardShortcuts = ({ shortcuts, enabled = true }: UseKeyboardS
 // Global shortcuts available everywhere
 export const useGlobalShortcuts = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
+
+  // Only enable shortcuts for authenticated admin users
+  if (!isAdmin) {
+    return;
+  }
 
   const shortcuts: KeyboardShortcut[] = [
     // Customer navigation

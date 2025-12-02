@@ -1,11 +1,17 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAdmin } from './useAdmin';
 
 export const useAdminShortcuts = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
+    // Only enable shortcuts for authenticated admin users
+    if (!isAdmin) {
+      return;
+    }
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in input fields
       const target = e.target as HTMLElement;
@@ -94,5 +100,5 @@ export const useAdminShortcuts = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, location]);
+  }, [navigate, location, isAdmin]);
 };
