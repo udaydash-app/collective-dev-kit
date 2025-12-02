@@ -51,7 +51,7 @@ export default function CategoryProducts() {
       if (category) {
         setCategoryName(category.name);
         
-        // Then get products for this category
+        // Then get products for this category (only those available for online sale)
         const { data, error } = await supabase
           .from("products")
           .select(`
@@ -63,7 +63,7 @@ export default function CategoryProducts() {
             product_variants(id, price, quantity, unit)
           `)
           .eq("category_id", category.id)
-          .eq("is_available", true);
+          .eq("is_available_online", true);
 
         if (error) throw error;
         

@@ -60,7 +60,7 @@ export default function SearchPage() {
           product_variants(id, price, quantity, unit)
         `)
         .ilike('name', `%${query}%`)
-        .eq('is_available', true)
+        .eq('is_available_online', true)
         .limit(20);
 
       if (error) throw error;

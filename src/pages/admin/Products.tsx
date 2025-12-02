@@ -58,6 +58,7 @@ interface Product {
   store_id: string;
   supplier_id?: string | null;
   is_available: boolean;
+  is_available_online?: boolean;
   is_featured?: boolean;
   stock_quantity: number;
   barcode?: string | null;
@@ -580,6 +581,7 @@ export default function Products() {
         supplier_id: formData.get("supplier_id") as string || null,
         stock_quantity: parseInt(formData.get("stock_quantity") as string) || 0,
         is_available: formData.get("is_available") === "true",
+        is_available_online: formData.get("is_available_online") === "true",
         is_featured: formData.get("is_featured") === "true",
         barcode: (formData.get("barcode") as string)?.trim() || null,
       };
@@ -2500,6 +2502,19 @@ export default function Products() {
                           <SelectContent>
                             <SelectItem value="true">✓ Available</SelectItem>
                             <SelectItem value="false">✗ Unavailable</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="is_available_online" className="text-xs">Available for Online Sale</Label>
+                        <Select name="is_available_online" defaultValue={editingProduct.is_available_online?.toString() ?? "true"}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">🌐 Yes</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
