@@ -92,7 +92,7 @@ export default function Home() {
       if (categoriesError) throw categoriesError;
       setCategories(categoriesData || []);
 
-      // Fetch featured products
+      // Fetch featured products (only those available for online sale)
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select(`
@@ -105,7 +105,7 @@ export default function Home() {
           product_variants(id, price, quantity, unit)
         `)
         .eq("is_featured", true)
-        .eq("is_available", true)
+        .eq("is_available_online", true)
         .limit(10);
 
       if (productsError) throw productsError;

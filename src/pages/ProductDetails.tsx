@@ -60,7 +60,7 @@ export default function ProductDetails() {
           product_variants(*)
         `)
         .eq("id", id)
-        .eq("is_available", true)
+        .eq("is_available_online", true)
         .single();
 
       if (error) throw error;

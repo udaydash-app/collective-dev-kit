@@ -1905,6 +1905,7 @@ export type Database = {
           image_url: string | null
           images: string[] | null
           is_available: boolean | null
+          is_available_online: boolean | null
           is_featured: boolean | null
           name: string
           nutritional_info: Json | null
@@ -1929,6 +1930,7 @@ export type Database = {
           image_url?: string | null
           images?: string[] | null
           is_available?: boolean | null
+          is_available_online?: boolean | null
           is_featured?: boolean | null
           name: string
           nutritional_info?: Json | null
@@ -1953,6 +1955,7 @@ export type Database = {
           image_url?: string | null
           images?: string[] | null
           is_available?: boolean | null
+          is_available_online?: boolean | null
           is_featured?: boolean | null
           name?: string
           nutritional_info?: Json | null
