@@ -11,7 +11,10 @@ export const AdminChatNotifications = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAdmin) return;
+    // Only enable notifications for authenticated admin users
+    if (!isAdmin) {
+      return;
+    }
 
     const channel = supabase
       .channel('admin_chat_notifications')
