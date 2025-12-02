@@ -8,8 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useLocation } from 'react-router-dom';
 
 export const ChatWidget = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -22,7 +24,12 @@ export const ChatWidget = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasUnread, setHasUnread] = useState(false);
 
+  // Don't show on admin pages - admins use FloatingChatButton instead
+  const isAdminPage = location.pathname.startsWith('/admin') || location.pathname === '/pos-login';
+
   useEffect(() => {
+    if (isAdminPage) return;
+    
     const initConversation = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -59,7 +66,7 @@ export const ChatWidget = () => {
     };
 
     initConversation();
-  }, []);
+  }, [isAdminPage]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -215,6 +222,11 @@ export const ChatWidget = () => {
       handleSendMessage();
     }
   };
+
+  // Don't render on admin pages
+  if (isAdminPage) {
+    return null;
+  }
 
   return (
     <>
