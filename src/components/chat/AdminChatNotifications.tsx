@@ -5,6 +5,8 @@ import { useAdmin } from '@/hooks/useAdmin';
 import { MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+console.log('🔔 AdminChatNotifications MODULE LOADED');
+
 export const AdminChatNotifications = () => {
   console.log('🔔 AdminChatNotifications component rendered');
   
