@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { FileText, Package, AlertTriangle, TrendingUp, Printer, Layers, DollarSign, Clock } from 'lucide-react';
+import { FileText, Package, AlertTriangle, TrendingUp, Printer, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -592,44 +592,19 @@ export default function InventoryReports() {
         </div>
       </div>
 
-      {/* FIFO Reports Menu */}
+      {/* Analysis Reports Menu */}
       <Card className="no-print">
         <CardHeader>
-          <CardTitle>FIFO Reports</CardTitle>
+          <CardTitle>Analysis Reports</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link to="/admin/inventory-layers">
-              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
-                <Layers className="h-5 w-5" />
-                <span className="text-sm">Inventory Layers</span>
-              </Button>
-            </Link>
-            <Link to="/admin/stock-reconciliation">
-              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                <span className="text-sm">Stock Reconciliation</span>
-              </Button>
-            </Link>
             <Link to="/admin/cogs-analysis">
               <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
                 <DollarSign className="h-5 w-5" />
                 <span className="text-sm">COGS Analysis</span>
               </Button>
             </Link>
-            <Link to="/admin/inventory-valuation">
-              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
-                <TrendingUp className="h-5 w-5" />
-                <span className="text-sm">Inventory Valuation</span>
-              </Button>
-            </Link>
-            <Link to="/admin/stock-aging">
-              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
-                <Clock className="h-5 w-5" />
-                <span className="text-sm">Stock Aging</span>
-              </Button>
-            </Link>
-
             <Link to="/admin/profit-margin-analysis">
               <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -639,6 +614,7 @@ export default function InventoryReports() {
           </div>
         </CardContent>
       </Card>
+
 
       {/* Report Parameters */}
       <Card className="no-print">
