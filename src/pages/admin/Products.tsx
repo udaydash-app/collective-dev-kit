@@ -419,11 +419,6 @@ export default function Products() {
           .from('cart_items')
           .select('variant_id, id')
           .in('variant_id', variantsToDelete);
-        
-        const { data: inventoryRefs, error: inventoryError } = await supabase
-          .from('inventory_layers')
-          .select('variant_id, id, quantity_remaining')
-          .in('variant_id', variantsToDelete);
 
         if (purchaseRefs && purchaseRefs.length > 0) {
           const variantLabel = existingVariants?.find(v => v.id === purchaseRefs[0].variant_id)?.label || 'Unknown';
@@ -437,15 +432,6 @@ export default function Products() {
           const variantLabel = existingVariants?.find(v => v.id === cartRefs[0].variant_id)?.label || 'Unknown';
           toast.error(`Cannot delete variant "${variantLabel}" - it's in ${cartRefs.length} customer cart(s). Please wait or contact customers to remove.`, {
             duration: 5000
-          });
-          return false;
-        }
-        
-        if (inventoryRefs && inventoryRefs.length > 0) {
-          const totalInventory = inventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
-          const variantLabel = existingVariants?.find(v => v.id === inventoryRefs[0].variant_id)?.label || 'Unknown';
-          toast.error(`Cannot delete variant "${variantLabel}" - it has ${inventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment to zero out inventory first.`, {
-            duration: 6000
           });
           return false;
         }
@@ -829,11 +815,6 @@ export default function Products() {
           .from('cart_items')
           .select('variant_id, id')
           .in('variant_id', variantIds);
-        
-        const { data: inventoryRefs } = await supabase
-          .from('inventory_layers')
-          .select('variant_id, id, quantity_remaining')
-          .in('variant_id', variantIds);
 
         if (purchaseRefs && purchaseRefs.length > 0) {
           const affectedVariants = [...new Set(purchaseRefs.map(r => r.variant_id))];
@@ -855,19 +836,6 @@ export default function Products() {
           
           toast.error(`Cannot delete "${productName}" - variant(s) [${variantLabels}] are in ${cartRefs.length} customer cart(s).`, {
             duration: 5000
-          });
-          return;
-        }
-        
-        if (inventoryRefs && inventoryRefs.length > 0) {
-          const totalInventory = inventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
-          const affectedVariants = [...new Set(inventoryRefs.map(r => r.variant_id))];
-          const variantLabels = affectedVariants.map(vid => 
-            productVariants.find(v => v.id === vid)?.label
-          ).filter(Boolean).join(', ');
-          
-          toast.error(`Cannot delete "${productName}" - variant(s) [${variantLabels}] have ${inventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment first.`, {
-            duration: 6000
           });
           return;
         }
@@ -894,12 +862,6 @@ export default function Products() {
         .eq('product_id', id)
         .is('variant_id', null);
 
-      const { data: productInventoryRefs } = await supabase
-        .from('inventory_layers')
-        .select('id, quantity_remaining')
-        .eq('product_id', id)
-        .is('variant_id', null);
-
       if (productPurchaseRefs && productPurchaseRefs.length > 0) {
         toast.error(`Cannot delete "${productName}" - it has ${productPurchaseRefs.length} purchase record(s).`, {
           duration: 5000
@@ -910,14 +872,6 @@ export default function Products() {
       if (productCartRefs && productCartRefs.length > 0) {
         toast.error(`Cannot delete "${productName}" - it's in ${productCartRefs.length} customer cart(s).`, {
           duration: 5000
-        });
-        return;
-      }
-
-      if (productInventoryRefs && productInventoryRefs.length > 0) {
-        const totalInventory = productInventoryRefs.reduce((sum, ref) => sum + (ref.quantity_remaining || 0), 0);
-        toast.error(`Cannot delete "${productName}" - it has ${productInventoryRefs.length} inventory layer(s) with ${totalInventory} units remaining. Use Stock Adjustment first.`, {
-          duration: 6000
         });
         return;
       }
