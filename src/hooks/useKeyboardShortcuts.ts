@@ -62,11 +62,6 @@ export const useGlobalShortcuts = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
 
-  // Only enable shortcuts for authenticated admin users
-  if (!isAdmin) {
-    return;
-  }
-
   const shortcuts: KeyboardShortcut[] = [
     // Customer navigation
     {
@@ -171,5 +166,5 @@ export const useGlobalShortcuts = () => {
     },
   ];
 
-  useKeyboardShortcuts({ shortcuts });
+  useKeyboardShortcuts({ shortcuts, enabled: isAdmin });
 };
