@@ -5,10 +5,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/useAdmin';
 import { MessageCircle } from 'lucide-react';
 
-console.log('🔔 ChatNotifications MODULE LOADED');
+console.log('🔔 ChatNotifications MODULE LOADED - v2');
 
 export const ChatNotifications = () => {
-  console.log('🔔 ChatNotifications component rendered');
+  console.log('🔔 ChatNotifications RENDERED - v2');
   
   const { toast } = useToast();
   const { isAdmin } = useAdmin();
