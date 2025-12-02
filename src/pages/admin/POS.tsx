@@ -2985,6 +2985,13 @@ export default function POS() {
       shortcut: null
     },
     { 
+      icon: MessageCircle, 
+      label: 'Live Chat', 
+      color: 'bg-[#10B981]', 
+      action: () => navigate('/admin/live-chat'),
+      shortcut: null
+    },
+    { 
       icon: LogOut, 
       label: 'Logout', 
       color: 'bg-[#EF4444]', 

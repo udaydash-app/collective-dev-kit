@@ -5,38 +5,42 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/useAdmin';
 import { MessageCircle } from 'lucide-react';
 
-console.log('🔔 ChatNotifications MODULE LOADED - v2');
-
 export const ChatNotifications = () => {
-  console.log('🔔 ChatNotifications RENDERED - v2');
-  
   const { toast } = useToast();
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
 
-  console.log('🔔 ChatNotifications hook values:', { isAdmin });
-
   useEffect(() => {
     if (!isAdmin) {
-      console.log('🔔 Not admin, skipping');
       return;
     }
 
-    console.log('🔔 Setting up realtime subscription for chat messages');
+    console.log('🔔 ChatNotifications: Setting up realtime subscription');
 
     const channel = supabase
-      .channel('admin_chat_notifications')
+      .channel('chat_messages_notifications')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages',
-          filter: 'sender_type=eq.customer'
+          table: 'chat_messages'
         },
         async (payload) => {
-          console.log('🔔 New message received!', payload);
-          const message = payload.new;
+          console.log('🔔 ChatNotifications: Message received', payload);
+          const message = payload.new as { 
+            conversation_id: string; 
+            sender_type: string; 
+            message: string;
+          };
+          
+          // Filter for customer messages only
+          if (message.sender_type !== 'customer') {
+            console.log('🔔 ChatNotifications: Ignoring non-customer message');
+            return;
+          }
+
+          console.log('🔔 ChatNotifications: Processing customer message');
           
           const { data: conversation } = await supabase
             .from('chat_conversations')
@@ -44,8 +48,7 @@ export const ChatNotifications = () => {
             .eq('id', message.conversation_id)
             .single();
 
-          console.log('🔔 Conversation data:', conversation);
-          console.log('🔔 Showing toast notification');
+          console.log('🔔 ChatNotifications: Showing toast notification');
 
           toast({
             title: "New Chat Message",
@@ -61,18 +64,21 @@ export const ChatNotifications = () => {
             ),
           });
 
+          // Play notification sound
           try {
             const audio = new Audio('/notification.mp3');
             audio.play().catch(() => {});
-          } catch (e) {}
+          } catch (e) {
+            // Ignore audio errors
+          }
         }
       )
       .subscribe((status) => {
-        console.log('🔔 Subscription status:', status);
+        console.log('🔔 ChatNotifications: Subscription status:', status);
       });
 
     return () => {
-      console.log('🔔 Cleaning up subscription');
+      console.log('🔔 ChatNotifications: Cleaning up subscription');
       supabase.removeChannel(channel);
     };
   }, [isAdmin, toast, navigate]);
