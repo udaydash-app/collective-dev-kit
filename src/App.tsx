@@ -121,10 +121,10 @@ const AppContent = () => {
       <Sonner />
       <OrderStatusNotifications />
       <KeyboardShortcutsDialog />
-      <ChatWidget />
       <Router>
         <RouterContent />
         <ChatNotifications />
+        <ChatWidget />
         <Routes>
           {/* Root shows customer home page */}
           <Route path="/" element={<Home />} />
