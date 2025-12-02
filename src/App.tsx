@@ -81,6 +81,9 @@ import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDi
 import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAdminShortcuts } from "./hooks/useAdminShortcuts";
 import PWAInstall from "./pages/PWAInstall";
+import AdminLiveChat from "./pages/admin/LiveChat";
+import { ChatWidget } from "./components/chat/ChatWidget";
+import { AdminChatNotifications } from "./components/chat/AdminChatNotifications";
 
 const queryClient = new QueryClient();
 
@@ -117,7 +120,9 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <OrderStatusNotifications />
+      <AdminChatNotifications />
       <KeyboardShortcutsDialog />
+      <ChatWidget />
       <Router>
         <RouterContent />
         <Routes>
@@ -180,6 +185,7 @@ const AppContent = () => {
           <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
           <Route path="/admin/barcode" element={<AdminRoute><AdminBarcode /></AdminRoute>} />
           <Route path="/admin/purchase-orders" element={<AdminRoute><AdminPurchaseOrders /></AdminRoute>} />
+          <Route path="/admin/live-chat" element={<AdminRoute><AdminLiveChat /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/cart" element={<Cart />} />
