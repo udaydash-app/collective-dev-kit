@@ -68,26 +68,6 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
       console.log('Keep product:', keepProduct.name, keepProduct.id, 'Stock:', keepProduct.stock_quantity);
       console.log('Merge products:', mergeProducts.map(p => ({ name: p.name, id: p.id, stock: p.stock_quantity })));
       
-      // Transfer inventory layers from merged products to kept product
-      for (const product of mergeProducts) {
-        console.log(`Transferring layers from ${product.name} (${product.id}) to ${keepProduct.name}`);
-        const { error: layerError } = await supabase
-          .from('inventory_layers')
-          .update({ product_id: keepProduct.id })
-          .eq('product_id', product.id);
-
-        if (layerError) console.error('Error transferring inventory layers:', layerError);
-      }
-
-      // Check layers after transfer
-      const { data: layersCheck } = await supabase
-        .from('inventory_layers')
-        .select('quantity_remaining')
-        .eq('product_id', keepProduct.id);
-      
-      const layerTotal = layersCheck?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
-      console.log('Total from layers after transfer:', layerTotal);
-
       // Handle variants based on user selection
       if (hasVariants && selectedVariantIds.length > 0) {
         // Before transferring, check for duplicates and merge them
@@ -106,12 +86,6 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
             // Merge with existing variant instead of transferring
             const existingVariant = existingVariants[0];
             const newStock = (existingVariant.stock_quantity || 0) + (variant.stock_quantity || 0);
-
-            // Transfer inventory layers
-            await supabase
-              .from('inventory_layers')
-              .update({ variant_id: existingVariant.id })
-              .eq('variant_id', variantId);
 
             // Update stock
             await supabase
@@ -225,21 +199,9 @@ export function MergeProductsDialog({ open, onOpenChange, products, onSuccess }:
 
       if (deleteError) throw deleteError;
 
-      // Get final layer total before stock update
-      const { data: finalLayers } = await supabase
-        .from('inventory_layers')
-        .select('quantity_remaining')
-        .eq('product_id', keepProduct.id);
-
-      const layerStock = finalLayers?.reduce((sum, layer) => sum + (layer.quantity_remaining || 0), 0) || 0;
-      console.log('Final stock from layers:', layerStock);
-
-      // If no layers exist, sum the stock_quantity from all original products
-      let finalStock = layerStock;
-      if (layerStock === 0) {
-        finalStock = keepProduct.stock_quantity + mergeProducts.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
-        console.log('No layers found, using direct stock sum:', finalStock);
-      }
+      // Calculate final stock by summing all original products' stock_quantity
+      const finalStock = keepProduct.stock_quantity + mergeProducts.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
+      console.log('Final stock sum:', finalStock);
 
       // Update stock directly
       const { error: updateError } = await supabase

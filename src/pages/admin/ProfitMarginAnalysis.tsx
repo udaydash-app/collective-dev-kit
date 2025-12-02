@@ -200,7 +200,7 @@ export default function ProfitMarginAnalysis() {
           <div>
             <h1 className="text-3xl font-bold">Profit Margin Analysis</h1>
             <p className="text-muted-foreground">
-              Analyze gross profit margins using actual FIFO costs
+              Analyze gross profit margins using product cost prices
             </p>
           </div>
           <ReturnToPOSButton />

@@ -46,16 +46,10 @@ Deno.serve(async (req) => {
 
       console.log(`Found ${group.length} duplicates for ${key}:`, group.map(v => v.id))
 
-      // Sum up stock quantities and merge inventory layers
+      // Sum up stock quantities
       let totalStock = keepVariant.stock_quantity || 0
       for (const dup of duplicates) {
         totalStock += dup.stock_quantity || 0
-
-        // Transfer inventory layers
-        await supabaseClient
-          .from('inventory_layers')
-          .update({ variant_id: keepVariant.id })
-          .eq('variant_id', dup.id)
 
         // Update references in other tables
         await supabaseClient

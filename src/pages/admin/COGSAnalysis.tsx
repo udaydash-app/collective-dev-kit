@@ -67,7 +67,7 @@ export default function COGSAnalysis() {
 
       // Get all sales for these products in the date range
       for (const product of products || []) {
-        // This is a simplified version - in production you'd want to track actual COGS from inventory_layers
+        // COGS is calculated using the product's cost_price
         const key = `${product.id}`;
         
         productStats[key] = {
@@ -115,7 +115,7 @@ export default function COGSAnalysis() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">COGS Analysis</h1>
-          <p className="text-muted-foreground">FIFO-based cost tracking (coming soon with transaction data)</p>
+          <p className="text-muted-foreground">Cost of goods sold tracking and analysis</p>
         </div>
         <ReturnToPOSButton />
       </div>
@@ -209,8 +209,8 @@ export default function COGSAnalysis() {
         </CardHeader>
         <CardContent>
           <p className="text-center text-muted-foreground py-8">
-            This report analyzes Cost of Goods Sold and gross profit margins using FIFO inventory layers.
-            Start making sales with the new FIFO system to see detailed profit analysis here.
+            This report analyzes Cost of Goods Sold and gross profit margins using product cost prices.
+            Start making sales to see detailed profit analysis here.
           </p>
         </CardContent>
       </Card>

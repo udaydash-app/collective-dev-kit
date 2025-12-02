@@ -129,7 +129,7 @@ export default function StockAdjustment() {
         }
       }
 
-      // Log the adjustment with FIFO tracking
+      // Log the adjustment
       console.log('Inserting stock adjustment log...');
       const { data: logData, error: logError } = await supabase
         .from('stock_adjustments')
@@ -714,7 +714,7 @@ export default function StockAdjustment() {
                               {suggested && (
                                 <span 
                                   className="text-xs text-muted-foreground"
-                                  title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'} | FIFO: ${suggested.next_fifo_cost ? formatCurrency(suggested.next_fifo_cost) : 'N/A'}`}
+                                  title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'}`}
                                 >
                                   FCFA
                                 </span>
@@ -874,7 +874,7 @@ export default function StockAdjustment() {
                                 {suggested && (
                                   <span 
                                     className="text-xs text-muted-foreground"
-                                    title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'} | FIFO: ${suggested.next_fifo_cost ? formatCurrency(suggested.next_fifo_cost) : 'N/A'}`}
+                                    title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'}`}
                                   >
                                     FCFA
                                   </span>
