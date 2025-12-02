@@ -12,6 +12,7 @@ export const useAdminShortcuts = () => {
     if (!isAdmin) {
       return;
     }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in input fields
       const target = e.target as HTMLElement;
