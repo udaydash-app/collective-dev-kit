@@ -83,7 +83,7 @@ import { useAdminShortcuts } from "./hooks/useAdminShortcuts";
 import PWAInstall from "./pages/PWAInstall";
 import AdminLiveChat from "./pages/admin/LiveChat";
 import { ChatWidget } from "./components/chat/ChatWidget";
-import { AdminChatNotifications } from "./components/chat/AdminChatNotifications";
+import { ChatNotifications } from "./components/chat/ChatNotifications";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +105,7 @@ const RouterContent = () => {
 const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
-
+  
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
     typeof window !== 'undefined' && (window as any).electron?.isElectron === true, 
@@ -124,7 +124,7 @@ const AppContent = () => {
       <ChatWidget />
       <Router>
         <RouterContent />
-        <AdminChatNotifications />
+        <ChatNotifications />
         <Routes>
           {/* Root shows customer home page */}
           <Route path="/" element={<Home />} />
