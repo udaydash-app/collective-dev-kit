@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 interface FixedHorizontalScrollProps {
@@ -8,11 +8,7 @@ interface FixedHorizontalScrollProps {
 
 export function FixedHorizontalScroll({ children, className = "" }: FixedHorizontalScrollProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const scrollbarRef = useRef<HTMLDivElement>(null);
-  const scrollThumbRef = useRef<HTMLDivElement>(null);
-  const [scrollWidth, setScrollWidth] = useState(0);
-  const [clientWidth, setClientWidth] = useState(0);
-  const [showScrollbar, setShowScrollbar] = useState(false);
+  const [scrollInfo, setScrollInfo] = useState({ scrollWidth: 0, clientWidth: 0, scrollLeft: 0 });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -20,70 +16,67 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     return () => setMounted(false);
   }, []);
 
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (contentRef.current) {
-        const sw = contentRef.current.scrollWidth;
-        const cw = contentRef.current.clientWidth;
-        setScrollWidth(sw);
-        setClientWidth(cw);
-        setShowScrollbar(sw > cw);
-      }
-    };
+  const updateScrollInfo = useCallback(() => {
+    if (contentRef.current) {
+      setScrollInfo({
+        scrollWidth: contentRef.current.scrollWidth,
+        clientWidth: contentRef.current.clientWidth,
+        scrollLeft: contentRef.current.scrollLeft,
+      });
+    }
+  }, []);
 
-    updateDimensions();
+  useEffect(() => {
+    updateScrollInfo();
     
-    // Small delay to ensure content is rendered
-    const timeoutId = setTimeout(updateDimensions, 100);
+    const timer = setTimeout(updateScrollInfo, 200);
+    const timer2 = setTimeout(updateScrollInfo, 500);
     
-    const resizeObserver = new ResizeObserver(updateDimensions);
+    const resizeObserver = new ResizeObserver(updateScrollInfo);
     if (contentRef.current) {
       resizeObserver.observe(contentRef.current);
     }
 
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener('resize', updateScrollInfo);
     
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timer);
+      clearTimeout(timer2);
       resizeObserver.disconnect();
-      window.removeEventListener('resize', updateDimensions);
+      window.removeEventListener('resize', updateScrollInfo);
     };
-  }, [children]);
+  }, [updateScrollInfo, children]);
 
-  // Sync scroll positions
   const handleContentScroll = () => {
-    if (contentRef.current && scrollThumbRef.current && scrollbarRef.current) {
-      const scrollPercent = contentRef.current.scrollLeft / (scrollWidth - clientWidth);
-      const thumbWidth = (clientWidth / scrollWidth) * scrollbarRef.current.clientWidth;
-      const maxThumbLeft = scrollbarRef.current.clientWidth - thumbWidth;
-      scrollThumbRef.current.style.transform = `translateX(${scrollPercent * maxThumbLeft}px)`;
+    if (contentRef.current) {
+      setScrollInfo(prev => ({
+        ...prev,
+        scrollLeft: contentRef.current?.scrollLeft || 0,
+      }));
     }
   };
 
   const handleScrollbarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (scrollbarRef.current && contentRef.current && scrollThumbRef.current) {
-      const rect = scrollbarRef.current.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const thumbWidth = (clientWidth / scrollWidth) * rect.width;
-      const scrollableTrack = rect.width - thumbWidth;
-      const clickPercent = Math.max(0, Math.min(1, (clickX - thumbWidth / 2) / scrollableTrack));
-      contentRef.current.scrollLeft = clickPercent * (scrollWidth - clientWidth);
-    }
+    if (!contentRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickPercent = clickX / rect.width;
+    const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
+    contentRef.current.scrollLeft = clickPercent * maxScroll;
   };
 
-  // Handle thumb dragging
   const handleThumbMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const startX = e.clientX;
     const startScrollLeft = contentRef.current?.scrollLeft || 0;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!contentRef.current || !scrollbarRef.current) return;
+      if (!contentRef.current) return;
       const deltaX = moveEvent.clientX - startX;
-      const trackWidth = scrollbarRef.current.clientWidth;
-      const thumbWidth = (clientWidth / scrollWidth) * trackWidth;
-      const scrollableTrack = trackWidth - thumbWidth;
-      const scrollDelta = (deltaX / scrollableTrack) * (scrollWidth - clientWidth);
+      const trackWidth = window.innerWidth - 32; // Account for mx-4
+      const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
+      const scrollDelta = (deltaX / trackWidth) * maxScroll;
       contentRef.current.scrollLeft = startScrollLeft + scrollDelta;
     };
 
@@ -96,36 +89,52 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const thumbWidth = scrollWidth > 0 ? (clientWidth / scrollWidth) * 100 : 0;
-
-  const scrollbarElement = showScrollbar && mounted ? createPortal(
-    <div
-      ref={scrollbarRef}
-      onClick={handleScrollbarClick}
-      className="fixed left-4 right-4 h-3 bg-muted/90 backdrop-blur-sm cursor-pointer rounded-full shadow-lg border border-border/50"
-      style={{ bottom: '70px', zIndex: 9999 }}
-    >
-      <div
-        ref={scrollThumbRef}
-        onMouseDown={handleThumbMouseDown}
-        className="h-full bg-primary/60 hover:bg-primary/80 rounded-full cursor-grab active:cursor-grabbing transition-colors"
-        style={{ width: `${thumbWidth}%` }}
-      />
-    </div>,
-    document.body
-  ) : null;
+  const showScrollbar = scrollInfo.scrollWidth > scrollInfo.clientWidth;
+  const thumbWidthPercent = scrollInfo.scrollWidth > 0 
+    ? (scrollInfo.clientWidth / scrollInfo.scrollWidth) * 100 
+    : 100;
+  const thumbLeftPercent = scrollInfo.scrollWidth > scrollInfo.clientWidth
+    ? (scrollInfo.scrollLeft / (scrollInfo.scrollWidth - scrollInfo.clientWidth)) * (100 - thumbWidthPercent)
+    : 0;
 
   return (
-    <div className={className}>
-      <div
-        ref={contentRef}
-        onScroll={handleContentScroll}
-        className="overflow-x-auto scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {children}
+    <>
+      <div className={className}>
+        <div
+          ref={contentRef}
+          onScroll={handleContentScroll}
+          className="overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <style>{`.overflow-x-auto::-webkit-scrollbar { display: none; }`}</style>
+          {children}
+        </div>
       </div>
-      {scrollbarElement}
-    </div>
+      
+      {mounted && showScrollbar && createPortal(
+        <div
+          onClick={handleScrollbarClick}
+          className="fixed left-4 right-4 h-3 rounded-full cursor-pointer"
+          style={{ 
+            bottom: '72px', 
+            zIndex: 99999,
+            backgroundColor: 'hsl(var(--muted))',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+          }}
+        >
+          <div
+            onMouseDown={handleThumbMouseDown}
+            className="h-full rounded-full cursor-grab active:cursor-grabbing"
+            style={{ 
+              width: `${thumbWidthPercent}%`,
+              marginLeft: `${thumbLeftPercent}%`,
+              backgroundColor: 'hsl(var(--primary))',
+              opacity: 0.7,
+            }}
+          />
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
