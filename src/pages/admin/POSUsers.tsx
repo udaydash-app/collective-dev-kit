@@ -319,7 +319,7 @@ export default function POSUsers() {
           {isLoading ? (
             <p>Loading users...</p>
           ) : (
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

@@ -387,7 +387,7 @@ export default function StockAndPrice() {
       {/* Products Display */}
       {viewMode === 'list' ? (
         <Card>
-          <Table>
+          <Table fixedScroll>
             <TableHeader>
               <TableRow>
                 <TableHead>Product Name</TableHead>

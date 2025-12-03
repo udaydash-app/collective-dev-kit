@@ -739,7 +739,7 @@ export default function JournalEntries() {
 
       {/* Entries List */}
       <Card>
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>Entry #</TableHead>

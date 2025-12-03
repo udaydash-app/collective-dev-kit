@@ -145,7 +145,7 @@ export default function PurchaseOrders() {
       </Card>
 
       <Card>
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>

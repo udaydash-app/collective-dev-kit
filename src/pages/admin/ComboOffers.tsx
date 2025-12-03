@@ -153,7 +153,7 @@ export default function ComboOffers() {
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
           ) : combos && combos.length > 0 ? (
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

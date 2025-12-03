@@ -583,8 +583,7 @@ export default function StockAdjustment() {
             <CardTitle>Products ({filteredProducts?.length || 0})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
+            <Table fixedScroll>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="h-10 text-left">Product Name</TableHead>
@@ -906,7 +905,6 @@ export default function StockAdjustment() {
                   })}
                 </TableBody>
               </Table>
-            </div>
           </CardContent>
         </Card>
       )}

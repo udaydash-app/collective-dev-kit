@@ -374,7 +374,7 @@ export default function Expenses() {
             ) : !expenses || expenses.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No expenses recorded yet</p>
             ) : (
-              <Table>
+              <Table fixedScroll>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>

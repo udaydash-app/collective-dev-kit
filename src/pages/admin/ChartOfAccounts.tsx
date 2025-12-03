@@ -489,7 +489,7 @@ export default function ChartOfAccounts() {
 
       {/* Accounts Table */}
       <Card>
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12"></TableHead>

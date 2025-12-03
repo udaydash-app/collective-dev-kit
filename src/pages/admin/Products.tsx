@@ -1506,7 +1506,7 @@ export default function Products() {
         {/* Products Display - Table or Grid */}
         {viewMode === "list" ? (
           <Card className="shadow-sm">
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10 h-9">

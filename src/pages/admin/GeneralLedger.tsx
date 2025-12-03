@@ -1005,7 +1005,7 @@ export default function GeneralLedger() {
       {/* Ledger Entries */}
       {selectedAccount ? (
         <Card>
-          <Table>
+          <Table fixedScroll>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
