@@ -18,26 +18,36 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
 
   const updateScrollInfo = useCallback(() => {
     if (contentRef.current) {
-      const info = {
-        scrollWidth: contentRef.current.scrollWidth,
-        clientWidth: contentRef.current.clientWidth,
-        scrollLeft: contentRef.current.scrollLeft,
-      };
-      console.log('📏 Scroll info:', info, 'overflow:', info.scrollWidth > info.clientWidth);
-      setScrollInfo(info);
+      // Get the actual table element inside
+      const table = contentRef.current.querySelector('table');
+      const scrollContainer = contentRef.current;
+      
+      const sw = table ? table.scrollWidth : scrollContainer.scrollWidth;
+      const cw = scrollContainer.clientWidth;
+      
+      setScrollInfo(prev => ({
+        scrollWidth: sw,
+        clientWidth: cw,
+        scrollLeft: prev.scrollLeft,
+      }));
     }
   }, []);
 
   useEffect(() => {
     updateScrollInfo();
     
-    const timer = setTimeout(updateScrollInfo, 200);
-    const timer2 = setTimeout(updateScrollInfo, 500);
-    const timer3 = setTimeout(updateScrollInfo, 1000);
+    const timer = setTimeout(updateScrollInfo, 100);
+    const timer2 = setTimeout(updateScrollInfo, 300);
+    const timer3 = setTimeout(updateScrollInfo, 600);
     
     const resizeObserver = new ResizeObserver(updateScrollInfo);
     if (contentRef.current) {
       resizeObserver.observe(contentRef.current);
+      // Also observe the table if it exists
+      const table = contentRef.current.querySelector('table');
+      if (table) {
+        resizeObserver.observe(table);
+      }
     }
 
     window.addEventListener('resize', updateScrollInfo);
@@ -60,28 +70,35 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     }
   };
 
+  const scrollTo = (scrollLeft: number) => {
+    if (contentRef.current) {
+      contentRef.current.scrollLeft = scrollLeft;
+      setScrollInfo(prev => ({ ...prev, scrollLeft }));
+    }
+  };
+
   const handleScrollbarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!contentRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickPercent = clickX / rect.width;
     const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
-    contentRef.current.scrollLeft = clickPercent * maxScroll;
+    scrollTo(clickPercent * maxScroll);
   };
 
   const handleThumbMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
-    const startScrollLeft = contentRef.current?.scrollLeft || 0;
+    const startScrollLeft = scrollInfo.scrollLeft;
+    const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!contentRef.current) return;
       const deltaX = moveEvent.clientX - startX;
       const trackWidth = window.innerWidth - 32;
-      const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
-      const scrollDelta = (deltaX / trackWidth) * maxScroll;
-      contentRef.current.scrollLeft = startScrollLeft + scrollDelta;
+      const thumbWidth = (scrollInfo.clientWidth / scrollInfo.scrollWidth) * trackWidth;
+      const scrollableTrack = trackWidth - thumbWidth;
+      const scrollDelta = (deltaX / scrollableTrack) * maxScroll;
+      scrollTo(Math.max(0, Math.min(maxScroll, startScrollLeft + scrollDelta)));
     };
 
     const handleMouseUp = () => {
@@ -93,15 +110,14 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const showScrollbar = scrollInfo.scrollWidth > scrollInfo.clientWidth;
+  const showScrollbar = scrollInfo.scrollWidth > scrollInfo.clientWidth + 10; // 10px threshold
   const thumbWidthPercent = scrollInfo.scrollWidth > 0 
-    ? (scrollInfo.clientWidth / scrollInfo.scrollWidth) * 100 
+    ? Math.max(10, (scrollInfo.clientWidth / scrollInfo.scrollWidth) * 100)
     : 100;
-  const thumbLeftPercent = scrollInfo.scrollWidth > scrollInfo.clientWidth
-    ? (scrollInfo.scrollLeft / (scrollInfo.scrollWidth - scrollInfo.clientWidth)) * (100 - thumbWidthPercent)
+  const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
+  const thumbLeftPercent = maxScroll > 0
+    ? (scrollInfo.scrollLeft / maxScroll) * (100 - thumbWidthPercent)
     : 0;
-
-  console.log('🎯 Fixed scrollbar render:', { mounted, showScrollbar, thumbWidthPercent });
 
   return (
     <>
@@ -113,7 +129,6 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
           style={{ 
             scrollbarWidth: 'none', 
             msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch',
           }}
         >
           {children}
@@ -129,12 +144,12 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
             bottom: '72px', 
             left: '16px',
             right: '16px',
-            height: '12px',
+            height: '14px',
             zIndex: 99999,
-            backgroundColor: '#e5e7eb',
-            borderRadius: '6px',
+            backgroundColor: '#d1d5db',
+            borderRadius: '7px',
             cursor: 'pointer',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.15)',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.2)',
           }}
         >
           <div
@@ -144,8 +159,9 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
               width: `${thumbWidthPercent}%`,
               marginLeft: `${thumbLeftPercent}%`,
               backgroundColor: '#22c55e',
-              borderRadius: '6px',
+              borderRadius: '7px',
               cursor: 'grab',
+              transition: 'margin-left 0.05s ease-out',
             }}
           />
         </div>,
