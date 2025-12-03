@@ -86,6 +86,9 @@ export default function TrialBalance() {
         (acc) => acc.debit_balance !== 0 || acc.credit_balance !== 0
       );
 
+      // For trial balance, accounts with contra balances should show on opposite side
+      // Assets/Expenses normally have debit balances, Liabilities/Equity/Revenue have credit balances
+      // If an account has a balance on the "wrong" side, it stays there (shows where balance actually is)
       const groupedAccounts = {
         asset: activeAccounts.filter((a) => a.account_type === 'asset'),
         liability: activeAccounts.filter((a) => a.account_type === 'liability'),

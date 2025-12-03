@@ -136,11 +136,17 @@ export default function ProfitLoss() {
       const totalOtherExpenses = otherExpenses.reduce((sum, a) => sum + a.balance, 0);
 
       // Trading Account Calculations
-      // Dr Side: Opening Stock + Purchases - Returns + Direct Expenses + Gross Profit
-      // Cr Side: Sales - Returns + Closing Stock
-      const tradingDrTotal = openingStock + totalPurchases - purchaseReturns + totalDirectExpenses;
-      const tradingCrTotal = netSales + closingStock;
-      const grossProfit = tradingCrTotal - tradingDrTotal;
+      // Dr Side: Opening Stock + Purchases - Returns + Direct Expenses + Gross Profit (if profit)
+      // Cr Side: Sales - Returns - Discounts + Closing Stock + Gross Loss (if loss)
+      // Handle negative stock values: they move to opposite side
+      const drOpeningStock = Math.max(0, openingStock);
+      const crOpeningStock = Math.max(0, -openingStock); // Negative opening stock goes to Cr
+      const drClosingStock = Math.max(0, -closingStock); // Negative closing stock goes to Dr
+      const crClosingStock = Math.max(0, closingStock);
+      
+      const tradingDrBase = drOpeningStock + totalPurchases - purchaseReturns + totalDirectExpenses + drClosingStock;
+      const tradingCrBase = netSales + crClosingStock + crOpeningStock;
+      const grossProfit = tradingCrBase - tradingDrBase;
 
       // P&L Account Calculations
       const totalOperatingExpenses = totalAdminExpenses + totalSellingExpenses + totalOtherExpenses;
@@ -159,8 +165,8 @@ export default function ProfitLoss() {
         netSales,
         closingStock,
         grossProfit,
-        tradingDrTotal: tradingDrTotal + (grossProfit > 0 ? grossProfit : 0),
-        tradingCrTotal: tradingCrTotal + (grossProfit < 0 ? Math.abs(grossProfit) : 0),
+        tradingDrTotal: tradingDrBase + (grossProfit > 0 ? grossProfit : 0),
+        tradingCrTotal: tradingCrBase + (grossProfit < 0 ? Math.abs(grossProfit) : 0),
         // P&L Account
         adminExpenses,
         sellingExpenses,
@@ -283,7 +289,9 @@ export default function ProfitLoss() {
                         </TableRow>
                         <TableRow>
                           <TableCell>To Opening Stock</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(plData.openingStock)}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {plData.openingStock >= 0 ? formatCurrency(plData.openingStock) : '-'}
+                          </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell>To Purchases</TableCell>
@@ -301,6 +309,13 @@ export default function ProfitLoss() {
                             <TableCell className="text-right font-mono">{formatCurrency(exp.balance)}</TableCell>
                           </TableRow>
                         ))}
+                        {/* Negative Closing Stock appears on Dr side */}
+                        {plData.closingStock < 0 && (
+                          <TableRow className="bg-red-50 dark:bg-red-950/30">
+                            <TableCell className="text-red-600">To Stock Deficit (Negative Closing)</TableCell>
+                            <TableCell className="text-right font-mono text-red-600">{formatCurrency(Math.abs(plData.closingStock))}</TableCell>
+                          </TableRow>
+                        )}
                         {plData.grossProfit > 0 && (
                           <TableRow className="bg-green-50 dark:bg-green-950/30">
                             <TableCell className="font-bold text-green-700">To Gross Profit c/d</TableCell>
@@ -340,10 +355,20 @@ export default function ProfitLoss() {
                             <TableCell className="text-right font-mono text-red-600">({formatCurrency(plData.salesDiscounts)})</TableCell>
                           </TableRow>
                         )}
-                        <TableRow>
-                          <TableCell>By Closing Stock</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(plData.closingStock)}</TableCell>
-                        </TableRow>
+                        {/* Positive Closing Stock on Cr side */}
+                        {plData.closingStock >= 0 && (
+                          <TableRow>
+                            <TableCell>By Closing Stock</TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(plData.closingStock)}</TableCell>
+                          </TableRow>
+                        )}
+                        {/* Negative Opening Stock appears on Cr side */}
+                        {plData.openingStock < 0 && (
+                          <TableRow className="bg-amber-50 dark:bg-amber-950/30">
+                            <TableCell className="text-amber-700">By Stock Surplus (Negative Opening)</TableCell>
+                            <TableCell className="text-right font-mono text-amber-700">{formatCurrency(Math.abs(plData.openingStock))}</TableCell>
+                          </TableRow>
+                        )}
                         {plData.grossProfit < 0 && (
                           <TableRow className="bg-red-50 dark:bg-red-950/30">
                             <TableCell className="font-bold text-red-700">By Gross Loss c/d</TableCell>

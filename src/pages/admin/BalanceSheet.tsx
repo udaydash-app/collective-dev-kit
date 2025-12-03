@@ -62,90 +62,187 @@ export default function BalanceSheet() {
 
       const activeAccounts = accountsWithBalances.filter((acc) => acc !== null && acc.balance !== 0);
 
-      // Categorize assets
-      const currentAssets = activeAccounts.filter((a) => 
+      // Categorize assets - positive balance assets stay on asset side
+      // Negative balance assets move to liability side
+      const currentAssetsPositive = activeAccounts.filter((a) => 
         a.account_type === 'asset' && 
-        (a.account_code?.startsWith('10') || a.account_code?.startsWith('11'))
+        (a.account_code?.startsWith('10') || a.account_code?.startsWith('11')) &&
+        a.balance > 0
       );
-      const fixedAssets = activeAccounts.filter((a) => 
+      const currentAssetsNegative = activeAccounts.filter((a) => 
         a.account_type === 'asset' && 
-        (a.account_code?.startsWith('12') || a.account_code?.startsWith('15'))
+        (a.account_code?.startsWith('10') || a.account_code?.startsWith('11')) &&
+        a.balance < 0
       );
-      const otherAssets = activeAccounts.filter((a) => 
+      const fixedAssetsPositive = activeAccounts.filter((a) => 
         a.account_type === 'asset' && 
-        !currentAssets.includes(a) && !fixedAssets.includes(a)
+        (a.account_code?.startsWith('12') || a.account_code?.startsWith('15')) &&
+        a.balance > 0
+      );
+      const fixedAssetsNegative = activeAccounts.filter((a) => 
+        a.account_type === 'asset' && 
+        (a.account_code?.startsWith('12') || a.account_code?.startsWith('15')) &&
+        a.balance < 0
+      );
+      const otherAssetsPositive = activeAccounts.filter((a) => 
+        a.account_type === 'asset' && 
+        !a.account_code?.startsWith('10') && !a.account_code?.startsWith('11') &&
+        !a.account_code?.startsWith('12') && !a.account_code?.startsWith('15') &&
+        a.balance > 0
+      );
+      const otherAssetsNegative = activeAccounts.filter((a) => 
+        a.account_type === 'asset' && 
+        !a.account_code?.startsWith('10') && !a.account_code?.startsWith('11') &&
+        !a.account_code?.startsWith('12') && !a.account_code?.startsWith('15') &&
+        a.balance < 0
       );
 
-      // Categorize liabilities
-      const currentLiabilities = activeAccounts.filter((a) => 
+      // Categorize liabilities - positive balance liabilities stay on liability side
+      // Negative balance liabilities move to asset side
+      const currentLiabilitiesPositive = activeAccounts.filter((a) => 
         a.account_type === 'liability' && 
-        (a.account_code?.startsWith('20') || a.account_code?.startsWith('21'))
+        (a.account_code?.startsWith('20') || a.account_code?.startsWith('21')) &&
+        a.balance > 0
       );
-      const longTermLiabilities = activeAccounts.filter((a) => 
+      const currentLiabilitiesNegative = activeAccounts.filter((a) => 
         a.account_type === 'liability' && 
-        (a.account_code?.startsWith('22') || a.account_code?.startsWith('25'))
+        (a.account_code?.startsWith('20') || a.account_code?.startsWith('21')) &&
+        a.balance < 0
       );
-      const otherLiabilities = activeAccounts.filter((a) => 
+      const longTermLiabilitiesPositive = activeAccounts.filter((a) => 
         a.account_type === 'liability' && 
-        !currentLiabilities.includes(a) && !longTermLiabilities.includes(a)
+        (a.account_code?.startsWith('22') || a.account_code?.startsWith('25')) &&
+        a.balance > 0
+      );
+      const longTermLiabilitiesNegative = activeAccounts.filter((a) => 
+        a.account_type === 'liability' && 
+        (a.account_code?.startsWith('22') || a.account_code?.startsWith('25')) &&
+        a.balance < 0
+      );
+      const otherLiabilitiesPositive = activeAccounts.filter((a) => 
+        a.account_type === 'liability' && 
+        !a.account_code?.startsWith('20') && !a.account_code?.startsWith('21') &&
+        !a.account_code?.startsWith('22') && !a.account_code?.startsWith('25') &&
+        a.balance > 0
+      );
+      const otherLiabilitiesNegative = activeAccounts.filter((a) => 
+        a.account_type === 'liability' && 
+        !a.account_code?.startsWith('20') && !a.account_code?.startsWith('21') &&
+        !a.account_code?.startsWith('22') && !a.account_code?.startsWith('25') &&
+        a.balance < 0
       );
 
-      // Categorize equity
-      const capitalAccounts = activeAccounts.filter((a) => 
+      // Categorize equity - positive balance equity stays on liability side
+      // Negative balance equity moves to asset side
+      const capitalAccountsPositive = activeAccounts.filter((a) => 
         a.account_type === 'equity' && 
-        (a.account_code?.startsWith('30') || a.account_code?.startsWith('31'))
+        (a.account_code?.startsWith('30') || a.account_code?.startsWith('31')) &&
+        a.balance > 0
       );
-      const reserveAccounts = activeAccounts.filter((a) => 
+      const capitalAccountsNegative = activeAccounts.filter((a) => 
         a.account_type === 'equity' && 
-        (a.account_code?.startsWith('32') || a.account_code?.startsWith('33'))
+        (a.account_code?.startsWith('30') || a.account_code?.startsWith('31')) &&
+        a.balance < 0
       );
-      const retainedEarnings = activeAccounts.filter((a) => 
+      const reserveAccountsPositive = activeAccounts.filter((a) => 
         a.account_type === 'equity' && 
-        !capitalAccounts.includes(a) && !reserveAccounts.includes(a)
+        (a.account_code?.startsWith('32') || a.account_code?.startsWith('33')) &&
+        a.balance > 0
+      );
+      const reserveAccountsNegative = activeAccounts.filter((a) => 
+        a.account_type === 'equity' && 
+        (a.account_code?.startsWith('32') || a.account_code?.startsWith('33')) &&
+        a.balance < 0
+      );
+      const retainedEarningsPositive = activeAccounts.filter((a) => 
+        a.account_type === 'equity' && 
+        !a.account_code?.startsWith('30') && !a.account_code?.startsWith('31') &&
+        !a.account_code?.startsWith('32') && !a.account_code?.startsWith('33') &&
+        a.balance > 0
+      );
+      const retainedEarningsNegative = activeAccounts.filter((a) => 
+        a.account_type === 'equity' && 
+        !a.account_code?.startsWith('30') && !a.account_code?.startsWith('31') &&
+        !a.account_code?.startsWith('32') && !a.account_code?.startsWith('33') &&
+        a.balance < 0
       );
 
-      const totalCurrentAssets = currentAssets.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalFixedAssets = fixedAssets.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalOtherAssets = otherAssets.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalAssets = totalCurrentAssets + totalFixedAssets + totalOtherAssets;
+      // Calculate totals - assets include positive assets + negative liabilities/equity (shown as positive)
+      const totalCurrentAssetsPositive = currentAssetsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalFixedAssetsPositive = fixedAssetsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalOtherAssetsPositive = otherAssetsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalNegativeLiabilitiesAsAssets = 
+        currentLiabilitiesNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        longTermLiabilitiesNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        otherLiabilitiesNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0);
+      const totalNegativeEquityAsAssets = 
+        capitalAccountsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        reserveAccountsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        retainedEarningsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0);
 
-      const totalCurrentLiabilities = currentLiabilities.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalLongTermLiabilities = longTermLiabilities.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalOtherLiabilities = otherLiabilities.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalLiabilities = totalCurrentLiabilities + totalLongTermLiabilities + totalOtherLiabilities;
+      const totalAssets = totalCurrentAssetsPositive + totalFixedAssetsPositive + totalOtherAssetsPositive + 
+                          totalNegativeLiabilitiesAsAssets + totalNegativeEquityAsAssets;
 
-      const totalCapital = capitalAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalReserves = reserveAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalRetainedEarnings = retainedEarnings.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalEquity = totalCapital + totalReserves + totalRetainedEarnings;
+      // Calculate liability/equity totals - include positive liabilities/equity + negative assets (shown as positive)
+      const totalCurrentLiabilitiesPositive = currentLiabilitiesPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalLongTermLiabilitiesPositive = longTermLiabilitiesPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalOtherLiabilitiesPositive = otherLiabilitiesPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalNegativeAssetsAsLiabilities = 
+        currentAssetsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        fixedAssetsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) +
+        otherAssetsNegative.reduce((sum, acc) => sum + Math.abs(acc.balance), 0);
+
+      const totalLiabilities = totalCurrentLiabilitiesPositive + totalLongTermLiabilitiesPositive + 
+                               totalOtherLiabilitiesPositive + totalNegativeAssetsAsLiabilities;
+
+      const totalCapitalPositive = capitalAccountsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalReservesPositive = reserveAccountsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalRetainedEarningsPositive = retainedEarningsPositive.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalEquity = totalCapitalPositive + totalReservesPositive + totalRetainedEarningsPositive;
 
       const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
       const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.01;
 
       return {
-        currentAssets,
-        fixedAssets,
-        otherAssets,
-        currentLiabilities,
-        longTermLiabilities,
-        otherLiabilities,
-        capitalAccounts,
-        reserveAccounts,
-        retainedEarnings,
-        totalCurrentAssets,
-        totalFixedAssets,
-        totalOtherAssets,
+        // Positive balance assets (shown on asset side)
+        currentAssets: currentAssetsPositive,
+        fixedAssets: fixedAssetsPositive,
+        otherAssets: otherAssetsPositive,
+        // Negative balance assets (shown on liability side)
+        negativeCurrentAssets: currentAssetsNegative,
+        negativeFixedAssets: fixedAssetsNegative,
+        negativeOtherAssets: otherAssetsNegative,
+        // Positive balance liabilities (shown on liability side)
+        currentLiabilities: currentLiabilitiesPositive,
+        longTermLiabilities: longTermLiabilitiesPositive,
+        otherLiabilities: otherLiabilitiesPositive,
+        // Negative balance liabilities (shown on asset side)
+        negativeLiabilities: [...currentLiabilitiesNegative, ...longTermLiabilitiesNegative, ...otherLiabilitiesNegative],
+        // Positive balance equity (shown on liability side)
+        capitalAccounts: capitalAccountsPositive,
+        reserveAccounts: reserveAccountsPositive,
+        retainedEarnings: retainedEarningsPositive,
+        // Negative balance equity (shown on asset side)
+        negativeEquity: [...capitalAccountsNegative, ...reserveAccountsNegative, ...retainedEarningsNegative],
+        // Totals
+        totalCurrentAssets: totalCurrentAssetsPositive,
+        totalFixedAssets: totalFixedAssetsPositive,
+        totalOtherAssets: totalOtherAssetsPositive,
         totalAssets,
-        totalCurrentLiabilities,
-        totalLongTermLiabilities,
-        totalOtherLiabilities,
+        totalCurrentLiabilities: totalCurrentLiabilitiesPositive,
+        totalLongTermLiabilities: totalLongTermLiabilitiesPositive,
+        totalOtherLiabilities: totalOtherLiabilitiesPositive,
         totalLiabilities,
-        totalCapital,
-        totalReserves,
-        totalRetainedEarnings,
+        totalCapital: totalCapitalPositive,
+        totalReserves: totalReservesPositive,
+        totalRetainedEarnings: totalRetainedEarningsPositive,
         totalEquity,
         totalLiabilitiesAndEquity,
         isBalanced,
+        // For display of negative items moved to opposite side
+        totalNegativeAssetsAsLiabilities,
+        totalNegativeLiabilitiesAsAssets,
+        totalNegativeEquityAsAssets,
       };
     },
   });
@@ -393,6 +490,37 @@ export default function BalanceSheet() {
                   </tr>
                 ))}
 
+                {/* Negative Assets shown on Liability side */}
+                {(balanceSheetData.negativeCurrentAssets?.length > 0 || 
+                  balanceSheetData.negativeFixedAssets?.length > 0 || 
+                  balanceSheetData.negativeOtherAssets?.length > 0) && (
+                  <>
+                    <tr className="bg-red-50 dark:bg-red-950/20">
+                      <td className="p-2 font-bold border-r border-border text-red-700 dark:text-red-400">
+                        Less: Contra Assets (Overdrawn)
+                      </td>
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2"></td>
+                    </tr>
+                    {[...(balanceSheetData.negativeCurrentAssets || []), 
+                      ...(balanceSheetData.negativeFixedAssets || []),
+                      ...(balanceSheetData.negativeOtherAssets || [])].map((acc) => (
+                      <tr key={`neg-asset-${acc.id}`} className="border-b border-border/30 bg-red-50/50 dark:bg-red-950/10">
+                        <td className="p-2 pl-6 border-r border-border">
+                          <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                          {acc.account_name}
+                        </td>
+                        <td className="p-2 text-right font-mono border-r border-border text-red-600">
+                          {formatCurrency(Math.abs(acc.balance))}
+                        </td>
+                        <td className="p-2 border-r border-border"></td>
+                        <td className="p-2"></td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+
                 {/* Current Assets on Right */}
                 {balanceSheetData.currentAssets.map((acc) => (
                   <tr key={`ca-${acc.id}`} className="border-b border-border/30">
@@ -423,15 +551,70 @@ export default function BalanceSheet() {
                   </tr>
                 ))}
 
+                {/* Negative Liabilities shown on Asset side */}
+                {balanceSheetData.negativeLiabilities?.length > 0 && (
+                  <>
+                    <tr className="bg-amber-50 dark:bg-amber-950/20">
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2 font-bold border-r border-border text-amber-700 dark:text-amber-400">
+                        Add: Prepaid/Advance (Negative Liabilities)
+                      </td>
+                      <td className="p-2"></td>
+                    </tr>
+                    {balanceSheetData.negativeLiabilities.map((acc) => (
+                      <tr key={`neg-liab-${acc.id}`} className="border-b border-border/30 bg-amber-50/50 dark:bg-amber-950/10">
+                        <td className="p-2 border-r border-border"></td>
+                        <td className="p-2 border-r border-border"></td>
+                        <td className="p-2 pl-6 border-r border-border">
+                          <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                          {acc.account_name}
+                        </td>
+                        <td className="p-2 text-right font-mono text-amber-600">
+                          {formatCurrency(Math.abs(acc.balance))}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+
+                {/* Negative Equity shown on Asset side */}
+                {balanceSheetData.negativeEquity?.length > 0 && (
+                  <>
+                    <tr className="bg-purple-50 dark:bg-purple-950/20">
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2 border-r border-border"></td>
+                      <td className="p-2 font-bold border-r border-border text-purple-700 dark:text-purple-400">
+                        Add: Capital Deficit
+                      </td>
+                      <td className="p-2"></td>
+                    </tr>
+                    {balanceSheetData.negativeEquity.map((acc) => (
+                      <tr key={`neg-eq-${acc.id}`} className="border-b border-border/30 bg-purple-50/50 dark:bg-purple-950/10">
+                        <td className="p-2 border-r border-border"></td>
+                        <td className="p-2 border-r border-border"></td>
+                        <td className="p-2 pl-6 border-r border-border">
+                          <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                          {acc.account_name}
+                        </td>
+                        <td className="p-2 text-right font-mono text-purple-600">
+                          {formatCurrency(Math.abs(acc.balance))}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+
                 {/* Subtotal for Liabilities / Current Assets */}
                 <tr className="bg-muted/20 font-semibold">
                   <td className="p-2 text-right border-r border-border">Total Liabilities</td>
                   <td className="p-2 text-right font-mono border-r border-border">
-                    {formatCurrency(balanceSheetData.totalLiabilities)}
+                    {formatCurrency(balanceSheetData.totalLiabilities + balanceSheetData.totalNegativeAssetsAsLiabilities)}
                   </td>
-                  <td className="p-2 text-right border-r border-border">Total Current Assets</td>
+                  <td className="p-2 text-right border-r border-border">Total Current & Other Assets</td>
                   <td className="p-2 text-right font-mono">
-                    {formatCurrency(balanceSheetData.totalCurrentAssets + balanceSheetData.totalOtherAssets)}
+                    {formatCurrency(balanceSheetData.totalCurrentAssets + balanceSheetData.totalOtherAssets + 
+                      balanceSheetData.totalNegativeLiabilitiesAsAssets + balanceSheetData.totalNegativeEquityAsAssets)}
                   </td>
                 </tr>
 
