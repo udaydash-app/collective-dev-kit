@@ -1438,7 +1438,7 @@ export default function AdminOrders() {
                 Loading orders...
               </div>
             ) : orders && orders.length > 0 ? (
-              <div className="sticky-scroll-x max-h-[calc(100vh-320px)] overflow-y-auto pb-4">
+              <div className="sticky-scroll-x pb-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
