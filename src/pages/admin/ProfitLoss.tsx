@@ -36,40 +36,76 @@ export default function ProfitLoss() {
 
       if (error) throw error;
 
-      // Fetch Inventory account for Purchases calculation
+      // Fetch Inventory account for stock calculations
       const { data: inventoryAccount } = await supabase
         .from('accounts')
         .select('*')
         .eq('account_code', '1020')
         .single();
 
-      // Get purchases (debits to Inventory account) within date range
+      // Calculate Opening Stock (Inventory balance before start date)
+      let openingStock = 0;
+      let closingStock = 0;
       let totalPurchases = 0;
+      let purchaseReturns = 0;
+
       if (inventoryAccount) {
-        const { data: inventoryLines } = await supabase
+        // Opening Stock: All transactions before start date
+        const { data: openingLines } = await supabase
           .from('journal_entry_lines')
           .select(`
             debit_amount,
             credit_amount,
-            journal_entries!inner (
-              status,
-              entry_date,
-              description
-            )
+            journal_entries!inner (status, entry_date)
+          `)
+          .eq('account_id', inventoryAccount.id)
+          .eq('journal_entries.status', 'posted')
+          .lt('journal_entries.entry_date', startDate);
+
+        if (openingLines) {
+          const totalDebits = openingLines.reduce((sum: number, line: any) => sum + (line.debit_amount || 0), 0);
+          const totalCredits = openingLines.reduce((sum: number, line: any) => sum + (line.credit_amount || 0), 0);
+          openingStock = totalDebits - totalCredits;
+        }
+
+        // Get all inventory movements within the period
+        const { data: periodLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (status, entry_date, description)
           `)
           .eq('account_id', inventoryAccount.id)
           .eq('journal_entries.status', 'posted')
           .gte('journal_entries.entry_date', startDate)
           .lte('journal_entries.entry_date', endDate);
 
-        if (inventoryLines) {
-          // Purchases are debits to inventory (excluding sales adjustments)
-          totalPurchases = inventoryLines
-            .filter((line: any) => !line.journal_entries?.description?.includes('POS Sale'))
+        if (periodLines) {
+          // Purchases = Debits (excluding COGS/sales adjustments)
+          totalPurchases = periodLines
+            .filter((line: any) => {
+              const desc = line.journal_entries?.description?.toLowerCase() || '';
+              return !desc.includes('pos sale') && !desc.includes('cogs') && !desc.includes('cost of goods');
+            })
             .reduce((sum: number, line: any) => sum + (line.debit_amount || 0), 0);
+
+          // Purchase Returns = Credits that are returns (not COGS)
+          purchaseReturns = periodLines
+            .filter((line: any) => {
+              const desc = line.journal_entries?.description?.toLowerCase() || '';
+              return desc.includes('return') && !desc.includes('pos sale');
+            })
+            .reduce((sum: number, line: any) => sum + (line.credit_amount || 0), 0);
+
+          // Closing Stock = Opening + Purchases - Returns - COGS credits
+          const periodDebits = periodLines.reduce((sum: number, line: any) => sum + (line.debit_amount || 0), 0);
+          const periodCredits = periodLines.reduce((sum: number, line: any) => sum + (line.credit_amount || 0), 0);
+          closingStock = openingStock + periodDebits - periodCredits;
         }
       }
 
+      // Get account balances for the period
       const accountsWithBalances = await Promise.all(
         accounts.map(async (account) => {
           const { data: lines } = await supabase
@@ -77,10 +113,7 @@ export default function ProfitLoss() {
             .select(`
               debit_amount,
               credit_amount,
-              journal_entries!inner (
-                status,
-                entry_date
-              )
+              journal_entries!inner (status, entry_date)
             `)
             .eq('account_id', account.id)
             .eq('journal_entries.status', 'posted')
@@ -97,12 +130,7 @@ export default function ProfitLoss() {
               ? totalCredit - totalDebit
               : totalDebit - totalCredit;
 
-          return {
-            ...account,
-            balance,
-            totalDebit,
-            totalCredit,
-          };
+          return { ...account, balance, totalDebit, totalCredit };
         })
       );
 
@@ -115,40 +143,36 @@ export default function ProfitLoss() {
       const otherIncomeAccounts = activeAccounts.filter((a) => 
         a.account_type === 'revenue' && !a.account_code?.startsWith('401')
       );
-      const cogsAccounts = activeAccounts.filter((a) => 
-        a.account_type === 'expense' && 
-        (a.account_code?.startsWith('501') || a.account_name?.toLowerCase().includes('cost of goods'))
-      );
       const directExpenseAccounts = activeAccounts.filter((a) => 
-        a.account_type === 'expense' && 
-        a.account_code?.startsWith('502')
+        a.account_type === 'expense' && a.account_code?.startsWith('502')
       );
       const adminExpenseAccounts = activeAccounts.filter((a) => 
         a.account_type === 'expense' && 
         (a.account_code?.startsWith('52') || a.account_code?.startsWith('53'))
       );
       const sellingExpenseAccounts = activeAccounts.filter((a) => 
-        a.account_type === 'expense' && 
-        a.account_code?.startsWith('54')
+        a.account_type === 'expense' && a.account_code?.startsWith('54')
       );
       const otherExpenseAccounts = activeAccounts.filter((a) => 
         a.account_type === 'expense' && 
-        !cogsAccounts.includes(a) && 
+        !a.account_code?.startsWith('501') &&
         !directExpenseAccounts.includes(a) && 
         !adminExpenseAccounts.includes(a) && 
         !sellingExpenseAccounts.includes(a)
       );
 
+      // Revenue calculations
       const totalSales = salesAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalOtherIncome = otherIncomeAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalRevenue = totalSales + totalOtherIncome;
       
-      const totalCOGS = cogsAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+      // COGS calculation: Opening Stock + Purchases - Purchase Returns + Direct Expenses - Closing Stock
       const totalDirectExpenses = directExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      // Include purchases (inventory debits) in COGS calculation
-      const totalCOGSAndPurchases = totalCOGS + totalPurchases;
-      const grossProfit = totalRevenue - totalCOGSAndPurchases - totalDirectExpenses;
+      const calculatedCOGS = openingStock + totalPurchases - purchaseReturns + totalDirectExpenses - closingStock;
       
+      const grossProfit = totalRevenue - calculatedCOGS;
+      
+      // Operating expenses
       const totalAdminExpenses = adminExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalSellingExpenses = sellingExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalOtherExpenses = otherExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -159,7 +183,6 @@ export default function ProfitLoss() {
       return {
         salesAccounts,
         otherIncomeAccounts,
-        cogsAccounts,
         directExpenseAccounts,
         adminExpenseAccounts,
         sellingExpenseAccounts,
@@ -167,10 +190,12 @@ export default function ProfitLoss() {
         totalSales,
         totalOtherIncome,
         totalRevenue,
-        totalCOGS,
+        openingStock,
         totalPurchases,
-        totalCOGSAndPurchases,
+        purchaseReturns,
         totalDirectExpenses,
+        closingStock,
+        calculatedCOGS,
         grossProfit,
         totalAdminExpenses,
         totalSellingExpenses,
@@ -320,26 +345,51 @@ export default function ProfitLoss() {
                     </TableCell>
                   </TableRow>
                   
-                  {/* Purchases from Inventory */}
-                  {plData.totalPurchases > 0 && (
+                  {/* Opening Stock */}
+                  <TableRow>
+                    <TableCell className="pl-10 text-sm">Opening Stock</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(plData.openingStock)}
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                  
+                  {/* Add: Purchases */}
+                  <TableRow>
+                    <TableCell className="pl-10 text-sm">Add: Purchases</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(plData.totalPurchases)}
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                  
+                  {/* Less: Purchase Returns */}
+                  {plData.purchaseReturns > 0 && (
                     <TableRow>
-                      <TableCell className="pl-10 text-sm">
-                        Purchases (Inventory)
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {formatCurrency(plData.totalPurchases)}
+                      <TableCell className="pl-10 text-sm text-red-600">Less: Purchase Returns</TableCell>
+                      <TableCell className="text-right font-mono text-sm text-red-600">
+                        ({formatCurrency(plData.purchaseReturns)})
                       </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
                   
-                  {renderAccountSection('Cost of Goods Sold', plData.cogsAccounts, false)}
-                  {renderAccountSection('Direct Expenses', plData.directExpenseAccounts, false)}
+                  {/* Direct Expenses */}
+                  {renderAccountSection('Add: Direct Expenses', plData.directExpenseAccounts, false)}
+                  
+                  {/* Less: Closing Stock */}
+                  <TableRow>
+                    <TableCell className="pl-10 text-sm text-blue-600">Less: Closing Stock</TableCell>
+                    <TableCell className="text-right font-mono text-sm text-blue-600">
+                      ({formatCurrency(plData.closingStock)})
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
                   
                   <TableRow className="font-bold bg-orange-100 dark:bg-orange-950/50">
-                    <TableCell className="pl-4">Total COGS & Direct Expenses</TableCell>
+                    <TableCell className="pl-4">= Cost of Goods Sold</TableCell>
                     <TableCell className="text-right font-mono text-orange-700 dark:text-orange-400">
-                      {formatCurrency(plData.totalCOGSAndPurchases + plData.totalDirectExpenses)}
+                      {formatCurrency(plData.calculatedCOGS)}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -406,8 +456,8 @@ export default function ProfitLoss() {
             <p className="text-lg font-bold font-mono text-green-600">{formatCurrency(plData.totalRevenue)}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-muted-foreground">COGS & Purchases</p>
-            <p className="text-lg font-bold font-mono text-orange-600">{formatCurrency(plData.totalCOGSAndPurchases + plData.totalDirectExpenses)}</p>
+            <p className="text-xs text-muted-foreground">COGS</p>
+            <p className="text-lg font-bold font-mono text-orange-600">{formatCurrency(plData.calculatedCOGS)}</p>
           </Card>
           <Card className="p-4">
             <p className="text-xs text-muted-foreground">Gross Profit</p>
