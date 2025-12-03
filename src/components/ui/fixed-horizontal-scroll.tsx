@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface FixedHorizontalScrollProps {
   children: React.ReactNode;
@@ -12,6 +13,12 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
   const [scrollWidth, setScrollWidth] = useState(0);
   const [clientWidth, setClientWidth] = useState(0);
   const [showScrollbar, setShowScrollbar] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -26,6 +33,9 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
 
     updateDimensions();
     
+    // Small delay to ensure content is rendered
+    const timeoutId = setTimeout(updateDimensions, 100);
+    
     const resizeObserver = new ResizeObserver(updateDimensions);
     if (contentRef.current) {
       resizeObserver.observe(contentRef.current);
@@ -34,6 +44,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     window.addEventListener('resize', updateDimensions);
     
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateDimensions);
     };
@@ -87,6 +98,23 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
 
   const thumbWidth = scrollWidth > 0 ? (clientWidth / scrollWidth) * 100 : 0;
 
+  const scrollbarElement = showScrollbar && mounted ? createPortal(
+    <div
+      ref={scrollbarRef}
+      onClick={handleScrollbarClick}
+      className="fixed left-4 right-4 h-3 bg-muted/90 backdrop-blur-sm cursor-pointer rounded-full shadow-lg border border-border/50"
+      style={{ bottom: '70px', zIndex: 9999 }}
+    >
+      <div
+        ref={scrollThumbRef}
+        onMouseDown={handleThumbMouseDown}
+        className="h-full bg-primary/60 hover:bg-primary/80 rounded-full cursor-grab active:cursor-grabbing transition-colors"
+        style={{ width: `${thumbWidth}%` }}
+      />
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <div className={className}>
       <div
@@ -97,21 +125,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
       >
         {children}
       </div>
-      
-      {showScrollbar && (
-        <div
-          ref={scrollbarRef}
-          onClick={handleScrollbarClick}
-          className="fixed bottom-16 left-0 right-0 h-3 bg-muted/80 backdrop-blur-sm z-50 cursor-pointer mx-4 rounded-full"
-        >
-          <div
-            ref={scrollThumbRef}
-            onMouseDown={handleThumbMouseDown}
-            className="h-full bg-muted-foreground/40 hover:bg-muted-foreground/60 rounded-full cursor-grab active:cursor-grabbing transition-colors"
-            style={{ width: `${thumbWidth}%` }}
-          />
-        </div>
-      )}
+      {scrollbarElement}
     </div>
   );
 }
