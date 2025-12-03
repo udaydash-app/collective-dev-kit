@@ -2,6 +2,7 @@ import { Home, Grid3x3, Search, ShoppingBag, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
+import { useAdmin } from "@/hooks/useAdmin";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/", shortcut: ["Ctrl", "H"] },
@@ -13,9 +14,10 @@ const navItems = [
 
 export const BottomNav = () => {
   const location = useLocation();
+  const { isAdmin, isCashier } = useAdmin();
 
-  // Hide bottom navigation on POS page
-  if (location.pathname === '/admin/pos') {
+  // Hide bottom navigation on POS page or for POS users (admin/cashier)
+  if (location.pathname === '/admin/pos' || isAdmin || isCashier) {
     return null;
   }
 
