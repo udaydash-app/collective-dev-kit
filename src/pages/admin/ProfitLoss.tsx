@@ -63,7 +63,6 @@ export default function ProfitLoss() {
 
           // For revenue: credit increases (credit - debit)
           // For expense: debit increases (debit - credit)
-          // Keep the sign to properly show contra accounts (negative revenue, negative expense)
           const balance =
             account.account_type === 'revenue'
               ? totalCredit - totalDebit
@@ -78,24 +77,37 @@ export default function ProfitLoss() {
         })
       );
 
-      // Include all accounts with non-zero balance (positive or negative)
+      // Include all accounts with non-zero balance
       const activeAccounts = accountsWithBalances.filter((acc) => acc !== null && acc.balance !== 0);
 
       const revenueAccounts = activeAccounts.filter((a) => a.account_type === 'revenue');
-      const expenseAccounts = activeAccounts.filter((a) => a.account_type === 'expense');
+      
+      // Separate COGS (account codes starting with 501) from operating expenses
+      const cogsAccounts = activeAccounts.filter((a) => 
+        a.account_type === 'expense' && 
+        (a.account_code?.startsWith('501') || a.account_name?.toLowerCase().includes('cost of goods'))
+      );
+      const operatingExpenseAccounts = activeAccounts.filter((a) => 
+        a.account_type === 'expense' && 
+        !(a.account_code?.startsWith('501') || a.account_name?.toLowerCase().includes('cost of goods'))
+      );
 
       const totalRevenue = revenueAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      const totalExpenses = expenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      const netIncome = totalRevenue - totalExpenses;
+      const totalCOGS = cogsAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+      const grossProfit = totalRevenue - totalCOGS;
+      const totalOperatingExpenses = operatingExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+      const netIncome = grossProfit - totalOperatingExpenses;
 
       return {
         revenueAccounts,
-        expenseAccounts,
+        cogsAccounts,
+        operatingExpenseAccounts,
         totalRevenue,
-        totalExpenses,
+        totalCOGS,
+        grossProfit,
+        totalOperatingExpenses,
         netIncome,
         isProfit: netIncome >= 0,
-        grossProfit: totalRevenue,
       };
     },
   });
@@ -148,7 +160,7 @@ export default function ProfitLoss() {
 
       {/* Summary Cards */}
       {plData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-6">
             <p className="text-sm text-muted-foreground">Total Revenue</p>
             <p className="text-2xl font-bold font-mono text-green-600">
@@ -156,9 +168,15 @@ export default function ProfitLoss() {
             </p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
-            <p className="text-2xl font-bold font-mono text-red-600">
-              {formatCurrency(plData.totalExpenses)}
+            <p className="text-sm text-muted-foreground">Cost of Goods Sold</p>
+            <p className="text-2xl font-bold font-mono text-orange-600">
+              {formatCurrency(plData.totalCOGS)}
+            </p>
+          </Card>
+          <Card className="p-6">
+            <p className="text-sm text-muted-foreground">Gross Profit</p>
+            <p className={`text-2xl font-bold font-mono ${plData.grossProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              {formatCurrency(plData.grossProfit)}
             </p>
           </Card>
           <Card className="p-6">
@@ -226,7 +244,7 @@ export default function ProfitLoss() {
                       </TableCell>
                     </TableRow>
                   )}
-                  <TableRow className="font-bold bg-green-50">
+                  <TableRow className="font-bold bg-green-50 dark:bg-green-950/30">
                     <TableCell>Total Revenue</TableCell>
                     <TableCell className="text-right font-mono text-green-600">
                       {formatCurrency(plData.totalRevenue)}
@@ -238,14 +256,14 @@ export default function ProfitLoss() {
                     <TableCell colSpan={2} className="h-4"></TableCell>
                   </TableRow>
 
-                  {/* Expenses Section */}
+                  {/* Cost of Goods Sold Section */}
                   <TableRow className="bg-muted/50">
                     <TableCell colSpan={2} className="font-bold text-lg">
-                      EXPENSES
+                      COST OF GOODS SOLD
                     </TableCell>
                   </TableRow>
-                  {plData.expenseAccounts.length > 0 ? (
-                    plData.expenseAccounts.map((account) => (
+                  {plData.cogsAccounts.length > 0 ? (
+                    plData.cogsAccounts.map((account) => (
                       <TableRow key={account.id}>
                         <TableCell className="pl-8">
                           {account.account_code} - {account.account_name}
@@ -260,14 +278,62 @@ export default function ProfitLoss() {
                   ) : (
                     <TableRow>
                       <TableCell className="pl-8 text-muted-foreground" colSpan={2}>
-                        No expenses recorded
+                        No cost of goods sold recorded
                       </TableCell>
                     </TableRow>
                   )}
-                  <TableRow className="font-bold bg-red-50">
-                    <TableCell>Total Expenses</TableCell>
+                  <TableRow className="font-bold bg-orange-50 dark:bg-orange-950/30">
+                    <TableCell>Total Cost of Goods Sold</TableCell>
+                    <TableCell className="text-right font-mono text-orange-600">
+                      ({formatCurrency(plData.totalCOGS)})
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Gross Profit */}
+                  <TableRow className="border-t-2 border-blue-300 bg-blue-50 dark:bg-blue-950/30">
+                    <TableCell className="font-bold text-lg">GROSS PROFIT</TableCell>
+                    <TableCell className={`text-right font-mono font-bold text-lg ${plData.grossProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      {plData.grossProfit < 0 ? '(' : ''}
+                      {formatCurrency(Math.abs(plData.grossProfit))}
+                      {plData.grossProfit < 0 ? ')' : ''}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Spacing */}
+                  <TableRow>
+                    <TableCell colSpan={2} className="h-4"></TableCell>
+                  </TableRow>
+
+                  {/* Operating Expenses Section */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={2} className="font-bold text-lg">
+                      OPERATING EXPENSES
+                    </TableCell>
+                  </TableRow>
+                  {plData.operatingExpenseAccounts.length > 0 ? (
+                    plData.operatingExpenseAccounts.map((account) => (
+                      <TableRow key={account.id}>
+                        <TableCell className="pl-8">
+                          {account.account_code} - {account.account_name}
+                        </TableCell>
+                        <TableCell className={`text-right font-mono ${account.balance < 0 ? 'text-green-600' : ''}`}>
+                          {account.balance < 0 ? '(' : ''}
+                          {formatCurrency(Math.abs(account.balance))}
+                          {account.balance < 0 ? ')' : ''}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell className="pl-8 text-muted-foreground" colSpan={2}>
+                        No operating expenses recorded
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow className="font-bold bg-red-50 dark:bg-red-950/30">
+                    <TableCell>Total Operating Expenses</TableCell>
                     <TableCell className="text-right font-mono text-red-600">
-                      ({formatCurrency(plData.totalExpenses)})
+                      ({formatCurrency(plData.totalOperatingExpenses)})
                     </TableCell>
                   </TableRow>
 
