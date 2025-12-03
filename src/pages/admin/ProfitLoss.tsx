@@ -26,6 +26,7 @@ export default function ProfitLoss() {
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],
     queryFn: async () => {
+      // Fetch revenue and expense accounts
       const { data: accounts, error } = await supabase
         .from('accounts')
         .select('*')
@@ -34,6 +35,40 @@ export default function ProfitLoss() {
         .order('account_code');
 
       if (error) throw error;
+
+      // Fetch Inventory account for Purchases calculation
+      const { data: inventoryAccount } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('account_code', '1020')
+        .single();
+
+      // Get purchases (debits to Inventory account) within date range
+      let totalPurchases = 0;
+      if (inventoryAccount) {
+        const { data: inventoryLines } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              status,
+              entry_date,
+              description
+            )
+          `)
+          .eq('account_id', inventoryAccount.id)
+          .eq('journal_entries.status', 'posted')
+          .gte('journal_entries.entry_date', startDate)
+          .lte('journal_entries.entry_date', endDate);
+
+        if (inventoryLines) {
+          // Purchases are debits to inventory (excluding sales adjustments)
+          totalPurchases = inventoryLines
+            .filter((line: any) => !line.journal_entries?.description?.includes('POS Sale'))
+            .reduce((sum: number, line: any) => sum + (line.debit_amount || 0), 0);
+        }
+      }
 
       const accountsWithBalances = await Promise.all(
         accounts.map(async (account) => {
@@ -110,7 +145,9 @@ export default function ProfitLoss() {
       
       const totalCOGS = cogsAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalDirectExpenses = directExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-      const grossProfit = totalRevenue - totalCOGS - totalDirectExpenses;
+      // Include purchases (inventory debits) in COGS calculation
+      const totalCOGSAndPurchases = totalCOGS + totalPurchases;
+      const grossProfit = totalRevenue - totalCOGSAndPurchases - totalDirectExpenses;
       
       const totalAdminExpenses = adminExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
       const totalSellingExpenses = sellingExpenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -131,6 +168,8 @@ export default function ProfitLoss() {
         totalOtherIncome,
         totalRevenue,
         totalCOGS,
+        totalPurchases,
+        totalCOGSAndPurchases,
         totalDirectExpenses,
         grossProfit,
         totalAdminExpenses,
@@ -281,13 +320,26 @@ export default function ProfitLoss() {
                     </TableCell>
                   </TableRow>
                   
-                  {renderAccountSection('Purchases / COGS', plData.cogsAccounts, false)}
+                  {/* Purchases from Inventory */}
+                  {plData.totalPurchases > 0 && (
+                    <TableRow>
+                      <TableCell className="pl-10 text-sm">
+                        Purchases (Inventory)
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatCurrency(plData.totalPurchases)}
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  )}
+                  
+                  {renderAccountSection('Cost of Goods Sold', plData.cogsAccounts, false)}
                   {renderAccountSection('Direct Expenses', plData.directExpenseAccounts, false)}
                   
                   <TableRow className="font-bold bg-orange-100 dark:bg-orange-950/50">
                     <TableCell className="pl-4">Total COGS & Direct Expenses</TableCell>
                     <TableCell className="text-right font-mono text-orange-700 dark:text-orange-400">
-                      {formatCurrency(plData.totalCOGS + plData.totalDirectExpenses)}
+                      {formatCurrency(plData.totalCOGSAndPurchases + plData.totalDirectExpenses)}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -354,8 +406,8 @@ export default function ProfitLoss() {
             <p className="text-lg font-bold font-mono text-green-600">{formatCurrency(plData.totalRevenue)}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-muted-foreground">COGS</p>
-            <p className="text-lg font-bold font-mono text-orange-600">{formatCurrency(plData.totalCOGS + plData.totalDirectExpenses)}</p>
+            <p className="text-xs text-muted-foreground">COGS & Purchases</p>
+            <p className="text-lg font-bold font-mono text-orange-600">{formatCurrency(plData.totalCOGSAndPurchases + plData.totalDirectExpenses)}</p>
           </Card>
           <Card className="p-4">
             <p className="text-xs text-muted-foreground">Gross Profit</p>
