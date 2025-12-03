@@ -13,15 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
@@ -116,12 +107,12 @@ export default function TrialBalance() {
     },
   });
 
-  const accountTypeConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-    asset: { label: 'Assets', color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-950/30' },
-    liability: { label: 'Liabilities', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-50 dark:bg-red-950/30' },
-    equity: { label: 'Equity', color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-50 dark:bg-purple-950/30' },
-    revenue: { label: 'Revenue', color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-950/30' },
-    expense: { label: 'Expenses', color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-950/30' },
+  const accountTypeLabels: Record<string, string> = {
+    asset: 'Assets',
+    liability: 'Liabilities',
+    equity: 'Equity',
+    revenue: 'Revenue',
+    expense: 'Expenses',
   };
 
   const filteredGroups = groupFilter === 'all' 
@@ -185,128 +176,126 @@ export default function TrialBalance() {
 
       {/* Balance Status Card */}
       {trialBalanceData && (
-        <Card className={`p-6 ${trialBalanceData.isBalanced ? 'bg-green-50 dark:bg-green-950/30 border-green-300' : 'bg-red-50 dark:bg-red-950/30 border-red-300'}`}>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              {trialBalanceData.isBalanced ? (
-                <CheckCircle className="h-10 w-10 text-green-600" />
-              ) : (
-                <XCircle className="h-10 w-10 text-red-600" />
-              )}
-              <div>
-                <p className={`text-xl font-bold ${trialBalanceData.isBalanced ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
-                  {trialBalanceData.isBalanced ? 'Trial Balance is Balanced' : 'Trial Balance is Out of Balance'}
+        <Card className={`p-4 ${trialBalanceData.isBalanced ? 'bg-green-50 dark:bg-green-950/30 border-green-300' : 'bg-red-50 dark:bg-red-950/30 border-red-300'}`}>
+          <div className="flex items-center gap-3">
+            {trialBalanceData.isBalanced ? (
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            ) : (
+              <XCircle className="h-8 w-8 text-red-600" />
+            )}
+            <div>
+              <p className={`font-bold ${trialBalanceData.isBalanced ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                {trialBalanceData.isBalanced ? 'Trial Balance is Balanced' : 'Trial Balance is Out of Balance'}
+              </p>
+              {!trialBalanceData.isBalanced && (
+                <p className="text-sm text-red-600">
+                  Difference: {formatCurrency(Math.abs(trialBalanceData.totalDebits - trialBalanceData.totalCredits))}
                 </p>
-                {!trialBalanceData.isBalanced && (
-                  <p className="text-sm text-red-600">
-                    Difference: {formatCurrency(Math.abs(trialBalanceData.totalDebits - trialBalanceData.totalCredits))}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-8">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Total Debits</p>
-                <p className="text-2xl font-bold font-mono">{formatCurrency(trialBalanceData.totalDebits)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Total Credits</p>
-                <p className="text-2xl font-bold font-mono">{formatCurrency(trialBalanceData.totalCredits)}</p>
-              </div>
+              )}
             </div>
           </div>
         </Card>
       )}
 
-      {/* Trial Balance Table */}
+      {/* Traditional Trial Balance T-Account Format */}
       <Card className="overflow-hidden">
-        <div className="bg-primary/5 p-4 border-b">
-          <h2 className="text-xl font-bold text-center">TRIAL BALANCE</h2>
-          <p className="text-sm text-muted-foreground text-center">
+        {/* Header */}
+        <div className="bg-muted/50 p-4 border-b text-center">
+          <h2 className="text-xl font-bold">TRIAL BALANCE</h2>
+          <p className="text-sm text-muted-foreground">
             As at {new Date(asOfDate).toLocaleDateString()}
           </p>
         </div>
-        
-        <Table fixedScroll>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-24">Code</TableHead>
-              <TableHead>Account Name</TableHead>
-              <TableHead className="w-24 text-center">Type</TableHead>
-              <TableHead className="w-40 text-right">Debit (Dr.)</TableHead>
-              <TableHead className="w-40 text-right">Credit (Cr.)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : !trialBalanceData?.accounts.length ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12">
-                  No transactions found for this period
-                </TableCell>
-              </TableRow>
-            ) : (
-              <>
-                {filteredGroups.map(([type, accounts]: [string, any[]]) =>
-                  accounts.length > 0 && (
-                    <React.Fragment key={type}>
-                      <TableRow className={accountTypeConfig[type].bgColor}>
-                        <TableCell colSpan={5} className={`font-bold ${accountTypeConfig[type].color}`}>
-                          {accountTypeConfig[type].label}
-                        </TableCell>
-                      </TableRow>
-                      {accounts.map((account) => (
-                        <TableRow key={account.id} className="hover:bg-muted/30">
-                          <TableCell className="font-mono text-sm">{account.account_code}</TableCell>
-                          <TableCell>{account.account_name}</TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant="outline" className="text-xs">
-                              {account.account_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {account.debit_balance > 0 ? formatCurrency(account.debit_balance) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {account.credit_balance > 0 ? formatCurrency(account.credit_balance) : '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {/* Subtotal for each group */}
-                      <TableRow className={`${accountTypeConfig[type].bgColor} font-semibold`}>
-                        <TableCell colSpan={3} className={`text-right ${accountTypeConfig[type].color}`}>
-                          Subtotal - {accountTypeConfig[type].label}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(accounts.reduce((sum, acc) => sum + acc.debit_balance, 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(accounts.reduce((sum, acc) => sum + acc.credit_balance, 0))}
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  )
-                )}
 
-                {/* Grand Total */}
-                <TableRow className="font-bold bg-primary/10 border-t-4 border-primary">
-                  <TableCell colSpan={3} className="text-lg">GRAND TOTAL</TableCell>
-                  <TableCell className="text-right font-mono text-lg">
-                    {formatCurrency(trialBalanceData.totalDebits)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-lg">
-                    {formatCurrency(trialBalanceData.totalCredits)}
-                  </TableCell>
-                </TableRow>
-              </>
-            )}
-          </TableBody>
-        </Table>
+        {/* T-Account Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-muted/30 border-b-2 border-border">
+                <th className="p-3 text-left font-bold border-r border-border w-16">S.No</th>
+                <th className="p-3 text-left font-bold border-r border-border">Particulars</th>
+                <th className="p-3 text-right font-bold border-r border-border w-40">Debit (Dr.)</th>
+                <th className="p-3 text-right font-bold w-40">Credit (Cr.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-12">Loading...</td>
+                </tr>
+              ) : !trialBalanceData?.accounts.length ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-12">No transactions found for this period</td>
+                </tr>
+              ) : (
+                <>
+                  {filteredGroups.map(([type, accounts]: [string, any[]]) => {
+                    if (accounts.length === 0) return null;
+                    
+                    const groupDebit = accounts.reduce((sum, acc) => sum + acc.debit_balance, 0);
+                    const groupCredit = accounts.reduce((sum, acc) => sum + acc.credit_balance, 0);
+                    
+                    return (
+                      <React.Fragment key={type}>
+                        {/* Group Header */}
+                        <tr className="bg-muted/20">
+                          <td colSpan={4} className="p-2 font-bold border-b border-border">
+                            {accountTypeLabels[type]}
+                          </td>
+                        </tr>
+                        
+                        {/* Account Rows */}
+                        {accounts.map((account, index) => (
+                          <tr key={account.id} className="border-b border-border/50 hover:bg-muted/10">
+                            <td className="p-2 text-center border-r border-border/50 text-sm text-muted-foreground">
+                              {index + 1}
+                            </td>
+                            <td className="p-2 border-r border-border/50">
+                              <span className="font-mono text-xs text-muted-foreground mr-2">{account.account_code}</span>
+                              {account.account_name}
+                            </td>
+                            <td className="p-2 text-right font-mono border-r border-border/50">
+                              {account.debit_balance > 0 ? formatCurrency(account.debit_balance) : '-'}
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              {account.credit_balance > 0 ? formatCurrency(account.credit_balance) : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {/* Group Subtotal */}
+                        <tr className="bg-muted/30 font-semibold">
+                          <td className="p-2 border-r border-border/50"></td>
+                          <td className="p-2 text-right border-r border-border/50 text-sm">
+                            Total {accountTypeLabels[type]}
+                          </td>
+                          <td className="p-2 text-right font-mono border-r border-border/50">
+                            {groupDebit > 0 ? formatCurrency(groupDebit) : '-'}
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            {groupCredit > 0 ? formatCurrency(groupCredit) : '-'}
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+
+                  {/* Grand Total Row */}
+                  <tr className="bg-primary/10 font-bold border-t-4 border-primary">
+                    <td className="p-3 border-r border-border"></td>
+                    <td className="p-3 text-right border-r border-border text-lg">TOTAL</td>
+                    <td className="p-3 text-right font-mono text-lg border-r border-border">
+                      {formatCurrency(trialBalanceData.totalDebits)}
+                    </td>
+                    <td className="p-3 text-right font-mono text-lg">
+                      {formatCurrency(trialBalanceData.totalCredits)}
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {/* Report Footer */}
