@@ -66,6 +66,7 @@ import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { FixedHorizontalScroll } from "@/components/ui/fixed-horizontal-scroll";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
@@ -1438,7 +1439,7 @@ export default function AdminOrders() {
                 Loading orders...
               </div>
             ) : orders && orders.length > 0 ? (
-              <div className="sticky-scroll-x pb-4">
+              <FixedHorizontalScroll className="pb-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1891,7 +1892,7 @@ export default function AdminOrders() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </FixedHorizontalScroll>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No orders found
