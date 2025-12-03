@@ -148,7 +148,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
             onMouseLeave={() => setIsHovered(false)}
             style={{ 
               position: 'fixed',
-              bottom: '72px', 
+              bottom: '8px', 
               left: '4px',
               right: '4px',
               height: '12px',
