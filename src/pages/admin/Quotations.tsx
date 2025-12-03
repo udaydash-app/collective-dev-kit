@@ -865,7 +865,7 @@ export default function Quotations() {
 
         {/* Quotations List */}
         <Card>
-          <Table>
+          <Table fixedScroll>
             <TableHeader>
               <TableRow>
                 <TableHead>Quotation #</TableHead>

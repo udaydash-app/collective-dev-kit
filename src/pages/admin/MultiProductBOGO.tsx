@@ -125,7 +125,7 @@ export default function MultiProductBOGO() {
       </div>
 
       <div className="border rounded-lg">
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>

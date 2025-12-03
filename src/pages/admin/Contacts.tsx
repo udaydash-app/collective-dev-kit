@@ -692,7 +692,7 @@ export default function Contacts() {
 
         <TabsContent value={activeTab} className="mt-4">
           <Card>
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

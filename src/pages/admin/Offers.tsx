@@ -255,7 +255,7 @@ export default function AdminOffers() {
       </div>
 
       <div className="bg-card rounded-lg border">
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>

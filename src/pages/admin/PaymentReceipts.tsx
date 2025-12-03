@@ -480,7 +480,7 @@ export default function PaymentReceipts() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table fixedScroll>
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt #</TableHead>

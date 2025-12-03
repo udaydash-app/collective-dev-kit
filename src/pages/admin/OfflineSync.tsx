@@ -158,8 +158,7 @@ export default function OfflineSync() {
                 <p className="text-sm mt-2">All transactions have been synced to the server</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
+              <Table fixedScroll>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction ID</TableHead>
@@ -241,7 +240,6 @@ export default function OfflineSync() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
             )}
           </CardContent>
         </Card>

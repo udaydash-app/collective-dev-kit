@@ -133,7 +133,7 @@ export default function AccountsPayable() {
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : filteredPayables && filteredPayables.length > 0 ? (
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow>
                   <TableHead>Supplier Name</TableHead>

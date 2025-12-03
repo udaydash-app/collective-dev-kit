@@ -325,7 +325,7 @@ export default function BOGOOffers() {
       </div>
 
       <div className="bg-card rounded-lg border">
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>

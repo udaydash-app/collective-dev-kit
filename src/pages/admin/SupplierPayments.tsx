@@ -410,7 +410,7 @@ export default function SupplierPayments() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table fixedScroll>
             <TableHeader>
               <TableRow>
                 <TableHead>Payment #</TableHead>

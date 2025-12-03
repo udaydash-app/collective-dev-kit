@@ -158,7 +158,7 @@ export default function AccountsReceivable() {
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : filteredReceivables && filteredReceivables.length > 0 ? (
-            <Table>
+            <Table fixedScroll>
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer Name</TableHead>

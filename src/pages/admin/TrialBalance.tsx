@@ -193,7 +193,7 @@ export default function TrialBalance() {
 
       {/* Trial Balance Table */}
       <Card>
-        <Table>
+        <Table fixedScroll>
           <TableHeader>
             <TableRow>
               <TableHead>Account Code</TableHead>
