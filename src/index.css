@@ -219,29 +219,13 @@
     @apply focus:ring-2 focus:ring-primary/20 focus:border-primary;
   }
   
-  /* Sticky horizontal scrollbar - always visible at bottom of screen */
-  .sticky-scroll-x {
-    overflow-x: auto;
-    overflow-y: visible;
-    position: sticky;
-    bottom: 0;
-    background: hsl(var(--background));
-    z-index: 10;
-    padding-bottom: 60px; /* Space for bottom nav */
+  /* Hide scrollbar utility */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
   
-  .sticky-scroll-x::-webkit-scrollbar {
-    height: 12px;
-    background: hsl(var(--muted));
-  }
-  
-  .sticky-scroll-x::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 6px;
-    border: 3px solid hsl(var(--muted));
-  }
-  
-  .sticky-scroll-x::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
