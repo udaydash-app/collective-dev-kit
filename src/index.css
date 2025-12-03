@@ -219,10 +219,15 @@
     @apply focus:ring-2 focus:ring-primary/20 focus:border-primary;
   }
   
-  /* Sticky horizontal scrollbar - always visible at bottom */
+  /* Sticky horizontal scrollbar - always visible at bottom of screen */
   .sticky-scroll-x {
     overflow-x: auto;
     overflow-y: visible;
+    position: sticky;
+    bottom: 0;
+    background: hsl(var(--background));
+    z-index: 10;
+    padding-bottom: 60px; /* Space for bottom nav */
   }
   
   .sticky-scroll-x::-webkit-scrollbar {
