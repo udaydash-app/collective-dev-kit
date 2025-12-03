@@ -1,16 +1,11 @@
 import { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from '@/components/ui/table';
 import { Building2, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
@@ -155,35 +150,22 @@ export default function BalanceSheet() {
     },
   });
 
-  const renderAccountGroup = (title: string, accounts: any[], subtotal: number, colorClass: string) => (
-    <>
-      {(accounts.length > 0 || subtotal !== 0) && (
-        <>
-          <TableRow className="bg-muted/30">
-            <TableCell className="font-semibold pl-6">{title}</TableCell>
-            <TableCell></TableCell>
-          </TableRow>
-          {accounts.map((account: any) => (
-            <TableRow key={account.id}>
-              <TableCell className="pl-10 text-sm">
-                <span className="text-muted-foreground font-mono mr-2">{account.account_code}</span>
-                {account.account_name}
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                {formatCurrency(Math.abs(account.balance))}
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="bg-muted/20">
-            <TableCell className={`pl-6 font-semibold ${colorClass}`}>Total {title}</TableCell>
-            <TableCell className={`text-right font-mono font-semibold ${colorClass}`}>
-              {formatCurrency(subtotal)}
-            </TableCell>
-          </TableRow>
-        </>
-      )}
-    </>
-  );
+  // Helper to get max rows for T-account alignment
+  const getMaxRows = () => {
+    if (!balanceSheetData) return 0;
+    const assetRows = 
+      balanceSheetData.currentAssets.length + 
+      balanceSheetData.fixedAssets.length + 
+      balanceSheetData.otherAssets.length + 6; // headers and subtotals
+    const liabilityEquityRows = 
+      balanceSheetData.currentLiabilities.length + 
+      balanceSheetData.longTermLiabilities.length + 
+      balanceSheetData.otherLiabilities.length +
+      balanceSheetData.capitalAccounts.length +
+      balanceSheetData.reserveAccounts.length +
+      balanceSheetData.retainedEarnings.length + 10;
+    return Math.max(assetRows, liabilityEquityRows);
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -249,138 +231,226 @@ export default function BalanceSheet() {
         </Card>
       )}
 
-      {/* Balance Sheet - Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ASSETS Column */}
-        <Card className="overflow-hidden">
-          <div className="bg-blue-100 dark:bg-blue-950/50 p-4 border-b">
-            <h2 className="text-xl font-bold text-blue-700 dark:text-blue-400 text-center">ASSETS</h2>
-          </div>
-          <div className="p-4">
-            <Table>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-12">Loading...</TableCell>
-                  </TableRow>
-                ) : !balanceSheetData ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-12">No data available</TableCell>
-                  </TableRow>
-                ) : (
-                  <>
-                    {renderAccountGroup('Current Assets', balanceSheetData.currentAssets, balanceSheetData.totalCurrentAssets, 'text-blue-600')}
-                    {renderAccountGroup('Fixed Assets', balanceSheetData.fixedAssets, balanceSheetData.totalFixedAssets, 'text-blue-600')}
-                    {renderAccountGroup('Other Assets', balanceSheetData.otherAssets, balanceSheetData.totalOtherAssets, 'text-blue-600')}
-                    
-                    <TableRow className="font-bold bg-blue-200 dark:bg-blue-900/50 border-t-4 border-blue-400">
-                      <TableCell className="text-lg text-blue-800 dark:text-blue-300">TOTAL ASSETS</TableCell>
-                      <TableCell className="text-right font-mono text-lg text-blue-800 dark:text-blue-300">
-                        {formatCurrency(balanceSheetData.totalAssets)}
-                      </TableCell>
-                    </TableRow>
-                  </>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-
-        {/* LIABILITIES & EQUITY Column */}
-        <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-red-100 to-purple-100 dark:from-red-950/50 dark:to-purple-950/50 p-4 border-b">
-            <h2 className="text-xl font-bold text-center">
-              <span className="text-red-700 dark:text-red-400">LIABILITIES</span>
-              <span className="text-muted-foreground mx-2">&</span>
-              <span className="text-purple-700 dark:text-purple-400">EQUITY</span>
-            </h2>
-          </div>
-          <div className="p-4">
-            <Table>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-12">Loading...</TableCell>
-                  </TableRow>
-                ) : !balanceSheetData ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-12">No data available</TableCell>
-                  </TableRow>
-                ) : (
-                  <>
-                    {/* Liabilities Section */}
-                    <TableRow className="bg-red-50 dark:bg-red-950/30">
-                      <TableCell colSpan={2} className="font-bold text-red-700 dark:text-red-400">
-                        LIABILITIES
-                      </TableCell>
-                    </TableRow>
-                    {renderAccountGroup('Current Liabilities', balanceSheetData.currentLiabilities, balanceSheetData.totalCurrentLiabilities, 'text-red-600')}
-                    {renderAccountGroup('Long-term Liabilities', balanceSheetData.longTermLiabilities, balanceSheetData.totalLongTermLiabilities, 'text-red-600')}
-                    {renderAccountGroup('Other Liabilities', balanceSheetData.otherLiabilities, balanceSheetData.totalOtherLiabilities, 'text-red-600')}
-                    
-                    <TableRow className="font-bold bg-red-100 dark:bg-red-900/50">
-                      <TableCell className="text-red-700 dark:text-red-400">Total Liabilities</TableCell>
-                      <TableCell className="text-right font-mono text-red-700 dark:text-red-400">
-                        {formatCurrency(balanceSheetData.totalLiabilities)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* Spacing */}
-                    <TableRow><TableCell colSpan={2} className="h-4 p-0"></TableCell></TableRow>
-
-                    {/* Equity Section */}
-                    <TableRow className="bg-purple-50 dark:bg-purple-950/30">
-                      <TableCell colSpan={2} className="font-bold text-purple-700 dark:text-purple-400">
-                        EQUITY
-                      </TableCell>
-                    </TableRow>
-                    {renderAccountGroup('Capital', balanceSheetData.capitalAccounts, balanceSheetData.totalCapital, 'text-purple-600')}
-                    {renderAccountGroup('Reserves', balanceSheetData.reserveAccounts, balanceSheetData.totalReserves, 'text-purple-600')}
-                    {renderAccountGroup('Retained Earnings', balanceSheetData.retainedEarnings, balanceSheetData.totalRetainedEarnings, 'text-purple-600')}
-                    
-                    <TableRow className="font-bold bg-purple-100 dark:bg-purple-900/50">
-                      <TableCell className="text-purple-700 dark:text-purple-400">Total Equity</TableCell>
-                      <TableCell className="text-right font-mono text-purple-700 dark:text-purple-400">
-                        {formatCurrency(balanceSheetData.totalEquity)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* Total Liabilities + Equity */}
-                    <TableRow className="font-bold bg-gradient-to-r from-red-200 to-purple-200 dark:from-red-900/50 dark:to-purple-900/50 border-t-4 border-primary">
-                      <TableCell className="text-lg">TOTAL LIABILITIES & EQUITY</TableCell>
-                      <TableCell className="text-right font-mono text-lg">
-                        {formatCurrency(balanceSheetData.totalLiabilitiesAndEquity)}
-                      </TableCell>
-                    </TableRow>
-                  </>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      </div>
-
-      {/* Summary Cards */}
-      {balanceSheetData && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4 bg-blue-50 dark:bg-blue-950/30">
-            <p className="text-xs text-muted-foreground">Total Assets</p>
-            <p className="text-xl font-bold font-mono text-blue-600">{formatCurrency(balanceSheetData.totalAssets)}</p>
-          </Card>
-          <Card className="p-4 bg-red-50 dark:bg-red-950/30">
-            <p className="text-xs text-muted-foreground">Total Liabilities</p>
-            <p className="text-xl font-bold font-mono text-red-600">{formatCurrency(balanceSheetData.totalLiabilities)}</p>
-          </Card>
-          <Card className="p-4 bg-purple-50 dark:bg-purple-950/30">
-            <p className="text-xs text-muted-foreground">Total Equity</p>
-            <p className="text-xl font-bold font-mono text-purple-600">{formatCurrency(balanceSheetData.totalEquity)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Liabilities + Equity</p>
-            <p className="text-xl font-bold font-mono">{formatCurrency(balanceSheetData.totalLiabilitiesAndEquity)}</p>
-          </Card>
+      {/* Traditional T-Account Balance Sheet */}
+      <Card className="overflow-hidden">
+        {/* Header */}
+        <div className="bg-muted/50 p-4 border-b text-center">
+          <h2 className="text-xl font-bold">BALANCE SHEET</h2>
+          <p className="text-sm text-muted-foreground">
+            As at {new Date(asOfDate).toLocaleDateString()}
+          </p>
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="p-12 text-center">Loading...</div>
+        ) : !balanceSheetData ? (
+          <div className="p-12 text-center">No data available</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b-2 border-border">
+                  <th className="p-3 text-left font-bold border-r border-border w-[35%]">Liabilities</th>
+                  <th className="p-3 text-right font-bold border-r border-border w-[15%]">Amount</th>
+                  <th className="p-3 text-left font-bold border-r border-border w-[35%]">Assets</th>
+                  <th className="p-3 text-right font-bold w-[15%]">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Capital/Equity Section on Left, Fixed Assets on Right */}
+                <tr className="bg-muted/10">
+                  <td className="p-2 font-bold border-r border-border">Capital & Reserves</td>
+                  <td className="p-2 border-r border-border"></td>
+                  <td className="p-2 font-bold border-r border-border">Fixed Assets</td>
+                  <td className="p-2"></td>
+                </tr>
+                
+                {/* Capital Accounts */}
+                {balanceSheetData.capitalAccounts.map((acc) => (
+                  <tr key={`cap-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Reserve Accounts */}
+                {balanceSheetData.reserveAccounts.map((acc) => (
+                  <tr key={`res-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Retained Earnings */}
+                {balanceSheetData.retainedEarnings.map((acc) => (
+                  <tr key={`ret-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Fixed Assets on Right */}
+                {balanceSheetData.fixedAssets.map((acc, idx) => (
+                  <tr key={`fixed-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Subtotal for Capital & Reserves / Fixed Assets */}
+                <tr className="bg-muted/20 font-semibold">
+                  <td className="p-2 text-right border-r border-border">Total Capital & Reserves</td>
+                  <td className="p-2 text-right font-mono border-r border-border">
+                    {formatCurrency(balanceSheetData.totalEquity)}
+                  </td>
+                  <td className="p-2 text-right border-r border-border">Total Fixed Assets</td>
+                  <td className="p-2 text-right font-mono">
+                    {formatCurrency(balanceSheetData.totalFixedAssets)}
+                  </td>
+                </tr>
+
+                {/* Spacer */}
+                <tr><td colSpan={4} className="h-2 bg-muted/5"></td></tr>
+
+                {/* Liabilities Section on Left, Current Assets on Right */}
+                <tr className="bg-muted/10">
+                  <td className="p-2 font-bold border-r border-border">Liabilities</td>
+                  <td className="p-2 border-r border-border"></td>
+                  <td className="p-2 font-bold border-r border-border">Current Assets</td>
+                  <td className="p-2"></td>
+                </tr>
+
+                {/* Current Liabilities */}
+                {balanceSheetData.currentLiabilities.map((acc) => (
+                  <tr key={`cl-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Long-term Liabilities */}
+                {balanceSheetData.longTermLiabilities.map((acc) => (
+                  <tr key={`lt-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Other Liabilities */}
+                {balanceSheetData.otherLiabilities.map((acc) => (
+                  <tr key={`ol-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                ))}
+
+                {/* Current Assets on Right */}
+                {balanceSheetData.currentAssets.map((acc) => (
+                  <tr key={`ca-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Other Assets on Right */}
+                {balanceSheetData.otherAssets.map((acc) => (
+                  <tr key={`oa-${acc.id}`} className="border-b border-border/30">
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2 pl-6 border-r border-border">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{acc.account_code}</span>
+                      {acc.account_name}
+                    </td>
+                    <td className="p-2 text-right font-mono">
+                      {formatCurrency(Math.abs(acc.balance))}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Subtotal for Liabilities / Current Assets */}
+                <tr className="bg-muted/20 font-semibold">
+                  <td className="p-2 text-right border-r border-border">Total Liabilities</td>
+                  <td className="p-2 text-right font-mono border-r border-border">
+                    {formatCurrency(balanceSheetData.totalLiabilities)}
+                  </td>
+                  <td className="p-2 text-right border-r border-border">Total Current Assets</td>
+                  <td className="p-2 text-right font-mono">
+                    {formatCurrency(balanceSheetData.totalCurrentAssets + balanceSheetData.totalOtherAssets)}
+                  </td>
+                </tr>
+
+                {/* Grand Totals */}
+                <tr className="bg-primary/10 font-bold border-t-4 border-primary">
+                  <td className="p-3 text-right border-r border-border text-lg">TOTAL</td>
+                  <td className="p-3 text-right font-mono text-lg border-r border-border">
+                    {formatCurrency(balanceSheetData.totalLiabilitiesAndEquity)}
+                  </td>
+                  <td className="p-3 text-right border-r border-border text-lg">TOTAL</td>
+                  <td className="p-3 text-right font-mono text-lg">
+                    {formatCurrency(balanceSheetData.totalAssets)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {/* Report Footer */}
       <Card className="p-4 text-center text-sm text-muted-foreground">
