@@ -307,20 +307,42 @@ export default function AdminOrders() {
     }
   });
 
-  // Filter orders based on search query
+  // Filter orders based on search query across all columns
   const orders = allOrders?.filter(order => {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase();
-    return (
+    
+    // Search across all main fields
+    const matchesMainFields = (
       order.order_number?.toLowerCase().includes(query) ||
       order.customer_name?.toLowerCase().includes(query) ||
       order.stores?.name?.toLowerCase().includes(query) ||
       order.addresses?.city?.toLowerCase().includes(query) ||
+      order.addresses?.address_line1?.toLowerCase().includes(query) ||
       order.payment_method?.toLowerCase().includes(query) ||
       order.cashier_name?.toLowerCase().includes(query) ||
-      order.status?.toLowerCase().includes(query)
+      order.status?.toLowerCase().includes(query) ||
+      order.type?.toLowerCase().includes(query) ||
+      String(order.total || '').includes(query) ||
+      String(order.subtotal || '').includes(query) ||
+      String(order.delivery_fee || '').includes(query) ||
+      formatDate(order.created_at)?.toLowerCase().includes(query) ||
+      formatDateTime(order.created_at)?.toLowerCase().includes(query)
     );
+    
+    if (matchesMainFields) return true;
+    
+    // Search in order items (product names)
+    if (order.items && Array.isArray(order.items)) {
+      const matchesItems = order.items.some((item: any) => {
+        const productName = item.products?.name || item.name || '';
+        return productName.toLowerCase().includes(query);
+      });
+      if (matchesItems) return true;
+    }
+    
+    return false;
   });
 
   // Fetch company settings for receipts
