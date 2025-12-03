@@ -18,11 +18,13 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
 
   const updateScrollInfo = useCallback(() => {
     if (contentRef.current) {
-      setScrollInfo({
+      const info = {
         scrollWidth: contentRef.current.scrollWidth,
         clientWidth: contentRef.current.clientWidth,
         scrollLeft: contentRef.current.scrollLeft,
-      });
+      };
+      console.log('📏 Scroll info:', info, 'overflow:', info.scrollWidth > info.clientWidth);
+      setScrollInfo(info);
     }
   }, []);
 
@@ -31,6 +33,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     
     const timer = setTimeout(updateScrollInfo, 200);
     const timer2 = setTimeout(updateScrollInfo, 500);
+    const timer3 = setTimeout(updateScrollInfo, 1000);
     
     const resizeObserver = new ResizeObserver(updateScrollInfo);
     if (contentRef.current) {
@@ -42,6 +45,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     return () => {
       clearTimeout(timer);
       clearTimeout(timer2);
+      clearTimeout(timer3);
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateScrollInfo);
     };
@@ -74,7 +78,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!contentRef.current) return;
       const deltaX = moveEvent.clientX - startX;
-      const trackWidth = window.innerWidth - 32; // Account for mx-4
+      const trackWidth = window.innerWidth - 32;
       const maxScroll = scrollInfo.scrollWidth - scrollInfo.clientWidth;
       const scrollDelta = (deltaX / trackWidth) * maxScroll;
       contentRef.current.scrollLeft = startScrollLeft + scrollDelta;
@@ -97,6 +101,8 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     ? (scrollInfo.scrollLeft / (scrollInfo.scrollWidth - scrollInfo.clientWidth)) * (100 - thumbWidthPercent)
     : 0;
 
+  console.log('🎯 Fixed scrollbar render:', { mounted, showScrollbar, thumbWidthPercent });
+
   return (
     <>
       <div className={className}>
@@ -104,37 +110,55 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
           ref={contentRef}
           onScroll={handleContentScroll}
           className="overflow-x-auto"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+          }}
         >
-          <style>{`.overflow-x-auto::-webkit-scrollbar { display: none; }`}</style>
           {children}
         </div>
       </div>
       
       {mounted && showScrollbar && createPortal(
         <div
+          id="fixed-horizontal-scrollbar"
           onClick={handleScrollbarClick}
-          className="fixed left-4 right-4 h-3 rounded-full cursor-pointer"
           style={{ 
+            position: 'fixed',
             bottom: '72px', 
+            left: '16px',
+            right: '16px',
+            height: '12px',
             zIndex: 99999,
-            backgroundColor: 'hsl(var(--muted))',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+            backgroundColor: '#e5e7eb',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.15)',
           }}
         >
           <div
             onMouseDown={handleThumbMouseDown}
-            className="h-full rounded-full cursor-grab active:cursor-grabbing"
             style={{ 
+              height: '100%',
               width: `${thumbWidthPercent}%`,
               marginLeft: `${thumbLeftPercent}%`,
-              backgroundColor: 'hsl(var(--primary))',
-              opacity: 0.7,
+              backgroundColor: '#22c55e',
+              borderRadius: '6px',
+              cursor: 'grab',
             }}
           />
         </div>,
         document.body
       )}
+      
+      <style>{`
+        .overflow-x-auto::-webkit-scrollbar {
+          display: none !important;
+          height: 0 !important;
+          width: 0 !important;
+        }
+      `}</style>
     </>
   );
 }
