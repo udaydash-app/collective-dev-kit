@@ -10,6 +10,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
   const contentRef = useRef<HTMLDivElement>(null);
   const [scrollInfo, setScrollInfo] = useState({ scrollWidth: 0, clientWidth: 0, scrollLeft: 0 });
   const [mounted, setMounted] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -18,7 +19,6 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
 
   const updateScrollInfo = useCallback(() => {
     if (contentRef.current) {
-      // Get the actual table element inside
       const table = contentRef.current.querySelector('table');
       const scrollContainer = contentRef.current;
       
@@ -43,7 +43,6 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     const resizeObserver = new ResizeObserver(updateScrollInfo);
     if (contentRef.current) {
       resizeObserver.observe(contentRef.current);
-      // Also observe the table if it exists
       const table = contentRef.current.querySelector('table');
       if (table) {
         resizeObserver.observe(table);
@@ -110,7 +109,7 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const showScrollbar = scrollInfo.scrollWidth > scrollInfo.clientWidth + 10; // 10px threshold
+  const showScrollbar = scrollInfo.scrollWidth > scrollInfo.clientWidth + 10;
   const thumbWidthPercent = scrollInfo.scrollWidth > 0 
     ? Math.max(10, (scrollInfo.clientWidth / scrollInfo.scrollWidth) * 100)
     : 100;
@@ -139,31 +138,44 @@ export function FixedHorizontalScroll({ children, className = "" }: FixedHorizon
         <div
           id="fixed-horizontal-scrollbar"
           onClick={handleScrollbarClick}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           style={{ 
             position: 'fixed',
             bottom: '72px', 
-            left: '16px',
-            right: '16px',
-            height: '14px',
+            left: '4px',
+            right: '4px',
+            height: '12px',
             zIndex: 99999,
-            backgroundColor: '#d1d5db',
-            borderRadius: '7px',
+            backgroundColor: 'transparent',
             cursor: 'pointer',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.2)',
+            padding: '2px 0',
           }}
         >
+          {/* Track */}
           <div
-            onMouseDown={handleThumbMouseDown}
-            style={{ 
-              height: '100%',
-              width: `${thumbWidthPercent}%`,
-              marginLeft: `${thumbLeftPercent}%`,
-              backgroundColor: '#22c55e',
-              borderRadius: '7px',
-              cursor: 'grab',
-              transition: 'margin-left 0.05s ease-out',
+            style={{
+              width: '100%',
+              height: '8px',
+              backgroundColor: isHovered ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.05)',
+              borderRadius: '4px',
+              transition: 'background-color 0.2s',
             }}
-          />
+          >
+            {/* Thumb */}
+            <div
+              onMouseDown={handleThumbMouseDown}
+              style={{ 
+                height: '100%',
+                width: `${thumbWidthPercent}%`,
+                marginLeft: `${thumbLeftPercent}%`,
+                backgroundColor: isHovered ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.3)',
+                borderRadius: '4px',
+                cursor: 'grab',
+                transition: 'background-color 0.2s, margin-left 0.05s ease-out',
+              }}
+            />
+          </div>
         </div>,
         document.body
       )}
