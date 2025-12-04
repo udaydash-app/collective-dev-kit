@@ -194,9 +194,7 @@ export default function SupplierPayments() {
           });
 
         if (insertError) throw insertError;
-
-        // Create journal entry for the payment
-        await createSupplierPaymentJournalEntry(paymentData);
+        // Journal entries are automatically created by database trigger (create_supplier_payment_journal_entry)
       }
     },
     onSuccess: () => {
@@ -233,97 +231,6 @@ export default function SupplierPayments() {
       toast.error(error.message || 'Failed to delete supplier payment');
     }
   });
-
-  // Function to create journal entries for supplier payment
-  const createSupplierPaymentJournalEntry = async (payment: any) => {
-    try {
-      // Get accounts - handle merged cash accounts (1010/1110)
-      const { data: accounts } = await supabase
-        .from('accounts')
-        .select('*')
-        .in('account_code', ['2010', '1010', '1110', '1020', '1030']);
-
-      if (!accounts || accounts.length === 0) {
-        console.error('Required accounts not found');
-        return;
-      }
-
-      const accountsPayableAccount = accounts.find(a => a.account_code === '2010'); // Accounts Payable
-      const cashAccount = accounts.find(a => a.account_code === '1010' || a.account_code === '1110'); // Cash
-      const bankAccount = accounts.find(a => a.account_code === '1020'); // Bank
-      const mobileMoneyAccount = accounts.find(a => a.account_code === '1030'); // Mobile Money
-
-      // Get supplier and purchase details
-      const { data: supplier } = await supabase
-        .from('contacts')
-        .select('name')
-        .eq('id', payment.contact_id)
-        .single();
-
-      let purchaseRef = '';
-      if (payment.purchase_id) {
-        const { data: purchase } = await supabase
-          .from('purchases')
-          .select('purchase_number')
-          .eq('id', payment.purchase_id)
-          .single();
-        purchaseRef = purchase ? ` - ${purchase.purchase_number}` : '';
-      }
-
-      // Create journal entry
-      const { data: journalEntry, error: jeError } = await supabase
-        .from('journal_entries')
-        .insert({
-          description: `Supplier Payment to ${supplier?.name}${purchaseRef}`,
-          reference: payment.reference || '',
-          entry_date: payment.payment_date,
-          status: 'posted',
-          total_debit: payment.amount,
-          total_credit: payment.amount,
-        })
-        .select()
-        .single();
-
-      if (jeError) throw jeError;
-
-      // Debit: Accounts Payable (liability decreases)
-      await supabase.from('journal_entry_lines').insert({
-        journal_entry_id: journalEntry.id,
-        account_id: accountsPayableAccount?.id,
-        debit_amount: payment.amount,
-        credit_amount: 0,
-        description: `Payment to ${supplier?.name}${purchaseRef}`,
-      });
-
-      // Credit: Payment account (asset decreases)
-      let paymentAccountId;
-      switch (payment.payment_method) {
-        case 'cash':
-          paymentAccountId = cashAccount?.id;
-          break;
-        case 'bank_transfer':
-        case 'cheque':
-          paymentAccountId = bankAccount?.id;
-          break;
-        case 'mobile_money':
-          paymentAccountId = mobileMoneyAccount?.id;
-          break;
-        default:
-          paymentAccountId = cashAccount?.id;
-      }
-
-      await supabase.from('journal_entry_lines').insert({
-        journal_entry_id: journalEntry.id,
-        account_id: paymentAccountId,
-        debit_amount: 0,
-        credit_amount: payment.amount,
-        description: `Payment via ${payment.payment_method}${purchaseRef}`,
-      });
-
-    } catch (error) {
-      console.error('Error creating journal entries:', error);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
