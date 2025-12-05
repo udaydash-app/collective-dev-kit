@@ -50,68 +50,48 @@ export default function CashFlow() {
         };
       }
 
-      const cashAccountIds = cashAccounts.map((a) => a.id);
-      console.log('Cash account IDs:', cashAccountIds);
+      const cashAccountId = cashAccounts[0].id;
+      console.log('Cash account ID:', cashAccountId);
 
-      // Get posted journal entries in date range
-      const { data: journalEntries, error: jeError } = await supabase
-        .from('journal_entries')
-        .select('id, entry_number, entry_date, description')
-        .eq('status', 'posted')
-        .gte('entry_date', startDate)
-        .lte('entry_date', endDate);
-
-      console.log('Journal entries in range:', journalEntries?.length, jeError);
-
-      if (!journalEntries || journalEntries.length === 0) {
-        return {
-          operatingActivities: [],
-          investingActivities: [],
-          financingActivities: [],
-          netOperating: 0,
-          netInvesting: 0,
-          netFinancing: 0,
-          netCashFlow: 0,
-          beginningCash: 0,
-          endingCash: 0,
-        };
-      }
-
-      const journalEntryIds = journalEntries.map((je) => je.id);
-
-      // Get journal lines for cash accounts
+      // Get journal lines for cash account with journal entry data in date range
       const { data: journalLines, error: jlError } = await supabase
         .from('journal_entry_lines')
-        .select('journal_entry_id, debit_amount, credit_amount')
-        .in('account_id', cashAccountIds)
-        .in('journal_entry_id', journalEntryIds);
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entry_id,
+          journal_entries!inner (
+            id,
+            entry_number,
+            entry_date,
+            description,
+            status
+          )
+        `)
+        .eq('account_id', cashAccountId)
+        .eq('journal_entries.status', 'posted')
+        .gte('journal_entries.entry_date', startDate)
+        .lte('journal_entries.entry_date', endDate);
 
       console.log('Journal lines for cash:', journalLines?.length, jlError);
 
-      // Map journal entries for lookup
-      const jeMap = new Map(journalEntries.map((je) => [je.id, je]));
-
       // Calculate beginning cash balance (before start date)
-      const { data: beforeEntries } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('status', 'posted')
-        .lt('entry_date', startDate);
+      const { data: beginningLines, error: blError } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (status, entry_date)
+        `)
+        .eq('account_id', cashAccountId)
+        .eq('journal_entries.status', 'posted')
+        .lt('journal_entries.entry_date', startDate);
 
-      const beforeIds = beforeEntries?.map((je) => je.id) || [];
+      console.log('Beginning lines:', beginningLines?.length, blError);
 
-      let beginningCash = 0;
-      if (beforeIds.length > 0) {
-        const { data: beginningLines } = await supabase
-          .from('journal_entry_lines')
-          .select('debit_amount, credit_amount')
-          .in('account_id', cashAccountIds)
-          .in('journal_entry_id', beforeIds);
-
-        beginningCash = beginningLines?.reduce((sum, line) => {
-          return sum + line.debit_amount - line.credit_amount;
-        }, 0) || 0;
-      }
+      const beginningCash = beginningLines?.reduce((sum, line) => {
+        return sum + line.debit_amount - line.credit_amount;
+      }, 0) || 0;
 
       // Process each journal entry
       const operatingActivities: any[] = [];
@@ -120,7 +100,7 @@ export default function CashFlow() {
 
       const processedEntries = new Set();
       journalLines?.forEach((line: any) => {
-        const je = jeMap.get(line.journal_entry_id);
+        const je = line.journal_entries;
         if (!je || processedEntries.has(je.entry_number)) return;
         processedEntries.add(je.entry_number);
 
