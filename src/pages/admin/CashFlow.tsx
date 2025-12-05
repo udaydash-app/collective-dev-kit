@@ -36,6 +36,7 @@ export default function CashFlow() {
         .eq('is_active', true);
 
       if (!cashAccounts || cashAccounts.length === 0) {
+        console.log('No cash accounts found for 1110');
         return {
           operatingActivities: [],
           investingActivities: [],
@@ -50,66 +51,81 @@ export default function CashFlow() {
       }
 
       const cashAccountIds = cashAccounts.map((a) => a.id);
+      console.log('Cash account IDs:', cashAccountIds);
 
-      // Get all journal entries affecting cash accounts
-      const { data: journalLines } = await supabase
+      // Get posted journal entries in date range
+      const { data: journalEntries, error: jeError } = await supabase
+        .from('journal_entries')
+        .select('id, entry_number, entry_date, description')
+        .eq('status', 'posted')
+        .gte('entry_date', startDate)
+        .lte('entry_date', endDate);
+
+      console.log('Journal entries in range:', journalEntries?.length, jeError);
+
+      if (!journalEntries || journalEntries.length === 0) {
+        return {
+          operatingActivities: [],
+          investingActivities: [],
+          financingActivities: [],
+          netOperating: 0,
+          netInvesting: 0,
+          netFinancing: 0,
+          netCashFlow: 0,
+          beginningCash: 0,
+          endingCash: 0,
+        };
+      }
+
+      const journalEntryIds = journalEntries.map((je) => je.id);
+
+      // Get journal lines for cash accounts
+      const { data: journalLines, error: jlError } = await supabase
         .from('journal_entry_lines')
-        .select(`
-          *,
-          journal_entries!inner (
-            entry_number,
-            entry_date,
-            description,
-            status
-          ),
-          accounts (
-            account_code,
-            account_name,
-            account_type
-          )
-        `)
+        .select('journal_entry_id, debit_amount, credit_amount')
         .in('account_id', cashAccountIds)
-        .eq('journal_entries.status', 'posted')
-        .gte('journal_entries.entry_date', startDate)
-        .lte('journal_entries.entry_date', endDate)
-        .order('journal_entries.entry_date');
+        .in('journal_entry_id', journalEntryIds);
+
+      console.log('Journal lines for cash:', journalLines?.length, jlError);
+
+      // Map journal entries for lookup
+      const jeMap = new Map(journalEntries.map((je) => [je.id, je]));
 
       // Calculate beginning cash balance (before start date)
-      const { data: beginningLines } = await supabase
-        .from('journal_entry_lines')
-        .select(`
-          debit_amount,
-          credit_amount,
-          journal_entries!inner (status, entry_date)
-        `)
-        .in('account_id', cashAccountIds)
-        .eq('journal_entries.status', 'posted')
-        .lt('journal_entries.entry_date', startDate);
+      const { data: beforeEntries } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('status', 'posted')
+        .lt('entry_date', startDate);
 
-      const beginningCash = beginningLines?.reduce((sum, line) => {
-        return sum + line.debit_amount - line.credit_amount;
-      }, 0) || 0;
+      const beforeIds = beforeEntries?.map((je) => je.id) || [];
 
-      // Simplified categorization (in real implementation, you'd use more sophisticated logic)
-      // Operating: revenue and expense related
-      // Investing: asset purchases/sales (except current assets)
-      // Financing: liability and equity related
+      let beginningCash = 0;
+      if (beforeIds.length > 0) {
+        const { data: beginningLines } = await supabase
+          .from('journal_entry_lines')
+          .select('debit_amount, credit_amount')
+          .in('account_id', cashAccountIds)
+          .in('journal_entry_id', beforeIds);
 
+        beginningCash = beginningLines?.reduce((sum, line) => {
+          return sum + line.debit_amount - line.credit_amount;
+        }, 0) || 0;
+      }
+
+      // Process each journal entry
       const operatingActivities: any[] = [];
       const investingActivities: any[] = [];
       const financingActivities: any[] = [];
 
-      // Process each journal entry
       const processedEntries = new Set();
       journalLines?.forEach((line: any) => {
-        const entryId = line.journal_entries.entry_number;
-        if (processedEntries.has(entryId)) return;
-        processedEntries.add(entryId);
+        const je = jeMap.get(line.journal_entry_id);
+        if (!je || processedEntries.has(je.entry_number)) return;
+        processedEntries.add(je.entry_number);
 
         const cashEffect = line.debit_amount - line.credit_amount;
-
-        // Simple categorization based on description keywords
-        const description = line.journal_entries.description.toLowerCase();
+        const description = je.description.toLowerCase();
         
         if (
           description.includes('sale') ||
@@ -119,8 +135,8 @@ export default function CashFlow() {
           description.includes('payment')
         ) {
           operatingActivities.push({
-            date: line.journal_entries.entry_date,
-            description: line.journal_entries.description,
+            date: je.entry_date,
+            description: je.description,
             amount: cashEffect,
           });
         } else if (
@@ -129,8 +145,8 @@ export default function CashFlow() {
           description.includes('investment')
         ) {
           investingActivities.push({
-            date: line.journal_entries.entry_date,
-            description: line.journal_entries.description,
+            date: je.entry_date,
+            description: je.description,
             amount: cashEffect,
           });
         } else if (
@@ -140,15 +156,15 @@ export default function CashFlow() {
           description.includes('dividend')
         ) {
           financingActivities.push({
-            date: line.journal_entries.entry_date,
-            description: line.journal_entries.description,
+            date: je.entry_date,
+            description: je.description,
             amount: cashEffect,
           });
         } else {
           // Default to operating
           operatingActivities.push({
-            date: line.journal_entries.entry_date,
-            description: line.journal_entries.description,
+            date: je.entry_date,
+            description: je.description,
             amount: cashEffect,
           });
         }
