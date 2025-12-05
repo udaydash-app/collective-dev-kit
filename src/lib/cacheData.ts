@@ -360,6 +360,48 @@ export async function cacheEssentialData(showProgress = false) {
       console.log(`Cached ${purchaseItems.length} purchase items`);
     }
 
+    // Fetch and cache inventory layers
+    if (showProgress) toast.loading('Caching inventory layers...');
+    const inventoryLayersQuery = supabase
+      .from('inventory_layers')
+      .select('*');
+    
+    const inventoryLayersResult: any = await inventoryLayersQuery;
+    const inventoryLayers = inventoryLayersResult.data;
+
+    if (inventoryLayers && Array.isArray(inventoryLayers)) {
+      await offlineDB.saveInventoryLayers(inventoryLayers);
+      console.log(`Cached ${inventoryLayers.length} inventory layers`);
+    }
+
+    // Fetch and cache productions
+    if (showProgress) toast.loading('Caching productions...');
+    const productionsQuery = supabase
+      .from('productions')
+      .select('*');
+    
+    const productionsResult: any = await productionsQuery;
+    const productions = productionsResult.data;
+
+    if (productions && Array.isArray(productions)) {
+      await offlineDB.saveProductions(productions);
+      console.log(`Cached ${productions.length} productions`);
+    }
+
+    // Fetch and cache production outputs
+    if (showProgress) toast.loading('Caching production outputs...');
+    const productionOutputsQuery = supabase
+      .from('production_outputs')
+      .select('*');
+    
+    const productionOutputsResult: any = await productionOutputsQuery;
+    const productionOutputs = productionOutputsResult.data;
+
+    if (productionOutputs && Array.isArray(productionOutputs)) {
+      await offlineDB.saveProductionOutputs(productionOutputs);
+      console.log(`Cached ${productionOutputs.length} production outputs`);
+    }
+
     // Store last cache timestamp
     localStorage.setItem('lastCacheTime', new Date().toISOString());
     
