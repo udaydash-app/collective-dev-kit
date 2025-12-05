@@ -248,6 +248,118 @@ export async function cacheEssentialData(showProgress = false) {
       console.log(`Cached ${customerPrices.length} customer product prices`);
     }
 
+    // Fetch and cache full contacts (customers + suppliers)
+    if (showProgress) toast.loading('Caching contacts...');
+    const contactsQuery = supabase
+      .from('contacts')
+      .select('*');
+    
+    const contactsResult: any = await contactsQuery;
+    const contacts = contactsResult.data;
+
+    if (contacts && Array.isArray(contacts)) {
+      await offlineDB.saveContacts(contacts);
+      console.log(`Cached ${contacts.length} contacts`);
+    }
+
+    // Fetch and cache journal entries
+    if (showProgress) toast.loading('Caching journal entries...');
+    const journalEntriesQuery = supabase
+      .from('journal_entries')
+      .select('*');
+    
+    const journalEntriesResult: any = await journalEntriesQuery;
+    const journalEntries = journalEntriesResult.data;
+
+    if (journalEntries && Array.isArray(journalEntries)) {
+      await offlineDB.saveJournalEntries(journalEntries);
+      console.log(`Cached ${journalEntries.length} journal entries`);
+    }
+
+    // Fetch and cache journal entry lines
+    if (showProgress) toast.loading('Caching journal entry lines...');
+    const journalLinesQuery = supabase
+      .from('journal_entry_lines')
+      .select('*');
+    
+    const journalLinesResult: any = await journalLinesQuery;
+    const journalLines = journalLinesResult.data;
+
+    if (journalLines && Array.isArray(journalLines)) {
+      await offlineDB.saveJournalEntryLines(journalLines);
+      console.log(`Cached ${journalLines.length} journal entry lines`);
+    }
+
+    // Fetch and cache expenses
+    if (showProgress) toast.loading('Caching expenses...');
+    const expensesQuery = supabase
+      .from('expenses')
+      .select('*');
+    
+    const expensesResult: any = await expensesQuery;
+    const expenses = expensesResult.data;
+
+    if (expenses && Array.isArray(expenses)) {
+      await offlineDB.saveExpenses(expenses);
+      console.log(`Cached ${expenses.length} expenses`);
+    }
+
+    // Fetch and cache payment receipts
+    if (showProgress) toast.loading('Caching payment receipts...');
+    const paymentReceiptsQuery = supabase
+      .from('payment_receipts')
+      .select('*');
+    
+    const paymentReceiptsResult: any = await paymentReceiptsQuery;
+    const paymentReceipts = paymentReceiptsResult.data;
+
+    if (paymentReceipts && Array.isArray(paymentReceipts)) {
+      await offlineDB.savePaymentReceipts(paymentReceipts);
+      console.log(`Cached ${paymentReceipts.length} payment receipts`);
+    }
+
+    // Fetch and cache supplier payments
+    if (showProgress) toast.loading('Caching supplier payments...');
+    const supplierPaymentsQuery = supabase
+      .from('supplier_payments')
+      .select('*');
+    
+    const supplierPaymentsResult: any = await supplierPaymentsQuery;
+    const supplierPayments = supplierPaymentsResult.data;
+
+    if (supplierPayments && Array.isArray(supplierPayments)) {
+      await offlineDB.saveSupplierPayments(supplierPayments);
+      console.log(`Cached ${supplierPayments.length} supplier payments`);
+    }
+
+    // Fetch and cache purchases
+    if (showProgress) toast.loading('Caching purchases...');
+    const purchasesQuery = supabase
+      .from('purchases')
+      .select('*');
+    
+    const purchasesResult: any = await purchasesQuery;
+    const purchases = purchasesResult.data;
+
+    if (purchases && Array.isArray(purchases)) {
+      await offlineDB.savePurchases(purchases);
+      console.log(`Cached ${purchases.length} purchases`);
+    }
+
+    // Fetch and cache purchase items
+    if (showProgress) toast.loading('Caching purchase items...');
+    const purchaseItemsQuery = supabase
+      .from('purchase_items')
+      .select('*');
+    
+    const purchaseItemsResult: any = await purchaseItemsQuery;
+    const purchaseItems = purchaseItemsResult.data;
+
+    if (purchaseItems && Array.isArray(purchaseItems)) {
+      await offlineDB.savePurchaseItems(purchaseItems);
+      console.log(`Cached ${purchaseItems.length} purchase items`);
+    }
+
     // Store last cache timestamp
     localStorage.setItem('lastCacheTime', new Date().toISOString());
     

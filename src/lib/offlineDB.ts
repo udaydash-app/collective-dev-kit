@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 5; // Bumped to add all offline stores
+const DB_VERSION = 6; // Bumped to add accounting and contacts stores
 
 export interface OfflineTransaction {
   id: string;
@@ -159,6 +159,64 @@ class OfflineDB {
         const customerPricesStore = db.createObjectStore('customer_product_prices', { keyPath: 'id' });
         customerPricesStore.createIndex('customer_id', 'customer_id', { unique: false });
         customerPricesStore.createIndex('product_id', 'product_id', { unique: false });
+      }
+
+      // Full contacts cache (customers + suppliers)
+      if (!db.objectStoreNames.contains('contacts')) {
+        const contactsStore = db.createObjectStore('contacts', { keyPath: 'id' });
+        contactsStore.createIndex('name', 'name', { unique: false });
+        contactsStore.createIndex('phone', 'phone', { unique: false });
+        contactsStore.createIndex('is_customer', 'is_customer', { unique: false });
+        contactsStore.createIndex('is_supplier', 'is_supplier', { unique: false });
+      }
+
+      // Journal entries cache
+      if (!db.objectStoreNames.contains('journal_entries')) {
+        const jeStore = db.createObjectStore('journal_entries', { keyPath: 'id' });
+        jeStore.createIndex('entry_date', 'entry_date', { unique: false });
+        jeStore.createIndex('status', 'status', { unique: false });
+      }
+
+      // Journal entry lines cache
+      if (!db.objectStoreNames.contains('journal_entry_lines')) {
+        const jelStore = db.createObjectStore('journal_entry_lines', { keyPath: 'id' });
+        jelStore.createIndex('journal_entry_id', 'journal_entry_id', { unique: false });
+        jelStore.createIndex('account_id', 'account_id', { unique: false });
+      }
+
+      // Expenses cache
+      if (!db.objectStoreNames.contains('expenses')) {
+        const expensesStore = db.createObjectStore('expenses', { keyPath: 'id' });
+        expensesStore.createIndex('expense_date', 'expense_date', { unique: false });
+        expensesStore.createIndex('category', 'category', { unique: false });
+      }
+
+      // Payment receipts cache
+      if (!db.objectStoreNames.contains('payment_receipts')) {
+        const prStore = db.createObjectStore('payment_receipts', { keyPath: 'id' });
+        prStore.createIndex('contact_id', 'contact_id', { unique: false });
+        prStore.createIndex('payment_date', 'payment_date', { unique: false });
+      }
+
+      // Supplier payments cache
+      if (!db.objectStoreNames.contains('supplier_payments')) {
+        const spStore = db.createObjectStore('supplier_payments', { keyPath: 'id' });
+        spStore.createIndex('contact_id', 'contact_id', { unique: false });
+        spStore.createIndex('payment_date', 'payment_date', { unique: false });
+      }
+
+      // Purchases cache
+      if (!db.objectStoreNames.contains('purchases')) {
+        const purchasesStore = db.createObjectStore('purchases', { keyPath: 'id' });
+        purchasesStore.createIndex('purchase_date', 'purchase_date', { unique: false });
+        purchasesStore.createIndex('supplier_name', 'supplier_name', { unique: false });
+      }
+
+      // Purchase items cache
+      if (!db.objectStoreNames.contains('purchase_items')) {
+        const piStore = db.createObjectStore('purchase_items', { keyPath: 'id' });
+        piStore.createIndex('purchase_id', 'purchase_id', { unique: false });
+        piStore.createIndex('product_id', 'product_id', { unique: false });
       }
     };
   });
@@ -367,14 +425,18 @@ class OfflineDB {
       'transactions', 'products', 'stores', 'categories', 'customers', 'pos_users', 
       'combo_offers', 'combo_offer_items', 'accounts', 'bogo_offers', 
       'multi_product_bogo_offers', 'multi_product_bogo_items', 'announcements',
-      'custom_price_tiers', 'custom_tier_prices', 'customer_product_prices'
+      'custom_price_tiers', 'custom_tier_prices', 'customer_product_prices',
+      'contacts', 'journal_entries', 'journal_entry_lines', 'expenses',
+      'payment_receipts', 'supplier_payments', 'purchases', 'purchase_items'
     ];
     
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(storeNames, 'readwrite');
       
       storeNames.forEach(storeName => {
-        tx.objectStore(storeName).clear();
+        if (this.db!.objectStoreNames.contains(storeName)) {
+          tx.objectStore(storeName).clear();
+        }
       });
       
       tx.oncomplete = () => resolve();
@@ -688,6 +750,222 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('customer_product_prices', 'readonly');
       const store = tx.objectStore('customer_product_prices');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Contacts methods (full contacts - customers + suppliers)
+  async saveContacts(contacts: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('contacts', 'readwrite');
+      const store = tx.objectStore('contacts');
+      
+      contacts.forEach(contact => {
+        store.put({ ...contact, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getContacts(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('contacts', 'readonly');
+      const store = tx.objectStore('contacts');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Journal entries methods
+  async saveJournalEntries(entries: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('journal_entries', 'readwrite');
+      const store = tx.objectStore('journal_entries');
+      
+      entries.forEach(entry => {
+        store.put({ ...entry, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getJournalEntries(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('journal_entries', 'readonly');
+      const store = tx.objectStore('journal_entries');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Journal entry lines methods
+  async saveJournalEntryLines(lines: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('journal_entry_lines', 'readwrite');
+      const store = tx.objectStore('journal_entry_lines');
+      
+      lines.forEach(line => {
+        store.put({ ...line, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getJournalEntryLines(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('journal_entry_lines', 'readonly');
+      const store = tx.objectStore('journal_entry_lines');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Expenses methods
+  async saveExpenses(expenses: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('expenses', 'readwrite');
+      const store = tx.objectStore('expenses');
+      
+      expenses.forEach(expense => {
+        store.put({ ...expense, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getExpenses(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('expenses', 'readonly');
+      const store = tx.objectStore('expenses');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Payment receipts methods
+  async savePaymentReceipts(receipts: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('payment_receipts', 'readwrite');
+      const store = tx.objectStore('payment_receipts');
+      
+      receipts.forEach(receipt => {
+        store.put({ ...receipt, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getPaymentReceipts(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('payment_receipts', 'readonly');
+      const store = tx.objectStore('payment_receipts');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Supplier payments methods
+  async saveSupplierPayments(payments: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('supplier_payments', 'readwrite');
+      const store = tx.objectStore('supplier_payments');
+      
+      payments.forEach(payment => {
+        store.put({ ...payment, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getSupplierPayments(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('supplier_payments', 'readonly');
+      const store = tx.objectStore('supplier_payments');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Purchases methods
+  async savePurchases(purchases: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('purchases', 'readwrite');
+      const store = tx.objectStore('purchases');
+      
+      purchases.forEach(purchase => {
+        store.put({ ...purchase, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getPurchases(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('purchases', 'readonly');
+      const store = tx.objectStore('purchases');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Purchase items methods
+  async savePurchaseItems(items: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('purchase_items', 'readwrite');
+      const store = tx.objectStore('purchase_items');
+      
+      items.forEach(item => {
+        store.put({ ...item, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getPurchaseItems(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('purchase_items', 'readonly');
+      const store = tx.objectStore('purchase_items');
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
