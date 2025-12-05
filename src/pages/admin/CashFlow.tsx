@@ -28,13 +28,12 @@ export default function CashFlow() {
   const { data: cashFlowData, isLoading } = useQuery({
     queryKey: ['cash-flow', startDate, endDate],
     queryFn: async () => {
-      // Get cash and cash equivalent accounts (1010, 1110, 1015 Mobile Money)
+      // Get cash account (1110)
       const { data: cashAccounts } = await supabase
         .from('accounts')
-        .select('id, account_code')
-        .eq('account_type', 'asset')
-        .eq('is_active', true)
-        .or('account_code.ilike.101%,account_code.ilike.111%');
+        .select('id')
+        .eq('account_code', '1110')
+        .eq('is_active', true);
 
       if (!cashAccounts || cashAccounts.length === 0) {
         return {
