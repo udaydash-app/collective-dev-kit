@@ -402,6 +402,105 @@ export async function cacheEssentialData(showProgress = false) {
       console.log(`Cached ${productionOutputs.length} production outputs`);
     }
 
+    // Fetch and cache orders
+    if (showProgress) toast.loading('Caching orders...');
+    const ordersQuery = supabase.from('orders').select('*');
+    const ordersResult: any = await ordersQuery;
+    if (ordersResult.data && Array.isArray(ordersResult.data)) {
+      await offlineDB.saveOrders(ordersResult.data);
+      console.log(`Cached ${ordersResult.data.length} orders`);
+    }
+
+    // Fetch and cache order items
+    if (showProgress) toast.loading('Caching order items...');
+    const orderItemsQuery = supabase.from('order_items').select('*');
+    const orderItemsResult: any = await orderItemsQuery;
+    if (orderItemsResult.data && Array.isArray(orderItemsResult.data)) {
+      await offlineDB.saveOrderItems(orderItemsResult.data);
+      console.log(`Cached ${orderItemsResult.data.length} order items`);
+    }
+
+    // Fetch and cache POS transactions
+    if (showProgress) toast.loading('Caching POS transactions...');
+    const posTransactionsQuery = supabase.from('pos_transactions').select('*');
+    const posTransactionsResult: any = await posTransactionsQuery;
+    if (posTransactionsResult.data && Array.isArray(posTransactionsResult.data)) {
+      await offlineDB.savePOSTransactions(posTransactionsResult.data);
+      console.log(`Cached ${posTransactionsResult.data.length} POS transactions`);
+    }
+
+    // Fetch and cache product variants
+    if (showProgress) toast.loading('Caching product variants...');
+    const variantsQuery = supabase.from('product_variants').select('*');
+    const variantsResult: any = await variantsQuery;
+    if (variantsResult.data && Array.isArray(variantsResult.data)) {
+      await offlineDB.saveProductVariants(variantsResult.data);
+      console.log(`Cached ${variantsResult.data.length} product variants`);
+    }
+
+    // Fetch and cache purchase orders
+    if (showProgress) toast.loading('Caching purchase orders...');
+    const purchaseOrdersQuery = supabase.from('purchase_orders').select('*');
+    const purchaseOrdersResult: any = await purchaseOrdersQuery;
+    if (purchaseOrdersResult.data && Array.isArray(purchaseOrdersResult.data)) {
+      await offlineDB.savePurchaseOrders(purchaseOrdersResult.data);
+      console.log(`Cached ${purchaseOrdersResult.data.length} purchase orders`);
+    }
+
+    // Fetch and cache purchase order items
+    if (showProgress) toast.loading('Caching purchase order items...');
+    const poItemsQuery = supabase.from('purchase_order_items').select('*');
+    const poItemsResult: any = await poItemsQuery;
+    if (poItemsResult.data && Array.isArray(poItemsResult.data)) {
+      await offlineDB.savePurchaseOrderItems(poItemsResult.data);
+      console.log(`Cached ${poItemsResult.data.length} purchase order items`);
+    }
+
+    // Fetch and cache purchase order responses
+    if (showProgress) toast.loading('Caching purchase order responses...');
+    const poResponsesQuery = supabase.from('purchase_order_responses').select('*');
+    const poResponsesResult: any = await poResponsesQuery;
+    if (poResponsesResult.data && Array.isArray(poResponsesResult.data)) {
+      await offlineDB.savePurchaseOrderResponses(poResponsesResult.data);
+      console.log(`Cached ${poResponsesResult.data.length} purchase order responses`);
+    }
+
+    // Fetch and cache purchase order charges
+    if (showProgress) toast.loading('Caching purchase order charges...');
+    const poChargesQuery = supabase.from('purchase_order_charges').select('*');
+    const poChargesResult: any = await poChargesQuery;
+    if (poChargesResult.data && Array.isArray(poChargesResult.data)) {
+      await offlineDB.savePurchaseOrderCharges(poChargesResult.data);
+      console.log(`Cached ${poChargesResult.data.length} purchase order charges`);
+    }
+
+    // Fetch and cache quotations
+    if (showProgress) toast.loading('Caching quotations...');
+    const quotationsQuery = supabase.from('quotations').select('*');
+    const quotationsResult: any = await quotationsQuery;
+    if (quotationsResult.data && Array.isArray(quotationsResult.data)) {
+      await offlineDB.saveQuotations(quotationsResult.data);
+      console.log(`Cached ${quotationsResult.data.length} quotations`);
+    }
+
+    // Fetch and cache quotation items
+    if (showProgress) toast.loading('Caching quotation items...');
+    const quotationItemsQuery = supabase.from('quotation_items').select('*');
+    const quotationItemsResult: any = await quotationItemsQuery;
+    if (quotationItemsResult.data && Array.isArray(quotationItemsResult.data)) {
+      await offlineDB.saveQuotationItems(quotationItemsResult.data);
+      console.log(`Cached ${quotationItemsResult.data.length} quotation items`);
+    }
+
+    // Fetch and cache cash sessions
+    if (showProgress) toast.loading('Caching cash sessions...');
+    const cashSessionsQuery = supabase.from('cash_sessions').select('*');
+    const cashSessionsResult: any = await cashSessionsQuery;
+    if (cashSessionsResult.data && Array.isArray(cashSessionsResult.data)) {
+      await offlineDB.saveCashSessions(cashSessionsResult.data);
+      console.log(`Cached ${cashSessionsResult.data.length} cash sessions`);
+    }
+
     // Store last cache timestamp
     localStorage.setItem('lastCacheTime', new Date().toISOString());
     
