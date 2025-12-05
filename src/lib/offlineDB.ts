@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'GlobalMarketPOS';
-const DB_VERSION = 6; // Bumped to add accounting and contacts stores
+const DB_VERSION = 7; // Bumped to add inventory features
 
 export interface OfflineTransaction {
   id: string;
@@ -218,6 +218,28 @@ class OfflineDB {
         piStore.createIndex('purchase_id', 'purchase_id', { unique: false });
         piStore.createIndex('product_id', 'product_id', { unique: false });
       }
+
+      // Inventory layers cache (FIFO tracking)
+      if (!db.objectStoreNames.contains('inventory_layers')) {
+        const ilStore = db.createObjectStore('inventory_layers', { keyPath: 'id' });
+        ilStore.createIndex('product_id', 'product_id', { unique: false });
+        ilStore.createIndex('variant_id', 'variant_id', { unique: false });
+        ilStore.createIndex('purchase_id', 'purchase_id', { unique: false });
+      }
+
+      // Productions cache
+      if (!db.objectStoreNames.contains('productions')) {
+        const prodStore = db.createObjectStore('productions', { keyPath: 'id' });
+        prodStore.createIndex('production_date', 'production_date', { unique: false });
+        prodStore.createIndex('source_product_id', 'source_product_id', { unique: false });
+      }
+
+      // Production outputs cache
+      if (!db.objectStoreNames.contains('production_outputs')) {
+        const poStore = db.createObjectStore('production_outputs', { keyPath: 'id' });
+        poStore.createIndex('production_id', 'production_id', { unique: false });
+        poStore.createIndex('product_id', 'product_id', { unique: false });
+      }
     };
   });
 }
@@ -427,7 +449,8 @@ class OfflineDB {
       'multi_product_bogo_offers', 'multi_product_bogo_items', 'announcements',
       'custom_price_tiers', 'custom_tier_prices', 'customer_product_prices',
       'contacts', 'journal_entries', 'journal_entry_lines', 'expenses',
-      'payment_receipts', 'supplier_payments', 'purchases', 'purchase_items'
+      'payment_receipts', 'supplier_payments', 'purchases', 'purchase_items',
+      'inventory_layers', 'productions', 'production_outputs'
     ];
     
     return new Promise((resolve, reject) => {
@@ -966,6 +989,87 @@ class OfflineDB {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction('purchase_items', 'readonly');
       const store = tx.objectStore('purchase_items');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Inventory layers methods
+  async saveInventoryLayers(layers: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('inventory_layers', 'readwrite');
+      const store = tx.objectStore('inventory_layers');
+      
+      layers.forEach(layer => {
+        store.put({ ...layer, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getInventoryLayers(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('inventory_layers', 'readonly');
+      const store = tx.objectStore('inventory_layers');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Productions methods
+  async saveProductions(productions: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('productions', 'readwrite');
+      const store = tx.objectStore('productions');
+      
+      productions.forEach(production => {
+        store.put({ ...production, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getProductions(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('productions', 'readonly');
+      const store = tx.objectStore('productions');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Production outputs methods
+  async saveProductionOutputs(outputs: any[]): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('production_outputs', 'readwrite');
+      const store = tx.objectStore('production_outputs');
+      
+      outputs.forEach(output => {
+        store.put({ ...output, lastUpdated: new Date().toISOString() });
+      });
+      
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getProductionOutputs(): Promise<any[]> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('production_outputs', 'readonly');
+      const store = tx.objectStore('production_outputs');
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
