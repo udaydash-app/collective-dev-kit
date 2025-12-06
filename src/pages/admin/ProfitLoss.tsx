@@ -35,10 +35,10 @@ export default function ProfitLoss() {
 
       const totalPurchases = purchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
 
-      // Get Sales directly from pos_transactions
+      // Get Sales directly from pos_transactions with items for COGS calculation
       const { data: sales } = await supabase
         .from('pos_transactions')
-        .select('subtotal, discount')
+        .select('subtotal, discount, items')
         .gte('created_at', startDate)
         .lte('created_at', endDate + 'T23:59:59');
 
@@ -47,45 +47,115 @@ export default function ProfitLoss() {
       const salesDiscounts = sales?.reduce((sum, s) => sum + (s.discount || 0), 0) || 0;
       const netSales = grossSales - salesReturns - salesDiscounts;
 
-      // Get Inventory account for stock calculations
-      const { data: inventoryAccount } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('account_code', '1020')
-        .single();
+      // Calculate COGS from sold items (using cost_price from products/variants)
+      // Get all product and variant IDs from sold items
+      const productIds = new Set<string>();
+      const variantIds = new Set<string>();
+      
+      sales?.forEach((sale: any) => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach((item: any) => {
+          if (item.variantId) {
+            variantIds.add(item.variantId);
+          } else if (item.productId) {
+            productIds.add(item.productId);
+          }
+        });
+      });
 
-      let openingStock = 0;
-      let closingStock = 0;
+      // Fetch cost prices for products and variants
+      const [{ data: products }, { data: variants }] = await Promise.all([
+        productIds.size > 0 
+          ? supabase.from('products').select('id, cost_price').in('id', Array.from(productIds))
+          : { data: [] },
+        variantIds.size > 0
+          ? supabase.from('product_variants').select('id, cost_price').in('id', Array.from(variantIds))
+          : { data: [] }
+      ]);
 
-      if (inventoryAccount) {
-        // Opening Stock: Inventory balance before start date
-        const { data: openingLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
-          .eq('account_id', inventoryAccount.id)
-          .eq('journal_entries.status', 'posted')
-          .lt('journal_entries.entry_date', startDate);
+      const productCostMap = new Map((products || []).map(p => [p.id, p.cost_price || 0]));
+      const variantCostMap = new Map((variants || []).map(v => [v.id, v.cost_price || 0]));
 
-        if (openingLines) {
-          const debits = openingLines.reduce((sum: number, l: any) => sum + (l.debit_amount || 0), 0);
-          const credits = openingLines.reduce((sum: number, l: any) => sum + (l.credit_amount || 0), 0);
-          openingStock = debits - credits;
+      // Calculate total COGS
+      let totalCOGS = 0;
+      sales?.forEach((sale: any) => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach((item: any) => {
+          const qty = item.quantity || 1;
+          let costPrice = 0;
+          if (item.variantId && variantCostMap.has(item.variantId)) {
+            costPrice = variantCostMap.get(item.variantId) || 0;
+          } else if (item.productId && productCostMap.has(item.productId)) {
+            costPrice = productCostMap.get(item.productId) || 0;
+          }
+          totalCOGS += costPrice * qty;
+        });
+      });
+
+      // Calculate Opening Stock from inventory value at start of period
+      // Opening Stock = Total inventory value (sum of all products cost_price * stock_quantity) before start date
+      // Since we don't have historical snapshots, we'll calculate backwards:
+      // Current Stock Value + COGS during period - Purchases during period = Opening Stock Value
+      
+      // Get current total inventory value
+      const { data: allProducts } = await supabase
+        .from('products')
+        .select('id, cost_price, stock_quantity');
+      
+      const { data: allVariants } = await supabase
+        .from('product_variants')
+        .select('id, cost_price, stock_quantity, product_id');
+
+      // Calculate current inventory value
+      let currentInventoryValue = 0;
+      
+      // For products without variants
+      const productsWithVariants = new Set((allVariants || []).map(v => v.product_id));
+      (allProducts || []).forEach(p => {
+        if (!productsWithVariants.has(p.id)) {
+          currentInventoryValue += (p.cost_price || 0) * (p.stock_quantity || 0);
         }
+      });
+      
+      // Add variant inventory values
+      (allVariants || []).forEach(v => {
+        currentInventoryValue += (v.cost_price || 0) * (v.stock_quantity || 0);
+      });
 
-        // Closing Stock: Inventory balance at end of period
-        const { data: closingLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
-          .eq('account_id', inventoryAccount.id)
-          .eq('journal_entries.status', 'posted')
-          .lte('journal_entries.entry_date', endDate);
+      // Get purchases AFTER end date to adjust for future purchases
+      const { data: futurePurchases } = await supabase
+        .from('purchases')
+        .select('total_amount')
+        .gt('purchased_at', endDate + 'T23:59:59');
+      
+      const futurePurchasesTotal = futurePurchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
 
-        if (closingLines) {
-          const debits = closingLines.reduce((sum: number, l: any) => sum + (l.debit_amount || 0), 0);
-          const credits = closingLines.reduce((sum: number, l: any) => sum + (l.credit_amount || 0), 0);
-          closingStock = debits - credits;
-        }
-      }
+      // Get sales AFTER end date to adjust for future COGS
+      const { data: futureSales } = await supabase
+        .from('pos_transactions')
+        .select('items')
+        .gt('created_at', endDate + 'T23:59:59');
+
+      let futureCOGS = 0;
+      futureSales?.forEach((sale: any) => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach((item: any) => {
+          const qty = item.quantity || 1;
+          let costPrice = 0;
+          if (item.variantId && variantCostMap.has(item.variantId)) {
+            costPrice = variantCostMap.get(item.variantId) || 0;
+          } else if (item.productId && productCostMap.has(item.productId)) {
+            costPrice = productCostMap.get(item.productId) || 0;
+          }
+          futureCOGS += costPrice * qty;
+        });
+      });
+
+      // Closing Stock at end of period = Current Value - Future Purchases + Future COGS
+      const closingStock = currentInventoryValue - futurePurchasesTotal + futureCOGS;
+      
+      // Opening Stock = Closing Stock - Purchases during period + COGS during period
+      const openingStock = closingStock - totalPurchases + totalCOGS;
 
       // Purchase Returns (if any - from journal entries)
       const purchaseReturns = 0; // Would need purchase returns tracking
