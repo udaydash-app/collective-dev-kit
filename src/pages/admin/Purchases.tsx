@@ -545,13 +545,15 @@ export default function Purchases() {
 
       if (purchaseError) throw purchaseError;
 
-      // Delete existing purchase items
-      await supabase
+      // Delete existing purchase items (triggers stock deduction)
+      const { error: deleteError } = await supabase
         .from('purchase_items')
         .delete()
         .eq('purchase_id', selectedPurchase.id);
 
-      // Create new purchase items
+      if (deleteError) throw deleteError;
+
+      // Create new purchase items (triggers stock addition)
       const purchaseItems = items.map(item => ({
         purchase_id: selectedPurchase.id,
         product_id: item.product_id,
