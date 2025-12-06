@@ -545,29 +545,117 @@ export default function Purchases() {
 
       if (purchaseError) throw purchaseError;
 
-      // Delete existing purchase items (triggers stock deduction)
-      const { error: deleteError } = await supabase
+      // Get existing purchase items
+      const { data: existingItems } = await supabase
         .from('purchase_items')
-        .delete()
+        .select('*')
         .eq('purchase_id', selectedPurchase.id);
 
-      if (deleteError) throw deleteError;
+      const existingItemsMap = new Map(
+        (existingItems || []).map(item => [
+          `${item.product_id}-${item.variant_id || 'null'}`,
+          item
+        ])
+      );
 
-      // Create new purchase items (triggers stock addition)
-      const purchaseItems = items.map(item => ({
-        purchase_id: selectedPurchase.id,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        quantity: item.quantity,
-        unit_cost: item.unit_cost,
-        total_cost: item.total_cost,
-      }));
+      const newItemsMap = new Map(
+        items.map(item => [
+          `${item.product_id}-${item.variant_id || 'null'}`,
+          item
+        ])
+      );
 
-      const { error: itemsError } = await supabase
-        .from('purchase_items')
-        .insert(purchaseItems);
+      // Find items to delete (in existing but not in new)
+      const itemsToDelete = (existingItems || []).filter(item => 
+        !newItemsMap.has(`${item.product_id}-${item.variant_id || 'null'}`)
+      );
 
-      if (itemsError) throw itemsError;
+      // Find items to insert (in new but not in existing)
+      const itemsToInsert = items.filter(item => 
+        !existingItemsMap.has(`${item.product_id}-${item.variant_id || 'null'}`)
+      );
+
+      // Find items to update (in both, but quantity or cost changed)
+      const itemsToUpdate = items.filter(item => {
+        const key = `${item.product_id}-${item.variant_id || 'null'}`;
+        const existing = existingItemsMap.get(key);
+        if (!existing) return false;
+        return existing.quantity !== item.quantity || existing.unit_cost !== item.unit_cost;
+      });
+
+      // Delete removed items (triggers stock deduction)
+      for (const item of itemsToDelete) {
+        const { error } = await supabase
+          .from('purchase_items')
+          .delete()
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+
+      // Update changed items (handle stock difference manually)
+      for (const item of itemsToUpdate) {
+        const key = `${item.product_id}-${item.variant_id || 'null'}`;
+        const existing = existingItemsMap.get(key);
+        if (!existing) continue;
+
+        const quantityDiff = item.quantity - existing.quantity;
+
+        // Update the purchase item
+        const { error } = await supabase
+          .from('purchase_items')
+          .update({
+            quantity: item.quantity,
+            unit_cost: item.unit_cost,
+            total_cost: item.total_cost,
+          })
+          .eq('id', existing.id);
+        if (error) throw error;
+
+        // Manually adjust stock for the quantity difference
+        if (quantityDiff !== 0) {
+          if (item.variant_id) {
+            const { data: variant } = await supabase
+              .from('product_variants')
+              .select('stock_quantity')
+              .eq('id', item.variant_id)
+              .single();
+            
+            await supabase
+              .from('product_variants')
+              .update({ stock_quantity: (variant?.stock_quantity || 0) + quantityDiff })
+              .eq('id', item.variant_id);
+          } else {
+            const { data: product } = await supabase
+              .from('products')
+              .select('stock_quantity')
+              .eq('id', item.product_id)
+              .single();
+            
+            await supabase
+              .from('products')
+              .update({ stock_quantity: (product?.stock_quantity || 0) + quantityDiff })
+              .eq('id', item.product_id);
+          }
+        }
+      }
+
+      // Insert new items (triggers stock addition via existing trigger)
+      if (itemsToInsert.length > 0) {
+        const purchaseItems = itemsToInsert.map(item => ({
+          purchase_id: selectedPurchase.id,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          unit_cost: item.unit_cost,
+          total_cost: item.total_cost,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_items')
+          .insert(purchaseItems);
+
+        if (itemsError) throw itemsError;
+      }
       // Journal entries are automatically created/updated by database trigger
     },
     onSuccess: () => {
