@@ -125,28 +125,37 @@ export default function ProfitLoss() {
       // Get stock adjustments during period
       const { data: stockAdjustments } = await supabase
         .from('stock_adjustments')
-        .select('quantity_change, product_id, variant_id')
+        .select('quantity_change, product_id, variant_id, unit_cost, total_value')
         .gte('created_at', startDate)
         .lte('created_at', endDate + 'T23:59:59');
 
-      // Calculate stock adjustment value (using cost prices)
+      // Calculate stock adjustment value (prefer stored total_value, fallback to cost prices)
       let stockWriteOffs = 0; // Negative adjustments (losses)
       let stockGains = 0; // Positive adjustments (gains)
       
       stockAdjustments?.forEach((adj: any) => {
-        let costPrice = 0;
-        if (adj.variant_id && variantCostMap.has(adj.variant_id)) {
-          costPrice = variantCostMap.get(adj.variant_id) || 0;
-        } else if (adj.product_id && productCostMap.has(adj.product_id)) {
-          costPrice = productCostMap.get(adj.product_id) || 0;
+        let adjustmentValue = 0;
+        
+        // Use stored total_value if available and non-zero
+        if (adj.total_value && adj.total_value !== 0) {
+          adjustmentValue = Math.abs(adj.total_value);
+        } else if (adj.unit_cost && adj.unit_cost !== 0) {
+          adjustmentValue = Math.abs(adj.quantity_change) * adj.unit_cost;
         } else {
-          // Fetch cost price if not in map
-          const product = (allProducts || []).find(p => p.id === adj.product_id);
-          const variant = (allVariants || []).find(v => v.id === adj.variant_id);
-          costPrice = variant?.cost_price || product?.cost_price || 0;
+          // Fallback to current cost prices
+          let costPrice = 0;
+          if (adj.variant_id && variantCostMap.has(adj.variant_id)) {
+            costPrice = variantCostMap.get(adj.variant_id) || 0;
+          } else if (adj.product_id && productCostMap.has(adj.product_id)) {
+            costPrice = productCostMap.get(adj.product_id) || 0;
+          } else {
+            const product = (allProducts || []).find(p => p.id === adj.product_id);
+            const variant = (allVariants || []).find(v => v.id === adj.variant_id);
+            costPrice = variant?.cost_price || product?.cost_price || 0;
+          }
+          adjustmentValue = Math.abs(adj.quantity_change) * costPrice;
         }
         
-        const adjustmentValue = Math.abs(adj.quantity_change) * costPrice;
         if (adj.quantity_change < 0) {
           stockWriteOffs += adjustmentValue; // Loss/expense
         } else {
