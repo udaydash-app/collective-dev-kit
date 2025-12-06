@@ -122,6 +122,38 @@ export default function ProfitLoss() {
         currentInventoryValue += (v.cost_price || 0) * (v.stock_quantity || 0);
       });
 
+      // Get stock adjustments during period
+      const { data: stockAdjustments } = await supabase
+        .from('stock_adjustments')
+        .select('quantity_change, product_id, variant_id')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate + 'T23:59:59');
+
+      // Calculate stock adjustment value (using cost prices)
+      let stockWriteOffs = 0; // Negative adjustments (losses)
+      let stockGains = 0; // Positive adjustments (gains)
+      
+      stockAdjustments?.forEach((adj: any) => {
+        let costPrice = 0;
+        if (adj.variant_id && variantCostMap.has(adj.variant_id)) {
+          costPrice = variantCostMap.get(adj.variant_id) || 0;
+        } else if (adj.product_id && productCostMap.has(adj.product_id)) {
+          costPrice = productCostMap.get(adj.product_id) || 0;
+        } else {
+          // Fetch cost price if not in map
+          const product = (allProducts || []).find(p => p.id === adj.product_id);
+          const variant = (allVariants || []).find(v => v.id === adj.variant_id);
+          costPrice = variant?.cost_price || product?.cost_price || 0;
+        }
+        
+        const adjustmentValue = Math.abs(adj.quantity_change) * costPrice;
+        if (adj.quantity_change < 0) {
+          stockWriteOffs += adjustmentValue; // Loss/expense
+        } else {
+          stockGains += adjustmentValue; // Gain
+        }
+      });
+
       // Get purchases AFTER end date to adjust for future purchases
       const { data: futurePurchases } = await supabase
         .from('purchases')
@@ -151,11 +183,25 @@ export default function ProfitLoss() {
         });
       });
 
-      // Closing Stock at end of period = Current Value - Future Purchases + Future COGS
-      const closingStock = currentInventoryValue - futurePurchasesTotal + futureCOGS;
+      // Get future stock adjustments
+      const { data: futureAdjustments } = await supabase
+        .from('stock_adjustments')
+        .select('quantity_change, product_id, variant_id')
+        .gt('created_at', endDate + 'T23:59:59');
+
+      let futureAdjustmentValue = 0;
+      futureAdjustments?.forEach((adj: any) => {
+        const product = (allProducts || []).find(p => p.id === adj.product_id);
+        const variant = (allVariants || []).find(v => v.id === adj.variant_id);
+        const costPrice = variant?.cost_price || product?.cost_price || 0;
+        futureAdjustmentValue += adj.quantity_change * costPrice;
+      });
+
+      // Closing Stock at end of period = Current Value - Future Purchases + Future COGS - Future Adjustments
+      const closingStock = currentInventoryValue - futurePurchasesTotal + futureCOGS - futureAdjustmentValue;
       
-      // Opening Stock = Closing Stock - Purchases during period + COGS during period
-      const openingStock = closingStock - totalPurchases + totalCOGS;
+      // Opening Stock = Closing Stock - Purchases + COGS + Stock Write-offs - Stock Gains
+      const openingStock = closingStock - totalPurchases + totalCOGS + stockWriteOffs - stockGains;
 
       // Purchase Returns (if any - from journal entries)
       const purchaseReturns = 0; // Would need purchase returns tracking
@@ -218,9 +264,9 @@ export default function ProfitLoss() {
       const tradingCrBase = netSales + crClosingStock + crOpeningStock;
       const grossProfit = tradingCrBase - tradingDrBase;
 
-      // P&L Account Calculations
-      const totalOperatingExpenses = totalAdminExpenses + totalSellingExpenses + totalOtherExpenses;
-      const netProfit = grossProfit - totalOperatingExpenses;
+      // P&L Account Calculations - Include stock write-offs as an expense
+      const totalOperatingExpenses = totalAdminExpenses + totalSellingExpenses + totalOtherExpenses + stockWriteOffs;
+      const netProfit = grossProfit - totalOperatingExpenses + stockGains;
 
       return {
         // Trading Account
@@ -247,6 +293,9 @@ export default function ProfitLoss() {
         totalOperatingExpenses,
         netProfit,
         isProfit: netProfit >= 0,
+        // Stock Adjustments
+        stockWriteOffs,
+        stockGains,
       };
     },
   });
@@ -486,6 +535,12 @@ export default function ProfitLoss() {
                             <TableCell className="text-right font-mono">{formatCurrency(exp.balance)}</TableCell>
                           </TableRow>
                         ))}
+                        {plData.stockWriteOffs > 0 && (
+                          <TableRow className="bg-red-50 dark:bg-red-950/30">
+                            <TableCell className="text-red-700">To Stock Write-offs (Adjustments)</TableCell>
+                            <TableCell className="text-right font-mono text-red-700">{formatCurrency(plData.stockWriteOffs)}</TableCell>
+                          </TableRow>
+                        )}
                         {plData.netProfit > 0 && (
                           <TableRow className="bg-green-50 dark:bg-green-950/30">
                             <TableCell className="font-bold text-green-700">To Net Profit</TableCell>
@@ -515,6 +570,12 @@ export default function ProfitLoss() {
                           <TableCell className="font-bold">By Gross {plData.grossProfit >= 0 ? 'Profit' : 'Loss'} b/d</TableCell>
                           <TableCell className="text-right font-mono font-bold">{formatCurrency(Math.abs(plData.grossProfit))}</TableCell>
                         </TableRow>
+                        {plData.stockGains > 0 && (
+                          <TableRow className="bg-green-50 dark:bg-green-950/30">
+                            <TableCell className="text-green-700">By Stock Gains (Adjustments)</TableCell>
+                            <TableCell className="text-right font-mono text-green-700">{formatCurrency(plData.stockGains)}</TableCell>
+                          </TableRow>
+                        )}
                         {plData.netProfit < 0 && (
                           <TableRow className="bg-red-50 dark:bg-red-950/30">
                             <TableCell className="font-bold text-red-700">By Net Loss</TableCell>
@@ -524,7 +585,7 @@ export default function ProfitLoss() {
                         <TableRow className="border-t-2 bg-muted">
                           <TableCell className="font-bold">Total</TableCell>
                           <TableCell className="text-right font-mono font-bold">
-                            {formatCurrency(Math.abs(plData.grossProfit) + (plData.netProfit < 0 ? Math.abs(plData.netProfit) : 0))}
+                            {formatCurrency(Math.abs(plData.grossProfit) + plData.stockGains + (plData.netProfit < 0 ? Math.abs(plData.netProfit) : 0))}
                           </TableCell>
                         </TableRow>
                       </TableBody>
