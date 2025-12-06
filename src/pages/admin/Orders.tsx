@@ -1455,6 +1455,33 @@ export default function AdminOrders() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Totals Summary */}
+            {orders && orders.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold">{orders.length}</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Total Sales</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+                    {formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}
+                  </p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Total Discounts</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                    {formatCurrency(orders.reduce((sum, o) => sum + (o.discount || 0), 0))}
+                  </p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Total Tax</p>
+                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+                    {formatCurrency(orders.reduce((sum, o) => sum + (o.tax || 0), 0))}
+                  </p>
+                </div>
+              </div>
+            )}
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 Loading orders...
