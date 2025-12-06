@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Package, Search, Filter } from 'lucide-react';
+import { Package, Search, Filter, RefreshCw, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
@@ -425,6 +426,29 @@ export default function StockAdjustment() {
   // Products are already filtered by the query, no need to filter again
   const filteredProducts = products || [];
 
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  const handleRecalculateStock = async () => {
+    setIsRecalculating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fix-stock-from-purchases', {
+        body: { threshold: 10 }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Stock recalculated: ${data.productsFixed} products and ${data.variantsFixed} variants fixed`);
+      queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+    } catch (error: any) {
+      console.error('Recalculate error:', error);
+      toast.error('Failed to recalculate stock: ' + error.message);
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   const calculateDifference = (key: string, systemStock: number) => {
     const inputValue = stockInputs[key];
     if (!inputValue || inputValue === '') return null;
@@ -474,7 +498,17 @@ export default function StockAdjustment() {
           <h1 className="text-3xl font-bold">Stock Adjustment</h1>
           <p className="text-muted-foreground">View and adjust inventory after physical verification</p>
         </div>
-        <ReturnToPOSButton />
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleRecalculateStock}
+            disabled={isRecalculating}
+          >
+            {isRecalculating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Recalculate Stock
+          </Button>
+          <ReturnToPOSButton />
+        </div>
       </div>
 
       {/* Filters */}
