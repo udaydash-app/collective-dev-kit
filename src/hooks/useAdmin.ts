@@ -20,6 +20,25 @@ export const useAdmin = () => {
   const initialOfflineSession = useMemo(() => getOfflineSessionSync(), []);
   const [offlineSession, setOfflineSession] = useState<any>(initialOfflineSession);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  // PRIORITY: If we have an offline session, return immediately without any queries
+  // This handles both true offline AND local LAN deployment scenarios
+  if (initialOfflineSession) {
+    return {
+      isAdmin: true,
+      isCashier: true,
+      role: 'cashier',
+      isLoading: false,
+      user: {
+        id: initialOfflineSession.pos_user_id,
+        email: `pos-${initialOfflineSession.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: initialOfflineSession.full_name },
+        aud: 'authenticated',
+        created_at: initialOfflineSession.timestamp
+      } as any,
+    };
+  }
 
   // Monitor online/offline status
   useEffect(() => {
