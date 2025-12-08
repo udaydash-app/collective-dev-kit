@@ -2,16 +2,59 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://wvdrsofehwiopbkzrqit.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2ZHJzb2ZlaHdpb3Bia3pycWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzE1NjUsImV4cCI6MjA3NjA0NzU2NX0.GH5r-1xInHsL_EyzMOTVtb2QWIImuyJe-_ysqF0LCQ0";
+const CLOUD_SUPABASE_URL = "https://wvdrsofehwiopbkzrqit.supabase.co";
+const CLOUD_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2ZHJzb2ZlaHdpb3Bia3pycWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzE1NjUsImV4cCI6MjA3NjA0NzU2NX0.GH5r-1xInHsL_EyzMOTVtb2QWIImuyJe-_ysqF0LCQ0";
+
+// Check for local Supabase configuration (set via Settings page or localStorage)
+const getSupabaseConfig = () => {
+  try {
+    const localConfig = localStorage.getItem('local_supabase_config');
+    if (localConfig) {
+      const config = JSON.parse(localConfig);
+      if (config.url && config.anonKey) {
+        console.log('Using local Supabase:', config.url);
+        return { url: config.url, key: config.anonKey };
+      }
+    }
+  } catch (error) {
+    console.error('Error reading local Supabase config:', error);
+  }
+  return { url: CLOUD_SUPABASE_URL, key: CLOUD_SUPABASE_KEY };
+};
+
+const config = getSupabaseConfig();
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(config.url, config.key, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
 });
+
+// Helper to update local Supabase config (call this from Settings)
+export const setLocalSupabaseConfig = (url: string, anonKey: string) => {
+  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey }));
+  // Reload to apply new config
+  window.location.reload();
+};
+
+export const clearLocalSupabaseConfig = () => {
+  localStorage.removeItem('local_supabase_config');
+  window.location.reload();
+};
+
+export const getLocalSupabaseConfigStatus = () => {
+  try {
+    const localConfig = localStorage.getItem('local_supabase_config');
+    if (localConfig) {
+      return JSON.parse(localConfig);
+    }
+  } catch (error) {
+    console.error('Error reading local config:', error);
+  }
+  return null;
+};
