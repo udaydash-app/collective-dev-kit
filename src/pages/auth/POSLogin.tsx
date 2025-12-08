@@ -348,22 +348,15 @@ export default function POSLogin() {
         localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
         console.log('✅ Stored local session:', sessionData);
         
-        toast.success(`Welcome, ${fullName}! (Local Mode)`);
+        toast.success(`Welcome, ${fullName}!`);
         
-        // Cache essential data
-        if (navigator.onLine) {
-          toast.loading('Preparing data...', { id: 'cache-data' });
-          try {
-            await cacheEssentialData();
-            toast.success('Data cached!', { id: 'cache-data' });
-          } catch (cacheError) {
-            console.error('Error caching data:', cacheError);
-            toast.dismiss('cache-data');
-          }
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Navigate immediately - cache data in background
         navigate('/admin/pos');
+        
+        // Cache essential data in background (non-blocking)
+        if (navigator.onLine) {
+          cacheEssentialData().catch(err => console.error('Background cache error:', err));
+        }
         return;
       }
       
