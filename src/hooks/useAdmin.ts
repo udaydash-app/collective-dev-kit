@@ -1,9 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+
+// Check offline session synchronously to avoid flicker
+const getOfflineSessionSync = () => {
+  try {
+    const offlineData = localStorage.getItem('offline_pos_session');
+    if (offlineData) {
+      return JSON.parse(offlineData);
+    }
+  } catch (error) {
+    console.error('Error reading offline session:', error);
+  }
+  return null;
+};
 
 export const useAdmin = () => {
-  const [offlineSession, setOfflineSession] = useState<any>(null);
+  // Initialize synchronously to prevent queries from firing
+  const initialOfflineSession = useMemo(() => getOfflineSessionSync(), []);
+  const [offlineSession, setOfflineSession] = useState<any>(initialOfflineSession);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   // Monitor online/offline status
