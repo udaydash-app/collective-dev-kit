@@ -683,130 +683,25 @@ export default function POS() {
     enabled: !!currentCashSession,
   });
 
-  // Get top credit customers with outstanding balances
+  // Get top credit customers with outstanding balances - optimized single query
   const { data: topCreditCustomers, isLoading: creditCustomersLoading } = useQuery({
     queryKey: ['top-credit-customers', selectedStoreId],
     queryFn: async () => {
       if (!selectedStoreId) return [];
 
-      // First, get all customer contacts
-      const { data: contacts, error: contactsError } = await supabase
-        .from('contacts')
-        .select('id, name, phone, email, customer_ledger_account_id, supplier_ledger_account_id')
-        .eq('is_customer', true)
-        .not('customer_ledger_account_id', 'is', null)
-        .order('name');
+      // Use optimized database function for fast retrieval
+      const { data, error } = await supabase
+        .rpc('get_top_credit_customers', { limit_count: 10 });
 
-      if (contactsError) {
-        console.error('Error fetching contacts:', contactsError);
+      if (error) {
+        console.error('Error fetching top credit customers:', error);
         return [];
       }
 
-      console.log('Fetched contacts:', contacts);
-
-      if (!contacts || contacts.length === 0) {
-        console.log('No contacts found');
-        return [];
-      }
-
-      // Log dual-role customers
-      const dualRoleContacts = contacts.filter(c => c.supplier_ledger_account_id);
-      console.log('Dual-role customers found:', dualRoleContacts);
-
-      // Get all account IDs (both customer and supplier)
-      const accountIds = [
-        ...contacts.map(c => c.customer_ledger_account_id).filter(Boolean),
-        ...contacts.map(c => c.supplier_ledger_account_id).filter(Boolean)
-      ];
-
-      // Calculate account balances from journal entries (like General Ledger does)
-      const accountBalanceMap = new Map<string, number>();
-      
-      for (const accountId of accountIds) {
-        // Get the contact to determine account type
-        const { data: contact } = await supabase
-          .from('contacts')
-          .select('opening_balance, supplier_opening_balance, customer_ledger_account_id, supplier_ledger_account_id')
-          .or(`customer_ledger_account_id.eq.${accountId},supplier_ledger_account_id.eq.${accountId}`)
-          .maybeSingle();
-        
-        // Get journal entries for this account (excluding opening balance entries)
-        const { data: lines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              status,
-              description
-            )
-          `)
-          .eq('account_id', accountId)
-          .eq('journal_entries.status', 'posted')
-          .not('journal_entries.description', 'ilike', '%opening balance%');
-        
-        // Calculate balance from journal entries
-        const debits = (lines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const credits = (lines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
-        
-        // Determine account type and opening balance
-        const isCustomerAccount = contact?.customer_ledger_account_id === accountId;
-        const isSupplierAccount = contact?.supplier_ledger_account_id === accountId;
-        
-        let balance = 0;
-        if (isCustomerAccount) {
-          // Asset account: opening + debits - credits
-          const opening = Number(contact?.opening_balance || 0);
-          balance = opening + debits - credits;
-        } else if (isSupplierAccount) {
-          // Liability account: opening + credits - debits
-          const opening = Number(contact?.supplier_opening_balance || 0);
-          balance = opening + credits - debits;
-        }
-        
-        accountBalanceMap.set(accountId, balance);
-      }
-      
-      console.log('Account balance map:', Object.fromEntries(accountBalanceMap));
-
-      // Map contacts with their balance (A/R - A/P for dual-role)
-      const customersWithBalance = contacts
-        .map(contact => {
-          const customerBalance = accountBalanceMap.get(contact.customer_ledger_account_id) || 0;
-          const supplierBalance = contact.supplier_ledger_account_id 
-            ? accountBalanceMap.get(contact.supplier_ledger_account_id) || 0
-            : 0;
-          
-          // For dual-role: A/R - A/P (what they owe us minus what we owe them)
-          const balance = customerBalance - supplierBalance;
-
-          return {
-            ...contact,
-            balance: balance
-          };
-        });
-
-      // Separate dual-role and regular customers (exclude zero balances)
-      const dualRoleCustomers = customersWithBalance
-        .filter(c => c.supplier_ledger_account_id && c.balance !== 0)
-        .sort((a, b) => b.balance - a.balance);
-      
-      const regularCustomers = customersWithBalance
-        .filter(c => !c.supplier_ledger_account_id && c.balance !== 0)
-        .sort((a, b) => b.balance - a.balance);
-
-      // Prioritize dual-role customers, then fill with regular customers
-      const finalList = [
-        ...dualRoleCustomers,
-        ...regularCustomers
-      ].slice(0, 10);
-
-      console.log('Final customers with balance:', finalList);
-      console.log('Dual-role in final list:', finalList.filter(c => c.supplier_ledger_account_id));
-
-      return finalList;
+      return data || [];
     },
     enabled: !!selectedStoreId,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   // Calculate day activity
