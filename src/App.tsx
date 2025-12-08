@@ -122,8 +122,8 @@ const AppContent = () => {
         <ChatNotifications />
         <ChatWidget />
         <Routes>
-          {/* Root shows customer home page */}
-          <Route path="/" element={<Home />} />
+          {/* Root redirects to POS login for local/PWA/desktop apps */}
+          <Route path="/" element={<Navigate to="/pos-login" replace />} />
           
           {/* Customer-facing home */}
           <Route path="/home" element={<Home />} />
