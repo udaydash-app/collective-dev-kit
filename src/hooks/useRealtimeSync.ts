@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
@@ -8,6 +8,13 @@ export const useRealtimeSync = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Check if using local HTTP server - skip realtime to avoid WebSocket errors
+    // (HTTPS pages cannot connect to ws:// endpoints, only wss://)
+    const localConfig = getLocalSupabaseConfigStatus();
+    if (localConfig?.url?.startsWith('http://')) {
+      console.log('Skipping realtime sync - local HTTP server does not support secure WebSocket from HTTPS pages');
+      return;
+    }
     // Products realtime sync
     const productsChannel = supabase
       .channel('products-changes')
