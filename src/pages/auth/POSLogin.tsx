@@ -9,6 +9,7 @@ import { Store, Hash, Loader2, WifiOff, Database, Settings, Server } from 'lucid
 import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
+import { shouldUseLocalData, isLocalMode } from '@/lib/localModeHelper';
 import logo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -16,7 +17,7 @@ import { Label } from '@/components/ui/label';
 export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(shouldUseLocalData());
   const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -62,9 +63,9 @@ export default function POSLogin() {
     initDB();
   }, []);
 
-  // Monitor online/offline status
+  // Monitor online/offline status - also consider local LAN mode
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    const handleOnline = () => setIsOffline(shouldUseLocalData());
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
@@ -353,10 +354,9 @@ export default function POSLogin() {
         // Navigate immediately - cache data in background
         navigate('/admin/pos');
         
-        // Cache essential data in background (non-blocking)
-        if (navigator.onLine) {
-          cacheEssentialData().catch(err => console.error('Background cache error:', err));
-        }
+        // Cache essential data in background (non-blocking) for local mode
+        // Local mode can access local Supabase for caching even though navigator.onLine is true
+        cacheEssentialData(true).catch(err => console.error('Background cache error:', err));
         return;
       }
       

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -8,43 +8,45 @@ import { CashInDialog } from '@/components/pos/CashInDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DollarSign, ArrowLeft } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useLocalStores, useLocalCashSessions, useIsLocalMode } from '@/hooks/useLocalData';
+import { offlineDB } from '@/lib/offlineDB';
 
 export default function OpenCashRegister() {
   const navigate = useNavigate();
   const [showCashIn, setShowCashIn] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>('');
+  const isLocalMode = useIsLocalMode();
 
-  // Fetch stores
-  const { data: stores } = useQuery({
-    queryKey: ['stores'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('stores')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-      return data || [];
-    },
-  });
+  // Fetch stores using local-aware hook
+  const { data: stores } = useLocalStores();
 
-  // Check for active sessions
-  const { data: activeSessions } = useQuery({
-    queryKey: ['active-sessions'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+  // Get current user/session for filtering
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const getUser = async () => {
+      if (isLocalMode) {
+        // In local mode, get user from offline session
+        const offlineSession = localStorage.getItem('offline_pos_session');
+        if (offlineSession) {
+          const session = JSON.parse(offlineSession);
+          setCurrentUserId(session.pos_user_id);
+        }
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setCurrentUserId(user.id);
+      }
+    };
+    getUser();
+  }, [isLocalMode]);
 
-      const { data } = await supabase
-        .from('cash_sessions')
-        .select('*, stores(name)')
-        .eq('cashier_id', user.id)
-        .eq('status', 'open')
-        .order('opened_at', { ascending: false });
-
-      return data || [];
-    },
-  });
+  // Check for active sessions using local-aware hook
+  const { data: allCashSessions } = useLocalCashSessions();
+  
+  // Filter to get only active sessions for current user
+  const activeSessions = allCashSessions?.filter(
+    (session: any) => session.status === 'open' && session.cashier_id === currentUserId
+  ) || [];
 
   const handleOpenCash = async (openingCash: number) => {
     if (!selectedStore) {
@@ -126,10 +128,12 @@ export default function OpenCashRegister() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {activeSessions.map((session: any) => (
+                {activeSessions.map((session: any) => {
+                  const storeName = stores?.find((s: any) => s.id === session.store_id)?.name || session.stores?.name || 'Unknown Store';
+                  return (
                   <div key={session.id} className="flex items-center justify-between p-4 border rounded-lg bg-primary/5">
                     <div>
-                      <p className="font-semibold">{session.stores?.name}</p>
+                      <p className="font-semibold">{storeName}</p>
                       <p className="text-sm text-muted-foreground">
                         Opened: {new Date(session.opened_at).toLocaleString()}
                       </p>
@@ -146,7 +150,8 @@ export default function OpenCashRegister() {
                       Go to POS
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

@@ -89,6 +89,7 @@ import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
+import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -472,11 +473,11 @@ export default function POS() {
     }
   };
 
-  // Track offline status for queries
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  // Track offline/local mode status for queries - use IndexedDB in local LAN mode too
+  const [isOffline, setIsOffline] = useState(shouldUseLocalData());
   
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    const handleOnline = () => setIsOffline(shouldUseLocalData());
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
