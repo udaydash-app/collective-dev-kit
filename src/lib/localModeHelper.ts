@@ -1,14 +1,18 @@
 /**
- * Helper to detect if the app is running in local mode (local Supabase via LAN)
- * In local mode, we prioritize IndexedDB for faster reads
+ * Helper to detect connectivity and local Supabase configuration
+ * 
+ * Key distinction:
+ * - Local Supabase (LAN) = Supabase running on Docker locally, queries go to local DB (fast!)
+ * - Offline = No network, use IndexedDB cache
+ * - Cloud = Normal cloud Supabase queries
  */
 
 import { getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
 
 // Cache the result to avoid localStorage reads on every call
-let cachedIsLocalMode: boolean | null = null;
+let cachedIsLocalSupabase: boolean | null = null;
 
-// Check if Supabase URL starts with http:// (local LAN) vs https:// (cloud)
+// Check if using local Supabase (Docker on LAN)
 const checkIsLocalSupabase = (): boolean => {
   // Check localStorage for local config first
   const localConfig = getLocalSupabaseConfigStatus();
@@ -25,29 +29,44 @@ const checkIsLocalSupabase = (): boolean => {
   return false;
 };
 
-export const isLocalMode = (): boolean => {
-  if (cachedIsLocalMode !== null) return cachedIsLocalMode;
-  
-  cachedIsLocalMode = checkIsLocalSupabase();
-  
-  if (cachedIsLocalMode) {
-    console.log('Local mode detected - using IndexedDB for data');
-  }
-  
-  return cachedIsLocalMode;
+/**
+ * Returns true if using local Supabase (Docker on LAN)
+ * This means queries go to local Supabase, not cloud
+ */
+export const isLocalSupabase = (): boolean => {
+  if (cachedIsLocalSupabase !== null) return cachedIsLocalSupabase;
+  cachedIsLocalSupabase = checkIsLocalSupabase();
+  return cachedIsLocalSupabase;
 };
 
-// Use this for combined offline/local mode check
-// Returns true if we should use IndexedDB instead of Supabase queries
+/**
+ * DEPRECATED - use isOffline() or isLocalSupabase() instead
+ * Kept for backward compatibility
+ */
+export const isLocalMode = (): boolean => {
+  return isLocalSupabase();
+};
+
+/**
+ * Returns true ONLY if browser is actually offline (no network)
+ * In this case, we must use IndexedDB cache
+ */
+export const isOffline = (): boolean => {
+  return !navigator.onLine;
+};
+
+/**
+ * Returns true if we should use IndexedDB instead of Supabase queries
+ * This is ONLY when truly offline (no network connection)
+ * 
+ * When using local Supabase on LAN, queries should go to local Supabase (fast!)
+ */
 export const shouldUseLocalData = (): boolean => {
-  // Always use local data if browser is offline
-  if (!navigator.onLine) return true;
-  
-  // Use local data if local Supabase config is set (LAN mode)
-  return isLocalMode();
+  // Only use IndexedDB when truly offline
+  return !navigator.onLine;
 };
 
 // Reset cache (call when config changes)
 export const resetLocalModeCache = () => {
-  cachedIsLocalMode = null;
+  cachedIsLocalSupabase = null;
 };
