@@ -13,12 +13,22 @@ export const isLocalMode = (): boolean => {
   
   const localConfig = getLocalSupabaseConfigStatus();
   cachedIsLocalMode = !!localConfig;
+  
+  if (cachedIsLocalMode) {
+    console.log('Local mode detected - using IndexedDB for data');
+  }
+  
   return cachedIsLocalMode;
 };
 
 // Use this for combined offline/local mode check
+// Returns true if we should use IndexedDB instead of Supabase queries
 export const shouldUseLocalData = (): boolean => {
-  return !navigator.onLine || isLocalMode();
+  // Always use local data if browser is offline
+  if (!navigator.onLine) return true;
+  
+  // Use local data if local Supabase config is set (LAN mode)
+  return isLocalMode();
 };
 
 // Reset cache (call when config changes)
