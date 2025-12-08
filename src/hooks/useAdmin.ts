@@ -4,6 +4,21 @@ import { useState, useEffect } from "react";
 
 export const useAdmin = () => {
   const [offlineSession, setOfflineSession] = useState<any>(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Check for offline session
   useEffect(() => {
@@ -29,6 +44,9 @@ export const useAdmin = () => {
       const { data: { session } } = await supabase.auth.getSession();
       return session;
     },
+    // Don't fetch if offline - use cached data
+    enabled: !isOffline,
+    retry: isOffline ? false : 3,
   });
 
   const { data: roleData, isLoading: isRoleLoading } = useQuery({
@@ -49,11 +67,12 @@ export const useAdmin = () => {
 
       return data;
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && !isOffline,
+    retry: isOffline ? false : 3,
   });
 
-  // If we have an offline session, use it
-  if (offlineSession && !session) {
+  // If we have an offline session (either offline or no online session), use it
+  if (offlineSession && (isOffline || !session)) {
     console.log('Using offline session for authentication');
     return {
       isAdmin: true, // Offline POS users are always cashiers/admins
@@ -71,6 +90,17 @@ export const useAdmin = () => {
     };
   }
 
+  // If offline and no offline session, return not loading but not admin
+  if (isOffline && !offlineSession) {
+    return {
+      isAdmin: false,
+      isCashier: false,
+      role: null,
+      isLoading: false,
+      user: null,
+    };
+  }
+
   const isAdmin = roleData?.role === 'admin' || roleData?.role === 'cashier';
   const isLoading = isSessionLoading || (isRoleLoading && !!session?.user?.id);
 
@@ -83,7 +113,8 @@ export const useAdmin = () => {
     isLoading,
     hasSession: !!session,
     hasUser: !!session?.user,
-    hasOfflineSession: !!offlineSession
+    hasOfflineSession: !!offlineSession,
+    isOffline
   });
 
   return {
