@@ -89,7 +89,7 @@ import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
-import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase } from '@/lib/localModeHelper';
+import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -474,13 +474,29 @@ export default function POS() {
   };
 
   // Track offline/local mode status for queries
-  // With local Supabase, always try to query it (don't skip to IndexedDB)
+  // With local Supabase, check if it's actually reachable
   const localMode = isLocalSupabase();
   const [isOffline, setIsOffline] = useState(!shouldQuerySupabase());
   
+  // On mount, check local Supabase reachability
   useEffect(() => {
-    const updateQueryState = () => {
-      setIsOffline(!shouldQuerySupabase());
+    const checkReachability = async () => {
+      if (localMode) {
+        const reachable = await checkLocalSupabaseReachable();
+        setIsOffline(!reachable);
+      }
+    };
+    checkReachability();
+  }, [localMode]);
+  
+  useEffect(() => {
+    const updateQueryState = async () => {
+      if (localMode) {
+        const reachable = await checkLocalSupabaseReachable();
+        setIsOffline(!reachable);
+      } else {
+        setIsOffline(!navigator.onLine);
+      }
     };
     window.addEventListener('online', updateQueryState);
     window.addEventListener('offline', updateQueryState);
@@ -488,7 +504,7 @@ export default function POS() {
       window.removeEventListener('online', updateQueryState);
       window.removeEventListener('offline', updateQueryState);
     };
-  }, []);
+  }, [localMode]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores', localMode ? 'local' : 'cloud'],

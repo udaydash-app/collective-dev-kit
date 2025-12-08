@@ -7,8 +7,8 @@
  * - Cloud = Normal cloud Supabase queries
  * 
  * CRITICAL: When local Supabase is configured:
- * - ALWAYS try to query local Supabase first (it's on LAN, should be fast)
- * - Only use IndexedDB as a fallback if the query fails
+ * - Check if it's actually reachable before trying to query
+ * - Use IndexedDB as a fallback if local Supabase is not responding
  * - navigator.onLine is unreliable for LAN-only setups
  */
 
@@ -16,6 +16,9 @@ import { getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
 
 // Cache the result to avoid localStorage reads on every call
 let cachedIsLocalSupabase: boolean | null = null;
+let cachedLocalSupabaseReachable: boolean | null = null;
+let lastReachabilityCheck = 0;
+const REACHABILITY_CHECK_INTERVAL = 30000; // Check every 30 seconds
 
 // Check if using local Supabase (Docker on LAN)
 const checkIsLocalSupabase = (): boolean => {
@@ -45,6 +48,57 @@ export const isLocalSupabase = (): boolean => {
 };
 
 /**
+ * Check if local Supabase is actually reachable with a quick timeout
+ * This is called periodically to update the cached reachability status
+ */
+export const checkLocalSupabaseReachable = async (): Promise<boolean> => {
+  const localConfig = getLocalSupabaseConfigStatus();
+  if (!localConfig?.url) return false;
+  
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    
+    const response = await fetch(`${localConfig.url}/rest/v1/`, {
+      method: 'HEAD',
+      signal: controller.signal,
+      headers: {
+        'apikey': localConfig.anonKey || '',
+      }
+    });
+    
+    clearTimeout(timeout);
+    cachedLocalSupabaseReachable = response.ok || response.status === 400; // 400 is OK (just means no table specified)
+    lastReachabilityCheck = Date.now();
+    console.log('[LocalMode] Local Supabase reachable:', cachedLocalSupabaseReachable);
+    return cachedLocalSupabaseReachable;
+  } catch (e) {
+    console.log('[LocalMode] Local Supabase not reachable:', e);
+    cachedLocalSupabaseReachable = false;
+    lastReachabilityCheck = Date.now();
+    return false;
+  }
+};
+
+/**
+ * Returns cached reachability status, triggering a background check if stale
+ */
+export const isLocalSupabaseReachable = (): boolean => {
+  // If not configured as local, return false
+  if (!isLocalSupabase()) return false;
+  
+  // If we've never checked or check is stale, trigger background check
+  if (cachedLocalSupabaseReachable === null || 
+      Date.now() - lastReachabilityCheck > REACHABILITY_CHECK_INTERVAL) {
+    // Trigger async check but return current cached value
+    checkLocalSupabaseReachable();
+  }
+  
+  // Return cached value (optimistic: true if never checked)
+  return cachedLocalSupabaseReachable ?? true;
+};
+
+/**
  * DEPRECATED - use isOffline() or isLocalSupabase() instead
  * Kept for backward compatibility
  */
@@ -64,20 +118,19 @@ export const isOffline = (): boolean => {
 /**
  * Returns true if we should SKIP Supabase and use IndexedDB directly
  * 
- * IMPORTANT: When local Supabase is configured, we should ALWAYS try to query it first
- * because it's on the LAN and should be reachable. Only use IndexedDB as fallback.
- * 
- * Use IndexedDB directly ONLY when:
+ * Use IndexedDB directly when:
  * 1. Browser is truly offline AND we're using cloud Supabase (not local)
- * 
- * When local Supabase is configured:
- * - Always try Supabase first (it's on LAN)
- * - Fall back to IndexedDB only if query fails
+ * 2. Local Supabase is configured but NOT reachable
  */
 export const shouldUseLocalData = (): boolean => {
-  // If local Supabase is configured, NEVER skip it - always try LAN first
-  if (isLocalSupabase()) {
-    return false; // Don't use IndexedDB, try local Supabase
+  // If local Supabase is configured AND reachable, don't use IndexedDB
+  if (isLocalSupabase() && isLocalSupabaseReachable()) {
+    return false;
+  }
+  
+  // If local Supabase is configured but NOT reachable, use IndexedDB
+  if (isLocalSupabase() && !isLocalSupabaseReachable()) {
+    return true;
   }
   
   // For cloud Supabase, use IndexedDB only when truly offline
@@ -87,12 +140,12 @@ export const shouldUseLocalData = (): boolean => {
 /**
  * Returns true if we should try Supabase queries (local or cloud)
  * This is the primary check - when true, query Supabase
- * When false (truly offline with cloud config), use IndexedDB
+ * When false (truly offline with cloud config, or local not reachable), use IndexedDB
  */
 export const shouldQuerySupabase = (): boolean => {
-  // If local Supabase is configured, always try to query it
+  // If local Supabase is configured, check if it's reachable
   if (isLocalSupabase()) {
-    return true;
+    return isLocalSupabaseReachable();
   }
   
   // For cloud, only query when online
@@ -102,4 +155,15 @@ export const shouldQuerySupabase = (): boolean => {
 // Reset cache (call when config changes)
 export const resetLocalModeCache = () => {
   cachedIsLocalSupabase = null;
+  cachedLocalSupabaseReachable = null;
+  lastReachabilityCheck = 0;
 };
+
+// Initialize reachability check on module load
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    if (isLocalSupabase()) {
+      checkLocalSupabaseReachable();
+    }
+  }, 1000);
+}
