@@ -9,7 +9,7 @@ import { Store, Hash, Loader2, WifiOff, Database, Settings, Server } from 'lucid
 import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
-import { shouldUseLocalData, isLocalMode } from '@/lib/localModeHelper';
+import { shouldUseLocalData, isLocalMode, isLocalSupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import logo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -46,7 +46,7 @@ export default function POSLogin() {
     console.log('Running as installed PWA:', standalone);
   }, []);
 
-  // Initialize IndexedDB on component mount (critical for PWA)
+  // Initialize IndexedDB and check local Supabase reachability on component mount
   useEffect(() => {
     const initDB = async () => {
       try {
@@ -54,6 +54,14 @@ export default function POSLogin() {
         await offlineDB.init();
         setDbInitialized(true);
         console.log('✓ IndexedDB initialized successfully');
+        
+        // Check local Supabase reachability if configured
+        if (isLocalSupabase()) {
+          console.log('Checking local Supabase reachability...');
+          const reachable = await checkLocalSupabaseReachable();
+          console.log('Local Supabase reachable:', reachable);
+          setIsOffline(!reachable);
+        }
       } catch (error) {
         console.error('✗ Failed to initialize IndexedDB:', error);
         toast.error('Failed to initialize offline storage. Offline mode will not work.');

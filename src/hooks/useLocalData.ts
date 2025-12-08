@@ -2,42 +2,47 @@
  * Hook for accessing data with automatic offline fallback to IndexedDB
  * 
  * Key logic:
- * - Local Supabase configured → ALWAYS try local Supabase first, fallback to IndexedDB
+ * - Local Supabase configured + reachable → Query local Supabase
+ * - Local Supabase configured + NOT reachable → Use IndexedDB cache
  * - Cloud Supabase + Online → Query cloud Supabase
  * - Cloud Supabase + Offline → Use IndexedDB cache
- * 
- * CRITICAL: navigator.onLine is unreliable for LAN-only setups.
- * When local Supabase is configured, always try to query it first.
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { offlineDB } from '@/lib/offlineDB';
-import { isLocalSupabase, shouldQuerySupabase } from '@/lib/localModeHelper';
+import { isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import { useState, useEffect } from 'react';
 
-// Track online/offline state (for cloud setups only)
+// Track online/offline state with reachability check
 export const useIsOffline = () => {
-  const [offline, setOffline] = useState(!navigator.onLine && !isLocalSupabase());
+  const [offline, setOffline] = useState(false);
+  const localMode = isLocalSupabase();
   
   useEffect(() => {
-    const updateOfflineState = () => {
-      // If local Supabase, we're never "offline" - always try to query
-      if (isLocalSupabase()) {
-        setOffline(false);
+    const updateOfflineState = async () => {
+      if (localMode) {
+        // For local Supabase, check actual reachability
+        const reachable = await checkLocalSupabaseReachable();
+        setOffline(!reachable);
       } else {
         setOffline(!navigator.onLine);
       }
     };
     
+    updateOfflineState(); // Initial check
+    
     window.addEventListener('online', updateOfflineState);
     window.addEventListener('offline', updateOfflineState);
-    updateOfflineState(); // Initial check
+    
+    // Periodic check for local Supabase
+    const interval = localMode ? setInterval(updateOfflineState, 30000) : null;
     
     return () => {
       window.removeEventListener('online', updateOfflineState);
       window.removeEventListener('offline', updateOfflineState);
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [localMode]);
   
   return offline;
 };
@@ -54,24 +59,36 @@ export const useLocalQuery = <T>(
   indexedDBFetcher: () => Promise<T[]>,
   options?: { enabled?: boolean; staleTime?: number; refetchOnWindowFocus?: boolean }
 ) => {
-  const shouldQuery = shouldQuerySupabase();
   const localMode = isLocalSupabase();
   
   return useQuery({
     queryKey: [...queryKey, localMode ? 'local' : 'cloud'],
     queryFn: async () => {
-      // Always try Supabase first (local or cloud when online)
-      if (shouldQuery) {
+      // First check if we should query Supabase (checks reachability for local)
+      const canQuery = shouldQuerySupabase();
+      
+      // For local mode, do a quick reachability check
+      if (localMode && canQuery) {
+        const reachable = await checkLocalSupabaseReachable();
+        if (!reachable) {
+          // Local Supabase not reachable, use IndexedDB
+          try {
+            const data = await indexedDBFetcher();
+            console.log(`[IndexedDB - Local Unreachable] ${queryKey[0]}: loaded ${data.length} items`);
+            return data;
+          } catch (e) {
+            console.error(`[IndexedDB Error] ${queryKey[0]}:`, e);
+            return [];
+          }
+        }
+      }
+      
+      // Try Supabase (local or cloud)
+      if (canQuery) {
         try {
           const data = await supabaseFetcher();
           const mode = localMode ? 'Local Supabase' : 'Cloud';
           console.log(`[${mode}] ${queryKey[0]}: loaded ${(data || []).length} items`);
-          
-          // Cache to IndexedDB for future offline use
-          if (data && data.length > 0) {
-            // Caching happens in individual hooks
-          }
-          
           return data || [];
         } catch (e) {
           console.error(`[Supabase Error] ${queryKey[0]}: falling back to IndexedDB`, e);
@@ -90,11 +107,11 @@ export const useLocalQuery = <T>(
       }
     },
     enabled: options?.enabled !== false,
-    staleTime: options?.staleTime ?? (localMode ? 10 * 1000 : 30 * 1000), // Shorter stale time for local
+    staleTime: options?.staleTime ?? (localMode ? 10 * 1000 : 30 * 1000),
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? !localMode,
     refetchOnMount: true,
-    retry: localMode ? 1 : 3, // Fewer retries for local (faster feedback)
+    retry: localMode ? 1 : 3,
     retryDelay: localMode ? 500 : 1000,
   });
 };
