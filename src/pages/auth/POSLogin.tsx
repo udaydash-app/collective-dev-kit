@@ -590,14 +590,14 @@ export default function POSLogin() {
           </div>
 
           {/* Server Config Button - Always visible */}
-          <div className="pt-4 border-t border-border">
+          <div className="pt-4 mt-4 border-t-2 border-primary">
             <Button
-              variant="outline"
-              size="default"
+              variant="default"
+              size="lg"
               onClick={() => setShowServerConfig(true)}
-              className="w-full"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <Server className="h-4 w-4 mr-2" />
+              <Server className="h-5 w-5 mr-2" />
               Configure Local Server
             </Button>
           </div>
