@@ -1,19 +1,23 @@
 /**
- * Hook for accessing data with automatic offline/local mode fallback to IndexedDB
+ * Hook for accessing data with automatic offline fallback to IndexedDB
+ * 
+ * Key logic:
+ * - Online (cloud or local Supabase) → Query Supabase directly
+ * - Offline (no network) → Use IndexedDB cache
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { offlineDB } from '@/lib/offlineDB';
-import { shouldUseLocalData } from '@/lib/localModeHelper';
+import { isOffline, isLocalSupabase } from '@/lib/localModeHelper';
 import { useState, useEffect } from 'react';
 
-// Track if we're in local mode (cached for performance)
-export const useIsLocalMode = () => {
-  const [isLocal, setIsLocal] = useState(shouldUseLocalData());
+// Track online/offline state
+export const useIsOffline = () => {
+  const [offline, setOffline] = useState(!navigator.onLine);
   
   useEffect(() => {
-    const handleOnline = () => setIsLocal(shouldUseLocalData());
-    const handleOffline = () => setIsLocal(true);
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -22,47 +26,55 @@ export const useIsLocalMode = () => {
     };
   }, []);
   
-  return isLocal;
+  return offline;
 };
 
-// Generic hook for fetching data with local fallback - INSTANT for local mode
+// Keep for backward compatibility
+export const useIsLocalMode = () => {
+  return useIsOffline();
+};
+
+// Generic hook for fetching data with offline fallback
 export const useLocalQuery = <T>(
   queryKey: string[],
   supabaseFetcher: () => Promise<T[]>,
   indexedDBFetcher: () => Promise<T[]>,
   options?: { enabled?: boolean }
 ) => {
-  const isLocal = useIsLocalMode();
+  const offline = useIsOffline();
   
   return useQuery({
-    queryKey: [...queryKey, isLocal ? 'local' : 'online'],
+    queryKey: [...queryKey, offline ? 'offline' : 'online'],
     queryFn: async () => {
-      // ALWAYS use IndexedDB first in local mode - no network calls
-      if (isLocal) {
+      // Only use IndexedDB when truly offline
+      if (offline) {
         try {
           const data = await indexedDBFetcher();
-          console.log(`[LocalQuery] ${queryKey[0]}: loaded ${data.length} items from IndexedDB`);
+          console.log(`[Offline] ${queryKey[0]}: loaded ${data.length} items from IndexedDB`);
           return data;
         } catch (e) {
-          console.error(`[LocalQuery] ${queryKey[0]}: IndexedDB error`, e);
+          console.error(`[Offline] ${queryKey[0]}: IndexedDB error`, e);
           return [];
         }
       }
       
-      // Online mode - try Supabase first
+      // Online - query Supabase (local or cloud)
       try {
         const data = await supabaseFetcher();
+        if (isLocalSupabase()) {
+          console.log(`[Local Supabase] ${queryKey[0]}: loaded ${(data || []).length} items`);
+        }
         return data;
       } catch (e) {
-        console.error(`[LocalQuery] ${queryKey[0]}: Supabase error, falling back to IndexedDB`, e);
+        console.error(`[Supabase Error] ${queryKey[0]}: falling back to IndexedDB`, e);
         return indexedDBFetcher();
       }
     },
     enabled: options?.enabled !== false,
-    staleTime: isLocal ? Infinity : 5 * 60 * 1000,
-    gcTime: isLocal ? Infinity : 10 * 60 * 1000, // Keep cached data longer in local mode
-    refetchOnWindowFocus: !isLocal, // Don't refetch on focus in local mode
-    refetchOnMount: !isLocal, // Don't refetch on mount in local mode
+    staleTime: offline ? Infinity : 30 * 1000, // 30 seconds for online
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: !offline,
+    refetchOnMount: !offline,
   });
 };
 
@@ -228,7 +240,6 @@ export const useLocalPOSTransactions = (storeId?: string) => {
   );
 };
 
-// Add more local data hooks for comprehensive offline support
 export const useLocalCategories = () => {
   return useLocalQuery(
     ['categories'],
