@@ -312,12 +312,11 @@ export default function POSLogin() {
       if (dbInitialized) {
         try {
           console.log('Caching user credentials for offline use...');
-          // Store the plain PIN for offline verification (less secure but necessary for offline mode)
           await offlineDB.savePOSUsers([{
             id: posUserId,
             user_id: userId,
             full_name: fullName,
-            pin_hash: pinValue, // Store the plain PIN that was successfully verified
+            pin_hash: pinValue,
             is_active: true,
             lastUpdated: new Date().toISOString()
           }]);
@@ -328,21 +327,50 @@ export default function POSLogin() {
           });
         } catch (cacheError) {
           console.error('Error caching user data:', cacheError);
-          // Don't fail login if caching fails
           toast.warning('Login successful, but failed to cache for offline use.');
         }
-      } else {
-        console.warn('DB not initialized, skipping credential caching');
+      }
+
+      // Check if using local Supabase - skip auth if so
+      const isLocalSupabase = currentConfig !== null;
+      
+      if (isLocalSupabase) {
+        console.log('🟡 Local Supabase detected - skipping Supabase Auth, using PIN-only auth');
+        
+        // Store session for local mode
+        const sessionData = {
+          pos_user_id: posUserId,
+          user_id: userId,
+          full_name: fullName,
+          timestamp: new Date().toISOString(),
+          local: true
+        };
+        localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
+        console.log('✅ Stored local session:', sessionData);
+        
+        toast.success(`Welcome, ${fullName}! (Local Mode)`);
+        
+        // Cache essential data
+        if (navigator.onLine) {
+          toast.loading('Preparing data...', { id: 'cache-data' });
+          try {
+            await cacheEssentialData();
+            toast.success('Data cached!', { id: 'cache-data' });
+          } catch (cacheError) {
+            console.error('Error caching data:', cacheError);
+            toast.dismiss('cache-data');
+          }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        navigate('/admin/pos');
+        return;
       }
       
-      // Auth email is always based on pos_user_id (not user_id)
+      // Cloud Supabase - use full auth flow
       const authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
-      
-      // Create a password that meets Supabase requirements (min 6 chars)
-      // Pad PIN to ensure it's at least 6 characters
       const authPassword = `PIN${pinValue.padStart(6, '0')}`;
       
-      // Try to sign in - the auth user should already exist from the edge function
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password: authPassword,
@@ -356,7 +384,7 @@ export default function POSLogin() {
         return;
       }
       
-      // Ensure role exists for existing users (in case they were created before role assignment was added)
+      // Ensure role exists for existing users
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (currentSession?.user) {
         const { data: existingRole } = await supabase
@@ -367,54 +395,40 @@ export default function POSLogin() {
         
         if (!existingRole) {
           console.log('No role found, creating cashier role for existing user');
-          const { error: roleError } = await supabase
+          await supabase
             .from('user_roles')
             .insert({
               user_id: currentSession.user.id,
               role: 'cashier'
             });
-          
-          if (roleError) {
-            console.error('Error inserting role for existing user:', roleError);
-          }
         }
       }
 
-      // Get the fresh session and manually update the query cache
       const { data: { session: freshSession } } = await supabase.auth.getSession();
-      
-      // Manually set the session in the query cache for immediate availability
       queryClient.setQueryData(['session'], freshSession);
       
-      // Fetch and set the role data
       if (freshSession?.user) {
         const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', freshSession.user.id)
           .maybeSingle();
-        
-        // Set the role data in cache
         queryClient.setQueryData(['userRole', freshSession.user.id], roleData);
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
       
-      // If online, cache essential data for offline use
       if (navigator.onLine) {
         toast.loading('Preparing data for offline use...', { id: 'cache-data' });
-        
         try {
           await cacheEssentialData();
           toast.success('Data cached successfully!', { id: 'cache-data' });
         } catch (cacheError) {
           console.error('Error caching data:', cacheError);
           toast.dismiss('cache-data');
-          // Don't fail login if caching fails
         }
       }
       
-      // Wait a moment for auth state to fully propagate before navigating
       await new Promise(resolve => setTimeout(resolve, 300));
       navigate('/admin/pos');
     } catch (error) {
