@@ -472,11 +472,25 @@ export default function POS() {
     }
   };
 
+  // Track offline status for queries
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const { data: stores } = useQuery({
-    queryKey: ['stores'],
+    queryKey: ['stores', isOffline],
     queryFn: async () => {
       // Try online first
-      if (navigator.onLine) {
+      if (!isOffline) {
         try {
           const { data } = await supabase
             .from('stores')
@@ -485,11 +499,19 @@ export default function POS() {
             .order('name');
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch stores:', error);
-          return [];
+          console.error('Failed to fetch stores online:', error);
         }
       }
-      return [];
+      // Fallback to offline data
+      try {
+        const { offlineDB } = await import('@/lib/offlineDB');
+        const offlineStores = await offlineDB.getStores();
+        console.log('Using offline stores:', offlineStores.length);
+        return offlineStores;
+      } catch (e) {
+        console.error('Failed to get offline stores:', e);
+        return [];
+      }
     },
   });
 
@@ -497,12 +519,14 @@ export default function POS() {
   const { data: settings } = useQuery({
     queryKey: ['company-settings'],
     queryFn: async () => {
+      if (isOffline) return null;
       const { data } = await supabase
         .from('settings')
         .select('logo_url, company_phone, company_name')
         .single();
       return data;
     },
+    enabled: !isOffline,
   });
 
   // Set "Global Market" as default store
@@ -515,11 +539,29 @@ export default function POS() {
     }
   }, [stores, selectedStoreId]);
 
-  // Check for active cash session
+  // Check for active cash session (skip if offline - use stored session)
   const { data: activeCashSession, refetch: refetchCashSession, isLoading: isLoadingCashSession } = useQuery({
-    queryKey: ['active-cash-session', selectedStoreId],
+    queryKey: ['active-cash-session', selectedStoreId, isOffline],
     queryFn: async () => {
       if (!selectedStoreId) return null;
+      
+      // If offline, check for cached session from localStorage
+      if (isOffline) {
+        const offlineSession = localStorage.getItem('offline_pos_session');
+        if (offlineSession) {
+          const session = JSON.parse(offlineSession);
+          // Return a mock cash session for offline mode
+          return {
+            id: session.cash_session_id || 'offline-session',
+            store_id: selectedStoreId,
+            cashier_id: session.pos_user_id,
+            status: 'open',
+            opening_cash: 0,
+            opened_at: session.timestamp,
+          };
+        }
+        return null;
+      }
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
@@ -539,10 +581,11 @@ export default function POS() {
     enabled: !!selectedStoreId,
   });
 
-  // Fetch pending orders count with real-time updates
+  // Fetch pending orders count with real-time updates (only when online)
   const { data: pendingOrdersCount = 0 } = useQuery({
     queryKey: ['pending-orders-count'],
     queryFn: async () => {
+      if (isOffline) return 0;
       const { count, error } = await supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
@@ -551,10 +594,13 @@ export default function POS() {
       if (error) throw error;
       return count || 0;
     },
+    enabled: !isOffline,
   });
 
-  // Subscribe to real-time updates for pending orders
+  // Subscribe to real-time updates for pending orders (only when online)
   useEffect(() => {
+    if (isOffline) return;
+    
     const channel = supabase
       .channel('pending-orders-updates')
       .on(
@@ -574,7 +620,7 @@ export default function POS() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, isOffline]);
 
   // Focus product search on Esc key press
   useEffect(() => {
@@ -588,11 +634,11 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Fetch all cash sessions for today to calculate total opening cash
+  // Fetch all cash sessions for today to calculate total opening cash (only when online)
   const { data: todayCashSessions } = useQuery({
     queryKey: ['today-cash-sessions', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
-      if (!selectedStoreId || !currentCashSession) return [];
+      if (!selectedStoreId || !currentCashSession || isOffline) return [];
       
       const { data } = await supabase
         .from('cash_sessions')
@@ -602,7 +648,7 @@ export default function POS() {
       
       return data || [];
     },
-    enabled: !!selectedStoreId && !!currentCashSession,
+    enabled: !!selectedStoreId && !!currentCashSession && !isOffline,
   });
 
   // Calculate total opening cash from all users
@@ -610,13 +656,22 @@ export default function POS() {
     return sum + parseFloat(session.opening_cash?.toString() || '0');
   }, 0) || 0;
 
-  // Show cash in dialog if no active session
+  // Show cash in dialog if no active session (don't show when offline if we have an offline session)
   useEffect(() => {
+    if (isOffline) {
+      // When offline, use the offline session as the cash session
+      const offlineSession = localStorage.getItem('offline_pos_session');
+      if (offlineSession) {
+        setCurrentCashSession(activeCashSession);
+      }
+      return;
+    }
+    
     if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
       setShowCashIn(true);
     }
     setCurrentCashSession(activeCashSession);
-  }, [activeCashSession, selectedStoreId, isLoadingCashSession]);
+  }, [activeCashSession, selectedStoreId, isLoadingCashSession, isOffline]);
 
   // Get all transactions for today from all users
   const { data: sessionTransactions } = useQuery({

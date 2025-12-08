@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
+import { offlineDB } from '@/lib/offlineDB';
 
 export interface ProductSearchRef {
   focus: () => void;
@@ -23,9 +24,22 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+
+  // Track offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Expose focus method to parent via ref
   useImperativeHandle(ref, () => ({
@@ -49,8 +63,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     }
   }, [highlightedIndex]);
 
-  // Listen for real-time stock updates
+  // Listen for real-time stock updates (only when online)
   useEffect(() => {
+    if (isOffline) return;
+    
     const channel = supabase
       .channel('product-stock-changes')
       .on(
@@ -62,7 +78,6 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         },
         () => {
           console.log('Product stock changed - invalidating queries');
-          // Invalidate queries to force immediate refetch
           queryClient.invalidateQueries({ 
             queryKey: ['pos-products']
           });
@@ -77,7 +92,6 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         },
         () => {
           console.log('Variant stock changed - invalidating queries');
-          // Invalidate queries to force immediate refetch
           queryClient.invalidateQueries({ 
             queryKey: ['pos-products']
           });
@@ -90,11 +104,33 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, isOffline]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', searchTerm],
+    queryKey: ['pos-products', searchTerm, isOffline],
     queryFn: async () => {
+      // If offline, use cached products
+      if (isOffline) {
+        try {
+          const cachedProducts = await offlineDB.getProducts();
+          console.log('Using offline products:', cachedProducts.length);
+          
+          if (!searchTerm) return cachedProducts.slice(0, 10);
+          
+          const term = searchTerm.toLowerCase();
+          const filtered = cachedProducts.filter((p: any) => 
+            p.name?.toLowerCase().includes(term) || 
+            p.barcode?.toLowerCase() === term ||
+            p.barcode?.toLowerCase().includes(term)
+          );
+          return filtered.slice(0, 10);
+        } catch (e) {
+          console.error('Failed to get offline products:', e);
+          return [];
+        }
+      }
+      
+      // Online query
       let query = supabase
         .from('products')
         .select(`
@@ -210,7 +246,65 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      // Single optimized query with exact barcode match
+      // If offline, use cached products
+      if (isOffline) {
+        try {
+          const cachedProducts = await offlineDB.getProducts();
+          
+          // Find product by barcode
+          const matchedProduct = cachedProducts.find((p: any) => {
+            if (!p.barcode) return false;
+            const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+            return productBarcodes.some((b: string) => b === barcode);
+          });
+          
+          if (matchedProduct) {
+            const availableVariants = matchedProduct.product_variants?.filter((v: any) => v.is_available) || [];
+            if (availableVariants.length > 0) {
+              const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+              onProductSelect({
+                ...matchedProduct,
+                price: defaultVariant.price,
+                selectedVariant: defaultVariant,
+              });
+            } else {
+              onProductSelect(matchedProduct);
+            }
+            setSearchTerm('');
+            return;
+          }
+          
+          // Check variant barcodes
+          for (const product of cachedProducts) {
+            const matchingVariant = product.product_variants?.find((v: any) => {
+              if (!v.barcode || !v.is_available) return false;
+              const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+              return barcodes.some((b: string) => b === barcode);
+            });
+            
+            if (matchingVariant) {
+              onProductSelect({
+                ...product,
+                price: matchingVariant.price,
+                selectedVariant: matchingVariant,
+              });
+              setSearchTerm('');
+              return;
+            }
+          }
+          
+          // Barcode not found
+          setScannedBarcode(barcode);
+          setAssignBarcodeOpen(true);
+          setSearchTerm('');
+          return;
+        } catch (e) {
+          console.error('Failed to search offline products:', e);
+          return;
+        }
+      }
+      
+      // Online mode - Single optimized query with exact barcode match
       const { data: exactProducts, error } = await supabase
         .from('products')
         .select(`
