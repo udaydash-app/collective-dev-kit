@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, TrendingUp, TrendingDown, DollarSign, Package, Percent } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProfitMarginData {
   product_id: string;
@@ -214,7 +215,7 @@ export default function ProfitMarginAnalysis() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${overallSummary.total_revenue.toFixed(2)}
+                {formatCurrency(overallSummary.total_revenue)}
               </div>
             </CardContent>
           </Card>
@@ -228,7 +229,7 @@ export default function ProfitMarginAnalysis() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${overallSummary.total_cogs.toFixed(2)}
+                {formatCurrency(overallSummary.total_cogs)}
               </div>
             </CardContent>
           </Card>
@@ -242,7 +243,7 @@ export default function ProfitMarginAnalysis() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${overallSummary.gross_profit.toFixed(2)}
+                {formatCurrency(overallSummary.gross_profit)}
               </div>
             </CardContent>
           </Card>
@@ -388,15 +389,15 @@ export default function ProfitMarginAnalysis() {
                           <Badge variant="outline">{item.category_name}</Badge>
                         </TableCell>
                         <TableCell className="text-right">{item.units_sold}</TableCell>
-                        <TableCell className="text-right">${item.total_revenue.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${item.total_cogs.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.total_revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.total_cogs)}</TableCell>
                         <TableCell className="text-right">
                           <span
                             className={
                               item.gross_profit >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"
                             }
                           >
-                            ${item.gross_profit.toFixed(2)}
+                            {formatCurrency(item.gross_profit)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -413,8 +414,8 @@ export default function ProfitMarginAnalysis() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">${item.avg_selling_price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${item.avg_cost.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.avg_selling_price)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.avg_cost)}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -446,11 +447,11 @@ export default function ProfitMarginAnalysis() {
                         <TableCell className="font-medium">{cat.category_name}</TableCell>
                         <TableCell className="text-right">{cat.product_count}</TableCell>
                         <TableCell className="text-right">{cat.units_sold}</TableCell>
-                        <TableCell className="text-right">${cat.total_revenue.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${cat.total_cogs.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(cat.total_revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(cat.total_cogs)}</TableCell>
                         <TableCell className="text-right">
                           <span className={cat.gross_profit >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                            ${cat.gross_profit.toFixed(2)}
+                            {formatCurrency(cat.gross_profit)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
