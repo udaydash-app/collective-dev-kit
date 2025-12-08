@@ -2,27 +2,40 @@
  * Hook for accessing data with automatic offline fallback to IndexedDB
  * 
  * Key logic:
- * - Online (cloud or local Supabase) → Query Supabase directly
- * - Offline (no network) → Use IndexedDB cache
+ * - Local Supabase configured → ALWAYS try local Supabase first, fallback to IndexedDB
+ * - Cloud Supabase + Online → Query cloud Supabase
+ * - Cloud Supabase + Offline → Use IndexedDB cache
+ * 
+ * CRITICAL: navigator.onLine is unreliable for LAN-only setups.
+ * When local Supabase is configured, always try to query it first.
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { offlineDB } from '@/lib/offlineDB';
-import { isOffline, isLocalSupabase } from '@/lib/localModeHelper';
+import { isLocalSupabase, shouldQuerySupabase } from '@/lib/localModeHelper';
 import { useState, useEffect } from 'react';
 
-// Track online/offline state
+// Track online/offline state (for cloud setups only)
 export const useIsOffline = () => {
-  const [offline, setOffline] = useState(!navigator.onLine);
+  const [offline, setOffline] = useState(!navigator.onLine && !isLocalSupabase());
   
   useEffect(() => {
-    const handleOnline = () => setOffline(false);
-    const handleOffline = () => setOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    const updateOfflineState = () => {
+      // If local Supabase, we're never "offline" - always try to query
+      if (isLocalSupabase()) {
+        setOffline(false);
+      } else {
+        setOffline(!navigator.onLine);
+      }
+    };
+    
+    window.addEventListener('online', updateOfflineState);
+    window.addEventListener('offline', updateOfflineState);
+    updateOfflineState(); // Initial check
+    
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', updateOfflineState);
+      window.removeEventListener('offline', updateOfflineState);
     };
   }, []);
   
@@ -39,42 +52,50 @@ export const useLocalQuery = <T>(
   queryKey: string[],
   supabaseFetcher: () => Promise<T[]>,
   indexedDBFetcher: () => Promise<T[]>,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; staleTime?: number; refetchOnWindowFocus?: boolean }
 ) => {
-  const offline = useIsOffline();
+  const shouldQuery = shouldQuerySupabase();
+  const localMode = isLocalSupabase();
   
   return useQuery({
-    queryKey: [...queryKey, offline ? 'offline' : 'online'],
+    queryKey: [...queryKey, localMode ? 'local' : 'cloud'],
     queryFn: async () => {
-      // Only use IndexedDB when truly offline
-      if (offline) {
+      // Always try Supabase first (local or cloud when online)
+      if (shouldQuery) {
         try {
-          const data = await indexedDBFetcher();
-          console.log(`[Offline] ${queryKey[0]}: loaded ${data.length} items from IndexedDB`);
-          return data;
+          const data = await supabaseFetcher();
+          const mode = localMode ? 'Local Supabase' : 'Cloud';
+          console.log(`[${mode}] ${queryKey[0]}: loaded ${(data || []).length} items`);
+          
+          // Cache to IndexedDB for future offline use
+          if (data && data.length > 0) {
+            // Caching happens in individual hooks
+          }
+          
+          return data || [];
         } catch (e) {
-          console.error(`[Offline] ${queryKey[0]}: IndexedDB error`, e);
-          return [];
+          console.error(`[Supabase Error] ${queryKey[0]}: falling back to IndexedDB`, e);
+          // Fall through to IndexedDB
         }
       }
       
-      // Online - query Supabase (local or cloud)
+      // Fallback to IndexedDB (offline or Supabase failed)
       try {
-        const data = await supabaseFetcher();
-        if (isLocalSupabase()) {
-          console.log(`[Local Supabase] ${queryKey[0]}: loaded ${(data || []).length} items`);
-        }
+        const data = await indexedDBFetcher();
+        console.log(`[IndexedDB Fallback] ${queryKey[0]}: loaded ${data.length} items`);
         return data;
       } catch (e) {
-        console.error(`[Supabase Error] ${queryKey[0]}: falling back to IndexedDB`, e);
-        return indexedDBFetcher();
+        console.error(`[IndexedDB Error] ${queryKey[0]}:`, e);
+        return [];
       }
     },
     enabled: options?.enabled !== false,
-    staleTime: offline ? Infinity : 30 * 1000, // 30 seconds for online
+    staleTime: options?.staleTime ?? (localMode ? 10 * 1000 : 30 * 1000), // Shorter stale time for local
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: !offline,
-    refetchOnMount: !offline,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus ?? !localMode,
+    refetchOnMount: true,
+    retry: localMode ? 1 : 3, // Fewer retries for local (faster feedback)
+    retryDelay: localMode ? 500 : 1000,
   });
 };
 

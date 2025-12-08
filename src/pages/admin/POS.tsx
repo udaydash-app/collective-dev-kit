@@ -89,7 +89,7 @@ import { KeyboardBadge } from '@/components/ui/keyboard-badge';
 import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
-import { shouldUseLocalData } from '@/lib/localModeHelper';
+import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase } from '@/lib/localModeHelper';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -473,54 +473,59 @@ export default function POS() {
     }
   };
 
-  // Track offline/local mode status for queries - use IndexedDB in local LAN mode too
-  const [isOffline, setIsOffline] = useState(shouldUseLocalData());
+  // Track offline/local mode status for queries
+  // With local Supabase, always try to query it (don't skip to IndexedDB)
+  const localMode = isLocalSupabase();
+  const [isOffline, setIsOffline] = useState(!shouldQuerySupabase());
   
   useEffect(() => {
-    const handleOnline = () => setIsOffline(shouldUseLocalData());
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    const updateQueryState = () => {
+      setIsOffline(!shouldQuerySupabase());
+    };
+    window.addEventListener('online', updateQueryState);
+    window.addEventListener('offline', updateQueryState);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', updateQueryState);
+      window.removeEventListener('offline', updateQueryState);
     };
   }, []);
 
   const { data: stores } = useQuery({
-    queryKey: ['stores', isOffline ? 'local' : 'online'],
+    queryKey: ['stores', localMode ? 'local' : 'cloud'],
     queryFn: async () => {
-      // ALWAYS use IndexedDB first in local mode - no network calls for speed
-      if (isOffline) {
+      // Always try Supabase first (local or cloud) unless truly offline
+      if (!isOffline) {
         try {
-          const { offlineDB } = await import('@/lib/offlineDB');
-          const offlineStores = await offlineDB.getStores();
-          console.log('[POS] Using IndexedDB stores:', offlineStores.length);
-          return offlineStores;
-        } catch (e) {
-          console.error('[POS] IndexedDB stores error:', e);
-          return [];
+          const { data, error } = await supabase
+            .from('stores')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+          
+          if (error) throw error;
+          
+          console.log(`[${localMode ? 'Local' : 'Cloud'} Supabase] Stores: ${data?.length || 0}`);
+          return data || [];
+        } catch (error) {
+          console.error('[POS] Supabase stores error, falling back to IndexedDB:', error);
         }
       }
       
-      // Online mode - fetch from Supabase
+      // Fallback to IndexedDB
       try {
-        const { data } = await supabase
-          .from('stores')
-          .select('id, name')
-          .eq('is_active', true)
-          .order('name');
-        return data || [];
-      } catch (error) {
-        console.error('[POS] Supabase stores error, falling back to IndexedDB:', error);
         const { offlineDB } = await import('@/lib/offlineDB');
-        return await offlineDB.getStores();
+        const offlineStores = await offlineDB.getStores();
+        console.log('[POS] IndexedDB stores:', offlineStores.length);
+        return offlineStores;
+      } catch (e) {
+        console.error('[POS] IndexedDB stores error:', e);
+        return [];
       }
     },
-    staleTime: isOffline ? Infinity : 5 * 60 * 1000,
-    gcTime: isOffline ? Infinity : 10 * 60 * 1000,
-    refetchOnWindowFocus: !isOffline,
-    refetchOnMount: !isOffline,
+    staleTime: localMode ? 10 * 1000 : 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: !localMode,
+    refetchOnMount: true,
   });
 
   // Fetch company settings for receipt
