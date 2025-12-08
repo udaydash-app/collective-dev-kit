@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 // Check offline session synchronously to avoid flicker
 const getOfflineSessionSync = () => {
@@ -16,26 +16,35 @@ const getOfflineSessionSync = () => {
 };
 
 export const useAdmin = () => {
-  // Initialize synchronously to prevent queries from firing
-  const initialOfflineSession = useMemo(() => getOfflineSessionSync(), []);
-  const [offlineSession, setOfflineSession] = useState<any>(initialOfflineSession);
+  // Check session on every render to catch newly saved sessions
+  const currentOfflineSession = getOfflineSessionSync();
+  const [offlineSession, setOfflineSession] = useState<any>(currentOfflineSession);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
-  // PRIORITY: If we have an offline session, return immediately without any queries
+  // Update state if session changed (e.g., after login navigation)
+  useEffect(() => {
+    const session = getOfflineSessionSync();
+    if (session && !offlineSession) {
+      setOfflineSession(session);
+    }
+  }, []);
+  
+  // PRIORITY: If we have an offline/local session, return immediately without any queries
   // This handles both true offline AND local LAN deployment scenarios
-  if (initialOfflineSession) {
+  if (currentOfflineSession || offlineSession) {
+    const session = currentOfflineSession || offlineSession;
     return {
       isAdmin: true,
       isCashier: true,
       role: 'cashier',
       isLoading: false,
       user: {
-        id: initialOfflineSession.pos_user_id,
-        email: `pos-${initialOfflineSession.pos_user_id}@pos.globalmarket.app`,
+        id: session.pos_user_id,
+        email: `pos-${session.pos_user_id}@pos.globalmarket.app`,
         app_metadata: {},
-        user_metadata: { full_name: initialOfflineSession.full_name },
+        user_metadata: { full_name: session.full_name },
         aud: 'authenticated',
-        created_at: initialOfflineSession.timestamp
+        created_at: session.timestamp
       } as any,
     };
   }
