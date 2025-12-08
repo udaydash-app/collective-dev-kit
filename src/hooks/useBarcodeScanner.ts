@@ -13,25 +13,44 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
 
     // Listen for keyboard input from USB barcode scanners
     let barcodeBuffer = '';
-    let lastKeyTime = Date.now();
+    let lastKeyTime = 0;
+    let scanTimeout: NodeJS.Timeout | null = null;
 
     const handleKeyPress = (e: KeyboardEvent) => {
       const currentTime = Date.now();
       
-      // Reset buffer if more than 10ms between keys (optimized for maximum scanner speed)
-      if (currentTime - lastKeyTime > 10) {
+      // Reset buffer if more than 50ms between keys (balanced for speed and reliability)
+      if (currentTime - lastKeyTime > 50) {
         barcodeBuffer = '';
       }
       
       lastKeyTime = currentTime;
 
+      // Clear any existing timeout
+      if (scanTimeout) {
+        clearTimeout(scanTimeout);
+        scanTimeout = null;
+      }
+
       // Enter key signals end of barcode - immediate processing
       if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
-        onScan(barcodeBuffer);
+        e.stopPropagation();
+        const scannedBarcode = barcodeBuffer;
         barcodeBuffer = '';
+        // Process immediately without any delay
+        onScan(scannedBarcode);
       } else if (e.key.length === 1) {
         barcodeBuffer += e.key;
+        
+        // Auto-submit after 100ms of no input (for scanners that don't send Enter)
+        scanTimeout = setTimeout(() => {
+          if (barcodeBuffer.length >= 4) {
+            const scannedBarcode = barcodeBuffer;
+            barcodeBuffer = '';
+            onScan(scannedBarcode);
+          }
+        }, 100);
       }
     };
 

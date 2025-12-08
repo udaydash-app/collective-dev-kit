@@ -1,20 +1,22 @@
 /**
  * React hook for fetching data with offline support
  * Caches data in IndexedDB for offline access
+ * Prioritizes local IndexedDB when in local LAN mode for speed
  */
 
 import { useEffect, useState } from 'react';
 import { offlineDB } from '@/lib/offlineDB';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 export const useOfflineProducts = (storeId?: string) => {
-  const [offlineProducts, setOfflineProducts] = useState<any[]>([]);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [localProducts, setLocalProducts] = useState<any[]>([]);
+  const [useLocal, setUseLocal] = useState(shouldUseLocalData());
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setUseLocal(shouldUseLocalData());
+    const handleOffline = () => setUseLocal(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -25,7 +27,16 @@ export const useOfflineProducts = (storeId?: string) => {
     };
   }, []);
 
-  // Fetch from server when online
+  // Load from IndexedDB immediately for local/offline mode
+  useEffect(() => {
+    if (useLocal) {
+      offlineDB.getProducts().then(products => {
+        setLocalProducts(products);
+      });
+    }
+  }, [useLocal]);
+
+  // Fetch from server when online AND not in local mode
   const { data: onlineProducts, isLoading } = useQuery({
     queryKey: ['products', storeId],
     queryFn: async () => {
@@ -64,22 +75,13 @@ export const useOfflineProducts = (storeId?: string) => {
 
       return data || [];
     },
-    enabled: !isOffline,
+    enabled: !useLocal,
   });
 
-  // Load from IndexedDB when offline
-  useEffect(() => {
-    if (isOffline) {
-      offlineDB.getProducts().then(products => {
-        setOfflineProducts(products);
-      });
-    }
-  }, [isOffline]);
-
   return {
-    products: isOffline ? offlineProducts : (onlineProducts || []),
-    isLoading: isOffline ? false : isLoading,
-    isOffline,
+    products: useLocal ? localProducts : (onlineProducts || []),
+    isLoading: useLocal ? false : isLoading,
+    isOffline: useLocal,
   };
 };
 

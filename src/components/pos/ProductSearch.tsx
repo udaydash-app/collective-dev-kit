@@ -1,12 +1,13 @@
-import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
+import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 export interface ProductSearchRef {
   focus: () => void;
@@ -24,22 +25,19 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [isLocalMode, setIsLocalMode] = useState(false);
+  
+  // Use memoized local data check for performance
+  const useLocalData = useMemo(() => shouldUseLocalData(), []);
+  const [isLocalMode, setIsLocalMode] = useState(useLocalData);
+  
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
-  // Check if using local Supabase
+  // Track offline status changes
   useEffect(() => {
-    const localConfig = getLocalSupabaseConfigStatus();
-    setIsLocalMode(!!localConfig);
-  }, []);
-
-  // Track offline status
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsLocalMode(shouldUseLocalData());
+    const handleOffline = () => setIsLocalMode(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -70,9 +68,9 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     }
   }, [highlightedIndex]);
 
-  // Listen for real-time stock updates (only when online)
+  // Listen for real-time stock updates (only when online and not local mode)
   useEffect(() => {
-    if (isOffline) return;
+    if (isLocalMode) return;
     
     const channel = supabase
       .channel('product-stock-changes')
@@ -111,15 +109,13 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient, isOffline]);
+  }, [queryClient, isLocalMode]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', searchTerm, isOffline, isLocalMode],
+    queryKey: ['pos-products', searchTerm, isLocalMode],
     queryFn: async () => {
       // Use IndexedDB for offline OR local mode (faster)
-      const useLocalData = isOffline || isLocalMode;
-      
-      if (useLocalData) {
+      if (isLocalMode) {
         try {
           const cachedProducts = await offlineDB.getProducts();
           console.log('Using local products:', cachedProducts.length);
@@ -255,10 +251,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      // Use IndexedDB for offline OR local mode
-      const useLocalData = isOffline || isLocalMode;
-      
-      if (useLocalData) {
+      // Use IndexedDB for local mode
+      if (isLocalMode) {
         try {
           const cachedProducts = await offlineDB.getProducts();
           

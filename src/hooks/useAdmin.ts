@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
+import { shouldUseLocalData } from "@/lib/localModeHelper";
 
 // Check offline session synchronously to avoid flicker
 const getOfflineSessionSync = () => {
@@ -19,7 +20,7 @@ export const useAdmin = () => {
   // Check session on every render to catch newly saved sessions
   const currentOfflineSession = getOfflineSessionSync();
   const [offlineSession, setOfflineSession] = useState<any>(currentOfflineSession);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(shouldUseLocalData());
   
   // Update state if session changed (e.g., after login navigation)
   useEffect(() => {
@@ -51,7 +52,7 @@ export const useAdmin = () => {
 
   // Monitor online/offline status
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    const handleOnline = () => setIsOffline(shouldUseLocalData());
     const handleOffline = () => setIsOffline(true);
     
     window.addEventListener('online', handleOnline);
