@@ -5,6 +5,10 @@
  * - Local Supabase (LAN) = Supabase running on Docker locally, queries go to local DB (fast!)
  * - Offline = No network, use IndexedDB cache
  * - Cloud = Normal cloud Supabase queries
+ * 
+ * IMPORTANT: When using local Supabase on LAN and internet is available,
+ * queries go directly to local Supabase. When truly offline (no network at all),
+ * we fall back to IndexedDB.
  */
 
 import { getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
@@ -57,13 +61,25 @@ export const isOffline = (): boolean => {
 
 /**
  * Returns true if we should use IndexedDB instead of Supabase queries
- * This is ONLY when truly offline (no network connection)
  * 
- * When using local Supabase on LAN, queries should go to local Supabase (fast!)
+ * Use IndexedDB when:
+ * 1. Browser is truly offline (no network connection at all)
+ * 2. OR when local Supabase is configured (for maximum speed - avoid any network latency)
+ * 
+ * This ensures the app works even when:
+ * - There's no internet
+ * - Local Supabase is unreachable
+ * - For fastest possible performance on local setups
  */
 export const shouldUseLocalData = (): boolean => {
-  // Only use IndexedDB when truly offline
-  return !navigator.onLine;
+  // If browser is offline, definitely use IndexedDB
+  if (!navigator.onLine) return true;
+  
+  // If local Supabase is configured, also use IndexedDB for speed
+  // This provides instant access without waiting for local network queries
+  if (isLocalSupabase()) return true;
+  
+  return false;
 };
 
 // Reset cache (call when config changes)
