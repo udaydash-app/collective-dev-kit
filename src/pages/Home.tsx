@@ -4,11 +4,13 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ShoppingCart, Plus } from "lucide-react";
+import { ShoppingCart, Plus, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
+import { offlineDB } from "@/lib/offlineDB";
+import { isOffline } from "@/lib/localModeHelper";
 
 interface Category {
   id: string;
@@ -62,11 +64,25 @@ export default function Home() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentOfferIndex, setCurrentOfferIndex] = useState(0);
+  const [offline, setOffline] = useState(isOffline());
   const { addItem } = useCart();
 
   useEffect(() => {
-    fetchData();
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [offline]);
 
   // Auto-advance offers carousel
   useEffect(() => {
@@ -81,6 +97,37 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
+      if (offline) {
+        // Load from IndexedDB when offline
+        const cachedCategories = await offlineDB.getCategories();
+        setCategories(cachedCategories.slice(0, 5));
+
+        const cachedProducts = await offlineDB.getProducts();
+        const featured = cachedProducts
+          .filter((p: any) => p.is_featured && p.is_available_online)
+          .slice(0, 10)
+          .map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            original_price: p.original_price || null,
+            image_url: p.image_url,
+            unit: p.unit || 'pcs',
+            product_variants: p.product_variants
+          }));
+        setFeaturedProducts(featured);
+
+        const cachedAnnouncements = await offlineDB.getAnnouncements();
+        if (cachedAnnouncements.length > 0) {
+          setAnnouncement(cachedAnnouncements[0]);
+        }
+
+        // Offers may not be cached, set empty
+        setOffers([]);
+        setLoading(false);
+        return;
+      }
+
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
@@ -138,7 +185,34 @@ export default function Home() {
       setAnnouncement(announcementData);
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.error("Failed to load data");
+      // Try loading from cache on error
+      try {
+        const cachedCategories = await offlineDB.getCategories();
+        setCategories(cachedCategories.slice(0, 5));
+
+        const cachedProducts = await offlineDB.getProducts();
+        const featured = cachedProducts
+          .filter((p: any) => p.is_featured && p.is_available_online)
+          .slice(0, 10)
+          .map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            original_price: p.original_price || null,
+            image_url: p.image_url,
+            unit: p.unit || 'pcs',
+            product_variants: p.product_variants
+          }));
+        setFeaturedProducts(featured);
+
+        const cachedAnnouncements = await offlineDB.getAnnouncements();
+        if (cachedAnnouncements.length > 0) {
+          setAnnouncement(cachedAnnouncements[0]);
+        }
+      } catch (cacheError) {
+        console.error("Failed to load from cache:", cacheError);
+        toast.error("Failed to load data");
+      }
     } finally {
       setLoading(false);
     }
@@ -150,6 +224,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      
+      {/* Offline Indicator */}
+      {offline && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-2 px-4 flex items-center justify-center gap-2 text-yellow-600">
+          <WifiOff className="h-4 w-4" />
+          <span className="text-sm">You're offline - showing cached data</span>
+        </div>
+      )}
       
       {/* Announcement Ribbon */}
       {announcement && (
@@ -423,37 +505,31 @@ export default function Home() {
                               <div className="space-y-1">
                                 {product.product_variants.map((variant) => (
                                   <p key={variant.id} className="text-xs font-medium text-primary">
-                                    {variant.quantity} {variant.unit}: {formatCurrency(variant.price)}
+                                    {formatCurrency(variant.price)} / {variant.quantity} {variant.unit}
                                   </p>
                                 ))}
                               </div>
                             ) : (
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-lg font-bold text-primary">
+                              <div className="flex items-center gap-2">
+                                <p className="text-lg font-bold text-primary">
                                   {formatCurrency(product.price)}
-                                </span>
-                                {product.original_price && product.original_price > product.price && (
-                                  <span className="text-xs text-muted-foreground line-through">
+                                </p>
+                                {product.original_price && product.original_price > (product.price || 0) && (
+                                  <p className="text-xs text-muted-foreground line-through">
                                     {formatCurrency(product.original_price)}
-                                  </span>
+                                  </p>
                                 )}
                               </div>
                             )}
+                            <p className="text-xs text-muted-foreground">per {product.unit}</p>
                           </div>
                           <Button 
                             size="sm" 
-                            className="mt-2 w-full gap-1"
-                            onClick={() => {
-                              if (product.product_variants && product.product_variants.length > 0) {
-                                // Navigate to product page to select variant
-                                window.location.href = `/product/${product.id}`;
-                              } else {
-                                handleAddToCart(product.id);
-                              }
-                            }}
+                            className="mt-2 w-full"
+                            onClick={() => handleAddToCart(product.id)}
                           >
-                            <Plus className="h-3 w-3" />
-                            {product.product_variants && product.product_variants.length > 0 ? 'View Options' : 'Add to Cart'}
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
                           </Button>
                         </div>
                       </div>
@@ -462,78 +538,64 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No featured products available</p>
+            </div>
+          )}
         </section>
 
         {/* Categories Grid */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Shop by Category</h2>
-          {loading ? (
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Shop by Category</h2>
+            <Link 
+              to="/categories" 
+              className="text-sm text-primary hover:underline"
+            >
+              View All
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {loading ? (
+              [1, 2, 3, 4, 5].map((i) => (
                 <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4 flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-muted rounded-full" />
-                    <div className="h-4 bg-muted rounded w-16" />
+                  <CardContent className="p-4 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-muted rounded-full mb-2" />
+                    <div className="h-4 bg-muted rounded w-20" />
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {categories.map((category) => (
+              ))
+            ) : categories.length > 0 ? (
+              categories.map((category) => (
                 <Link key={category.id} to={`/category/${category.slug}`}>
-                  <Card className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <Card className="hover:shadow-md transition-shadow hover:scale-105">
+                    <CardContent className="p-4 flex flex-col items-center">
                       {category.image_url ? (
                         <img 
                           src={category.image_url} 
                           alt={category.name}
-                          className="w-12 h-12 object-cover rounded-full"
+                          className="w-16 h-16 object-cover rounded-full mb-2"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-2xl">
-                          {category.icon || "📦"}
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                          <span className="text-2xl">
+                            {category.icon || "📦"}
+                          </span>
                         </div>
                       )}
-                      <span className="text-sm font-medium text-center line-clamp-2">
+                      <span className="text-sm font-medium text-center">
                         {category.name}
                       </span>
                     </CardContent>
                   </Card>
                 </Link>
-              ))}
-              <Link to="/categories">
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <ShoppingCart className="h-6 w-6 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium text-center">View All</span>
-                  </CardContent>
-                </Card>
-              </Link>
-            </div>
-          )}
-        </section>
-
-        {/* Quick Actions */}
-        <section className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Link to="/orders">
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <h3 className="font-semibold">My Orders</h3>
-                </CardContent>
-              </Card>
-            </Link>
-            <Link to="/categories">
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <h3 className="font-semibold">Start Shopping</h3>
-                </CardContent>
-              </Card>
-            </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                <p>No categories available</p>
+              </div>
+            )}
           </div>
         </section>
       </main>
