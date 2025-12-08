@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getLocalSupabaseConfigStatus, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Store, Hash, Loader2, WifiOff, Database } from 'lucide-react';
+import { Store, Hash, Loader2, WifiOff, Database, Settings, Server } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
 import logo from '@/assets/logo.png';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 export default function POSLogin() {
   const [pin, setPin] = useState('');
@@ -18,8 +20,22 @@ export default function POSLogin() {
   const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [serverUrl, setServerUrl] = useState('');
+  const [serverKey, setServerKey] = useState('');
+  const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string} | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Load current server config on mount
+  useEffect(() => {
+    const config = getLocalSupabaseConfigStatus();
+    setCurrentConfig(config);
+    if (config) {
+      setServerUrl(config.url);
+      setServerKey(config.anonKey);
+    }
+  }, []);
 
   // Check if running as installed PWA
   useEffect(() => {
@@ -416,6 +432,24 @@ export default function POSLogin() {
     }
   };
 
+  const handleSaveServerConfig = () => {
+    if (!serverUrl.trim()) {
+      toast.error('Please enter a server URL');
+      return;
+    }
+    if (!serverKey.trim()) {
+      toast.error('Please enter an anon key');
+      return;
+    }
+    setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim());
+    // Page will reload automatically
+  };
+
+  const handleClearServerConfig = () => {
+    clearLocalSupabaseConfig();
+    // Page will reload automatically
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
@@ -442,6 +476,14 @@ export default function POSLogin() {
               </span>
             )}
           </CardDescription>
+          
+          {/* Server Config Indicator */}
+          {currentConfig && (
+            <div className="mt-2 flex items-center justify-center gap-2 text-sm text-green-600">
+              <Server className="h-4 w-4" />
+              <span>Local Server: {currentConfig.url}</span>
+            </div>
+          )}
           
           {/* Cache Status Indicators - Only show when offline */}
           {cacheStatus && isOffline && (
@@ -546,8 +588,77 @@ export default function POSLogin() {
               Enter
             </Button>
           </div>
+
+          {/* Server Config Button */}
+          <div className="pt-4 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowServerConfig(true)}
+              className="w-full text-muted-foreground"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Server Configuration
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Server Configuration Dialog */}
+      <Dialog open={showServerConfig} onOpenChange={setShowServerConfig}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Local Server Configuration</DialogTitle>
+            <DialogDescription>
+              Configure a local Supabase server for LAN/offline operation.
+              Leave empty to use the cloud server.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="serverUrl">Server URL</Label>
+              <Input
+                id="serverUrl"
+                placeholder="http://192.168.1.11:8000"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Example: http://192.168.1.11:8000 (your local Supabase URL)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="serverKey">Anon Key</Label>
+              <Input
+                id="serverKey"
+                placeholder="eyJhbGciOiJIUzI1NiIs..."
+                value={serverKey}
+                onChange={(e) => setServerKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Find this in your kong.yml or Supabase dashboard
+              </p>
+            </div>
+            {currentConfig && (
+              <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Currently connected to: {currentConfig.url}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex gap-2">
+            {currentConfig && (
+              <Button variant="destructive" onClick={handleClearServerConfig}>
+                Use Cloud Server
+              </Button>
+            )}
+            <Button onClick={handleSaveServerConfig}>
+              Save & Reload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
