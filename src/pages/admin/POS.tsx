@@ -488,32 +488,39 @@ export default function POS() {
   }, []);
 
   const { data: stores } = useQuery({
-    queryKey: ['stores', isOffline],
+    queryKey: ['stores', isOffline ? 'local' : 'online'],
     queryFn: async () => {
-      // Try online first
-      if (!isOffline) {
+      // ALWAYS use IndexedDB first in local mode - no network calls for speed
+      if (isOffline) {
         try {
-          const { data } = await supabase
-            .from('stores')
-            .select('id, name')
-            .eq('is_active', true)
-            .order('name');
-          return data || [];
-        } catch (error) {
-          console.error('Failed to fetch stores online:', error);
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const offlineStores = await offlineDB.getStores();
+          console.log('[POS] Using IndexedDB stores:', offlineStores.length);
+          return offlineStores;
+        } catch (e) {
+          console.error('[POS] IndexedDB stores error:', e);
+          return [];
         }
       }
-      // Fallback to offline data
+      
+      // Online mode - fetch from Supabase
       try {
+        const { data } = await supabase
+          .from('stores')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+        return data || [];
+      } catch (error) {
+        console.error('[POS] Supabase stores error, falling back to IndexedDB:', error);
         const { offlineDB } = await import('@/lib/offlineDB');
-        const offlineStores = await offlineDB.getStores();
-        console.log('Using offline stores:', offlineStores.length);
-        return offlineStores;
-      } catch (e) {
-        console.error('Failed to get offline stores:', e);
-        return [];
+        return await offlineDB.getStores();
       }
     },
+    staleTime: isOffline ? Infinity : 5 * 60 * 1000,
+    gcTime: isOffline ? Infinity : 10 * 60 * 1000,
+    refetchOnWindowFocus: !isOffline,
+    refetchOnMount: !isOffline,
   });
 
   // Fetch company settings for receipt
@@ -546,22 +553,42 @@ export default function POS() {
     queryFn: async () => {
       if (!selectedStoreId) return null;
       
-      // If offline, check for cached session from localStorage
+      // If in local/offline mode, check IndexedDB first for cash sessions
       if (isOffline) {
-        const offlineSession = localStorage.getItem('offline_pos_session');
-        if (offlineSession) {
-          const session = JSON.parse(offlineSession);
-          // Return a mock cash session for offline mode
-          return {
-            id: session.cash_session_id || 'offline-session',
-            store_id: selectedStoreId,
-            cashier_id: session.pos_user_id,
-            status: 'open',
-            opening_cash: 0,
-            opened_at: session.timestamp,
-          };
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const sessions = await offlineDB.getCashSessions();
+          const offlineSession = localStorage.getItem('offline_pos_session');
+          const sessionData = offlineSession ? JSON.parse(offlineSession) : null;
+          
+          // Find an open session for this store and user
+          const activeSession = sessions.find(s => 
+            s.store_id === selectedStoreId && 
+            s.status === 'open' &&
+            (sessionData ? s.cashier_id === sessionData.pos_user_id : true)
+          );
+          
+          if (activeSession) {
+            console.log('[POS] Found active cash session in IndexedDB:', activeSession);
+            return activeSession;
+          }
+          
+          // If no session found in IndexedDB, create a mock from localStorage
+          if (sessionData) {
+            return {
+              id: sessionData.cash_session_id || 'offline-session',
+              store_id: selectedStoreId,
+              cashier_id: sessionData.pos_user_id,
+              status: 'open',
+              opening_cash: 0,
+              opened_at: sessionData.timestamp,
+            };
+          }
+          return null;
+        } catch (e) {
+          console.error('[POS] Error fetching offline cash session:', e);
+          return null;
         }
-        return null;
       }
       
       const { data: { user } } = await supabase.auth.getUser();
@@ -580,6 +607,8 @@ export default function POS() {
       return data;
     },
     enabled: !!selectedStoreId,
+    staleTime: isOffline ? Infinity : 30 * 1000,
+    refetchOnWindowFocus: !isOffline,
   });
 
   // Fetch pending orders count with real-time updates (only when online)
@@ -676,9 +705,24 @@ export default function POS() {
 
   // Get all transactions for today from all users
   const { data: sessionTransactions } = useQuery({
-    queryKey: ['today-all-transactions', selectedStoreId, currentCashSession?.opened_at],
+    queryKey: ['today-all-transactions', selectedStoreId, currentCashSession?.opened_at, isOffline ? 'local' : 'online'],
     queryFn: async () => {
       if (!currentCashSession) return [];
+
+      // Use IndexedDB in local mode
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const transactions = await offlineDB.getPOSTransactions();
+          const sessionStart = new Date(currentCashSession.opened_at).getTime();
+          return transactions
+            .filter(t => t.store_id === currentCashSession.store_id && new Date(t.created_at).getTime() >= sessionStart)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        } catch (e) {
+          console.error('[POS] Error fetching offline transactions:', e);
+          return [];
+        }
+      }
 
       const { data } = await supabase
         .from('pos_transactions')
@@ -693,6 +737,7 @@ export default function POS() {
       }));
     },
     enabled: !!currentCashSession,
+    staleTime: isOffline ? Infinity : 30 * 1000,
   });
 
   // Get day's purchases from all users
@@ -700,6 +745,21 @@ export default function POS() {
     queryKey: ['today-all-purchases', selectedStoreId, currentCashSession?.opened_at],
     queryFn: async () => {
       if (!currentCashSession) return [];
+
+      // Use IndexedDB in local mode
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const purchases = await offlineDB.getPurchases();
+          const sessionStart = new Date(currentCashSession.opened_at).getTime();
+          return purchases
+            .filter(p => p.store_id === currentCashSession.store_id && new Date(p.purchased_at).getTime() >= sessionStart)
+            .sort((a, b) => new Date(b.purchased_at).getTime() - new Date(a.purchased_at).getTime());
+        } catch (e) {
+          console.error('[POS] Error fetching offline purchases:', e);
+          return [];
+        }
+      }
 
       const { data } = await supabase
         .from('purchases')
@@ -718,13 +778,29 @@ export default function POS() {
       return data || [];
     },
     enabled: !!currentCashSession,
+    staleTime: isOffline ? Infinity : 30 * 1000,
   });
 
   // Get day's expenses from all users
   const { data: dayExpenses } = useQuery({
-    queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.opened_at],
+    queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.opened_at, isOffline ? 'local' : 'online'],
     queryFn: async () => {
       if (!currentCashSession) return [];
+
+      // Use IndexedDB in local mode
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const expenses = await offlineDB.getExpenses();
+          const sessionStart = new Date(currentCashSession.opened_at).getTime();
+          return expenses
+            .filter(e => e.store_id === currentCashSession.store_id && new Date(e.created_at).getTime() >= sessionStart)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        } catch (e) {
+          console.error('[POS] Error fetching offline expenses:', e);
+          return [];
+        }
+      }
 
       const { data } = await supabase
         .from('expenses')
@@ -737,13 +813,30 @@ export default function POS() {
       return data || [];
     },
     enabled: !!currentCashSession,
+    staleTime: isOffline ? Infinity : 30 * 1000,
   });
 
   // Get top credit customers with outstanding balances - optimized single query
   const { data: topCreditCustomers, isLoading: creditCustomersLoading } = useQuery({
-    queryKey: ['top-credit-customers', selectedStoreId],
+    queryKey: ['top-credit-customers', selectedStoreId, isOffline ? 'local' : 'online'],
     queryFn: async () => {
       if (!selectedStoreId) return [];
+
+      // Skip in offline mode - no RPC available
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const contacts = await offlineDB.getContacts();
+          // Filter to customers with outstanding balance
+          return contacts
+            .filter(c => c.is_customer && (c.opening_balance || 0) > 0)
+            .sort((a, b) => (b.opening_balance || 0) - (a.opening_balance || 0))
+            .slice(0, 10);
+        } catch (e) {
+          console.error('[POS] Error fetching offline credit customers:', e);
+          return [];
+        }
+      }
 
       // Use optimized database function for fast retrieval
       const { data, error } = await supabase
@@ -757,7 +850,7 @@ export default function POS() {
       return data || [];
     },
     enabled: !!selectedStoreId,
-    staleTime: 30000, // Cache for 30 seconds
+    staleTime: isOffline ? Infinity : 5 * 60 * 1000,
   });
 
   // Calculate day activity
@@ -1161,31 +1254,51 @@ export default function POS() {
   });
 
   const { data: customers } = useQuery({
-    queryKey: ['pos-customers', customerSearch],
+    queryKey: ['pos-customers', customerSearch, isOffline ? 'local' : 'online'],
     queryFn: async () => {
-      // Try online first
-      if (navigator.onLine) {
+      // Use IndexedDB in local mode
+      if (isOffline) {
         try {
-          let query = supabase
-            .from('contacts')
-            .select('*')
-            .eq('is_customer', true)
-            .order('name');
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const contacts = await offlineDB.getContacts();
+          let result = contacts.filter(c => c.is_customer);
           
-          // Apply search filter if search term exists
           if (customerSearch && customerSearch.length >= 2) {
-            query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+            const search = customerSearch.toLowerCase();
+            result = result.filter(c => 
+              c.name?.toLowerCase().includes(search) ||
+              c.phone?.toLowerCase().includes(search) ||
+              c.email?.toLowerCase().includes(search)
+            );
           }
           
-          const { data } = await query.limit(50);
-          return data || [];
-        } catch (error) {
-          console.error('Failed to fetch customers:', error);
+          return result.slice(0, 50);
+        } catch (e) {
+          console.error('[POS] Error fetching offline customers:', e);
           return [];
         }
       }
-      return [];
+      
+      // Online mode
+      try {
+        let query = supabase
+          .from('contacts')
+          .select('*')
+          .eq('is_customer', true)
+          .order('name');
+        
+        if (customerSearch && customerSearch.length >= 2) {
+          query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
+        }
+        
+        const { data } = await query.limit(50);
+        return data || [];
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+        return [];
+      }
     },
+    staleTime: isOffline ? Infinity : 30 * 1000,
   });
 
   const { data: products } = useQuery({

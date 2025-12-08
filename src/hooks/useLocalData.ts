@@ -25,7 +25,7 @@ export const useIsLocalMode = () => {
   return isLocal;
 };
 
-// Generic hook for fetching data with local fallback
+// Generic hook for fetching data with local fallback - INSTANT for local mode
 export const useLocalQuery = <T>(
   queryKey: string[],
   supabaseFetcher: () => Promise<T[]>,
@@ -35,8 +35,9 @@ export const useLocalQuery = <T>(
   const isLocal = useIsLocalMode();
   
   return useQuery({
-    queryKey: [...queryKey, isLocal],
+    queryKey: [...queryKey, isLocal ? 'local' : 'online'],
     queryFn: async () => {
+      // ALWAYS use IndexedDB first in local mode - no network calls
       if (isLocal) {
         try {
           const data = await indexedDBFetcher();
@@ -48,6 +49,7 @@ export const useLocalQuery = <T>(
         }
       }
       
+      // Online mode - try Supabase first
       try {
         const data = await supabaseFetcher();
         return data;
@@ -57,7 +59,10 @@ export const useLocalQuery = <T>(
       }
     },
     enabled: options?.enabled !== false,
-    staleTime: isLocal ? Infinity : 5 * 60 * 1000, // No refetch in local mode
+    staleTime: isLocal ? Infinity : 5 * 60 * 1000,
+    gcTime: isLocal ? Infinity : 10 * 60 * 1000, // Keep cached data longer in local mode
+    refetchOnWindowFocus: !isLocal, // Don't refetch on focus in local mode
+    refetchOnMount: !isLocal, // Don't refetch on mount in local mode
   });
 };
 
@@ -219,6 +224,143 @@ export const useLocalPOSTransactions = (storeId?: string) => {
       const transactions = await offlineDB.getPOSTransactions();
       if (storeId) return transactions.filter(t => t.store_id === storeId);
       return transactions;
+    }
+  );
+};
+
+// Add more local data hooks for comprehensive offline support
+export const useLocalCategories = () => {
+  return useLocalQuery(
+    ['categories'],
+    async () => {
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      return data || [];
+    },
+    () => offlineDB.getCategories()
+  );
+};
+
+export const useLocalBogoOffers = () => {
+  return useLocalQuery(
+    ['bogo-offers'],
+    async () => {
+      const { data } = await supabase
+        .from('bogo_offers')
+        .select('*')
+        .eq('is_active', true);
+      return data || [];
+    },
+    () => offlineDB.getBogoOffers()
+  );
+};
+
+export const useLocalMultiBogoOffers = () => {
+  return useLocalQuery(
+    ['multi-bogo-offers'],
+    async () => {
+      const { data } = await supabase
+        .from('multi_product_bogo_offers')
+        .select('*')
+        .eq('is_active', true);
+      return data || [];
+    },
+    () => offlineDB.getMultiProductBogoOffers()
+  );
+};
+
+export const useLocalComboOffers = () => {
+  return useLocalQuery(
+    ['combo-offers'],
+    async () => {
+      const { data } = await supabase
+        .from('combo_offers')
+        .select('*, combo_offer_items(*)')
+        .eq('is_active', true);
+      return data || [];
+    },
+    () => offlineDB.getComboOffers()
+  );
+};
+
+export const useLocalOrders = (status?: string) => {
+  return useLocalQuery(
+    ['orders', status || 'all'],
+    async () => {
+      let query = supabase.from('orders').select('*');
+      if (status) query = query.eq('status', status);
+      const { data } = await query.order('created_at', { ascending: false });
+      return data || [];
+    },
+    async () => {
+      const orders = await offlineDB.getOrders();
+      if (status) return orders.filter(o => o.status === status);
+      return orders;
+    }
+  );
+};
+
+export const useLocalSupplierPayments = () => {
+  return useLocalQuery(
+    ['supplier-payments'],
+    async () => {
+      const { data } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .order('payment_date', { ascending: false });
+      return data || [];
+    },
+    () => offlineDB.getSupplierPayments()
+  );
+};
+
+export const useLocalPaymentReceipts = () => {
+  return useLocalQuery(
+    ['payment-receipts'],
+    async () => {
+      const { data } = await supabase
+        .from('payment_receipts')
+        .select('*')
+        .order('payment_date', { ascending: false });
+      return data || [];
+    },
+    () => offlineDB.getPaymentReceipts()
+  );
+};
+
+export const useLocalJournalEntryLines = (journalEntryId?: string) => {
+  return useLocalQuery(
+    ['journal-entry-lines', journalEntryId || 'all'],
+    async () => {
+      let query = supabase.from('journal_entry_lines').select('*');
+      if (journalEntryId) query = query.eq('journal_entry_id', journalEntryId);
+      const { data } = await query;
+      return data || [];
+    },
+    async () => {
+      const lines = await offlineDB.getJournalEntryLines();
+      if (journalEntryId) return lines.filter(l => l.journal_entry_id === journalEntryId);
+      return lines;
+    }
+  );
+};
+
+export const useLocalPurchaseItems = (purchaseId?: string) => {
+  return useLocalQuery(
+    ['purchase-items', purchaseId || 'all'],
+    async () => {
+      let query = supabase.from('purchase_items').select('*');
+      if (purchaseId) query = query.eq('purchase_id', purchaseId);
+      const { data } = await query;
+      return data || [];
+    },
+    async () => {
+      const items = await offlineDB.getPurchaseItems();
+      if (purchaseId) return items.filter(i => i.purchase_id === purchaseId);
+      return items;
     }
   );
 };
