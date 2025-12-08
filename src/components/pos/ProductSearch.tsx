@@ -2,7 +2,7 @@ import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'rea
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
@@ -25,9 +25,16 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isLocalMode, setIsLocalMode] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const productRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+
+  // Check if using local Supabase
+  useEffect(() => {
+    const localConfig = getLocalSupabaseConfigStatus();
+    setIsLocalMode(!!localConfig);
+  }, []);
 
   // Track offline status
   useEffect(() => {
@@ -107,13 +114,15 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   }, [queryClient, isOffline]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', searchTerm, isOffline],
+    queryKey: ['pos-products', searchTerm, isOffline, isLocalMode],
     queryFn: async () => {
-      // If offline, use cached products
-      if (isOffline) {
+      // Use IndexedDB for offline OR local mode (faster)
+      const useLocalData = isOffline || isLocalMode;
+      
+      if (useLocalData) {
         try {
           const cachedProducts = await offlineDB.getProducts();
-          console.log('Using offline products:', cachedProducts.length);
+          console.log('Using local products:', cachedProducts.length);
           
           if (!searchTerm) return cachedProducts.slice(0, 10);
           
@@ -125,7 +134,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           );
           return filtered.slice(0, 10);
         } catch (e) {
-          console.error('Failed to get offline products:', e);
+          console.error('Failed to get local products:', e);
           return [];
         }
       }
@@ -246,8 +255,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       
       const barcode = searchTerm.trim().toLowerCase();
       
-      // If offline, use cached products
-      if (isOffline) {
+      // Use IndexedDB for offline OR local mode
+      const useLocalData = isOffline || isLocalMode;
+      
+      if (useLocalData) {
         try {
           const cachedProducts = await offlineDB.getProducts();
           
@@ -299,7 +310,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           setSearchTerm('');
           return;
         } catch (e) {
-          console.error('Failed to search offline products:', e);
+          console.error('Failed to search local products:', e);
           return;
         }
       }
