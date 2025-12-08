@@ -41,46 +41,76 @@ export default function COGSAnalysis() {
   const { data: cogsData, isLoading } = useQuery({
     queryKey: ['cogs-analysis', selectedStoreId, selectedCategoryId],
     queryFn: async () => {
-      // Simplified approach: Calculate approximate COGS using cost_price
-      const productStats: Record<string, any> = {};
-
-      let query = supabase
+      // Fetch products with cost_price
+      let productsQuery = supabase
         .from('products')
         .select(`
           id,
           name,
           cost_price,
+          price,
           store_id,
           category_id,
           categories(name)
         `);
 
       if (selectedStoreId !== 'all') {
-        query = query.eq('store_id', selectedStoreId);
+        productsQuery = productsQuery.eq('store_id', selectedStoreId);
       }
 
       if (selectedCategoryId !== 'all') {
-        query = query.eq('category_id', selectedCategoryId);
+        productsQuery = productsQuery.eq('category_id', selectedCategoryId);
       }
 
-      const { data: products } = await query;
+      const { data: products } = await productsQuery;
+      const productMap = new Map(products?.map(p => [p.id, p]) || []);
 
-      // Get all sales for these products in the date range
-      for (const product of products || []) {
-        // COGS is calculated using the product's cost_price
-        const key = `${product.id}`;
-        
-        productStats[key] = {
-          product_id: product.id,
-          product_name: product.name,
-          category: product.categories?.name || 'Uncategorized',
-          quantity_sold: 0,
-          revenue: 0,
-          cogs: 0,
-          gross_profit: 0,
-          margin_percent: 0,
-        };
+      // Fetch POS transactions
+      let txQuery = supabase
+        .from('pos_transactions')
+        .select('id, items, store_id');
+
+      if (selectedStoreId !== 'all') {
+        txQuery = txQuery.eq('store_id', selectedStoreId);
       }
+
+      const { data: transactions } = await txQuery;
+
+      // Calculate COGS from transactions using simple cost_price
+      const productStats: Record<string, any> = {};
+
+      transactions?.forEach((tx: any) => {
+        const items = tx.items as any[];
+        items?.forEach((item: any) => {
+          const productId = item.productId;
+          const product = productMap.get(productId);
+          if (!product) return;
+
+          // Skip if filtering by category and product doesn't match
+          if (selectedCategoryId !== 'all' && product.category_id !== selectedCategoryId) return;
+
+          const quantity = Math.abs(item.quantity || 0);
+          const revenue = (item.price || 0) * quantity;
+          const cogs = (product.cost_price || 0) * quantity;
+
+          if (!productStats[productId]) {
+            productStats[productId] = {
+              product_id: productId,
+              product_name: product.name,
+              category: product.categories?.name || 'Uncategorized',
+              quantity_sold: 0,
+              revenue: 0,
+              cogs: 0,
+              gross_profit: 0,
+              margin_percent: 0,
+            };
+          }
+
+          productStats[productId].quantity_sold += quantity;
+          productStats[productId].revenue += revenue;
+          productStats[productId].cogs += cogs;
+        });
+      });
 
       // Calculate gross profit and margin
       const results = Object.values(productStats).map((stat: any) => {
@@ -200,18 +230,53 @@ export default function COGSAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Products Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Coming Soon</CardTitle>
+          <CardTitle>Product COGS Breakdown</CardTitle>
           <CardDescription>
-            Full COGS analysis with historical data will be available once transaction data accumulates
+            Cost of goods sold calculated using product cost prices
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            This report analyzes Cost of Goods Sold and gross profit margins using product cost prices.
-            Start making sales to see detailed profit analysis here.
-          </p>
+          {isLoading ? (
+            <p className="text-center text-muted-foreground py-8">Loading...</p>
+          ) : cogsData?.products.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No sales data found. Start making sales to see COGS analysis.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Qty Sold</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">COGS</TableHead>
+                  <TableHead className="text-right">Gross Profit</TableHead>
+                  <TableHead className="text-right">Margin %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cogsData?.products.map((item: any) => (
+                  <TableRow key={item.product_id}>
+                    <TableCell className="font-medium">{item.product_name}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell className="text-right">{item.quantity_sold}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.revenue)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.cogs)}</TableCell>
+                    <TableCell className={`text-right font-semibold ${item.gross_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(item.gross_profit)}
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold ${item.margin_percent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.margin_percent.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
