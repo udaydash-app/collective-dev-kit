@@ -55,34 +55,55 @@ export default function OpenCashRegister() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      let userId = currentUserId;
+      
+      // Get user ID based on mode
+      if (!isLocalMode) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        userId = user.id;
+      }
+      
+      if (!userId) throw new Error('No user ID found');
 
-      // Check if there's already an open session for this store
-      const { data: existingSession } = await supabase
-        .from('cash_sessions')
-        .select('id')
-        .eq('cashier_id', user.id)
-        .eq('store_id', selectedStore)
-        .eq('status', 'open')
-        .maybeSingle();
+      // Check for existing open session
+      const existingSession = allCashSessions?.find(
+        (s: any) => s.cashier_id === userId && s.store_id === selectedStore && s.status === 'open'
+      );
 
       if (existingSession) {
         toast.error('You already have an open cash session for this store');
         return;
       }
 
-      // Create new cash session
-      const { error } = await supabase
-        .from('cash_sessions')
-        .insert({
-          cashier_id: user.id,
-          store_id: selectedStore,
-          opening_cash: openingCash,
-          status: 'open',
-        });
+      const newSession = {
+        id: crypto.randomUUID(),
+        cashier_id: userId,
+        store_id: selectedStore,
+        opening_cash: openingCash,
+        status: 'open',
+        opened_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
+      if (isLocalMode) {
+        // Save to IndexedDB in local mode
+        const sessions = await offlineDB.getCashSessions();
+        await offlineDB.saveCashSessions([...sessions, newSession]);
+      } else {
+        // Save to Supabase in online mode
+        const { error } = await supabase
+          .from('cash_sessions')
+          .insert({
+            cashier_id: userId,
+            store_id: selectedStore,
+            opening_cash: openingCash,
+            status: 'open',
+          });
+
+        if (error) throw error;
+      }
 
       toast.success('Cash register opened successfully!');
       setShowCashIn(false);

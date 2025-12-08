@@ -8,11 +8,27 @@ import { getLocalSupabaseConfigStatus } from '@/integrations/supabase/client';
 // Cache the result to avoid localStorage reads on every call
 let cachedIsLocalMode: boolean | null = null;
 
+// Check if Supabase URL starts with http:// (local LAN) vs https:// (cloud)
+const checkIsLocalSupabase = (): boolean => {
+  // Check localStorage for local config first
+  const localConfig = getLocalSupabaseConfigStatus();
+  if (localConfig) return true;
+  
+  // Also check if the current Supabase URL is HTTP (local)
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    if (supabaseUrl.startsWith('http://')) return true;
+  } catch (e) {
+    // ignore
+  }
+  
+  return false;
+};
+
 export const isLocalMode = (): boolean => {
   if (cachedIsLocalMode !== null) return cachedIsLocalMode;
   
-  const localConfig = getLocalSupabaseConfigStatus();
-  cachedIsLocalMode = !!localConfig;
+  cachedIsLocalMode = checkIsLocalSupabase();
   
   if (cachedIsLocalMode) {
     console.log('Local mode detected - using IndexedDB for data');
