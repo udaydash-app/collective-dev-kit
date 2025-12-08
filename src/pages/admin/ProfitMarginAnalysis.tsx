@@ -62,72 +62,69 @@ export default function ProfitMarginAnalysis() {
   const { data: profitData, isLoading } = useQuery({
     queryKey: ["profit-margin", startDate, endDate, selectedCategory],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pos_transaction_items" as any)
-        .select(`
-          id,
-          quantity,
-          unit_price,
-          subtotal,
-          metadata,
-          product:products!inner(
-            id,
-            name,
-            category:categories(id, name)
-          ),
-          transaction:pos_transactions!inner(
-            created_at,
-            status
-          )
-        `)
-        .gte("transaction.created_at", startDate)
-        .lte("transaction.created_at", endDate + "T23:59:59")
-        .in("transaction.status", ["completed", "refunded"]);
+      // Fetch POS transactions within date range
+      const { data: transactions, error: txError } = await supabase
+        .from("pos_transactions")
+        .select("id, items, created_at")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate + "T23:59:59");
 
-      if (error) throw error;
+      if (txError) throw txError;
 
-      // Process data to calculate profit margins
-      const productMap = new Map<string, ProfitMarginData>();
+      // Get all products with cost_price for margin calculation
+      let productsQuery = supabase
+        .from("products")
+        .select("id, name, cost_price, price, category:categories(id, name)");
+      
+      if (selectedCategory !== "all") {
+        productsQuery = productsQuery.eq("category_id", selectedCategory);
+      }
 
-      data?.forEach((item: any) => {
-        const productId = item.product.id;
-        const productName = item.product.name;
-        const categoryName = item.product.category?.name || "Uncategorized";
-        const revenue = item.subtotal;
-        
-        // Extract COGS from metadata
-        let cogs = 0;
-        if (item.metadata?.cogs_contribution) {
-          const cogsData = item.metadata.cogs_contribution;
-          if (Array.isArray(cogsData)) {
-            cogs = cogsData.reduce((sum: number, layer: any) => sum + (layer.total_cogs || 0), 0);
+      const { data: products, error: prodError } = await productsQuery;
+      if (prodError) throw prodError;
+
+      const productMap = new Map(products?.map(p => [p.id, p]) || []);
+
+      // Process transactions to calculate profit margins using simple cost_price
+      const profitMap = new Map<string, ProfitMarginData>();
+
+      transactions?.forEach((tx: any) => {
+        const items = tx.items as any[];
+        items?.forEach((item: any) => {
+          const productId = item.productId;
+          const product = productMap.get(productId);
+          if (!product) return;
+
+          const quantity = Math.abs(item.quantity || 0);
+          const revenue = (item.price || 0) * quantity;
+          // Use simple cost_price for COGS calculation (no FIFO)
+          const cogs = (product.cost_price || 0) * quantity;
+
+          if (profitMap.has(productId)) {
+            const existing = profitMap.get(productId)!;
+            existing.units_sold += quantity;
+            existing.total_revenue += revenue;
+            existing.total_cogs += cogs;
+          } else {
+            profitMap.set(productId, {
+              product_id: productId,
+              product_name: product.name,
+              category_name: product.category?.name || "Uncategorized",
+              units_sold: quantity,
+              total_revenue: revenue,
+              total_cogs: cogs,
+              gross_profit: 0,
+              profit_margin: 0,
+              avg_selling_price: 0,
+              avg_cost: 0,
+            });
           }
-        }
-
-        if (productMap.has(productId)) {
-          const existing = productMap.get(productId)!;
-          existing.units_sold += item.quantity;
-          existing.total_revenue += revenue;
-          existing.total_cogs += cogs;
-        } else {
-          productMap.set(productId, {
-            product_id: productId,
-            product_name: productName,
-            category_name: categoryName,
-            units_sold: item.quantity,
-            total_revenue: revenue,
-            total_cogs: cogs,
-            gross_profit: 0,
-            profit_margin: 0,
-            avg_selling_price: 0,
-            avg_cost: 0,
-          });
-        }
+        });
       });
 
       // Calculate margins and averages
       const results: ProfitMarginData[] = [];
-      productMap.forEach((item) => {
+      profitMap.forEach((item) => {
         item.gross_profit = item.total_revenue - item.total_cogs;
         item.profit_margin = item.total_revenue > 0 ? (item.gross_profit / item.total_revenue) * 100 : 0;
         item.avg_selling_price = item.units_sold > 0 ? item.total_revenue / item.units_sold : 0;
