@@ -12,16 +12,18 @@ export const getSupabaseConfig = () => {
     console.log('[Supabase] Raw localStorage config:', localConfig);
     if (localConfig) {
       const config = JSON.parse(localConfig);
-      if (config.url && config.anonKey) {
-        console.log('[Supabase] ✅ USING LOCAL:', config.url);
-        return { url: config.url, key: config.anonKey, isLocal: true };
+      if (config.url && (config.serviceRoleKey || config.anonKey)) {
+        // Prefer service_role key for local mode to bypass RLS
+        const key = config.serviceRoleKey || config.anonKey;
+        console.log('[Supabase] ✅ USING LOCAL:', config.url, '(service_role:', !!config.serviceRoleKey, ')');
+        return { url: config.url, key, isLocal: true, hasServiceRole: !!config.serviceRoleKey };
       }
     }
   } catch (error) {
     console.error('[Supabase] Error reading local config:', error);
   }
   console.log('[Supabase] ⚠️ USING CLOUD:', CLOUD_SUPABASE_URL);
-  return { url: CLOUD_SUPABASE_URL, key: CLOUD_SUPABASE_KEY, isLocal: false };
+  return { url: CLOUD_SUPABASE_URL, key: CLOUD_SUPABASE_KEY, isLocal: false, hasServiceRole: false };
 };
 
 // Create supabase client - reads config at initialization
@@ -41,9 +43,9 @@ const createSupabaseClient = (): SupabaseClient<Database> => {
 export const supabase = createSupabaseClient();
 
 // Helper to update local Supabase config (call this from Settings)
-export const setLocalSupabaseConfig = (url: string, anonKey: string) => {
-  console.log('[Supabase] Setting local config:', url);
-  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey }));
+export const setLocalSupabaseConfig = (url: string, anonKey: string, serviceRoleKey?: string) => {
+  console.log('[Supabase] Setting local config:', url, '(with service_role:', !!serviceRoleKey, ')');
+  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey, serviceRoleKey }));
   // Reload to apply new config
   window.location.reload();
 };
