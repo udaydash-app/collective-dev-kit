@@ -24,7 +24,8 @@ export default function POSLogin() {
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
   const [serverKey, setServerKey] = useState('');
-  const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string} | null>(null);
+  const [serviceRoleKey, setServiceRoleKey] = useState('');
+  const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string; serviceRoleKey?: string} | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -32,9 +33,21 @@ export default function POSLogin() {
   useEffect(() => {
     const supabaseConfig = getSupabaseConfig();
     if (supabaseConfig.isLocal) {
-      setCurrentConfig({ url: supabaseConfig.url, anonKey: supabaseConfig.key });
-      setServerUrl(supabaseConfig.url);
-      setServerKey(supabaseConfig.key);
+      // Read from localStorage to get all keys
+      try {
+        const localConfig = localStorage.getItem('local_supabase_config');
+        if (localConfig) {
+          const config = JSON.parse(localConfig);
+          setCurrentConfig({ url: config.url, anonKey: config.anonKey, serviceRoleKey: config.serviceRoleKey });
+          setServerUrl(config.url);
+          setServerKey(config.anonKey || '');
+          setServiceRoleKey(config.serviceRoleKey || '');
+        }
+      } catch (e) {
+        setCurrentConfig({ url: supabaseConfig.url, anonKey: supabaseConfig.key });
+        setServerUrl(supabaseConfig.url);
+        setServerKey(supabaseConfig.key);
+      }
     } else {
       setCurrentConfig(null);
     }
@@ -457,11 +470,11 @@ export default function POSLogin() {
       toast.error('Please enter a server URL');
       return;
     }
-    if (!serverKey.trim()) {
-      toast.error('Please enter an anon key');
+    if (!serverKey.trim() && !serviceRoleKey.trim()) {
+      toast.error('Please enter at least the Service Role Key (recommended) or Anon Key');
       return;
     }
-    setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim());
+    setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim(), serviceRoleKey.trim() || undefined);
     // Page will reload automatically
   };
 
@@ -648,15 +661,27 @@ export default function POSLogin() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="serverKey">Anon Key</Label>
+              <Label htmlFor="serviceRoleKey" className="text-primary font-semibold">Service Role Key (Recommended)</Label>
+              <Input
+                id="serviceRoleKey"
+                placeholder="eyJhbGciOiJIUzI1NiIs... (service_role)"
+                value={serviceRoleKey}
+                onChange={(e) => setServiceRoleKey(e.target.value)}
+              />
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Required to bypass RLS. Find service_role key in your kong.yml or API settings.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="serverKey">Anon Key (Optional)</Label>
               <Input
                 id="serverKey"
-                placeholder="eyJhbGciOiJIUzI1NiIs..."
+                placeholder="eyJhbGciOiJIUzI1NiIs... (anon)"
                 value={serverKey}
                 onChange={(e) => setServerKey(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Find this in your kong.yml or Supabase dashboard
+                Optional fallback. Service Role Key is preferred for local deployments.
               </p>
             </div>
             {currentConfig && (
@@ -664,6 +689,11 @@ export default function POSLogin() {
                 <p className="text-sm text-green-700 dark:text-green-300">
                   Currently connected to: {currentConfig.url}
                 </p>
+                {currentConfig.serviceRoleKey ? (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Using Service Role Key (RLS bypassed)</p>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">⚠️ Using Anon Key (RLS may block data)</p>
+                )}
               </div>
             )}
           </div>
