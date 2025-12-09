@@ -340,8 +340,11 @@ export default function POSLogin() {
         }
       }
 
-      // Check if using local Supabase - skip auth if so (use helper function for reliability)
-      const usingLocalSupabase = isLocalSupabase();
+      // Check if using local Supabase - skip auth if so
+      // Use direct localStorage check to avoid any caching issues
+      const localConfig = getLocalSupabaseConfigStatus();
+      const usingLocalSupabase = localConfig !== null;
+      console.log('🔍 Local Supabase check:', { localConfig: !!localConfig, usingLocalSupabase });
       
       if (usingLocalSupabase) {
         console.log('🟡 Local Supabase detected - skipping Supabase Auth, using PIN-only auth');
