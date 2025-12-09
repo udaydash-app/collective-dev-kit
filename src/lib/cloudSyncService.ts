@@ -63,6 +63,12 @@ class CloudSyncService {
    * Check if internet (cloud) is available
    */
   private async isCloudReachable(): Promise<boolean> {
+    // First check if browser reports online
+    if (!navigator.onLine) {
+      console.log('[CloudSync] Browser reports offline, skipping cloud check');
+      return false;
+    }
+    
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);

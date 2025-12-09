@@ -17,9 +17,9 @@ export const useCloudSync = () => {
       return;
     }
 
-    console.log('[CloudSync] Local Supabase detected, starting cloud sync service...');
+    console.log('[CloudSync] Local Supabase detected, cloud sync will run when internet is available');
     
-    // Start auto-sync every 5 minutes
+    // Start auto-sync every 5 minutes (service checks internet availability internally)
     cloudSyncService.startAutoSync(300000);
 
     // Update status periodically
