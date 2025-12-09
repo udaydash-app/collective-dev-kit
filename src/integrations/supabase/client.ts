@@ -9,22 +9,24 @@ const CLOUD_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 export const getSupabaseConfig = () => {
   try {
     const localConfig = localStorage.getItem('local_supabase_config');
+    console.log('[Supabase] Raw localStorage config:', localConfig);
     if (localConfig) {
       const config = JSON.parse(localConfig);
       if (config.url && config.anonKey) {
+        console.log('[Supabase] ✅ USING LOCAL:', config.url);
         return { url: config.url, key: config.anonKey, isLocal: true };
       }
     }
   } catch (error) {
-    console.error('Error reading local Supabase config:', error);
+    console.error('[Supabase] Error reading local config:', error);
   }
+  console.log('[Supabase] ⚠️ USING CLOUD:', CLOUD_SUPABASE_URL);
   return { url: CLOUD_SUPABASE_URL, key: CLOUD_SUPABASE_KEY, isLocal: false };
 };
 
 // Create supabase client - reads config at initialization
 const createSupabaseClient = (): SupabaseClient<Database> => {
   const config = getSupabaseConfig();
-  console.log('[Supabase] Creating client with URL:', config.url, 'isLocal:', config.isLocal);
   
   return createClient<Database>(config.url, config.key, {
     auth: {
@@ -37,10 +39,6 @@ const createSupabaseClient = (): SupabaseClient<Database> => {
 
 // The supabase client instance
 export const supabase = createSupabaseClient();
-
-// Log current config on load
-const currentConfig = getSupabaseConfig();
-console.log('[Supabase] Active config - URL:', currentConfig.url, 'isLocal:', currentConfig.isLocal);
 
 // Helper to update local Supabase config (call this from Settings)
 export const setLocalSupabaseConfig = (url: string, anonKey: string) => {
