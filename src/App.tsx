@@ -81,6 +81,7 @@ import PWAInstall from "./pages/PWAInstall";
 import AdminLiveChat from "./pages/admin/LiveChat";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { ChatNotifications } from "./components/chat/ChatNotifications";
+import { useCloudSync } from "./hooks/useCloudSync";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,9 @@ const RouterContent = () => {
 const AppContent = () => {
   // Enable realtime sync across the app
   useRealtimeSync();
+  
+  // Enable cloud sync when using local Supabase
+  useCloudSync();
   
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
