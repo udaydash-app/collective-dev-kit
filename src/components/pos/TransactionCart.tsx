@@ -68,6 +68,7 @@ export const TransactionCart = ({
       
       if (!isInCart && isInInput) return;
 
+      if (!items || items.length === 0) return;
       const visibleItems = items.filter(item => item.id !== 'cart-discount');
       if (visibleItems.length === 0) return;
 
