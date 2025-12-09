@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, getLocalSupabaseConfigStatus, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
+import { supabase, getSupabaseConfig, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,11 +30,13 @@ export default function POSLogin() {
 
   // Load current server config on mount
   useEffect(() => {
-    const config = getLocalSupabaseConfigStatus();
-    setCurrentConfig(config);
-    if (config) {
-      setServerUrl(config.url);
-      setServerKey(config.anonKey);
+    const supabaseConfig = getSupabaseConfig();
+    if (supabaseConfig.isLocal) {
+      setCurrentConfig({ url: supabaseConfig.url, anonKey: supabaseConfig.key });
+      setServerUrl(supabaseConfig.url);
+      setServerKey(supabaseConfig.key);
+    } else {
+      setCurrentConfig(null);
     }
   }, []);
 
@@ -341,10 +343,10 @@ export default function POSLogin() {
       }
 
       // Check if using local Supabase - skip auth if so
-      // Use direct localStorage check to avoid any caching issues
-      const localConfig = getLocalSupabaseConfigStatus();
-      const usingLocalSupabase = localConfig !== null;
-      console.log('🔍 Local Supabase check:', { localConfig: !!localConfig, usingLocalSupabase });
+      // Use getSupabaseConfig().isLocal which we know works (logs "Using local Supabase" at startup)
+      const supabaseConfig = getSupabaseConfig();
+      const usingLocalSupabase = supabaseConfig.isLocal;
+      console.log('🔍 Local Supabase check:', { url: supabaseConfig.url, isLocal: supabaseConfig.isLocal, usingLocalSupabase });
       
       if (usingLocalSupabase) {
         console.log('🟡 Local Supabase detected - skipping Supabase Auth, using PIN-only auth');
