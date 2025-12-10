@@ -950,22 +950,150 @@ END;
 $$;
 
 -- ===========================================
+-- PURCHASE STOCK MANAGEMENT FUNCTIONS
+-- ===========================================
+
+-- Function to add stock when purchase items are created
+CREATE OR REPLACE FUNCTION public.update_stock_on_purchase()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  IF NEW.variant_id IS NOT NULL THEN
+    UPDATE product_variants
+    SET stock_quantity = COALESCE(stock_quantity, 0) + NEW.quantity,
+        cost_price = NEW.unit_cost,
+        updated_at = NOW()
+    WHERE id = NEW.variant_id;
+  ELSE
+    UPDATE products
+    SET stock_quantity = COALESCE(stock_quantity, 0) + NEW.quantity,
+        cost_price = NEW.unit_cost,
+        updated_at = NOW()
+    WHERE id = NEW.product_id;
+  END IF;
+  
+  -- Create inventory layer for FIFO tracking
+  INSERT INTO inventory_layers (
+    product_id, variant_id, purchase_id, purchase_item_id,
+    quantity_purchased, quantity_remaining, unit_cost, purchased_at
+  ) VALUES (
+    NEW.product_id, NEW.variant_id, NEW.purchase_id, NEW.id,
+    NEW.quantity, NEW.quantity, NEW.unit_cost, NOW()
+  );
+  
+  RETURN NEW;
+END;
+$$;
+
+-- Function to deduct stock when purchase items are deleted
+CREATE OR REPLACE FUNCTION public.deduct_stock_on_purchase_item_delete()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  IF OLD.variant_id IS NOT NULL THEN
+    UPDATE product_variants
+    SET stock_quantity = COALESCE(stock_quantity, 0) - OLD.quantity,
+        updated_at = NOW()
+    WHERE id = OLD.variant_id;
+  ELSE
+    UPDATE products
+    SET stock_quantity = COALESCE(stock_quantity, 0) - OLD.quantity,
+        updated_at = NOW()
+    WHERE id = OLD.product_id;
+  END IF;
+
+  -- Delete associated inventory layer
+  DELETE FROM inventory_layers WHERE purchase_item_id = OLD.id;
+
+  RETURN OLD;
+END;
+$$;
+
+-- Function to handle purchase item updates (adjust stock difference)
+CREATE OR REPLACE FUNCTION public.update_stock_on_purchase_item_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  qty_diff numeric;
+BEGIN
+  qty_diff := NEW.quantity - OLD.quantity;
+  
+  -- Only adjust if quantity changed
+  IF qty_diff != 0 THEN
+    IF NEW.variant_id IS NOT NULL THEN
+      UPDATE product_variants
+      SET stock_quantity = COALESCE(stock_quantity, 0) + qty_diff,
+          cost_price = NEW.unit_cost,
+          updated_at = NOW()
+      WHERE id = NEW.variant_id;
+    ELSE
+      UPDATE products
+      SET stock_quantity = COALESCE(stock_quantity, 0) + qty_diff,
+          cost_price = NEW.unit_cost,
+          updated_at = NOW()
+      WHERE id = NEW.product_id;
+    END IF;
+    
+    -- Update inventory layer
+    UPDATE inventory_layers
+    SET quantity_purchased = NEW.quantity,
+        quantity_remaining = quantity_remaining + qty_diff,
+        unit_cost = NEW.unit_cost,
+        updated_at = NOW()
+    WHERE purchase_item_id = NEW.id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+-- ===========================================
 -- TRIGGERS
 -- ===========================================
 
--- Stock deduction trigger
+-- POS Transaction stock deduction trigger
 DROP TRIGGER IF EXISTS deduct_stock_on_transaction ON public.pos_transactions;
 CREATE TRIGGER deduct_stock_on_transaction
   AFTER INSERT ON public.pos_transactions
   FOR EACH ROW
   EXECUTE FUNCTION public.deduct_stock_simple();
 
--- Stock restoration trigger
+-- POS Transaction stock restoration trigger
 DROP TRIGGER IF EXISTS restore_stock_on_transaction_delete ON public.pos_transactions;
 CREATE TRIGGER restore_stock_on_transaction_delete
   BEFORE DELETE ON public.pos_transactions
   FOR EACH ROW
   EXECUTE FUNCTION public.restore_stock_on_transaction_delete();
+
+-- Purchase item stock addition trigger
+DROP TRIGGER IF EXISTS update_stock_on_purchase_trigger ON public.purchase_items;
+CREATE TRIGGER update_stock_on_purchase_trigger
+  AFTER INSERT ON public.purchase_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_stock_on_purchase();
+
+-- Purchase item stock deduction trigger (on delete)
+DROP TRIGGER IF EXISTS deduct_stock_on_purchase_item_delete_trigger ON public.purchase_items;
+CREATE TRIGGER deduct_stock_on_purchase_item_delete_trigger
+  BEFORE DELETE ON public.purchase_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.deduct_stock_on_purchase_item_delete();
+
+-- Purchase item stock update trigger (on update)
+DROP TRIGGER IF EXISTS update_stock_on_purchase_item_update_trigger ON public.purchase_items;
+CREATE TRIGGER update_stock_on_purchase_item_update_trigger
+  BEFORE UPDATE ON public.purchase_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_stock_on_purchase_item_update();
 
 -- Updated_at triggers
 CREATE OR REPLACE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
