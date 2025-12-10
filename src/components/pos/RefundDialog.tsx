@@ -131,76 +131,39 @@ export function RefundDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Return stock for refunded items
-      for (const item of cartItems) {
-        if (item.id === 'cart-discount') continue;
-        
-        // Check if it's a variant or regular product
-        const isVariant = item.id !== item.productId;
-        
-        if (isVariant) {
-          // Update variant stock
-          const { data: variant, error: fetchError } = await supabase
-            .from('product_variants')
-            .select('stock_quantity')
-            .eq('id', item.id)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          const newStock = (variant?.stock_quantity || 0) + item.quantity;
-
-          const { error: updateError } = await supabase
-            .from('product_variants')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.id);
-
-          if (updateError) throw updateError;
-        } else {
-          // Update product stock
-          const { data: product, error: fetchError } = await supabase
-            .from('products')
-            .select('stock_quantity')
-            .eq('id', item.id)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          const newStock = (product?.stock_quantity || 0) + item.quantity;
-
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.id);
-
-          if (updateError) throw updateError;
-        }
-      }
-
-      // Deduct stock for exchange items (allow negative stock for exchanges)
-      if (refundMode === 'exchange') {
-        for (const item of exchangeItems) {
-          const { data: product, error: fetchError } = await supabase
-            .from('products')
-            .select('stock_quantity')
-            .eq('id', item.id)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          const newStock = (product?.stock_quantity || 0) - item.quantity;
-
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.id);
-
-          if (updateError) throw updateError;
-        }
-      }
+      // NOTE: Stock is automatically handled by database triggers:
+      // - deduct_stock_simple trigger fires on INSERT with negative quantities (refund items) = restores stock
+      // - deduct_stock_simple trigger fires on INSERT with positive quantities (exchange items) = deducts stock
+      // No manual stock updates needed here to avoid duplication!
 
       // Create refund transaction record
       const transactionNumber = `REF-${Date.now()}`;
+      
+      // Build items array: refund items (negative qty) + exchange items (positive qty)
+      const refundItemsForDb = cartItems
+        .filter(item => item.id !== 'cart-discount')
+        .map(item => ({
+          productId: item.productId || item.id,
+          variantId: item.id !== item.productId ? item.id : undefined,
+          name: item.name,
+          quantity: -item.quantity, // Negative for refunds (restores stock via trigger)
+          price: item.customPrice ?? item.price,
+          itemDiscount: item.itemDiscount || 0,
+        }));
+      
+      // Add exchange items with positive quantities (deducts stock via trigger)
+      const exchangeItemsForDb = refundMode === 'exchange' 
+        ? exchangeItems.map(item => ({
+            productId: item.productId || item.id,
+            variantId: item.id !== item.productId ? item.id : undefined,
+            name: item.name,
+            quantity: item.quantity, // Positive for exchanges (deducts stock via trigger)
+            price: item.price,
+            itemDiscount: 0,
+          }))
+        : [];
+      
+      const allItems = [...refundItemsForDb, ...exchangeItemsForDb];
       
       const { error: transactionError } = await supabase
         .from('pos_transactions')
@@ -213,22 +176,10 @@ export function RefundDialog({
           tax: 0,
           total: refundMode === 'payment' ? -refundTotal : -netAmount,
           payment_method: refundMode === 'payment' ? paymentMethod : (netAmount < 0 ? paymentMethod : 'exchange'),
-          items: cartItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            quantity: -item.quantity, // Negative for refunds
-            price: item.customPrice ?? item.price,
-            itemDiscount: item.itemDiscount || 0,
-          })),
+          items: allItems,
           metadata: {
             is_refund: true,
             refund_mode: refundMode,
-            exchanged_items: refundMode === 'exchange' ? exchangeItems.map(item => ({
-              id: item.id,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-            })) : [],
           },
         });
 
