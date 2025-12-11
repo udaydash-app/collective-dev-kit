@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
 import { shouldUseLocalData, isLocalMode, isLocalSupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
-import { cloudSyncService } from '@/lib/cloudSyncService';
+import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey } from '@/lib/cloudSyncService';
 import logo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,7 @@ export default function POSLogin() {
   const [serverUrl, setServerUrl] = useState('');
   const [serverKey, setServerKey] = useState('');
   const [serviceRoleKey, setServiceRoleKey] = useState('');
+  const [cloudServiceRoleKey, setCloudServiceRoleKeyState] = useState('');
   const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string; serviceRoleKey?: string} | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -51,6 +52,12 @@ export default function POSLogin() {
       }
     } else {
       setCurrentConfig(null);
+    }
+    
+    // Load cloud service role key
+    const savedCloudKey = localStorage.getItem('cloud_service_role_key');
+    if (savedCloudKey) {
+      setCloudServiceRoleKeyState(savedCloudKey);
     }
   }, []);
 
@@ -479,16 +486,26 @@ export default function POSLogin() {
   };
 
   const handleSaveServerConfig = () => {
-    if (!serverUrl.trim()) {
-      toast.error('Please enter a server URL');
-      return;
+    // Save cloud service role key first (doesn't require reload)
+    if (cloudServiceRoleKey.trim()) {
+      setCloudServiceRoleKey(cloudServiceRoleKey.trim());
+      toast.success('Cloud sync key saved');
     }
-    if (!serverKey.trim() && !serviceRoleKey.trim()) {
-      toast.error('Please enter at least the Service Role Key (recommended) or Anon Key');
-      return;
+    
+    // If local server config provided, save and reload
+    if (serverUrl.trim()) {
+      if (!serverKey.trim() && !serviceRoleKey.trim()) {
+        toast.error('Please enter at least the Service Role Key (recommended) or Anon Key for local server');
+        return;
+      }
+      setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim(), serviceRoleKey.trim() || undefined);
+      // Page will reload automatically
+    } else if (cloudServiceRoleKey.trim()) {
+      // Only cloud key was updated, close dialog
+      setShowServerConfig(false);
+    } else {
+      toast.error('Please enter either local server URL or cloud sync key');
     }
-    setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim(), serviceRoleKey.trim() || undefined);
-    // Page will reload automatically
   };
 
   const handleClearServerConfig = () => {
@@ -697,6 +714,28 @@ export default function POSLogin() {
                 Optional fallback. Service Role Key is preferred for local deployments.
               </p>
             </div>
+            
+            {/* Cloud Sync Key Section */}
+            <div className="pt-4 mt-4 border-t border-dashed">
+              <div className="space-y-2">
+                <Label htmlFor="cloudServiceRoleKey" className="text-blue-600 dark:text-blue-400 font-semibold">
+                  Cloud Service Role Key (For Sync)
+                </Label>
+                <Input
+                  id="cloudServiceRoleKey"
+                  placeholder="eyJhbGciOiJIUzI1NiIs... (cloud service_role)"
+                  value={cloudServiceRoleKey}
+                  onChange={(e) => setCloudServiceRoleKeyState(e.target.value)}
+                />
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Required to sync data from cloud to local. Get from cloud Supabase Dashboard → Settings → API → service_role key.
+                </p>
+                {hasCloudServiceRoleKey() && (
+                  <p className="text-xs text-green-600 dark:text-green-400">✓ Cloud sync key configured</p>
+                )}
+              </div>
+            </div>
+            
             {currentConfig && (
               <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
                 <p className="text-sm text-green-700 dark:text-green-300">
