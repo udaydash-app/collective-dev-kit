@@ -407,8 +407,8 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        {/* Cloud Sync Section - Only show when using local Supabase */}
-        {isUsingLocalSupabase() && (
+        {/* Cloud Sync Section */}
+        {(
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
