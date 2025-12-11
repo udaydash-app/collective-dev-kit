@@ -258,6 +258,106 @@ class CloudSyncService {
     }
     return result;
   }
+
+  /**
+   * Sync all data FROM cloud TO local Supabase
+   * This pulls cloud data to populate the local database
+   */
+  async syncFromCloud(): Promise<{ success: boolean; synced: number; errors: string[] }> {
+    if (this.isSyncing) {
+      console.log('[CloudSync] Sync already in progress');
+      return { success: false, synced: 0, errors: ['Sync already in progress'] };
+    }
+
+    const isReachable = await this.isCloudReachable();
+    if (!isReachable) {
+      console.log('[CloudSync] Cloud not reachable, cannot sync from cloud');
+      toast.error('Cloud not reachable');
+      return { success: false, synced: 0, errors: ['Cloud not reachable'] };
+    }
+
+    this.isSyncing = true;
+    let totalSynced = 0;
+    const errors: string[] = [];
+
+    console.log('[CloudSync] Starting sync FROM cloud to local...');
+    toast.info('Pulling data from cloud...', { duration: 3000 });
+
+    try {
+      for (const table of SYNC_TABLES) {
+        try {
+          const result = await this.syncTableFromCloud(table);
+          totalSynced += result.synced;
+          if (result.error) {
+            errors.push(`${table}: ${result.error}`);
+          }
+        } catch (e: any) {
+          console.error(`[CloudSync] Error syncing ${table} from cloud:`, e);
+          errors.push(`${table}: ${e.message}`);
+        }
+      }
+
+      if (totalSynced > 0) {
+        toast.success(`Pulled ${totalSynced} records from cloud`);
+      } else {
+        toast.info('No new data to pull from cloud');
+      }
+
+      console.log(`[CloudSync] Sync from cloud complete. Synced: ${totalSynced}, Errors: ${errors.length}`);
+      return { success: errors.length === 0, synced: totalSynced, errors };
+
+    } catch (e: any) {
+      console.error('[CloudSync] Sync from cloud failed:', e);
+      toast.error('Failed to pull from cloud');
+      return { success: false, synced: totalSynced, errors: [e.message] };
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  /**
+   * Sync a single table FROM cloud TO local
+   */
+  private async syncTableFromCloud(tableName: string): Promise<{ synced: number; error?: string }> {
+    if (!this.cloudClient) {
+      return { synced: 0, error: 'Cloud client not initialized' };
+    }
+
+    try {
+      // Get all records from cloud
+      const { data: cloudData, error: cloudError } = await (this.cloudClient.from as any)(tableName)
+        .select('*');
+
+      if (cloudError) {
+        console.error(`[CloudSync] Error fetching cloud ${tableName}:`, cloudError);
+        return { synced: 0, error: cloudError.message };
+      }
+
+      if (!cloudData || cloudData.length === 0) {
+        console.log(`[CloudSync] No data in cloud ${tableName}`);
+        return { synced: 0 };
+      }
+
+      console.log(`[CloudSync] Pulling ${cloudData.length} records from cloud ${tableName}`);
+
+      // Upsert to local (use id as the conflict resolution key)
+      const { error: localError } = await (supabase.from as any)(tableName)
+        .upsert(cloudData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
+
+      if (localError) {
+        console.error(`[CloudSync] Error upserting to local ${tableName}:`, localError);
+        return { synced: 0, error: localError.message };
+      }
+
+      return { synced: cloudData.length };
+    } catch (e: any) {
+      console.error(`[CloudSync] Exception syncing ${tableName} from cloud:`, e);
+      return { synced: 0, error: e.message };
+    }
+  }
 }
 
 export const cloudSyncService = new CloudSyncService();
