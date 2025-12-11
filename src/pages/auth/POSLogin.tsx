@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
 import { shouldUseLocalData, isLocalMode, isLocalSupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
+import { cloudSyncService } from '@/lib/cloudSyncService';
 import logo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -377,12 +378,24 @@ export default function POSLogin() {
         
         toast.success(`Welcome, ${fullName}!`);
         
-        // Navigate immediately - cache data in background
+        // Navigate immediately - sync and cache data in background
         navigate('/admin/pos');
         
-        // Cache essential data in background (non-blocking) for local mode
-        // Local mode can access local Supabase for caching even though navigator.onLine is true
-        cacheEssentialData(true).catch(err => console.error('Background cache error:', err));
+        // Trigger two-way sync in background (non-blocking)
+        // First pull from cloud, then push local changes
+        (async () => {
+          try {
+            toast.info('Syncing with cloud...', { duration: 2000 });
+            // Pull cloud data to local first
+            await cloudSyncService.syncFromCloud();
+            // Then push any local changes to cloud
+            await cloudSyncService.syncToCloud();
+            // Cache essential data for offline use
+            await cacheEssentialData(true);
+          } catch (err) {
+            console.error('Background sync error:', err);
+          }
+        })();
         return;
       }
       
