@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Upload, Building2, Cloud, CloudDownload } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Cloud, CloudDownload, CloudUpload, Key, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UpdateButton } from "@/components/UpdateButton";
 import { APP_VERSION } from "@/config/version";
-import { cloudSyncService } from "@/lib/cloudSyncService";
+import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey, clearCloudServiceRoleKey } from "@/lib/cloudSyncService";
 import { isUsingLocalSupabase } from "@/integrations/supabase/client";
 
 interface Settings {
@@ -416,26 +416,100 @@ export default function AdminSettings() {
                 Cloud Sync
               </CardTitle>
               <CardDescription>
-                Sync data between local database and cloud
+                Sync data between local database and cloud. Requires cloud service role key to bypass RLS policies.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Service Role Key Configuration */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Cloud Service Role Key
+                  </Label>
+                  {hasCloudServiceRoleKey() && (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Configured
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    placeholder="Enter cloud Supabase service_role key..."
+                    id="cloud-service-role-key"
+                    defaultValue=""
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const input = document.getElementById('cloud-service-role-key') as HTMLInputElement;
+                      if (input?.value) {
+                        setCloudServiceRoleKey(input.value);
+                        toast.success('Cloud service role key saved');
+                        input.value = '';
+                      }
+                    }}
+                  >
+                    Save
+                  </Button>
+                  {hasCloudServiceRoleKey() && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        clearCloudServiceRoleKey();
+                        toast.info('Cloud service role key removed');
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Get this from your Supabase Dashboard → Settings → API → service_role key. Required for syncing data.
+                </p>
+              </div>
+
+              {/* Sync Buttons */}
               <div className="flex flex-col gap-3">
                 <Button
                   variant="outline"
                   onClick={async () => {
+                    if (!hasCloudServiceRoleKey()) {
+                      toast.error('Please configure the cloud service role key first');
+                      return;
+                    }
                     const result = await cloudSyncService.syncFromCloud();
                     if (result.errors.length > 0) {
                       console.error('Sync errors:', result.errors);
                     }
                   }}
                   className="w-full"
+                  disabled={!hasCloudServiceRoleKey()}
                 >
                   <CloudDownload className="h-4 w-4 mr-2" />
                   Pull Data from Cloud
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (!hasCloudServiceRoleKey()) {
+                      toast.error('Please configure the cloud service role key first');
+                      return;
+                    }
+                    const result = await cloudSyncService.forceFullSync();
+                    if (result.errors.length > 0) {
+                      console.error('Sync errors:', result.errors);
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!hasCloudServiceRoleKey()}
+                >
+                  <CloudUpload className="h-4 w-4 mr-2" />
+                  Push Data to Cloud
+                </Button>
                 <p className="text-sm text-muted-foreground">
-                  Download all data from cloud database to local. Use this to populate your local database with cloud data.
+                  Pull downloads cloud data to local. Push uploads local data to cloud.
                 </p>
               </div>
             </CardContent>
