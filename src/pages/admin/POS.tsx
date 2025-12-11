@@ -859,11 +859,27 @@ export default function POS() {
         }
       }
 
-      // Use optimized database function for fast retrieval
+      // Try optimized database function first, fallback to direct query for local Supabase
       const { data, error } = await supabase
         .rpc('get_top_credit_customers', { limit_count: 10 });
 
       if (error) {
+        // Fallback to direct query if RPC function doesn't exist (local Supabase)
+        if (error.code === 'PGRST202') {
+          const { data: contacts, error: contactsError } = await supabase
+            .from('contacts')
+            .select('id, name, email, phone, opening_balance, credit_limit')
+            .eq('is_customer', true)
+            .gt('opening_balance', 0)
+            .order('opening_balance', { ascending: false })
+            .limit(10);
+          
+          if (contactsError) {
+            console.error('Error fetching credit customers fallback:', contactsError);
+            return [];
+          }
+          return contacts || [];
+        }
         console.error('Error fetching top credit customers:', error);
         return [];
       }
