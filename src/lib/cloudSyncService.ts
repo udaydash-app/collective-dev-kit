@@ -17,6 +17,33 @@ import { toast } from 'sonner';
 const CLOUD_SUPABASE_URL = 'https://wvdrsofehwiopbkzrqit.supabase.co';
 const CLOUD_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2ZHJzb2ZlaHdpb3Bia3pycWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzE1NjUsImV4cCI6MjA3NjA0NzU2NX0.GH5r-1xInHsL_EyzMOTVtb2QWIImuyJe-_ysqF0LCQ0';
 
+// Get cloud service role key from localStorage (required for bypassing RLS)
+const getCloudServiceRoleKey = (): string | null => {
+  try {
+    return localStorage.getItem('cloud_service_role_key');
+  } catch {
+    return null;
+  }
+};
+
+// Set cloud service role key
+export const setCloudServiceRoleKey = (key: string) => {
+  localStorage.setItem('cloud_service_role_key', key);
+  // Reinitialize cloud client with new key
+  cloudSyncService.reinitializeClient();
+};
+
+// Clear cloud service role key
+export const clearCloudServiceRoleKey = () => {
+  localStorage.removeItem('cloud_service_role_key');
+  cloudSyncService.reinitializeClient();
+};
+
+// Check if service role key is configured
+export const hasCloudServiceRoleKey = (): boolean => {
+  return !!getCloudServiceRoleKey();
+};
+
 // Tables to sync (order matters for foreign key dependencies)
 const SYNC_TABLES = [
   'stores',
@@ -47,16 +74,28 @@ class CloudSyncService {
   private lastSyncTime: string | null = null;
 
   constructor() {
-    // Initialize cloud client
-    this.cloudClient = createClient(CLOUD_SUPABASE_URL, CLOUD_SUPABASE_ANON_KEY, {
+    this.initializeClient();
+    // Load last sync time from localStorage
+    this.lastSyncTime = localStorage.getItem('cloud_last_sync_time');
+  }
+
+  private initializeClient() {
+    // Use service role key if available (bypasses RLS), otherwise use anon key
+    const serviceRoleKey = getCloudServiceRoleKey();
+    const key = serviceRoleKey || CLOUD_SUPABASE_ANON_KEY;
+    
+    console.log('[CloudSync] Initializing client with', serviceRoleKey ? 'service_role key' : 'anon key');
+    
+    this.cloudClient = createClient(CLOUD_SUPABASE_URL, key, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
-    
-    // Load last sync time from localStorage
-    this.lastSyncTime = localStorage.getItem('cloud_last_sync_time');
+  }
+
+  reinitializeClient() {
+    this.initializeClient();
   }
 
   /**
