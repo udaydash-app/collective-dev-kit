@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Upload, Building2 } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Cloud, CloudDownload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UpdateButton } from "@/components/UpdateButton";
 import { APP_VERSION } from "@/config/version";
+import { cloudSyncService } from "@/lib/cloudSyncService";
+import { isUsingLocalSupabase } from "@/integrations/supabase/client";
 
 interface Settings {
   id: string;
@@ -404,6 +406,41 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Cloud Sync Section - Only show when using local Supabase */}
+        {isUsingLocalSupabase() && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cloud className="h-5 w-5" />
+                Cloud Sync
+              </CardTitle>
+              <CardDescription>
+                Sync data between local database and cloud
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const result = await cloudSyncService.syncFromCloud();
+                    if (result.errors.length > 0) {
+                      console.error('Sync errors:', result.errors);
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <CloudDownload className="h-4 w-4 mr-2" />
+                  Pull Data from Cloud
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Download all data from cloud database to local. Use this to populate your local database with cloud data.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Offline Data Cache Manager */}
         <OfflineCacheManager />
