@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { v4 as uuidv4 } from 'uuid';
+import { calculateTimbreTax } from '@/lib/timbreTax';
 
 export interface CartItem {
   id: string;
@@ -866,7 +867,16 @@ export const usePOSTransaction = () => {
     return sum;
   };
 
-  const calculateTotal = () => calculateSubtotal() - discount;
+  const calculateTimbre = () => {
+    const subtotal = calculateSubtotal() - discount;
+    return calculateTimbreTax(subtotal).taxAmount;
+  };
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const timbre = calculateTimbreTax(subtotal - discount).taxAmount;
+    return subtotal - discount + timbre;
+  };
 
   const processTransaction = async (
     payments: Array<{ id: string; method: string; amount: number }>,
@@ -905,7 +915,12 @@ export const usePOSTransaction = () => {
 
       const subtotal = calculateSubtotal();
       const finalDiscount = discountOverride !== undefined ? discountOverride : discount;
-      const total = subtotal - finalDiscount;
+      const subtotalAfterDiscount = subtotal - finalDiscount;
+      
+      // Calculate Timbre tax based on bill amount
+      const timbreTax = calculateTimbreTax(subtotalAfterDiscount);
+      const tax = timbreTax.taxAmount;
+      const total = subtotalAfterDiscount + tax;
 
       // Determine primary payment method (highest amount)
       const primaryPayment = payments.reduce((prev, current) => 
@@ -938,7 +953,7 @@ export const usePOSTransaction = () => {
         customer_id: customerId || null,
         items: itemsToSave as any,
         subtotal: Math.round(subtotal * 100) / 100,
-        tax: 0,
+        tax: Math.round(tax * 100) / 100,
         discount: Math.round(finalDiscount * 100) / 100,
         total: Math.round(total * 100) / 100,
         payment_method: primaryPayment.method,
@@ -946,8 +961,10 @@ export const usePOSTransaction = () => {
           method: p.method,
           amount: Math.round(p.amount * 100) / 100,
         })),
-        notes,
-        metadata: editingTransactionId ? { edited_at: new Date().toISOString() } : {}
+        notes: timbreTax.isApplicable ? `${notes || ''}${notes ? ' | ' : ''}Timbre: ${tax}` : notes,
+        metadata: editingTransactionId 
+          ? { edited_at: new Date().toISOString(), timbre_tax: timbreTax.isApplicable ? tax : 0 } 
+          : { timbre_tax: timbreTax.isApplicable ? tax : 0 }
       };
 
       // Check if online
@@ -1142,6 +1159,7 @@ export const usePOSTransaction = () => {
     clearCart,
     loadCart,
     calculateSubtotal,
+    calculateTimbre,
     calculateTotal,
     processTransaction,
     isProcessing,

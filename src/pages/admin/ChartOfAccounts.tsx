@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, BookOpen, Merge, Filter } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, BookOpen, Merge, Filter, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { MergeAccountsDialog } from '@/components/admin/MergeAccountsDialog';
 import { usePageView } from '@/hooks/useAnalytics';
@@ -281,6 +282,43 @@ export default function ChartOfAccounts() {
     queryClient.invalidateQueries({ queryKey: ['accounts'] });
   };
 
+  const handleExport = () => {
+    if (!accounts || accounts.length === 0) {
+      toast.error('No accounts to export');
+      return;
+    }
+
+    const exportData = accounts.map(account => ({
+      'Account Code': account.account_code,
+      'Account Name': account.account_name,
+      'Account Type': account.account_type.charAt(0).toUpperCase() + account.account_type.slice(1),
+      'Parent Account': getParentAccountName(account.parent_account_id),
+      'Description': account.description || '',
+      'Current Balance': account.current_balance,
+      'Status': account.is_active ? 'Active' : 'Inactive',
+      'Created At': new Date(account.created_at).toLocaleDateString(),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Chart of Accounts');
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // Account Code
+      { wch: 30 }, // Account Name
+      { wch: 12 }, // Type
+      { wch: 30 }, // Parent Account
+      { wch: 40 }, // Description
+      { wch: 15 }, // Balance
+      { wch: 10 }, // Status
+      { wch: 12 }, // Created At
+    ];
+
+    XLSX.writeFile(wb, `chart_of_accounts_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Chart of Accounts exported successfully');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -290,6 +328,10 @@ export default function ChartOfAccounts() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          <Button onClick={handleExport} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
           <Button 
             onClick={() => {
               setShowDuplicatesOnly(!showDuplicatesOnly);

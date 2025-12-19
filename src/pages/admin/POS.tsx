@@ -235,6 +235,7 @@ export default function POS() {
     clearCart,
     loadCart,
     calculateSubtotal,
+    calculateTimbre,
     calculateTotal,
     processTransaction,
   } = usePOSTransaction();
@@ -2085,7 +2086,8 @@ export default function POS() {
 
   const subtotal = calculateSubtotal();
   const cartDiscountAmount = cartDiscountItem ? Math.abs(cartDiscountItem.price) : 0;
-  const total = subtotal - cartDiscountAmount;
+  const timbreTax = calculateTimbre();
+  const total = subtotal - cartDiscountAmount + timbreTax;
 
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
@@ -2255,7 +2257,7 @@ export default function POS() {
       })),
       subtotal: calculateSubtotal(),
       discount: cartDiscountAmount,
-      tax: 0,
+      tax: timbreTax,
       total: total,
       paymentMethod: "Pending",
       cashierName: currentCashSession?.cashier_name || "Cashier",
@@ -2388,7 +2390,7 @@ export default function POS() {
       })),
       subtotal: calculateSubtotal(),
       discount: cartDiscountAmount,
-      tax: 0,
+      tax: timbreTax,
       total: total,
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
@@ -3694,7 +3696,13 @@ export default function POS() {
         </div>
 
         {/* Total Display - Below customer selection */}
-        <div className="border-b p-3">
+        <div className="border-b p-3 space-y-2">
+          {timbreTax > 0 && (
+            <div className="flex justify-between items-center text-xs px-3">
+              <span className="text-muted-foreground">Timbre</span>
+              <span className="font-medium text-orange-600 dark:text-orange-400">+{formatCurrency(timbreTax)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
             <span className="text-lg font-bold">TOTAL</span>
             <span className="text-3xl font-bold text-primary">
