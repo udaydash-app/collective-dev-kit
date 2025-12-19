@@ -186,10 +186,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           <span>Subtotal:</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
-        <div className="flex justify-between">
-          <span>Tax (15%):</span>
-          <span>{formatCurrency(tax)}</span>
-        </div>
+        {tax > 0 && (
+          <div className="flex justify-between">
+            <span>Timbre:</span>
+            <span>{formatCurrency(tax)}</span>
+          </div>
+        )}
         {discount > 0 && (
           <div className="flex justify-between">
             <span>Discount:</span>
