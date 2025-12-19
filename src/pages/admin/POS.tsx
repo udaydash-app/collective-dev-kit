@@ -1029,11 +1029,11 @@ export default function POS() {
         return [];
       }
       
-      // Get cash account ID - handle both 1010 and 1110 (merged accounts)
+      // Get cash account ID - SYSCOHADA code 571 (Caisse)
       const { data: cashAccounts, error: accountError } = await supabase
         .from('accounts')
         .select('id')
-        .in('account_code', ['1010', '1110'])
+        .eq('account_code', '571')
         .eq('is_active', true)
         .limit(1);
       
@@ -1044,7 +1044,7 @@ export default function POS() {
       
       const cashAccount = cashAccounts?.[0];
       if (!cashAccount) {
-        console.warn('No active cash account (1010 or 1110) found');
+        console.warn('No active cash account (571 - Caisse) found');
         return [];
       }
       
@@ -1140,11 +1140,11 @@ export default function POS() {
         return [];
       }
       
-      // Get mobile money account ID - use limit(1) to handle merged accounts gracefully
+      // Get mobile money account ID - SYSCOHADA code 521 (Banque Mobile Money)
       const { data: mobileMoneyAccounts, error: accountError } = await supabase
         .from('accounts')
         .select('id')
-        .in('account_code', ['1015'])
+        .eq('account_code', '521')
         .eq('is_active', true)
         .limit(1);
       
@@ -1155,7 +1155,7 @@ export default function POS() {
       
       const mobileMoneyAccount = mobileMoneyAccounts?.[0];
       if (!mobileMoneyAccount) {
-        console.warn('No active mobile money account (1015) found');
+        console.warn('No active mobile money account (521 - Banque Mobile Money) found');
         return [];
       }
       
@@ -1654,8 +1654,8 @@ export default function POS() {
       // Credit: Cash account (cash removed from register)
       if (closingCash > 0) {
         try {
-          const cashAccountCode = '1110';
-          const ownerAccountCode = '2010-0D34407DAC';
+          const cashAccountCode = '571';  // Caisse SYSCOHADA
+          const ownerAccountCode = '109';  // Compte de l'exploitant SYSCOHADA
           
           // Get account IDs
           const { data: accounts } = await supabase

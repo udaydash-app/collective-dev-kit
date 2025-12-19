@@ -28,15 +28,15 @@ export default function CashFlow() {
   const { data: cashFlowData, isLoading } = useQuery({
     queryKey: ['cash-flow', startDate, endDate],
     queryFn: async () => {
-      // Get cash account (1110)
+      // Get cash account (571 - Caisse SYSCOHADA)
       const { data: cashAccounts } = await supabase
         .from('accounts')
         .select('id')
-        .eq('account_code', '1110')
+        .eq('account_code', '571')
         .eq('is_active', true);
 
       if (!cashAccounts || cashAccounts.length === 0) {
-        console.log('No cash accounts found for 1110');
+        console.log('No cash accounts found for 571 (Caisse)');
         return {
           operatingActivities: [],
           investingActivities: [],
