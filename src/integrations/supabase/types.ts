@@ -2812,6 +2812,8 @@ export type Database = {
       }
       generate_order_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_next_customer_account_code: { Args: never; Returns: string }
+      get_next_supplier_account_code: { Args: never; Returns: string }
       get_suggested_adjustment_cost: {
         Args: { p_product_id: string; p_variant_id?: string }
         Returns: {
