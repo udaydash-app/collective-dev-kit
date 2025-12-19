@@ -279,15 +279,15 @@ export default function CloseDayReport() {
         .lte('expense_date', endDate)
         .order('expense_date', { ascending: false });
 
-      // Fetch payment method account IDs - handle merged cash accounts
+      // Fetch payment method account IDs - SYSCOHADA codes
       const { data: paymentAccounts } = await supabase
         .from('accounts')
         .select('id, account_code, account_name')
-        .in('account_code', ['1010', '1110', '1015', '1030']); // Cash (both codes), Mobile Money, AR (credit)
+        .in('account_code', ['571', '521', '411']); // Caisse (571), Banque Mobile Money (521), Clients (411)
       
-      const cashAccountId = paymentAccounts?.find(a => a.account_code === '1010' || a.account_code === '1110')?.id;
-      const mobileMoneyAccountId = paymentAccounts?.find(a => a.account_code === '1015')?.id;
-      const arAccountId = paymentAccounts?.find(a => a.account_code === '1030')?.id;
+      const cashAccountId = paymentAccounts?.find(a => a.account_code === '571')?.id;
+      const mobileMoneyAccountId = paymentAccounts?.find(a => a.account_code === '521')?.id;
+      const arAccountId = paymentAccounts?.find(a => a.account_code === '411')?.id;
       
       const { data: journalEntries } = await supabase
         .from('journal_entries')
