@@ -183,15 +183,15 @@ export default function PaymentReceipts() {
 
           if (jeUpdateError) throw jeUpdateError;
 
-          // Get the payment account based on payment method - use 1110 for cash
+          // Get the payment account based on payment method - SYSCOHADA codes
           const paymentAccountCodes: Record<string, string> = {
-            cash: '1110',
-            mobile_money: '1015',
-            bank_transfer: '1020',
-            cheque: '1030'
+            cash: '571',         // Caisse
+            mobile_money: '521', // Banque Mobile Money
+            bank_transfer: '5211', // Banques locales
+            cheque: '5211'       // Banques locales
           };
           
-          const paymentAccountCode = paymentAccountCodes[data.payment_method] || '1110';
+          const paymentAccountCode = paymentAccountCodes[data.payment_method] || '571';
           
           const { data: paymentAccount } = await supabase
             .from('accounts')
