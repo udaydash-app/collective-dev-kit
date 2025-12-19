@@ -3019,6 +3019,7 @@ export default function POS() {
       { icon: TrendingUp, label: 'Profit & Loss', path: '/admin/profit-loss' },
       { icon: Building2, label: 'Balance Sheet', path: '/admin/balance-sheet' },
       { icon: Droplets, label: 'Cash Flow', path: '/admin/cash-flow' },
+      { icon: ReceiptIcon, label: 'Tax Collection Report', path: '/admin/tax-collection-report' },
     ],
     reports: [
       { icon: BarChart3, label: 'Analytics Dashboard', path: '/admin/analytics' },
