@@ -413,6 +413,14 @@ export default function AdminDashboard() {
                     <KeyboardBadge keys={["Alt", "Q"]} className="scale-90" />
                   </Button>
                 </Link>
+                <Link to="/admin/tax-collection-report">
+                  <Button variant="outline" className="w-full justify-between cursor-pointer">
+                    <span className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Tax Collection Report
+                    </span>
+                  </Button>
+                </Link>
                 <Button variant="outline" className="w-full cursor-pointer">
                   <Users className="mr-2 h-4 w-4" />
                   User Management
