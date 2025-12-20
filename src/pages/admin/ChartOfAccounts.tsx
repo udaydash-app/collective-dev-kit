@@ -50,6 +50,104 @@ interface Account {
   created_at: string;
 }
 
+// SYSCOHADA account translations (French to English)
+const accountTranslations: Record<string, string> = {
+  // Class 1 - Equity
+  'Capital': 'Capital',
+  'Capital social': 'Share Capital',
+  'Réserves': 'Reserves',
+  'Report à nouveau': 'Retained Earnings',
+  'Résultat de l\'exercice': 'Net Income',
+  'Compte de l\'exploitant': 'Owner\'s Account',
+  
+  // Class 2 - Fixed Assets
+  'Immobilisations incorporelles': 'Intangible Assets',
+  'Immobilisations corporelles': 'Tangible Assets',
+  'Immobilisations financières': 'Financial Assets',
+  'Terrains': 'Land',
+  'Bâtiments': 'Buildings',
+  'Matériel et outillage': 'Equipment & Tools',
+  'Matériel de transport': 'Vehicles',
+  'Matériel de bureau': 'Office Equipment',
+  'Amortissements': 'Depreciation',
+  
+  // Class 3 - Inventory
+  'Stocks et en-cours': 'Inventory',
+  'Stocks de marchandises': 'Merchandise Inventory',
+  'Marchandises': 'Merchandise',
+  'Matières premières': 'Raw Materials',
+  'Produits finis': 'Finished Goods',
+  
+  // Class 4 - Third Party Accounts
+  'Fournisseurs': 'Suppliers/Vendors',
+  'Fournisseurs d\'exploitation': 'Trade Payables',
+  'Clients': 'Customers',
+  'Clients et comptes rattachés': 'Accounts Receivable',
+  'Personnel': 'Employees',
+  'État': 'Government/Tax',
+  'TVA collectée': 'VAT Collected',
+  'TVA déductible': 'VAT Deductible',
+  'TVA à payer': 'VAT Payable',
+  'Impôts et taxes': 'Taxes',
+  'Droit de Timbre': 'Stamp Duty',
+  'Charges à payer': 'Accrued Expenses',
+  'Produits à recevoir': 'Accrued Income',
+  
+  // Class 5 - Treasury
+  'Trésorerie': 'Cash & Bank',
+  'Caisse': 'Cash',
+  'Banque': 'Bank',
+  'Banque Mobile Money': 'Mobile Money',
+  'Chèques à encaisser': 'Checks to Deposit',
+  
+  // Class 6 - Expenses
+  'Charges d\'exploitation': 'Operating Expenses',
+  'Achats de marchandises': 'Purchases',
+  'Achats': 'Purchases',
+  'Coût des ventes': 'Cost of Goods Sold',
+  'Variation de stocks': 'Inventory Variation',
+  'Services extérieurs': 'External Services',
+  'Charges de personnel': 'Payroll Expenses',
+  'Salaires et traitements': 'Salaries & Wages',
+  'Charges sociales': 'Social Charges',
+  'Dotations aux amortissements': 'Depreciation Expense',
+  'Charges financières': 'Financial Charges',
+  'Intérêts': 'Interest Expense',
+  'Loyer': 'Rent',
+  'Électricité': 'Electricity',
+  'Transport': 'Transportation',
+  'Frais généraux': 'General Expenses',
+  'Remises accordées': 'Discounts Given',
+  
+  // Class 7 - Revenue
+  'Produits d\'exploitation': 'Operating Revenue',
+  'Ventes de marchandises': 'Sales Revenue',
+  'Ventes': 'Sales',
+  'Produits financiers': 'Financial Income',
+  'Produits exceptionnels': 'Exceptional Income',
+  'Remises obtenues': 'Discounts Received',
+};
+
+// Get English translation for an account name
+const getEnglishName = (frenchName: string): string | null => {
+  // Direct match
+  if (accountTranslations[frenchName]) {
+    return accountTranslations[frenchName];
+  }
+  
+  // Partial match - check if name starts with a known translation
+  for (const [french, english] of Object.entries(accountTranslations)) {
+    if (frenchName.toLowerCase().startsWith(french.toLowerCase())) {
+      return english;
+    }
+    if (frenchName.toLowerCase().includes(french.toLowerCase())) {
+      return english;
+    }
+  }
+  
+  return null;
+};
+
 export default function ChartOfAccounts() {
   usePageView('Admin - Chart of Accounts');
   const queryClient = useQueryClient();
@@ -575,6 +673,11 @@ export default function ChartOfAccounts() {
                   <TableCell>
                     <div>
                       <p className="font-medium">{account.account_name}</p>
+                      {getEnglishName(account.account_name) && getEnglishName(account.account_name) !== account.account_name && (
+                        <p className="text-xs text-primary/70 font-medium">
+                          {getEnglishName(account.account_name)}
+                        </p>
+                      )}
                       {account.description && (
                         <p className="text-sm text-muted-foreground">
                           {account.description}
