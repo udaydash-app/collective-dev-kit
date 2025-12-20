@@ -1076,6 +1076,8 @@ export default function POS() {
                !ref.startsWith('PMT-') &&
                !ref.startsWith('OB-') &&
                !ref.startsWith('CASHREG-') &&
+               !ref.startsWith('CAISSE-') &&  // Cash register opening entries
+               !ref.startsWith('CASHCLOSE-') &&  // Cash register closing entries
                !ref.endsWith('-PMT');
       });
       
