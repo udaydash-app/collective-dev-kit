@@ -1250,8 +1250,13 @@ export default function POS() {
     }, 0) || 0;
 
   // Calculate expected cash (Opening cash + cash sales + cash payments received - cash purchases - expenses - cash supplier payments + journal entries)
+  // Use current session's opening cash, not totalOpeningCash from all sessions
+  const currentSessionOpeningCash = currentCashSession 
+    ? parseFloat(currentCashSession.opening_cash?.toString() || '0') 
+    : 0;
+  
   const expectedCashAtClose = currentCashSession 
-    ? (totalOpeningCash || 0) + 
+    ? currentSessionOpeningCash + 
       dayActivity.cashSales + 
       cashPayments - 
       dayActivity.cashPurchases - 
@@ -1621,7 +1626,10 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
-      const expectedCash = (totalOpeningCash || 0) + 
+      // Use current session's opening cash, not totalOpeningCash from all sessions
+      const sessionOpeningCash = parseFloat(currentCashSession.opening_cash?.toString() || '0');
+      
+      const expectedCash = sessionOpeningCash + 
         cashSales + 
         cashPayments - 
         cashPurchases - 
