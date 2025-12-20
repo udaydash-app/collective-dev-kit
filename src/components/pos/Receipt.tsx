@@ -188,7 +188,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         </div>
         {tax > 0 && (
           <div className="flex justify-between">
-            <span>Timbre:</span>
+            <span>Tmbre:</span>
             <span>{formatCurrency(tax)}</span>
           </div>
         )}
