@@ -62,9 +62,14 @@ export default function TaxCollectionReport() {
       }[] = [];
 
       transactions?.forEach((t: any) => {
-        const regularTax = parseFloat(t.tax?.toString() || '0');
+        const totalTaxInColumn = parseFloat(t.tax?.toString() || '0');
         const metadata = t.metadata || {};
-        const timbreTax = parseFloat(metadata.timbreTax?.toString() || '0');
+        // Check both snake_case and camelCase for timbre_tax in metadata
+        const timbreTax = parseFloat(metadata.timbre_tax?.toString() || metadata.timbreTax?.toString() || '0');
+        
+        // If tax column equals timbre_tax in metadata, it's all timbre (no regular VAT)
+        // Regular tax = total tax - timbre tax
+        const regularTax = Math.max(0, totalTaxInColumn - timbreTax);
         
         totalRegularTax += regularTax;
         totalTimbreTax += timbreTax;
