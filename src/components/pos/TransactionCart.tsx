@@ -148,7 +148,8 @@ export const TransactionCart = ({
     const effectivePrice = item.customPrice ?? item.price;
     const subtotal = effectivePrice * item.quantity;
     const discountAmount = (item.itemDiscount || 0) * item.quantity;
-    return subtotal - discountAmount;
+    // Ensure final amount never goes negative (e.g., 100% discount)
+    return Math.max(0, subtotal - discountAmount);
   };
 
   const formatNumberForDisplay = (value: number): string => {
