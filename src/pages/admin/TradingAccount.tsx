@@ -57,7 +57,9 @@ export default function TradingAccount() {
             const productId = item.product_id || item.productId || item.id;
             const productName = item.name || item.product_name || 'Unknown Product';
             const quantity = item.quantity || 1;
-            const unitPrice = item.price || item.unit_price || 0;
+            // Use actual sale amount (subtotal/total) which includes discounts and price changes
+            // Fall back to unit_price * quantity if subtotal not available
+            const actualSaleAmount = item.subtotal ?? item.total ?? ((item.price || item.unit_price || 0) * quantity);
 
             if (!productSales[productId]) {
               productSales[productId] = {
@@ -69,7 +71,7 @@ export default function TradingAccount() {
             }
 
             productSales[productId].unitsSold += quantity;
-            productSales[productId].totalSaleAmount += unitPrice * quantity;
+            productSales[productId].totalSaleAmount += actualSaleAmount;
           }
         }
       }
