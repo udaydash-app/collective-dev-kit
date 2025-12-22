@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
@@ -13,113 +14,164 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface SalesReportItem {
+  productId: string;
+  productName: string;
+  unitsSold: number;
+  costPrice: number;
+  salePrice: number;
+  profitLoss: number;
+  profitLossPercentage: number;
+}
+
 export default function TradingAccount() {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
 
-  // Fetch purchases data
-  const { data: purchasesData, isLoading: isLoadingPurchases } = useQuery({
-    queryKey: ['trading-purchases', startDate, endDate],
+  // Fetch sales data with product details
+  const { data: salesReport, isLoading } = useQuery({
+    queryKey: ['sales-report', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchases')
-        .select('id, purchased_at, total_amount, payment_status')
-        .gte('purchased_at', startDate.toISOString())
-        .lte('purchased_at', endDate.toISOString());
-
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch sales data from POS transactions
-  const { data: salesData, isLoading: isLoadingSales } = useQuery({
-    queryKey: ['trading-sales', startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch all POS transactions in the date range
+      const { data: transactions, error } = await supabase
         .from('pos_transactions')
-        .select('id, total, subtotal, discount, created_at')
+        .select('items')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
       if (error) throw error;
-      return data || [];
+
+      // Aggregate sales by product
+      const productSales: Record<string, { 
+        productId: string;
+        productName: string; 
+        unitsSold: number; 
+        totalSaleAmount: number;
+        costPrice: number;
+      }> = {};
+
+      for (const transaction of transactions || []) {
+        const items = transaction.items as any[];
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const productId = item.product_id || item.productId || item.id;
+            const productName = item.name || item.product_name || 'Unknown Product';
+            const quantity = item.quantity || 1;
+            const unitPrice = item.price || item.unit_price || 0;
+            const costPrice = item.cost_price || item.costPrice || 0;
+
+            if (!productSales[productId]) {
+              productSales[productId] = {
+                productId,
+                productName,
+                unitsSold: 0,
+                totalSaleAmount: 0,
+                costPrice: costPrice,
+              };
+            }
+
+            productSales[productId].unitsSold += quantity;
+            productSales[productId].totalSaleAmount += unitPrice * quantity;
+            // Update cost price if we have a newer value
+            if (costPrice > 0) {
+              productSales[productId].costPrice = costPrice;
+            }
+          }
+        }
+      }
+
+      // Convert to array and calculate profit/loss
+      const reportItems: SalesReportItem[] = Object.values(productSales).map(item => {
+        const totalCost = item.costPrice * item.unitsSold;
+        const profitLoss = item.totalSaleAmount - totalCost;
+        const profitLossPercentage = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+        return {
+          productId: item.productId,
+          productName: item.productName,
+          unitsSold: item.unitsSold,
+          costPrice: item.costPrice,
+          salePrice: item.unitsSold > 0 ? item.totalSaleAmount / item.unitsSold : 0,
+          profitLoss,
+          profitLossPercentage,
+        };
+      });
+
+      // Sort by units sold descending
+      return reportItems.sort((a, b) => b.unitsSold - a.unitsSold);
     },
   });
 
   // Calculate totals
-  const totalPurchases = purchasesData?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
-  const totalSales = salesData?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
-  const totalDiscount = salesData?.reduce((sum, s) => sum + (s.discount || 0), 0) || 0;
-  const netSales = totalSales;
+  const totals = salesReport?.reduce(
+    (acc, item) => ({
+      totalUnits: acc.totalUnits + item.unitsSold,
+      totalCost: acc.totalCost + (item.costPrice * item.unitsSold),
+      totalSales: acc.totalSales + (item.salePrice * item.unitsSold),
+      totalProfitLoss: acc.totalProfitLoss + item.profitLoss,
+    }),
+    { totalUnits: 0, totalCost: 0, totalSales: 0, totalProfitLoss: 0 }
+  ) || { totalUnits: 0, totalCost: 0, totalSales: 0, totalProfitLoss: 0 };
 
-  // P/L Calculation
-  const profitOrLoss = netSales - totalPurchases;
-  const profitLossPercentage = netSales > 0 ? (profitOrLoss / netSales) * 100 : 0;
-
-  const isLoading = isLoadingPurchases || isLoadingSales;
+  const overallProfitLossPercentage = totals.totalCost > 0 
+    ? (totals.totalProfitLoss / totals.totalCost) * 100 
+    : 0;
 
   const exportToExcel = () => {
     const data = [
-      ['TRADING ACCOUNT'],
-      [`For the period ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`],
+      ['SALES REPORT'],
+      [`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`],
       [],
-      ['DEBIT (Dr.)', '', 'CREDIT (Cr.)', ''],
-      ['Particulars', 'Amount (FCFA)', 'Particulars', 'Amount (FCFA)'],
-      ['To Purchases', totalPurchases, 'By Sales', totalSales],
-      totalDiscount > 0 ? ['', '', 'Less: Discount', totalDiscount] : [],
-      totalDiscount > 0 ? ['', '', 'Net Sales', netSales] : [],
-      profitOrLoss > 0 
-        ? ['To Gross Profit', profitOrLoss, '', '']
-        : ['', '', 'To Gross Loss', Math.abs(profitOrLoss)],
+      ['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %'],
+      ...(salesReport?.map(item => [
+        item.productName,
+        item.unitsSold,
+        item.costPrice,
+        item.salePrice,
+        item.profitLoss,
+        `${item.profitLossPercentage.toFixed(2)}%`,
+      ]) || []),
       [],
-      ['Total', totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0), 'Total', netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0)],
-      [],
-      ['SUMMARY'],
-      ['Profit/Loss %', `${profitLossPercentage.toFixed(2)}%`],
-    ].filter(row => row.length > 0);
+      ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`],
+    ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Trading Account');
-    XLSX.writeFile(wb, `Trading_Account_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
+    XLSX.writeFile(wb, `Sales_Report_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.xlsx`);
   };
 
   const exportToPDF = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
-    doc.text('TRADING ACCOUNT', 105, 15, { align: 'center' });
+    doc.text('SALES REPORT', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
-    doc.text(`For the period ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, 25, { align: 'center' });
+    doc.text(`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, 25, { align: 'center' });
 
-    const tableData = [
-      ['To Purchases', formatCurrency(totalPurchases), 'By Sales', formatCurrency(totalSales)],
-      totalDiscount > 0 ? ['', '', 'Less: Discount', formatCurrency(totalDiscount)] : ['', '', '', ''],
-      totalDiscount > 0 ? ['', '', 'Net Sales', formatCurrency(netSales)] : ['', '', '', ''],
-      profitOrLoss > 0
-        ? ['To Gross Profit', formatCurrency(profitOrLoss), '', '']
-        : ['', '', 'To Gross Loss', formatCurrency(Math.abs(profitOrLoss))],
-      ['TOTAL', formatCurrency(totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0)), 'TOTAL', formatCurrency(netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0))],
-    ].filter(row => row.some(cell => cell !== ''));
+    const tableData = salesReport?.map(item => [
+      item.productName,
+      item.unitsSold.toString(),
+      formatCurrency(item.costPrice),
+      formatCurrency(item.salePrice),
+      formatCurrency(item.profitLoss),
+      `${item.profitLossPercentage.toFixed(2)}%`,
+    ]) || [];
 
     autoTable(doc, {
       startY: 35,
-      head: [['DEBIT (Dr.)', 'Amount', 'CREDIT (Cr.)', 'Amount']],
+      head: [['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']],
       body: tableData,
-      theme: 'grid',
+      foot: [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]],
+      theme: 'striped',
       headStyles: { fillColor: [34, 197, 94] },
-      styles: { fontSize: 10 },
+      footStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
-    
-    doc.setFontSize(14);
-    doc.text(`${profitOrLoss >= 0 ? 'Profit' : 'Loss'}: ${formatCurrency(Math.abs(profitOrLoss))} (${Math.abs(profitLossPercentage).toFixed(2)}%)`, 14, finalY + 15);
-
-    doc.save(`Trading_Account_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.pdf`);
+    doc.save(`Sales_Report_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.pdf`);
   };
 
   const setQuickDateRange = (range: 'thisMonth' | 'lastMonth' | 'thisYear') => {
@@ -141,10 +193,6 @@ export default function TradingAccount() {
     }
   };
 
-  // Calculate totals for balancing
-  const leftTotal = totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0);
-  const rightTotal = netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0);
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -155,8 +203,8 @@ export default function TradingAccount() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Trading Account</h1>
-              <p className="text-muted-foreground text-sm">Purchases vs Sales Report</p>
+              <h1 className="text-2xl font-bold">Sales Report</h1>
+              <p className="text-muted-foreground text-sm">Product-wise sales and profit analysis</p>
             </div>
           </div>
           
@@ -227,148 +275,109 @@ export default function TradingAccount() {
           </CardContent>
         </Card>
 
-        {isLoading ? (
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="py-10">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Total Units Sold</div>
+              <div className="text-2xl font-bold">{totals.totalUnits}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Total Cost</div>
+              <div className="text-2xl font-bold text-orange-600">{formatCurrency(totals.totalCost)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Total Sales</div>
+              <div className="text-2xl font-bold text-blue-600">{formatCurrency(totals.totalSales)}</div>
+            </CardContent>
+          </Card>
+          <Card className={totals.totalProfitLoss >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                {totals.totalProfitLoss >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {totals.totalProfitLoss >= 0 ? 'Profit' : 'Loss'}
+                </span>
+              </div>
+              <div className={`text-2xl font-bold ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(Math.abs(totals.totalProfitLoss))}
+              </div>
+              <div className={`text-sm ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {Math.abs(overallProfitLossPercentage).toFixed(2)}%
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <>
-            {/* Trading Account - Traditional Format */}
-            <Card>
-              <CardHeader className="bg-primary/10 border-b">
-                <CardTitle className="text-center text-lg">
-                  TRADING ACCOUNT
-                  <div className="text-sm font-normal text-muted-foreground mt-1">
-                    For the period {format(startDate, 'dd/MM/yyyy')} to {format(endDate, 'dd/MM/yyyy')}
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="grid grid-cols-2 divide-x">
-                  {/* Left Side - Debit (Purchases) */}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-center mb-4 text-destructive">DEBIT (Dr.)</h3>
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 font-medium">Particulars</th>
-                          <th className="text-right py-2 font-medium">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="py-3">To Purchases</td>
-                          <td className="text-right py-3">{formatCurrency(totalPurchases)}</td>
-                        </tr>
-                        {profitOrLoss > 0 && (
-                          <tr className="border-b bg-green-50 dark:bg-green-900/20">
-                            <td className="py-3 font-semibold text-green-700 dark:text-green-400">
-                              To Gross Profit
-                            </td>
-                            <td className="text-right py-3 font-semibold text-green-700 dark:text-green-400">
-                              {formatCurrency(profitOrLoss)}
-                            </td>
-                          </tr>
-                        )}
-                        <tr className="bg-muted/50 font-bold">
-                          <td className="py-3">TOTAL</td>
-                          <td className="text-right py-3">{formatCurrency(leftTotal)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+        </div>
 
-                  {/* Right Side - Credit (Sales) */}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-center mb-4 text-green-600 dark:text-green-400">CREDIT (Cr.)</h3>
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 font-medium">Particulars</th>
-                          <th className="text-right py-2 font-medium">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="py-3">By Sales</td>
-                          <td className="text-right py-3">{formatCurrency(totalSales)}</td>
-                        </tr>
-                        {totalDiscount > 0 && (
-                          <>
-                            <tr className="border-b text-muted-foreground">
-                              <td className="py-2 pl-4">Less: Discount</td>
-                              <td className="text-right py-2">({formatCurrency(totalDiscount)})</td>
-                            </tr>
-                            <tr className="border-b">
-                              <td className="py-2 font-medium">Net Sales</td>
-                              <td className="text-right py-2 font-medium">{formatCurrency(netSales)}</td>
-                            </tr>
-                          </>
-                        )}
-                        {profitOrLoss < 0 && (
-                          <tr className="border-b bg-red-50 dark:bg-red-900/20">
-                            <td className="py-3 font-semibold text-red-700 dark:text-red-400">
-                              To Gross Loss
-                            </td>
-                            <td className="text-right py-3 font-semibold text-red-700 dark:text-red-400">
-                              {formatCurrency(Math.abs(profitOrLoss))}
-                            </td>
-                          </tr>
-                        )}
-                        <tr className="bg-muted/50 font-bold">
-                          <td className="py-3">TOTAL</td>
-                          <td className="text-right py-3">{formatCurrency(rightTotal)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground">Total Purchases</div>
-                  <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalPurchases)}</div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground">Total Sales</div>
-                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalSales)}</div>
-                </CardContent>
-              </Card>
-              
-              <Card className={profitOrLoss >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2">
-                    {profitOrLoss >= 0 ? (
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-5 w-5 text-red-600" />
-                    )}
-                    <div className="text-sm text-muted-foreground">
-                      {profitOrLoss >= 0 ? 'Gross Profit' : 'Gross Loss'}
-                    </div>
-                  </div>
-                  <div className={`text-2xl font-bold ${profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(Math.abs(profitOrLoss))}
-                  </div>
-                  <div className={`text-sm ${profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {Math.abs(profitLossPercentage).toFixed(2)}% of Sales
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        )}
+        {/* Sales Report Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Sales Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : salesReport && salesReport.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product Name</TableHead>
+                      <TableHead className="text-right">Units Sold</TableHead>
+                      <TableHead className="text-right">Cost Price</TableHead>
+                      <TableHead className="text-right">Sale Price</TableHead>
+                      <TableHead className="text-right">Profit/Loss</TableHead>
+                      <TableHead className="text-right">P/L %</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salesReport.map((item) => (
+                      <TableRow key={item.productId}>
+                        <TableCell className="font-medium">{item.productName}</TableCell>
+                        <TableCell className="text-right">{item.unitsSold}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.salePrice)}</TableCell>
+                        <TableCell className={`text-right font-medium ${item.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(item.profitLoss)}
+                        </TableCell>
+                        <TableCell className={`text-right ${item.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.profitLossPercentage.toFixed(2)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {/* Totals Row */}
+                    <TableRow className="bg-muted/50 font-bold">
+                      <TableCell>TOTAL</TableCell>
+                      <TableCell className="text-right">{totals.totalUnits}</TableCell>
+                      <TableCell className="text-right"></TableCell>
+                      <TableCell className="text-right"></TableCell>
+                      <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(totals.totalProfitLoss)}
+                      </TableCell>
+                      <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {overallProfitLossPercentage.toFixed(2)}%
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                No sales data found for the selected period.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
