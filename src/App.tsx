@@ -58,6 +58,7 @@ import AdminQuotations from "./pages/admin/Quotations";
 import AdminBarcode from "./pages/admin/Barcode";
 import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import AdminTaxCollectionReport from "./pages/admin/TaxCollectionReport";
+import AdminTradingAccount from "./pages/admin/TradingAccount";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -184,6 +185,7 @@ const AppContent = () => {
           <Route path="/admin/barcode" element={<AdminRoute><AdminBarcode /></AdminRoute>} />
           <Route path="/admin/purchase-orders" element={<AdminRoute><AdminPurchaseOrders /></AdminRoute>} />
           <Route path="/admin/tax-collection-report" element={<AdminRoute><AdminTaxCollectionReport /></AdminRoute>} />
+          <Route path="/admin/trading-account" element={<AdminRoute><AdminTradingAccount /></AdminRoute>} />
           <Route path="/admin/live-chat" element={<AdminRoute><AdminLiveChat /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
