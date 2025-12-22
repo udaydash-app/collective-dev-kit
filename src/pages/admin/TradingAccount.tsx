@@ -57,9 +57,14 @@ export default function TradingAccount() {
             const productId = item.product_id || item.productId || item.id;
             const productName = item.name || item.product_name || 'Unknown Product';
             const quantity = item.quantity || 1;
-            // Use actual sale amount (subtotal/total) which includes discounts and price changes
-            // Fall back to unit_price * quantity if subtotal not available
-            const actualSaleAmount = item.subtotal ?? item.total ?? ((item.price || item.unit_price || 0) * quantity);
+            
+            // Get the actual price used (customPrice if set, otherwise regular price)
+            const unitPrice = item.customPrice ?? item.price ?? item.unit_price ?? 0;
+            // Apply item-level discount
+            const itemDiscount = item.itemDiscount || item.discount || 0;
+            // Calculate actual sale amount per unit after discount
+            const actualUnitPrice = unitPrice - itemDiscount;
+            const actualSaleAmount = actualUnitPrice * quantity;
 
             if (!productSales[productId]) {
               productSales[productId] = {
