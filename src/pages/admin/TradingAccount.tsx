@@ -75,13 +75,16 @@ export default function TradingAccount() {
       }
 
       // Fetch cost prices from products table
-      const productIds = Object.keys(productSales);
-      if (productIds.length === 0) return [];
+      // Filter out invalid UUIDs (like "cart-discount")
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validProductIds = Object.keys(productSales).filter(id => uuidRegex.test(id));
+      
+      if (validProductIds.length === 0) return [];
 
       const { data: products, error: productsError } = await supabase
         .from('products')
         .select('id, cost_price')
-        .in('id', productIds);
+        .in('id', validProductIds);
 
       if (productsError) throw productsError;
 
