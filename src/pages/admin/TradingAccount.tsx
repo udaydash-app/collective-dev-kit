@@ -48,7 +48,6 @@ export default function TradingAccount() {
         productName: string; 
         unitsSold: number; 
         totalSaleAmount: number;
-        costPrice: number;
       }> = {};
 
       for (const transaction of transactions || []) {
@@ -59,7 +58,6 @@ export default function TradingAccount() {
             const productName = item.name || item.product_name || 'Unknown Product';
             const quantity = item.quantity || 1;
             const unitPrice = item.price || item.unit_price || 0;
-            const costPrice = item.cost_price || item.costPrice || 0;
 
             if (!productSales[productId]) {
               productSales[productId] = {
@@ -67,23 +65,36 @@ export default function TradingAccount() {
                 productName,
                 unitsSold: 0,
                 totalSaleAmount: 0,
-                costPrice: costPrice,
               };
             }
 
             productSales[productId].unitsSold += quantity;
             productSales[productId].totalSaleAmount += unitPrice * quantity;
-            // Update cost price if we have a newer value
-            if (costPrice > 0) {
-              productSales[productId].costPrice = costPrice;
-            }
           }
         }
       }
 
+      // Fetch cost prices from products table
+      const productIds = Object.keys(productSales);
+      if (productIds.length === 0) return [];
+
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, cost_price')
+        .in('id', productIds);
+
+      if (productsError) throw productsError;
+
+      // Create a map of product id to cost price
+      const costPriceMap: Record<string, number> = {};
+      for (const product of products || []) {
+        costPriceMap[product.id] = product.cost_price || 0;
+      }
+
       // Convert to array and calculate profit/loss
       const reportItems: SalesReportItem[] = Object.values(productSales).map(item => {
-        const totalCost = item.costPrice * item.unitsSold;
+        const costPrice = costPriceMap[item.productId] || 0;
+        const totalCost = costPrice * item.unitsSold;
         const profitLoss = item.totalSaleAmount - totalCost;
         const profitLossPercentage = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
 
@@ -91,7 +102,7 @@ export default function TradingAccount() {
           productId: item.productId,
           productName: item.productName,
           unitsSold: item.unitsSold,
-          costPrice: item.costPrice,
+          costPrice: costPrice,
           salePrice: item.unitsSold > 0 ? item.totalSaleAmount / item.unitsSold : 0,
           profitLoss,
           profitLossPercentage,
