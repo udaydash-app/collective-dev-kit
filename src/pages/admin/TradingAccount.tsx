@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths } from 'date-fns';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -24,17 +24,7 @@ export default function TradingAccount() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchases')
-        .select(`
-          id,
-          purchased_at,
-          total_amount,
-          payment_status,
-          purchase_items (
-            quantity,
-            unit_cost,
-            total_cost
-          )
-        `)
+        .select('id, purchased_at, total_amount, payment_status')
         .gte('purchased_at', startDate.toISOString())
         .lte('purchased_at', endDate.toISOString());
 
@@ -49,44 +39,12 @@ export default function TradingAccount() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pos_transactions')
-        .select('id, total, subtotal, discount, created_at, items')
+        .select('id, total, subtotal, discount, created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
       if (error) throw error;
       return data || [];
-    },
-  });
-
-  // Fetch opening and closing stock values
-  const { data: stockData, isLoading: isLoadingStock } = useQuery({
-    queryKey: ['trading-stock', startDate, endDate],
-    queryFn: async () => {
-      // Get inventory layers for opening stock (before start date)
-      const { data: openingLayers, error: openingError } = await supabase
-        .from('inventory_layers')
-        .select('quantity_remaining, unit_cost')
-        .lt('purchased_at', startDate.toISOString());
-
-      if (openingError) throw openingError;
-
-      // Get inventory layers for closing stock (up to end date)
-      const { data: closingLayers, error: closingError } = await supabase
-        .from('inventory_layers')
-        .select('quantity_remaining, unit_cost')
-        .lte('purchased_at', endDate.toISOString());
-
-      if (closingError) throw closingError;
-
-      // Calculate opening stock value
-      const openingStock = (openingLayers || []).reduce((sum, layer) => 
-        sum + (layer.quantity_remaining * layer.unit_cost), 0);
-
-      // Calculate closing stock value
-      const closingStock = (closingLayers || []).reduce((sum, layer) => 
-        sum + (layer.quantity_remaining * layer.unit_cost), 0);
-
-      return { openingStock, closingStock };
     },
   });
 
@@ -96,35 +54,11 @@ export default function TradingAccount() {
   const totalDiscount = salesData?.reduce((sum, s) => sum + (s.discount || 0), 0) || 0;
   const netSales = totalSales;
 
-  const openingStock = stockData?.openingStock || 0;
-  const closingStock = stockData?.closingStock || 0;
+  // P/L Calculation
+  const profitOrLoss = netSales - totalPurchases;
+  const profitLossPercentage = netSales > 0 ? (profitOrLoss / netSales) * 100 : 0;
 
-  // Trading Account Calculations
-  const costOfGoodsAvailable = openingStock + totalPurchases;
-  const costOfGoodsSold = costOfGoodsAvailable - closingStock;
-  const grossProfit = netSales - costOfGoodsSold;
-  const grossProfitPercentage = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
-  const grossLoss = grossProfit < 0 ? Math.abs(grossProfit) : 0;
-  const grossLossPercentage = netSales > 0 && grossProfit < 0 ? (Math.abs(grossProfit) / netSales) * 100 : 0;
-
-  const isLoading = isLoadingPurchases || isLoadingSales || isLoadingStock;
-
-  // Left side (Debit - Purchases side)
-  const leftSideItems = [
-    { label: 'To Opening Stock', amount: openingStock },
-    { label: 'To Purchases', amount: totalPurchases },
-  ];
-
-  // Right side (Credit - Sales side)  
-  const rightSideItems = [
-    { label: 'By Sales', amount: totalSales },
-    { label: 'Less: Discount', amount: -totalDiscount, isDeduction: true },
-    { label: 'By Closing Stock', amount: closingStock },
-  ];
-
-  // Calculate totals for balancing
-  const leftTotal = openingStock + totalPurchases + (grossProfit > 0 ? grossProfit : 0);
-  const rightTotal = netSales + closingStock + (grossProfit < 0 ? Math.abs(grossProfit) : 0);
+  const isLoading = isLoadingPurchases || isLoadingSales;
 
   const exportToExcel = () => {
     const data = [
@@ -133,19 +67,18 @@ export default function TradingAccount() {
       [],
       ['DEBIT (Dr.)', '', 'CREDIT (Cr.)', ''],
       ['Particulars', 'Amount (FCFA)', 'Particulars', 'Amount (FCFA)'],
-      ['To Opening Stock', openingStock, 'By Sales', totalSales],
-      ['To Purchases', totalPurchases, 'Less: Discount', totalDiscount],
-      ['', '', 'Net Sales', netSales],
-      ['', '', 'By Closing Stock', closingStock],
-      grossProfit > 0 
-        ? ['To Gross Profit c/d', grossProfit, '', '']
-        : ['', '', 'By Gross Loss c/d', Math.abs(grossProfit)],
+      ['To Purchases', totalPurchases, 'By Sales', totalSales],
+      totalDiscount > 0 ? ['', '', 'Less: Discount', totalDiscount] : [],
+      totalDiscount > 0 ? ['', '', 'Net Sales', netSales] : [],
+      profitOrLoss > 0 
+        ? ['To Gross Profit', profitOrLoss, '', '']
+        : ['', '', 'To Gross Loss', Math.abs(profitOrLoss)],
       [],
-      ['Total', leftTotal, 'Total', rightTotal],
+      ['Total', totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0), 'Total', netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0)],
       [],
       ['SUMMARY'],
-      ['Gross Profit/Loss %', `${grossProfitPercentage.toFixed(2)}%`],
-    ];
+      ['Profit/Loss %', `${profitLossPercentage.toFixed(2)}%`],
+    ].filter(row => row.length > 0);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -162,17 +95,15 @@ export default function TradingAccount() {
     doc.setFontSize(12);
     doc.text(`For the period ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, 25, { align: 'center' });
 
-    // Create two-column table
     const tableData = [
-      ['To Opening Stock', formatCurrency(openingStock), 'By Sales', formatCurrency(totalSales)],
-      ['To Purchases', formatCurrency(totalPurchases), 'Less: Discount', formatCurrency(totalDiscount)],
-      ['', '', 'Net Sales', formatCurrency(netSales)],
-      ['', '', 'By Closing Stock', formatCurrency(closingStock)],
-      grossProfit > 0
-        ? ['To Gross Profit c/d', formatCurrency(grossProfit), '', '']
-        : ['', '', 'By Gross Loss c/d', formatCurrency(Math.abs(grossProfit))],
-      ['TOTAL', formatCurrency(leftTotal), 'TOTAL', formatCurrency(rightTotal)],
-    ];
+      ['To Purchases', formatCurrency(totalPurchases), 'By Sales', formatCurrency(totalSales)],
+      totalDiscount > 0 ? ['', '', 'Less: Discount', formatCurrency(totalDiscount)] : ['', '', '', ''],
+      totalDiscount > 0 ? ['', '', 'Net Sales', formatCurrency(netSales)] : ['', '', '', ''],
+      profitOrLoss > 0
+        ? ['To Gross Profit', formatCurrency(profitOrLoss), '', '']
+        : ['', '', 'To Gross Loss', formatCurrency(Math.abs(profitOrLoss))],
+      ['TOTAL', formatCurrency(totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0)), 'TOTAL', formatCurrency(netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0))],
+    ].filter(row => row.some(cell => cell !== ''));
 
     autoTable(doc, {
       startY: 35,
@@ -186,7 +117,7 @@ export default function TradingAccount() {
     const finalY = (doc as any).lastAutoTable.finalY || 100;
     
     doc.setFontSize(14);
-    doc.text(`Gross ${grossProfit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrency(Math.abs(grossProfit))} (${Math.abs(grossProfitPercentage).toFixed(2)}%)`, 14, finalY + 15);
+    doc.text(`${profitOrLoss >= 0 ? 'Profit' : 'Loss'}: ${formatCurrency(Math.abs(profitOrLoss))} (${Math.abs(profitLossPercentage).toFixed(2)}%)`, 14, finalY + 15);
 
     doc.save(`Trading_Account_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.pdf`);
   };
@@ -210,6 +141,10 @@ export default function TradingAccount() {
     }
   };
 
+  // Calculate totals for balancing
+  const leftTotal = totalPurchases + (profitOrLoss > 0 ? profitOrLoss : 0);
+  const rightTotal = netSales + (profitOrLoss < 0 ? Math.abs(profitOrLoss) : 0);
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -221,7 +156,7 @@ export default function TradingAccount() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">Trading Account</h1>
-              <p className="text-muted-foreground text-sm">Traditional P/L format with Purchases & Sales</p>
+              <p className="text-muted-foreground text-sm">Purchases vs Sales Report</p>
             </div>
           </div>
           
@@ -326,20 +261,16 @@ export default function TradingAccount() {
                       </thead>
                       <tbody>
                         <tr className="border-b">
-                          <td className="py-2">To Opening Stock</td>
-                          <td className="text-right py-2">{formatCurrency(openingStock)}</td>
+                          <td className="py-3">To Purchases</td>
+                          <td className="text-right py-3">{formatCurrency(totalPurchases)}</td>
                         </tr>
-                        <tr className="border-b">
-                          <td className="py-2">To Purchases</td>
-                          <td className="text-right py-2">{formatCurrency(totalPurchases)}</td>
-                        </tr>
-                        {grossProfit > 0 && (
+                        {profitOrLoss > 0 && (
                           <tr className="border-b bg-green-50 dark:bg-green-900/20">
-                            <td className="py-2 font-semibold text-green-700 dark:text-green-400">
-                              To Gross Profit c/d
+                            <td className="py-3 font-semibold text-green-700 dark:text-green-400">
+                              To Gross Profit
                             </td>
-                            <td className="text-right py-2 font-semibold text-green-700 dark:text-green-400">
-                              {formatCurrency(grossProfit)}
+                            <td className="text-right py-3 font-semibold text-green-700 dark:text-green-400">
+                              {formatCurrency(profitOrLoss)}
                             </td>
                           </tr>
                         )}
@@ -363,30 +294,28 @@ export default function TradingAccount() {
                       </thead>
                       <tbody>
                         <tr className="border-b">
-                          <td className="py-2">By Sales</td>
-                          <td className="text-right py-2">{formatCurrency(totalSales)}</td>
+                          <td className="py-3">By Sales</td>
+                          <td className="text-right py-3">{formatCurrency(totalSales)}</td>
                         </tr>
                         {totalDiscount > 0 && (
-                          <tr className="border-b text-muted-foreground">
-                            <td className="py-2 pl-4">Less: Discount</td>
-                            <td className="text-right py-2">({formatCurrency(totalDiscount)})</td>
-                          </tr>
+                          <>
+                            <tr className="border-b text-muted-foreground">
+                              <td className="py-2 pl-4">Less: Discount</td>
+                              <td className="text-right py-2">({formatCurrency(totalDiscount)})</td>
+                            </tr>
+                            <tr className="border-b">
+                              <td className="py-2 font-medium">Net Sales</td>
+                              <td className="text-right py-2 font-medium">{formatCurrency(netSales)}</td>
+                            </tr>
+                          </>
                         )}
-                        <tr className="border-b">
-                          <td className="py-2 font-medium">Net Sales</td>
-                          <td className="text-right py-2 font-medium">{formatCurrency(netSales)}</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-2">By Closing Stock</td>
-                          <td className="text-right py-2">{formatCurrency(closingStock)}</td>
-                        </tr>
-                        {grossProfit < 0 && (
+                        {profitOrLoss < 0 && (
                           <tr className="border-b bg-red-50 dark:bg-red-900/20">
-                            <td className="py-2 font-semibold text-red-700 dark:text-red-400">
-                              By Gross Loss c/d
+                            <td className="py-3 font-semibold text-red-700 dark:text-red-400">
+                              To Gross Loss
                             </td>
-                            <td className="text-right py-2 font-semibold text-red-700 dark:text-red-400">
-                              {formatCurrency(Math.abs(grossProfit))}
+                            <td className="text-right py-3 font-semibold text-red-700 dark:text-red-400">
+                              {formatCurrency(Math.abs(profitOrLoss))}
                             </td>
                           </tr>
                         )}
@@ -401,8 +330,8 @@ export default function TradingAccount() {
               </CardContent>
             </Card>
 
-            {/* Summary Card */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-muted-foreground">Total Purchases</div>
@@ -412,70 +341,32 @@ export default function TradingAccount() {
               
               <Card>
                 <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground">Net Sales</div>
-                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(netSales)}</div>
+                  <div className="text-sm text-muted-foreground">Total Sales</div>
+                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalSales)}</div>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground">Cost of Goods Sold</div>
-                  <div className="text-2xl font-bold">{formatCurrency(costOfGoodsSold)}</div>
-                </CardContent>
-              </Card>
-
-              <Card className={cn(
-                grossProfit >= 0 ? "border-green-500/50" : "border-red-500/50"
-              )}>
+              
+              <Card className={profitOrLoss >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2">
-                    {grossProfit >= 0 ? (
+                    {profitOrLoss >= 0 ? (
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     ) : (
                       <TrendingDown className="h-5 w-5 text-red-600" />
                     )}
-                    <span className="text-sm text-muted-foreground">
-                      Gross {grossProfit >= 0 ? 'Profit' : 'Loss'}
-                    </span>
+                    <div className="text-sm text-muted-foreground">
+                      {profitOrLoss >= 0 ? 'Gross Profit' : 'Gross Loss'}
+                    </div>
                   </div>
-                  <div className={cn(
-                    "text-2xl font-bold",
-                    grossProfit >= 0 ? "text-green-600" : "text-red-600"
-                  )}>
-                    {formatCurrency(Math.abs(grossProfit))}
+                  <div className={`text-2xl font-bold ${profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(Math.abs(profitOrLoss))}
                   </div>
-                  <div className={cn(
-                    "text-sm font-medium",
-                    grossProfit >= 0 ? "text-green-600" : "text-red-600"
-                  )}>
-                    {Math.abs(grossProfitPercentage).toFixed(2)}%
+                  <div className={`text-sm ${profitOrLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {Math.abs(profitLossPercentage).toFixed(2)}% of Sales
                   </div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Stock Movement */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Stock Movement</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-sm text-muted-foreground">Opening Stock</div>
-                    <div className="text-xl font-bold">{formatCurrency(openingStock)}</div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-sm text-muted-foreground">+ Purchases</div>
-                    <div className="text-xl font-bold text-orange-600">+{formatCurrency(totalPurchases)}</div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-sm text-muted-foreground">= Closing Stock</div>
-                    <div className="text-xl font-bold">{formatCurrency(closingStock)}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
