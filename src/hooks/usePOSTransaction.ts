@@ -631,7 +631,7 @@ export const usePOSTransaction = () => {
         itemDiscount: product.itemDiscount || 0,
         customPrice: product.customPrice,
       };
-      updatedCart = [newItem, ...cart];
+      updatedCart = [...cart, newItem];
     }
     
     // Update cart immediately for fast UI response
