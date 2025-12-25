@@ -297,6 +297,7 @@ export default function AdminOrders() {
           type: 'pos',
           status: 'completed',
           payment_method: transaction.payment_method,
+          payment_details: transaction.payment_details,
           cashier_name: cashierMap.get(transaction.cashier_id) || 'Unknown',
           addresses: null,
           metadata: transaction.metadata // Include metadata for sale_type detection
