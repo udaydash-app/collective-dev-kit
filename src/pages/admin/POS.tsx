@@ -748,7 +748,7 @@ export default function POS() {
 
       const { data } = await supabase
         .from('pos_transactions')
-        .select('id, total, subtotal, tax, discount, payment_method, payment_details, created_at, transaction_number, customer_id, items, notes, contacts:customer_id(name)')
+        .select('id, total, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
         .order('created_at', { ascending: false });
@@ -4428,7 +4428,6 @@ export default function POS() {
           journalCashEffect={journalCashEffect}
           mobileMoneyJournalEntries={mobileMoneyJournalEntries || []}
           journalMobileMoneyEffect={journalMobileMoneyEffect}
-          storeName={stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name}
         />
       )}
 
