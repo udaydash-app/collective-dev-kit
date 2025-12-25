@@ -41,7 +41,18 @@ export const TransactionCart = ({
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
   const [focusedField, setFocusedField] = useState<'name' | 'qty' | 'price' | 'disc' | 'final'>('name');
   const cartContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const prevItemsLengthRef = useRef(items.length);
+
+  // Auto-scroll to bottom when new items are added
+  useEffect(() => {
+    if (items.length > prevItemsLengthRef.current && scrollContainerRef.current) {
+      // New item was added, scroll to bottom
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+    prevItemsLengthRef.current = items.length;
+  }, [items.length]);
 
   const toggleComboExpansion = (itemId: string) => {
     setExpandedCombos(prev => {
@@ -202,7 +213,7 @@ export const TransactionCart = ({
         </Button>
       </div>
 
-      <div className="flex-1 min-h-0 border-t overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 border-t overflow-auto">
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
