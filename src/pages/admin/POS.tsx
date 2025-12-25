@@ -63,6 +63,7 @@ import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
+import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -148,6 +149,8 @@ export default function POS() {
   const [showRefund, setShowRefund] = useState(false);
   const [isWholesaleMode, setIsWholesaleMode] = useState(false);
   const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
+  const [journalEntryDialogOpen, setJournalEntryDialogOpen] = useState(false);
+  const [selectedJournalEntry, setSelectedJournalEntry] = useState<any>(null);
   
   // Cart resize and drag state
   const [cartWidth, setCartWidth] = useState(() => {
@@ -3956,7 +3959,14 @@ export default function POS() {
                     const amount = parseFloat(entry.total_debit?.toString() || '0');
                     
                     return (
-                      <Card key={index} className="p-2 hover:bg-accent/50 transition-colors">
+                      <Card 
+                        key={index} 
+                        className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedJournalEntry(entry);
+                          setJournalEntryDialogOpen(true);
+                        }}
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -4754,6 +4764,16 @@ export default function POS() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Journal Entry View Dialog */}
+      <JournalEntryViewDialog
+        isOpen={journalEntryDialogOpen}
+        onClose={() => {
+          setJournalEntryDialogOpen(false);
+          setSelectedJournalEntry(null);
+        }}
+        entry={selectedJournalEntry}
+      />
       
       {/* Offline Status Indicator */}
       <OfflineIndicator />
