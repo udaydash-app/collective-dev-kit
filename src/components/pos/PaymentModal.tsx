@@ -337,12 +337,12 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     { value: 'credit', label: 'Credit', icon: CreditCard },
   ];
 
-  // Auto-fill amount for single payment methods
+  // Auto-fill amount for single payment methods - only when total changes
   useEffect(() => {
     if (payments.length === 1) {
-      setPayments([{ ...payments[0], amount: total }]);
+      setPayments(prev => [{ ...prev[0], amount: total }]);
     }
-  }, [total, payments.length]);
+  }, [total]);
 
   const addPayment = () => {
     const newPayment: Payment = {
@@ -350,7 +350,13 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
       method: 'cash',
       amount: Math.max(0, remaining),
     };
-    setPayments([...payments, newPayment]);
+    // When adding a new payment, set first payment to 0 if it equals total (default)
+    // so user can enter the split amounts manually
+    if (payments.length === 1 && Math.abs(payments[0].amount - total) < 0.01) {
+      setPayments([{ ...payments[0], amount: 0 }, newPayment]);
+    } else {
+      setPayments([...payments, newPayment]);
+    }
   };
 
   const removePayment = (id: string) => {
@@ -367,13 +373,19 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           : p
       );
 
-      // If amount changed and there are exactly 2 payments, auto-adjust the second payment
-      if (field === 'amount' && updatedPayments.length === 2) {
-        const firstPaymentIndex = updatedPayments.findIndex(p => p.id === id);
-        if (firstPaymentIndex === 0) {
-          const firstAmount = updatedPayments[0].amount;
-          const remaining = Math.max(0, total - firstAmount);
-          updatedPayments[1] = { ...updatedPayments[1], amount: remaining };
+      // If amount changed, auto-adjust the last payment to fill remaining
+      if (field === 'amount' && updatedPayments.length >= 2) {
+        const changedIndex = updatedPayments.findIndex(p => p.id === id);
+        const lastIndex = updatedPayments.length - 1;
+        
+        // Only auto-adjust if the changed payment is not the last one
+        if (changedIndex !== lastIndex) {
+          // Calculate sum of all payments except the last
+          const sumExceptLast = updatedPayments
+            .slice(0, lastIndex)
+            .reduce((sum, p) => sum + p.amount, 0);
+          const remaining = Math.max(0, total - sumExceptLast);
+          updatedPayments[lastIndex] = { ...updatedPayments[lastIndex], amount: remaining };
         }
       }
 
