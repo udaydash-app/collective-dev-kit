@@ -15,6 +15,7 @@ interface Transaction {
   id: string;
   total: number;
   payment_method: string;
+  payment_details?: Array<{ method: string; amount: number }>;
   created_at: string;
   customer_name?: string;
   transaction_number?: string;
@@ -115,11 +116,35 @@ export const CashOutDialog = ({
   const difference = !isNaN(actualClosing) ? actualClosing - expectedCash : 0;
   const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
 
-  // Calculate sales by payment method
-  const cashSales = transactions.filter(t => t.payment_method === 'cash').reduce((sum, t) => sum + t.total, 0);
-  const creditSales = transactions.filter(t => t.payment_method === 'credit').reduce((sum, t) => sum + t.total, 0);
-  const mobileMoneySales = transactions.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + t.total, 0);
+  // Calculate sales by payment method - parse payment_details for multiple payment support
+  const cashSales = transactions.reduce((sum, t) => {
+    if (t.payment_details && Array.isArray(t.payment_details)) {
+      return sum + t.payment_details.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+    }
+    return t.payment_method === 'cash' ? sum + t.total : sum;
+  }, 0);
+  const creditSales = transactions.reduce((sum, t) => {
+    if (t.payment_details && Array.isArray(t.payment_details)) {
+      return sum + t.payment_details.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+    }
+    return t.payment_method === 'credit' ? sum + t.total : sum;
+  }, 0);
+  const mobileMoneySales = transactions.reduce((sum, t) => {
+    if (t.payment_details && Array.isArray(t.payment_details)) {
+      return sum + t.payment_details.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+    }
+    return t.payment_method === 'mobile_money' ? sum + t.total : sum;
+  }, 0);
   const totalSales = cashSales + creditSales + mobileMoneySales;
+
+  // Helper functions to count transactions by payment method (considering split payments)
+  const countTransactionsWithMethod = (method: string) => 
+    transactions.filter(t => {
+      if (t.payment_details && Array.isArray(t.payment_details)) {
+        return t.payment_details.some(p => p.method === method && p.amount > 0);
+      }
+      return t.payment_method === method;
+    }).length;
 
   // Calculate purchases by payment method
   const cashPurchases = purchases.filter(p => p.payment_status === 'paid' && p.payment_method === 'cash').reduce((sum, p) => sum + p.total_amount, 0);
@@ -235,7 +260,7 @@ export const CashOutDialog = ({
                             <p className="text-xs font-medium text-muted-foreground">Cash</p>
                           </div>
                           <p className="text-lg font-bold">{formatCurrency(cashSales)}</p>
-                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'cash').length} txn</p>
+                          <p className="text-xs text-muted-foreground">{countTransactionsWithMethod('cash')} txn</p>
                         </div>
                         <div className="p-3 bg-background/80 rounded-lg border">
                           <div className="flex items-center gap-2 mb-2">
@@ -243,7 +268,7 @@ export const CashOutDialog = ({
                             <p className="text-xs font-medium text-muted-foreground">Credit</p>
                           </div>
                           <p className="text-lg font-bold">{formatCurrency(creditSales)}</p>
-                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'credit').length} txn</p>
+                          <p className="text-xs text-muted-foreground">{countTransactionsWithMethod('credit')} txn</p>
                         </div>
                         <div className="p-3 bg-background/80 rounded-lg border">
                           <div className="flex items-center gap-2 mb-2">
@@ -251,7 +276,7 @@ export const CashOutDialog = ({
                             <p className="text-xs font-medium text-muted-foreground">Mobile Money</p>
                           </div>
                           <p className="text-lg font-bold">{formatCurrency(mobileMoneySales)}</p>
-                          <p className="text-xs text-muted-foreground">{transactions.filter(t => t.payment_method === 'mobile_money').length} txn</p>
+                          <p className="text-xs text-muted-foreground">{countTransactionsWithMethod('mobile_money')} txn</p>
                         </div>
                       </div>
                       

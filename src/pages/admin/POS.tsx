@@ -748,7 +748,7 @@ export default function POS() {
 
       const { data } = await supabase
         .from('pos_transactions')
-        .select('id, total, payment_method, created_at, transaction_number, customer_id, contacts:customer_id(name)')
+        .select('id, total, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
         .order('created_at', { ascending: false });
@@ -891,17 +891,29 @@ export default function POS() {
     staleTime: isOffline ? Infinity : 5 * 60 * 1000,
   });
 
-  // Calculate day activity
+  // Calculate day activity - parse payment_details for multiple payment support
   const dayActivity = {
-    cashSales: sessionTransactions
-      ?.filter(t => t.payment_method === 'cash')
-      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    creditSales: sessionTransactions
-      ?.filter(t => t.payment_method === 'credit')
-      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
-    mobileMoneySales: sessionTransactions
-      ?.filter(t => t.payment_method === 'mobile_money')
-      .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
+    cashSales: sessionTransactions?.reduce((sum, t) => {
+      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
+      if (paymentDetails && Array.isArray(paymentDetails)) {
+        return sum + paymentDetails.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+      }
+      return t.payment_method === 'cash' ? sum + parseFloat(t.total.toString()) : sum;
+    }, 0) || 0,
+    creditSales: sessionTransactions?.reduce((sum, t) => {
+      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
+      if (paymentDetails && Array.isArray(paymentDetails)) {
+        return sum + paymentDetails.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+      }
+      return t.payment_method === 'credit' ? sum + parseFloat(t.total.toString()) : sum;
+    }, 0) || 0,
+    mobileMoneySales: sessionTransactions?.reduce((sum, t) => {
+      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
+      if (paymentDetails && Array.isArray(paymentDetails)) {
+        return sum + paymentDetails.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+      }
+      return t.payment_method === 'mobile_money' ? sum + parseFloat(t.total.toString()) : sum;
+    }, 0) || 0,
     totalSales: sessionTransactions
       ?.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
     totalTransactions: sessionTransactions?.length || 0,
