@@ -68,7 +68,8 @@ export const useCart = () => {
         )
       `)
       .eq('user_id', userId)
-      .eq('products.is_available', true);
+      .eq('products.is_available', true)
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     setCartItems(data || []);
