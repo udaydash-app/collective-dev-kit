@@ -284,20 +284,34 @@ export const CashOutDialog = ({
                         <div className="mt-3 max-h-[200px] overflow-y-auto">
                           <p className="text-xs font-medium text-muted-foreground mb-2">Transaction Details</p>
                           <div className="space-y-1">
-                            {transactions.map((txn) => (
-                              <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  {txn.payment_method === 'cash' && <DollarSign className="h-3 w-3 text-emerald-600 flex-shrink-0" />}
-                                  {txn.payment_method === 'credit' && <CreditCard className="h-3 w-3 text-blue-600 flex-shrink-0" />}
-                                  {txn.payment_method === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600 flex-shrink-0" />}
-                                  <span className="font-medium truncate">{txn.customer_name || 'Walk-in Customer'}</span>
-                                  <span className="text-muted-foreground capitalize flex-shrink-0">
-                                    ({txn.payment_method === 'mobile_money' ? 'Mobile' : txn.payment_method})
-                                  </span>
+                            {transactions.map((txn) => {
+                              // Parse payment details for multiple payments
+                              const hasMultiplePayments = txn.payment_details && Array.isArray(txn.payment_details) && txn.payment_details.length > 1;
+                              const paymentMethods = txn.payment_details && Array.isArray(txn.payment_details) && txn.payment_details.length > 0
+                                ? txn.payment_details.filter(p => p.amount > 0).map(p => p.method === 'mobile_money' ? 'Mobile' : p.method).join(' + ')
+                                : txn.payment_method === 'mobile_money' ? 'Mobile' : txn.payment_method;
+                              
+                              return (
+                                <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    {hasMultiplePayments ? (
+                                      <Wallet className="h-3 w-3 text-amber-600 flex-shrink-0" />
+                                    ) : (
+                                      <>
+                                        {(txn.payment_details?.[0]?.method || txn.payment_method) === 'cash' && <DollarSign className="h-3 w-3 text-emerald-600 flex-shrink-0" />}
+                                        {(txn.payment_details?.[0]?.method || txn.payment_method) === 'credit' && <CreditCard className="h-3 w-3 text-blue-600 flex-shrink-0" />}
+                                        {(txn.payment_details?.[0]?.method || txn.payment_method) === 'mobile_money' && <Smartphone className="h-3 w-3 text-purple-600 flex-shrink-0" />}
+                                      </>
+                                    )}
+                                    <span className="font-medium truncate">{txn.customer_name || 'Walk-in Customer'}</span>
+                                    <span className="text-muted-foreground capitalize flex-shrink-0">
+                                      ({paymentMethods})
+                                    </span>
+                                  </div>
+                                  <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
                                 </div>
-                                <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
