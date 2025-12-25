@@ -60,6 +60,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Receipt } from "@/components/pos/Receipt";
+import { OrderViewDialog } from "@/components/pos/OrderViewDialog";
 import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -94,6 +95,8 @@ export default function AdminOrders() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [showReceiptOptions, setShowReceiptOptions] = useState(false);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedViewOrder, setSelectedViewOrder] = useState<any>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -1623,10 +1626,13 @@ export default function AdminOrders() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => toggleOrderExpanded(order.id)}
+                                onClick={() => {
+                                  setSelectedViewOrder(order);
+                                  setViewDialogOpen(true);
+                                }}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
-                                {expandedOrders.has(order.id) ? 'Hide' : 'View'}
+                                View
                               </Button>
                               <Button
                                 size="sm"
@@ -2208,7 +2214,15 @@ export default function AdminOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Hidden Receipt for Printing and PDF */}
+      {/* Order View Dialog */}
+      <OrderViewDialog
+        isOpen={viewDialogOpen}
+        onClose={() => {
+          setViewDialogOpen(false);
+          setSelectedViewOrder(null);
+        }}
+        order={selectedViewOrder}
+      />
       {selectedReceiptOrder && (
         <div className="fixed -left-[9999px] top-0 bg-white">
           <Receipt
