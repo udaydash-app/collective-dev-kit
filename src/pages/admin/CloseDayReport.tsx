@@ -252,10 +252,10 @@ export default function CloseDayReport() {
 
       // Default: Daily Summary Report
 
-      // Fetch POS transactions
+      // Fetch POS transactions with payment_details for multiple payment support
       const { data: transactions } = await supabase
         .from('pos_transactions')
-        .select('total, payment_method, created_at')
+        .select('total, payment_method, payment_details, created_at')
         .eq('store_id', selectedStoreId)
         .gte('created_at', `${startDate}T00:00:00`)
         .lte('created_at', `${endDate}T23:59:59`)
@@ -358,17 +358,26 @@ export default function CloseDayReport() {
           const sessionStart = session.opened_at;
           const sessionEnd = session.closed_at || `${endDate}T23:59:59`;
 
-          // Get cash sales from ALL users during this period
+          // Get cash sales from ALL users during this period - parse payment_details for split payments
           const { data: sessionTransactions } = await supabase
             .from('pos_transactions')
-            .select('total, payment_method')
+            .select('total, payment_method, payment_details')
             .eq('store_id', session.store_id)
             .gte('created_at', sessionStart)
             .lte('created_at', sessionEnd);
 
-          const cashSales = sessionTransactions
-            ?.filter(t => t.payment_method === 'cash')
-            .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+          // Calculate cash from payment_details (supports multiple payment methods)
+          const cashSales = sessionTransactions?.reduce((sum, t) => {
+            const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
+            if (paymentDetails && Array.isArray(paymentDetails)) {
+              // Sum up all cash payments from payment_details
+              return sum + paymentDetails
+                .filter(p => p.method === 'cash')
+                .reduce((pSum, p) => pSum + (p.amount || 0), 0);
+            }
+            // Fallback to payment_method if no payment_details
+            return t.payment_method === 'cash' ? sum + parseFloat(t.total.toString()) : sum;
+          }, 0) || 0;
 
           // Get cash payment receipts from ALL users during this period
           const { data: sessionReceipts } = await supabase
@@ -495,7 +504,7 @@ export default function CloseDayReport() {
       });
     }
 
-    // Group transactions by date
+    // Group transactions by date - parse payment_details for multiple payment methods
     reportData.transactions?.forEach((t: any) => {
       const date = format(new Date(t.created_at), 'yyyy-MM-dd');
       const dayData = dateMap.get(date);
@@ -504,9 +513,23 @@ export default function CloseDayReport() {
       const amount = parseFloat(t.total.toString());
       dayData.sales.total += amount;
       dayData.sales.count += 1;
-      if (t.payment_method === 'cash') dayData.sales.cash += amount;
-      else if (t.payment_method === 'credit') dayData.sales.credit += amount;
-      else if (t.payment_method === 'mobile_money') dayData.sales.mobileMoney += amount;
+      
+      // Parse payment_details for accurate payment method breakdown
+      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
+      if (paymentDetails && Array.isArray(paymentDetails) && paymentDetails.length > 0) {
+        // Use payment_details for split payments
+        paymentDetails.forEach(p => {
+          const pAmount = p.amount || 0;
+          if (p.method === 'cash') dayData.sales.cash += pAmount;
+          else if (p.method === 'credit') dayData.sales.credit += pAmount;
+          else if (p.method === 'mobile_money') dayData.sales.mobileMoney += pAmount;
+        });
+      } else {
+        // Fallback to payment_method field
+        if (t.payment_method === 'cash') dayData.sales.cash += amount;
+        else if (t.payment_method === 'credit') dayData.sales.credit += amount;
+        else if (t.payment_method === 'mobile_money') dayData.sales.mobileMoney += amount;
+      }
     });
 
     // Group purchases by date
