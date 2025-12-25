@@ -4,21 +4,38 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package, Eye } from 'lucide-react';
 import { formatCurrency, cn, formatDateTime } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent } from '@/components/ui/card';
+import { TransactionViewDialog } from './TransactionViewDialog';
+
+interface TransactionItem {
+  productId: string;
+  variantId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  discount?: number;
+  displayName?: string;
+  unit?: string;
+}
 
 interface Transaction {
   id: string;
   total: number;
+  subtotal?: number;
+  tax?: number;
+  discount?: number;
   payment_method: string;
   payment_details?: Array<{ method: string; amount: number }>;
   created_at: string;
   customer_name?: string;
   transaction_number?: string;
+  items?: TransactionItem[];
+  notes?: string;
 }
 
 interface Purchase {
@@ -81,6 +98,7 @@ interface CashOutDialogProps {
   journalCashEffect?: number;
   mobileMoneyJournalEntries?: JournalEntry[];
   journalMobileMoneyEffect?: number;
+  storeName?: string;
 }
 
 export const CashOutDialog = ({ 
@@ -98,11 +116,13 @@ export const CashOutDialog = ({
   journalEntries = [], 
   journalCashEffect = 0, 
   mobileMoneyJournalEntries = [], 
-  journalMobileMoneyEffect = 0 
+  journalMobileMoneyEffect = 0,
+  storeName 
 }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     sales: false,
     purchases: false,
@@ -292,7 +312,7 @@ export const CashOutDialog = ({
                                 : txn.payment_method === 'mobile_money' ? 'Mobile' : txn.payment_method;
                               
                               return (
-                                <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border">
+                                <div key={txn.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded border hover:bg-background/80 transition-colors">
                                   <div className="flex items-center gap-2 flex-1 min-w-0">
                                     {hasMultiplePayments ? (
                                       <Wallet className="h-3 w-3 text-amber-600 flex-shrink-0" />
@@ -308,7 +328,20 @@ export const CashOutDialog = ({
                                       ({paymentMethods})
                                     </span>
                                   </div>
-                                  <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
+                                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span className="font-semibold">{formatCurrency(txn.total)}</span>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 w-6 p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTransaction(txn);
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -843,6 +876,14 @@ export const CashOutDialog = ({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Transaction View Dialog */}
+      <TransactionViewDialog
+        isOpen={!!selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+        transaction={selectedTransaction}
+        storeName={storeName}
+      />
     </Dialog>
   );
 };
