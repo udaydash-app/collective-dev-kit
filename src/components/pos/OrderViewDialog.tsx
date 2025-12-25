@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { DollarSign, CreditCard, Smartphone, Wallet, Package, User, MapPin, Calendar, Receipt } from 'lucide-react';
 
@@ -110,8 +111,8 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
     }
   };
 
-  // Calculate item total
-  const getItemTotal = (item: OrderItem) => {
+  // Calculate item final amount
+  const getItemFinal = (item: OrderItem) => {
     if (order.type === 'pos') {
       const price = item.customPrice ?? item.price;
       const discount = item.itemDiscount ?? 0;
@@ -120,9 +121,22 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
     return item.subtotal ?? (item.unit_price ?? item.price) * item.quantity;
   };
 
+  // Get item details
+  const getItemName = (item: OrderItem) => {
+    return order.type === 'pos' 
+      ? (item.displayName || item.name) 
+      : (item.products?.name || item.name);
+  };
+
+  const getItemPrice = (item: OrderItem) => {
+    return order.type === 'pos'
+      ? (item.customPrice ?? item.price)
+      : (item.unit_price ?? item.products?.price ?? item.price);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
           <DialogTitle className="text-xl font-bold flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -138,35 +152,35 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-180px)]">
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-4">
             {/* Order Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Customer:</span>
                 <span className="font-medium">{order.customer_name || 'Walk-in Customer'}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Date:</span>
                 <span className="font-medium">{formatDateTime(order.created_at)}</span>
               </div>
               {order.stores?.name && (
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Store:</span>
                   <span className="font-medium">{order.stores.name}</span>
                 </div>
               )}
               {order.cashier_name && (
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Cashier:</span>
                   <span className="font-medium">{order.cashier_name}</span>
                 </div>
               )}
               {order.addresses && (
-                <div className="flex items-center gap-2 text-sm col-span-2">
+                <div className="flex items-center gap-2 col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Address:</span>
                   <span className="font-medium">{order.addresses.address_line1}, {order.addresses.city}</span>
@@ -176,83 +190,85 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
 
             <Separator />
 
-            {/* Items */}
+            {/* Items Table - Cart Style */}
             <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Package className="h-4 w-4" />
+              <h3 className="font-semibold text-sm mb-2">
                 {order.type === 'pos' ? 'Sale Items' : 'Order Items'} ({order.items.length})
               </h3>
-              <div className="space-y-2">
-                {order.items.map((item, idx) => {
-                  const itemName = order.type === 'pos' 
-                    ? (item.displayName || item.name) 
-                    : (item.products?.name || item.name);
-                  const imageUrl = order.type === 'pos' 
-                    ? item.image_url 
-                    : (item.products?.image_url || item.image_url);
-                  const unitPrice = order.type === 'pos'
-                    ? (item.customPrice ?? item.price)
-                    : (item.unit_price ?? item.products?.price ?? item.price);
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="text-xs">
+                      <TableHead className="text-[10px] py-2 px-2">Product Name</TableHead>
+                      <TableHead className="text-center text-[10px] py-2 px-2 w-[60px]">Qty</TableHead>
+                      <TableHead className="text-right text-[10px] py-2 px-2 w-[80px]">Price</TableHead>
+                      <TableHead className="text-right text-[10px] py-2 px-2 w-[70px]">Disc</TableHead>
+                      <TableHead className="text-right text-[10px] py-2 px-2 w-[90px]">Final</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {order.items.map((item, idx) => {
+                      const itemName = getItemName(item);
+                      const unitPrice = getItemPrice(item);
+                      const discount = item.itemDiscount ?? 0;
+                      const final = getItemFinal(item);
 
-                  return (
-                    <div 
-                      key={item.id || idx} 
-                      className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border"
-                    >
-                      {imageUrl && (
-                        <img 
-                          src={imageUrl} 
-                          alt={itemName}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{itemName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatCurrency(unitPrice)} × {item.quantity}
-                          {item.itemDiscount && item.itemDiscount > 0 && (
-                            <span className="text-orange-600 ml-2">
-                              (-{formatCurrency(item.itemDiscount)})
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{formatCurrency(getItemTotal(item))}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                      return (
+                        <TableRow key={item.id || idx} className="text-xs">
+                          <TableCell className="py-2 px-2">
+                            <span className="text-[11px] font-medium line-clamp-2">{itemName}</span>
+                          </TableCell>
+                          <TableCell className="text-center py-2 px-2">
+                            <span className="text-[11px]">{item.quantity}</span>
+                          </TableCell>
+                          <TableCell className="text-right py-2 px-2">
+                            <span className="text-[11px]">{formatCurrency(unitPrice)}</span>
+                          </TableCell>
+                          <TableCell className="text-right py-2 px-2">
+                            {discount > 0 ? (
+                              <span className="text-[11px] text-orange-600">-{formatCurrency(discount)}</span>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right py-2 px-2">
+                            <span className="text-[11px] font-semibold">{formatCurrency(final)}</span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
             <Separator />
 
             {/* Totals */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(order.subtotal)}</span>
               </div>
               {order.discount && order.discount > 0 && (
-                <div className="flex justify-between text-sm text-orange-600">
+                <div className="flex justify-between text-orange-600">
                   <span>Discount</span>
                   <span>-{formatCurrency(order.discount)}</span>
                 </div>
               )}
               {order.tax > 0 && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
                   <span>{formatCurrency(order.tax)}</span>
                 </div>
               )}
               {order.delivery_fee && order.delivery_fee > 0 && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery Fee</span>
                   <span>{formatCurrency(order.delivery_fee)}</span>
                 </div>
               )}
-              <Separator />
+              <Separator className="my-2" />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span className="text-primary">{formatCurrency(order.total)}</span>
@@ -263,7 +279,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
 
             {/* Payment Details */}
             <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
                 {hasMultiplePayments ? (
                   <Wallet className="h-4 w-4 text-amber-600" />
                 ) : (
@@ -271,11 +287,11 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                 )}
                 Payment {hasMultiplePayments ? 'Methods' : 'Method'}
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {paymentInfo.map((payment, idx) => (
                   <div 
                     key={idx}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border"
+                    className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg border text-sm"
                   >
                     <div className="flex items-center gap-2">
                       {getPaymentIcon(payment.method)}
