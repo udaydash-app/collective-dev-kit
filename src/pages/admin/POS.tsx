@@ -4295,12 +4295,25 @@ export default function POS() {
                         <Card 
                           key={customer.id} 
                           className="p-2 cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => {
-                            // For dual-role customers, use unified view
-                            const accountId = customer.supplier_ledger_account_id 
-                              ? `unified-${customer.id}` 
-                              : customer.customer_ledger_account_id;
-                            navigate(`/admin/general-ledger?accountId=${accountId}`);
+                          onClick={async () => {
+                            // Fetch full customer details and select them for the transaction
+                            try {
+                              const { data: fullCustomer, error } = await supabase
+                                .from('contacts')
+                                .select('*')
+                                .eq('id', customer.id)
+                                .single();
+                              
+                              if (error) throw error;
+                              
+                              if (fullCustomer) {
+                                setSelectedCustomer(fullCustomer);
+                                toast.success(`Customer "${fullCustomer.name}" selected`);
+                              }
+                            } catch (error) {
+                              console.error('Error fetching customer:', error);
+                              toast.error('Failed to load customer details');
+                            }
                           }}
                         >
                           <div className="flex items-center justify-between gap-2">
