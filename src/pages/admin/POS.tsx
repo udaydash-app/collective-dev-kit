@@ -4296,8 +4296,9 @@ export default function POS() {
                           key={customer.id} 
                           className="p-2 cursor-pointer hover:bg-accent/50 transition-colors"
                           onClick={() => {
-                            // For dual-role customers, use unified view
-                            const accountId = customer.supplier_ledger_account_id 
+                            // For dual-role customers (both customer AND supplier), use unified view
+                            const isDualRole = customer.is_customer && customer.is_supplier;
+                            const accountId = isDualRole 
                               ? `unified-${customer.id}` 
                               : customer.customer_ledger_account_id;
                             navigate(`/admin/general-ledger?accountId=${accountId}`);
