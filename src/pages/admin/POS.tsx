@@ -872,7 +872,7 @@ export default function POS() {
         if (error.code === 'PGRST202') {
           const { data: contacts, error: contactsError } = await supabase
             .from('contacts')
-            .select('id, name, email, phone, opening_balance, credit_limit')
+            .select('id, name, email, phone, opening_balance, credit_limit, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
             .eq('is_customer', true)
             .gt('opening_balance', 0)
             .order('opening_balance', { ascending: false })

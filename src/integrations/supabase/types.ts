@@ -2827,11 +2827,15 @@ export type Database = {
         Returns: {
           balance: number
           customer_balance: number
+          customer_ledger_account_id: string
           email: string
           id: string
+          is_customer: boolean
+          is_supplier: boolean
           name: string
           phone: string
           supplier_balance: number
+          supplier_ledger_account_id: string
         }[]
       }
       has_role: {
