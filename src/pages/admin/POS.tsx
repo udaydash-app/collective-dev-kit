@@ -584,6 +584,8 @@ export default function POS() {
           const { offlineDB } = await import('@/lib/offlineDB');
           const sessions = await offlineDB.getCashSessions();
           
+          console.log('[POS] All IndexedDB cash sessions:', sessions.map(s => ({ id: s.id, status: s.status, store_id: s.store_id })));
+          
           // Find any open session for this store (shared across all cashiers)
           const activeSession = sessions.find(s => 
             s.store_id === selectedStoreId && 
@@ -608,6 +610,7 @@ export default function POS() {
               opened_at: sessionData.timestamp,
             };
           }
+          console.log('[POS] No active cash session found in IndexedDB');
           return null;
         } catch (e) {
           console.error('[POS] Error fetching offline cash session:', e);
@@ -628,8 +631,9 @@ export default function POS() {
       return data;
     },
     enabled: !!selectedStoreId,
-    staleTime: isOffline ? Infinity : 30 * 1000,
-    refetchOnWindowFocus: !isOffline,
+    staleTime: 0, // Always refetch to get latest session status
+    gcTime: 0, // Don't cache closed sessions
+    refetchOnWindowFocus: true,
   });
 
   // Fetch pending orders count with real-time updates (only when online)
@@ -1644,6 +1648,9 @@ export default function POS() {
           toast.success('Cash register closed successfully');
           setCurrentCashSession(null);
           clearCart();
+          
+          // Invalidate and refetch the cash session query
+          queryClient.invalidateQueries({ queryKey: ['active-cash-session'] });
           await refetchCashSession();
           return;
         } catch (offlineError) {
@@ -1823,6 +1830,9 @@ export default function POS() {
       toast.success('Cash register closed successfully');
       setCurrentCashSession(null);
       clearCart();
+      
+      // Invalidate and refetch the cash session query
+      queryClient.invalidateQueries({ queryKey: ['active-cash-session'] });
       await refetchCashSession();
     } catch (error: any) {
       console.error('Error closing cash register:', error);
