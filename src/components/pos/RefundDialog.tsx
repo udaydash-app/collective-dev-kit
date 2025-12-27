@@ -33,6 +33,7 @@ interface RefundDialogProps {
   onClose: () => void;
   cartItems: CartItem[];
   storeId: string;
+  customerId?: string | null;
   onRefundComplete: () => void;
 }
 
@@ -41,6 +42,7 @@ export function RefundDialog({
   onClose,
   cartItems,
   storeId,
+  customerId,
   onRefundComplete,
 }: RefundDialogProps) {
   const [refundMode, setRefundMode] = useState<'payment' | 'exchange'>('payment');
@@ -171,6 +173,7 @@ export function RefundDialog({
           transaction_number: transactionNumber,
           store_id: storeId,
           cashier_id: user.id,
+          customer_id: customerId || null,
           subtotal: -refundTotal,
           discount: 0,
           tax: 0,
