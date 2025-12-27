@@ -1687,8 +1687,10 @@ export default function POS() {
           queryClient.removeQueries({ queryKey: ['session-mobile-journal-entries'] });
           queryClient.removeQueries({ queryKey: ['today-cash-sessions'] });
           
-          // Show cash in dialog after cache is cleared
-          setShowCashIn(true);
+          // Force page reload to ensure clean state after end of day
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
           return;
         } catch (offlineError) {
           console.error('Error closing cash register in offline mode:', offlineError);
@@ -1884,8 +1886,10 @@ export default function POS() {
       queryClient.removeQueries({ queryKey: ['session-mobile-journal-entries'] });
       queryClient.removeQueries({ queryKey: ['today-cash-sessions'] });
       
-      // Show cash in dialog after cache is cleared
-      setShowCashIn(true);
+      // Force page reload to ensure clean state after end of day
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error: any) {
       console.error('Error closing cash register:', error);
       toast.error('Failed to close cash register');
