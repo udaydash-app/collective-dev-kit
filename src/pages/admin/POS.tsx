@@ -115,6 +115,7 @@ export default function POS() {
   const [orderNotes, setOrderNotes] = useState('');
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [showCashIn, setShowCashIn] = useState(false);
+  const [cashInSkipped, setCashInSkipped] = useState(false); // Track if user explicitly skipped
   const [showCashOut, setShowCashOut] = useState(false);
   const [showHoldTicket, setShowHoldTicket] = useState(false);
   const [showCustomPriceConfirm, setShowCustomPriceConfirm] = useState(false);
@@ -713,6 +714,12 @@ export default function POS() {
 
   // Show cash in dialog if no active session (don't show when offline if we have an offline session)
   useEffect(() => {
+    // Skip if user explicitly skipped the cash in dialog
+    if (cashInSkipped) {
+      console.log('[POS] Cash in was skipped by user, not showing again');
+      return;
+    }
+    
     // Skip if showCashIn is already true (we just closed a session)
     if (showCashIn) {
       console.log('[POS] Cash in dialog already shown, skipping session check');
@@ -748,7 +755,7 @@ export default function POS() {
         setCurrentCashSession(activeCashSession);
       }
     }
-  }, [activeCashSession, selectedStoreId, isLoadingCashSession, isOffline, showCashIn]);
+  }, [activeCashSession, selectedStoreId, isLoadingCashSession, isOffline, showCashIn, cashInSkipped]);
 
   // Get all transactions for today from all users
   const { data: sessionTransactions } = useQuery({
@@ -4571,6 +4578,7 @@ export default function POS() {
         onConfirm={handleCashIn}
         onSkip={() => {
           setShowCashIn(false);
+          setCashInSkipped(true); // Mark as skipped so it won't show again
           console.log('Starting POS without cash session. You can open a cash session later.');
         }}
       />
