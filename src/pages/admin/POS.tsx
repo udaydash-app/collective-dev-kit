@@ -1563,19 +1563,108 @@ export default function POS() {
     try {
       if (!currentCashSession) return;
 
-      // Calculate expected cash from cash transactions only
+      let cashSales = 0;
+      let mobileMoneySales = 0;
+      let cashPurchases = 0;
+      let mobileMoneyPurchases = 0;
+      let cashExpenses = 0;
+      let mobileMoneyExpenses = 0;
+      let cashPayments = 0;
+      let mobileMoneyPayments = 0;
+      let cashSupplierPaymentsAmount = 0;
+      let mobileMoneySupplierPaymentsAmount = 0;
+
+      // Handle offline mode
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const sessionStart = new Date(currentCashSession.opened_at).getTime();
+          
+          // Get transactions
+          const transactions = await offlineDB.getPOSTransactions();
+          const sessionTransactions = transactions.filter(t => 
+            t.store_id === currentCashSession.store_id && 
+            new Date(t.created_at).getTime() >= sessionStart
+          );
+          
+          cashSales = sessionTransactions
+            .filter(t => t.payment_method === 'cash')
+            .reduce((sum, t) => sum + parseFloat(t.total?.toString() || '0'), 0);
+          mobileMoneySales = sessionTransactions
+            .filter(t => t.payment_method === 'mobile_money')
+            .reduce((sum, t) => sum + parseFloat(t.total?.toString() || '0'), 0);
+          
+          // Get purchases
+          const purchases = await offlineDB.getPurchases();
+          const sessionPurchases = purchases.filter(p => 
+            p.store_id === currentCashSession.store_id && 
+            new Date(p.purchased_at).getTime() >= sessionStart
+          );
+          
+          cashPurchases = sessionPurchases
+            .filter(p => p.payment_method === 'cash')
+            .reduce((sum, p) => sum + parseFloat(p.total_amount?.toString() || '0'), 0);
+          mobileMoneyPurchases = sessionPurchases
+            .filter(p => p.payment_method === 'mobile_money')
+            .reduce((sum, p) => sum + parseFloat(p.total_amount?.toString() || '0'), 0);
+          
+          // Get expenses
+          const expenses = await offlineDB.getExpenses();
+          const sessionExpenses = expenses.filter(e => 
+            e.store_id === currentCashSession.store_id && 
+            new Date(e.created_at).getTime() >= sessionStart
+          );
+          
+          cashExpenses = sessionExpenses
+            .filter(e => e.payment_method === 'cash')
+            .reduce((sum, e) => sum + parseFloat(e.amount?.toString() || '0'), 0);
+          mobileMoneyExpenses = sessionExpenses
+            .filter(e => e.payment_method === 'mobile_money')
+            .reduce((sum, e) => sum + parseFloat(e.amount?.toString() || '0'), 0);
+          
+          // Calculate expected cash for offline mode
+          const sessionOpeningCash = parseFloat(currentCashSession.opening_cash?.toString() || '0');
+          const expectedCash = sessionOpeningCash + cashSales + cashPayments - cashPurchases - cashExpenses - cashSupplierPaymentsAmount;
+          const cashDifference = closingCash - expectedCash;
+
+          // Update cash session in IndexedDB
+          await offlineDB.updateCashSession(currentCashSession.id, {
+            closing_cash: closingCash,
+            expected_cash: expectedCash,
+            cash_difference: cashDifference,
+            closed_at: new Date().toISOString(),
+            status: 'closed',
+            notes: notes || undefined,
+          });
+
+          // Also clear localStorage offline session
+          localStorage.removeItem('offline_pos_session');
+          
+          console.log('Cash register closed successfully (offline mode)');
+          toast.success('Cash register closed successfully');
+          setCurrentCashSession(null);
+          clearCart();
+          await refetchCashSession();
+          return;
+        } catch (offlineError) {
+          console.error('Error closing cash register in offline mode:', offlineError);
+          toast.error('Failed to close cash register');
+          return;
+        }
+      }
+
+      // Online mode - Calculate expected cash from cash transactions
       const { data: transactions } = await supabase
         .from('pos_transactions')
         .select('total, payment_method')
-        .eq('cashier_id', currentCashSession.cashier_id)
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at);
 
-      const cashSales = transactions
+      cashSales = transactions
         ?.filter(t => t.payment_method === 'cash')
         .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
       
-      const mobileMoneySales = transactions
+      mobileMoneySales = transactions
         ?.filter(t => t.payment_method === 'mobile_money')
         .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
 
@@ -1586,11 +1675,11 @@ export default function POS() {
         .eq('store_id', currentCashSession.store_id)
         .gte('purchased_at', currentCashSession.opened_at);
 
-      const cashPurchases = purchases
+      cashPurchases = purchases
         ?.filter(p => p.payment_method === 'cash')
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
       
-      const mobileMoneyPurchases = purchases
+      mobileMoneyPurchases = purchases
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
@@ -1601,41 +1690,41 @@ export default function POS() {
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at);
 
-      const cashExpenses = expenses
+      cashExpenses = expenses
         ?.filter(e => e.payment_method === 'cash')
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
       
-      const mobileMoneyExpenses = expenses
+      mobileMoneyExpenses = expenses
         ?.filter(e => e.payment_method === 'mobile_money')
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
       // Fetch payment receipts for this session
-      const { data: paymentReceipts } = await supabase
+      const { data: paymentReceiptsData } = await supabase
         .from('payment_receipts')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at);
 
-      const cashPayments = paymentReceipts
+      cashPayments = paymentReceiptsData
         ?.filter(p => p.payment_method === 'cash')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
       
-      const mobileMoneyPayments = paymentReceipts
+      mobileMoneyPayments = paymentReceiptsData
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       // Fetch supplier payments for this session
-      const { data: supplierPayments } = await supabase
+      const { data: supplierPaymentsData } = await supabase
         .from('supplier_payments')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at);
 
-      const cashSupplierPayments = supplierPayments
+      cashSupplierPaymentsAmount = supplierPaymentsData
         ?.filter(p => p.payment_method === 'cash')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
       
-      const mobileMoneySupplierPayments = supplierPayments
+      mobileMoneySupplierPaymentsAmount = supplierPaymentsData
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
@@ -1647,14 +1736,14 @@ export default function POS() {
         cashPayments - 
         cashPurchases - 
         cashExpenses -
-        cashSupplierPayments;
+        cashSupplierPaymentsAmount;
       const cashDifference = closingCash - expectedCash;
 
       const expectedMobileMoney = mobileMoneySales +
         mobileMoneyPayments -
         mobileMoneyPurchases -
         mobileMoneyExpenses -
-        mobileMoneySupplierPayments;
+        mobileMoneySupplierPaymentsAmount;
 
       const { error } = await supabase
         .from('cash_sessions')
@@ -1731,11 +1820,13 @@ export default function POS() {
       }
 
       console.log('Cash register closed successfully');
+      toast.success('Cash register closed successfully');
       setCurrentCashSession(null);
       clearCart();
       await refetchCashSession();
     } catch (error: any) {
       console.error('Error closing cash register:', error);
+      toast.error('Failed to close cash register');
     }
   };
 

@@ -1409,6 +1409,35 @@ class OfflineDB {
       request.onerror = () => reject(request.error);
     });
   }
+
+  async updateCashSession(id: string, updates: Partial<{
+    closing_cash: number;
+    expected_cash: number;
+    cash_difference: number;
+    closed_at: string;
+    status: string;
+    notes: string;
+  }>): Promise<void> {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction('cash_sessions', 'readwrite');
+      const store = tx.objectStore('cash_sessions');
+      const getRequest = store.get(id);
+      
+      getRequest.onsuccess = () => {
+        const session = getRequest.result;
+        if (session) {
+          const updatedSession = { ...session, ...updates, lastUpdated: new Date().toISOString() };
+          const updateRequest = store.put(updatedSession);
+          updateRequest.onsuccess = () => resolve();
+          updateRequest.onerror = () => reject(updateRequest.error);
+        } else {
+          resolve();
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
 }
 
 export const offlineDB = new OfflineDB();
