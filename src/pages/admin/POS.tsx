@@ -583,14 +583,11 @@ export default function POS() {
         try {
           const { offlineDB } = await import('@/lib/offlineDB');
           const sessions = await offlineDB.getCashSessions();
-          const offlineSession = localStorage.getItem('offline_pos_session');
-          const sessionData = offlineSession ? JSON.parse(offlineSession) : null;
           
-          // Find an open session for this store and user
+          // Find any open session for this store (shared across all cashiers)
           const activeSession = sessions.find(s => 
             s.store_id === selectedStoreId && 
-            s.status === 'open' &&
-            (sessionData ? s.cashier_id === sessionData.pos_user_id : true)
+            s.status === 'open'
           );
           
           if (activeSession) {
@@ -598,8 +595,10 @@ export default function POS() {
             return activeSession;
           }
           
-          // If no session found in IndexedDB, create a mock from localStorage
-          if (sessionData) {
+          // If no session found in IndexedDB, check localStorage for fallback
+          const offlineSession = localStorage.getItem('offline_pos_session');
+          if (offlineSession) {
+            const sessionData = JSON.parse(offlineSession);
             return {
               id: sessionData.cash_session_id || 'offline-session',
               store_id: selectedStoreId,
@@ -615,14 +614,11 @@ export default function POS() {
           return null;
         }
       }
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
 
+      // Online mode: Find any open session for this store (shared across all cashiers)
       const { data } = await supabase
         .from('cash_sessions')
         .select('*')
-        .eq('cashier_id', user.id)
         .eq('store_id', selectedStoreId)
         .eq('status', 'open')
         .order('opened_at', { ascending: false })
