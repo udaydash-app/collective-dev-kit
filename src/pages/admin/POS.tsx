@@ -4458,6 +4458,7 @@ export default function POS() {
         onClose={() => setShowRefund(false)}
         cartItems={cart}
         storeId={selectedStoreId}
+        customerId={selectedCustomer?.id}
         onRefundComplete={() => {
           clearCart();
           setCartDiscountItem(null);
