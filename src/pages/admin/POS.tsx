@@ -713,29 +713,40 @@ export default function POS() {
 
   // Show cash in dialog if no active session (don't show when offline if we have an offline session)
   useEffect(() => {
-    // Don't update if we just closed the session (currentCashSession is null but activeCashSession might be stale)
-    if (currentCashSession === null && activeCashSession?.status === 'closed') {
-      console.log('[POS] Ignoring stale closed session from cache');
+    // Skip if showCashIn is already true (we just closed a session)
+    if (showCashIn) {
+      console.log('[POS] Cash in dialog already shown, skipping session check');
+      return;
+    }
+    
+    // Ignore closed sessions completely
+    if (activeCashSession?.status === 'closed') {
+      console.log('[POS] Ignoring closed session from cache');
       return;
     }
     
     if (isOffline) {
       // When offline, use the offline session as the cash session
       const offlineSession = localStorage.getItem('offline_pos_session');
-      if (offlineSession) {
+      if (offlineSession && activeCashSession?.status === 'open') {
         setCurrentCashSession(activeCashSession);
+      } else if (!offlineSession && !activeCashSession) {
+        // No offline session and no active session - show cash in
+        console.log('[POS] Offline mode: No session, showing cash in dialog');
+        setShowCashIn(true);
       }
       return;
     }
     
-    if (selectedStoreId && !isLoadingCashSession && !activeCashSession && !showCashIn) {
-      console.log('[POS] No active session, showing cash in dialog');
-      setShowCashIn(true);
-    }
-    
-    // Only set currentCashSession if activeCashSession is open or null
-    if (!activeCashSession || activeCashSession.status === 'open') {
-      setCurrentCashSession(activeCashSession);
+    // Online mode
+    if (selectedStoreId && !isLoadingCashSession) {
+      if (!activeCashSession) {
+        console.log('[POS] No active session, showing cash in dialog');
+        setShowCashIn(true);
+        setCurrentCashSession(null);
+      } else if (activeCashSession.status === 'open') {
+        setCurrentCashSession(activeCashSession);
+      }
     }
   }, [activeCashSession, selectedStoreId, isLoadingCashSession, isOffline, showCashIn]);
 
@@ -1657,13 +1668,27 @@ export default function POS() {
           
           console.log('Cash register closed successfully (offline mode)');
           toast.success('Cash register closed successfully');
+          
+          // Close dialog FIRST before state changes
+          setShowCashOut(false);
+          
+          // Clear all session-related state and cache
           setCurrentCashSession(null);
-          setShowCashIn(true); // Immediately show cash in dialog
           clearCart();
           
-          // Remove cache completely and refetch
+          // Remove all session-related queries from cache
           queryClient.removeQueries({ queryKey: ['active-cash-session'] });
-          await refetchCashSession();
+          queryClient.removeQueries({ queryKey: ['today-all-transactions'] });
+          queryClient.removeQueries({ queryKey: ['today-all-purchases'] });
+          queryClient.removeQueries({ queryKey: ['today-expenses'] });
+          queryClient.removeQueries({ queryKey: ['today-payment-receipts'] });
+          queryClient.removeQueries({ queryKey: ['session-supplier-payments'] });
+          queryClient.removeQueries({ queryKey: ['session-cash-journal-entries'] });
+          queryClient.removeQueries({ queryKey: ['session-mobile-journal-entries'] });
+          queryClient.removeQueries({ queryKey: ['today-cash-sessions'] });
+          
+          // Show cash in dialog after cache is cleared
+          setShowCashIn(true);
           return;
         } catch (offlineError) {
           console.error('Error closing cash register in offline mode:', offlineError);
@@ -1840,13 +1865,27 @@ export default function POS() {
 
       console.log('Cash register closed successfully');
       toast.success('Cash register closed successfully');
+      
+      // Close dialog FIRST before state changes
+      setShowCashOut(false);
+      
+      // Clear all session-related state and cache
       setCurrentCashSession(null);
-      setShowCashIn(true); // Immediately show cash in dialog
       clearCart();
       
-      // Remove cache completely and refetch
+      // Remove all session-related queries from cache
       queryClient.removeQueries({ queryKey: ['active-cash-session'] });
-      await refetchCashSession();
+      queryClient.removeQueries({ queryKey: ['today-all-transactions'] });
+      queryClient.removeQueries({ queryKey: ['today-all-purchases'] });
+      queryClient.removeQueries({ queryKey: ['today-expenses'] });
+      queryClient.removeQueries({ queryKey: ['today-payment-receipts'] });
+      queryClient.removeQueries({ queryKey: ['session-supplier-payments'] });
+      queryClient.removeQueries({ queryKey: ['session-cash-journal-entries'] });
+      queryClient.removeQueries({ queryKey: ['session-mobile-journal-entries'] });
+      queryClient.removeQueries({ queryKey: ['today-cash-sessions'] });
+      
+      // Show cash in dialog after cache is cleared
+      setShowCashIn(true);
     } catch (error: any) {
       console.error('Error closing cash register:', error);
       toast.error('Failed to close cash register');
