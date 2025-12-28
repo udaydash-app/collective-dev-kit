@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: boolean = true) => {
@@ -7,61 +7,56 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const processingRef = useRef(false);
+  const onScanRef = useRef(onScan);
+  
+  // Keep callback ref updated to avoid stale closures
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    // Listen for keyboard input from USB barcode scanners
+    // Ultra-fast USB barcode scanner handling
     let barcodeBuffer = '';
     let lastKeyTime = 0;
-    let scanTimeout: NodeJS.Timeout | null = null;
 
-    const handleKeyPress = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       const currentTime = Date.now();
       
-      // Reset buffer if more than 50ms between keys (balanced for speed and reliability)
-      if (currentTime - lastKeyTime > 50) {
+      // Reset buffer if more than 30ms between keys (USB scanners are very fast)
+      if (currentTime - lastKeyTime > 30) {
         barcodeBuffer = '';
       }
       
       lastKeyTime = currentTime;
 
-      // Clear any existing timeout
-      if (scanTimeout) {
-        clearTimeout(scanTimeout);
-        scanTimeout = null;
-      }
-
-      // Enter key signals end of barcode - immediate processing
+      // Enter key signals end of barcode - INSTANT processing
       if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
         e.stopPropagation();
         const scannedBarcode = barcodeBuffer;
         barcodeBuffer = '';
-        // Process immediately without any delay
-        onScan(scannedBarcode);
-      } else if (e.key.length === 1) {
+        // Fire immediately - no delays
+        onScanRef.current(scannedBarcode);
+        return;
+      }
+      
+      // Only add printable characters
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         barcodeBuffer += e.key;
-        
-        // Auto-submit after 100ms of no input (for scanners that don't send Enter)
-        scanTimeout = setTimeout(() => {
-          if (barcodeBuffer.length >= 4) {
-            const scannedBarcode = barcodeBuffer;
-            barcodeBuffer = '';
-            onScan(scannedBarcode);
-          }
-        }, 100);
       }
     };
 
-    window.addEventListener('keypress', handleKeyPress);
+    // Use keydown instead of keypress for faster response
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
 
     return () => {
-      window.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
-  }, [onScan, enabled]);
+  }, [enabled]);
 
-  const startCameraScanning = async (videoElement: HTMLVideoElement) => {
+  const startCameraScanning = useCallback(async (videoElement: HTMLVideoElement) => {
     if (!videoElement) return;
 
     try {
@@ -70,13 +65,13 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       videoRef.current = videoElement;
       processingRef.current = false;
 
-      // Optimize camera settings for maximum scanning speed
+      // Ultra-fast camera settings
       const constraints = {
         video: {
           facingMode: 'environment',
-          width: { ideal: 480, max: 640 }, // Lower resolution = faster processing
-          height: { ideal: 360, max: 480 },
-          frameRate: { ideal: 30, max: 30 } // Higher FPS for faster detection
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 60, min: 30 } // Higher FPS = faster detection
         }
       };
 
@@ -86,27 +81,22 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void, enabled: bo
       const codeReader = new BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
 
-      await codeReader.decodeFromVideoDevice(undefined, videoElement, (result, error) => {
-        // Immediate processing for maximum speed
+      await codeReader.decodeFromVideoDevice(undefined, videoElement, (result) => {
+        // INSTANT processing - no debounce, no delays
         if (result && !processingRef.current) {
           processingRef.current = true;
-          // Process immediately without any delay
-          onScan(result.getText());
-          // Reset after minimal delay to allow next scan
+          onScanRef.current(result.getText());
+          // Allow next scan after just 100ms (prevents double-scans)
           setTimeout(() => {
             processingRef.current = false;
-          }, 50);
-        }
-        
-        if (error && !(error.name === 'NotFoundException')) {
-          console.error('Barcode scanning error:', error);
+          }, 100);
         }
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start camera');
       setIsScanning(false);
     }
-  };
+  }, []);
 
   const stopCameraScanning = () => {
     processingRef.current = false;
