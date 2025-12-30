@@ -301,10 +301,10 @@ export default function CloseDayReport() {
           )
         `)
         .eq('status', 'posted')
-        .gte('entry_date', startDate)
-        .lte('entry_date', endDate)
+        .gte('created_at', `${startDate}T00:00:00`)
+        .lte('created_at', `${endDate}T23:59:59`)
         .not('reference', 'ilike', 'CASHREG%')
-        .order('entry_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       // Categorize journal entries by payment method
       const journalCashImpact = journalEntries?.map(je => {
@@ -415,13 +415,13 @@ export default function CloseDayReport() {
             ?.filter(e => e.payment_method === 'cash')
             .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
-          // Get manual journal entries affecting cash during this period
+          // Get manual journal entries affecting cash during this period - use created_at for precise session filtering
           const sessionJournalImpact = journalCashImpact
             ?.filter(je => {
-              const jeDate = new Date(je.entry_date);
+              const jeCreatedAt = new Date(je.created_at);
               const sessStart = new Date(sessionStart);
               const sessEnd = new Date(sessionEnd);
-              return jeDate >= sessStart && jeDate <= sessEnd;
+              return jeCreatedAt >= sessStart && jeCreatedAt <= sessEnd;
             })
             .reduce((acc, je) => ({
               cash: acc.cash + je.cash_impact,
