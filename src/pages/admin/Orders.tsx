@@ -252,16 +252,19 @@ export default function AdminOrders() {
         
         const profilePhoneMap = new Map(profilesWithPhone?.map(p => [p.id, p.phone]) || []);
         
-        allOrders.push(...filteredOnlineOrders.map(order => ({
-          ...order,
-          order_number: order.order_number,
-          customer_name: order.contacts?.name || profileMap.get(order.user_id) || 'Guest',
-          customer_phone: order.contacts?.phone || order.addresses?.phone || profilePhoneMap.get(order.user_id) || null,
-          customer_email: order.contacts?.email || null,
-          items: itemsByOrder.get(order.id) || [],
-          type: 'online',
-          status: order.status
-        })));
+        allOrders.push(...filteredOnlineOrders.map(order => {
+          console.log('📦 Online order contacts:', order.id, order.contacts, 'customer_id:', order.customer_id);
+          return {
+            ...order,
+            order_number: order.order_number,
+            customer_name: order.contacts?.name || profileMap.get(order.user_id) || 'Guest',
+            customer_phone: order.contacts?.phone || order.addresses?.phone || profilePhoneMap.get(order.user_id) || null,
+            customer_email: order.contacts?.email || null,
+            items: itemsByOrder.get(order.id) || [],
+            type: 'online' as const,
+            status: order.status
+          };
+        }));
       }
 
       // Process POS transactions
