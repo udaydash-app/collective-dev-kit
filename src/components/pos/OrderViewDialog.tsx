@@ -59,6 +59,14 @@ interface OrderViewDialogProps {
 
 export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps) => {
   if (!order) return null;
+  
+  console.log('OrderViewDialog - order data:', {
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    customer_email: order.customer_email,
+    type: order.type,
+    addresses: order.addresses
+  });
 
   // Parse payment details for display
   const getPaymentInfo = () => {
