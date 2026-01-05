@@ -253,13 +253,29 @@ export default function AdminOrders() {
         const profilePhoneMap = new Map(profilesWithPhone?.map(p => [p.id, p.phone]) || []);
         
         allOrders.push(...filteredOnlineOrders.map(order => {
-          console.log('📦 Online order contacts:', order.id, order.contacts, 'customer_id:', order.customer_id);
+          // Parse guest info from delivery_instructions if no customer data
+          let guestName = '';
+          let guestPhone = '';
+          let guestArea = '';
+          
+          if (order.delivery_instructions && order.delivery_instructions.includes('Guest Order')) {
+            const nameMatch = order.delivery_instructions.match(/Name:\s*([^,]+)/);
+            const phoneMatch = order.delivery_instructions.match(/Phone:\s*([^,]+)/);
+            const areaMatch = order.delivery_instructions.match(/Area:\s*(.+)$/);
+            guestName = nameMatch?.[1]?.trim() || '';
+            guestPhone = phoneMatch?.[1]?.trim() || '';
+            guestArea = areaMatch?.[1]?.trim() || '';
+          }
+          
           return {
             ...order,
             order_number: order.order_number,
-            customer_name: order.contacts?.name || profileMap.get(order.user_id) || 'Guest',
-            customer_phone: order.contacts?.phone || order.addresses?.phone || profilePhoneMap.get(order.user_id) || null,
+            customer_name: order.contacts?.name || profileMap.get(order.user_id) || guestName || 'Guest',
+            customer_phone: order.contacts?.phone || order.addresses?.phone || profilePhoneMap.get(order.user_id) || guestPhone || null,
             customer_email: order.contacts?.email || null,
+            delivery_address: order.addresses 
+              ? `${order.addresses.address_line1}, ${order.addresses.city}` 
+              : guestArea || null,
             items: itemsByOrder.get(order.id) || [],
             type: 'online' as const,
             status: order.status

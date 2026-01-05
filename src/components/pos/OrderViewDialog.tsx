@@ -39,6 +39,7 @@ interface OrderViewDialogProps {
     customer_name?: string;
     customer_phone?: string;
     customer_email?: string;
+    delivery_address?: string;
     type: 'pos' | 'online';
     status: string;
     payment_method?: string;
@@ -60,13 +61,6 @@ interface OrderViewDialogProps {
 export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps) => {
   if (!order) return null;
   
-  console.log('OrderViewDialog - order data:', {
-    customer_name: order.customer_name,
-    customer_phone: order.customer_phone,
-    customer_email: order.customer_email,
-    type: order.type,
-    addresses: order.addresses
-  });
 
   // Parse payment details for display
   const getPaymentInfo = () => {
@@ -203,11 +197,15 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                   <span className="font-medium">{order.cashier_name}</span>
                 </div>
               )}
-              {order.addresses && (
+              {(order.addresses || order.delivery_address) && (
                 <div className="flex items-center gap-2 col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Address:</span>
-                  <span className="font-medium">{order.addresses.address_line1}, {order.addresses.city}</span>
+                  <span className="font-medium">
+                    {order.addresses 
+                      ? `${order.addresses.address_line1}, ${order.addresses.city}` 
+                      : order.delivery_address}
+                  </span>
                 </div>
               )}
             </div>
