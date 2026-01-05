@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { DollarSign, CreditCard, Smartphone, Wallet, Package, User, MapPin, Calendar, Receipt } from 'lucide-react';
+import { DollarSign, CreditCard, Smartphone, Wallet, Package, User, MapPin, Calendar, Receipt, Phone, Mail } from 'lucide-react';
 
 interface OrderItem {
   id?: string;
@@ -37,6 +37,8 @@ interface OrderViewDialogProps {
     id: string;
     order_number: string;
     customer_name?: string;
+    customer_phone?: string;
+    customer_email?: string;
     type: 'pos' | 'online';
     status: string;
     payment_method?: string;
@@ -49,7 +51,7 @@ interface OrderViewDialogProps {
     delivery_fee?: number;
     total: number;
     stores?: { name: string };
-    addresses?: { address_line1: string; city: string };
+    addresses?: { address_line1: string; city: string; phone?: string };
     cashier_name?: string;
     metadata?: any;
   } | null;
@@ -165,6 +167,20 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                 <span className="text-muted-foreground">Date:</span>
                 <span className="font-medium">{formatDateTime(order.created_at)}</span>
               </div>
+              {order.customer_phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="font-medium">{order.customer_phone}</span>
+                </div>
+              )}
+              {order.customer_email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{order.customer_email}</span>
+                </div>
+              )}
               {order.stores?.name && (
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />

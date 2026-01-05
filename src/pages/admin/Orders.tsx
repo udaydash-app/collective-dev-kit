@@ -168,9 +168,9 @@ export default function AdminOrders() {
         .select(`
           *,
           stores(name),
-          addresses(address_line1, city),
+          addresses(address_line1, city, phone),
           payment_methods(type, label),
-          contacts(id, name)
+          contacts(id, name, phone, email)
         `)
         .order('created_at', { ascending: false });
 
@@ -244,10 +244,20 @@ export default function AdminOrders() {
           return order.status === statusFilter;
         });
         
+        // Also fetch profiles with phone for online orders
+        const { data: profilesWithPhone } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', userIds);
+        
+        const profilePhoneMap = new Map(profilesWithPhone?.map(p => [p.id, p.phone]) || []);
+        
         allOrders.push(...filteredOnlineOrders.map(order => ({
           ...order,
           order_number: order.order_number,
           customer_name: order.contacts?.name || profileMap.get(order.user_id) || 'Guest',
+          customer_phone: order.contacts?.phone || order.addresses?.phone || profilePhoneMap.get(order.user_id) || null,
+          customer_email: order.contacts?.email || null,
           items: itemsByOrder.get(order.id) || [],
           type: 'online',
           status: order.status
