@@ -289,6 +289,8 @@ export default function CloseDayReport() {
       const mobileMoneyAccountId = paymentAccounts?.find(a => a.account_code === '521')?.id;
       const arAccountId = paymentAccounts?.find(a => a.account_code === '411')?.id;
       
+      // Exclude cash register entries, expense journal entries, POS sales entries, purchase entries, and payment receipt entries
+      // These are already accounted for in their respective data sources (transactions, expenses, purchases)
       const { data: journalEntries } = await supabase
         .from('journal_entries')
         .select(`
@@ -303,8 +305,11 @@ export default function CloseDayReport() {
         .eq('status', 'posted')
         .gte('created_at', `${startDate}T00:00:00`)
         .lte('created_at', `${endDate}T23:59:59`)
-        .not('reference', 'ilike', 'CASHREG%')
-        .not('reference', 'ilike', 'EXP-%')
+        .not('reference', 'ilike', '%CASHREG%')
+        .not('reference', 'ilike', '%EXP-%')
+        .not('reference', 'ilike', '%POS-%')
+        .not('reference', 'ilike', '%PUR-%')
+        .not('reference', 'ilike', '%PMT-%')
         .order('created_at', { ascending: false });
 
       // Categorize journal entries by payment method
