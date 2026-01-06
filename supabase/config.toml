@@ -7,25 +7,28 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.import-products]
-verify_jwt = true
+verify_jwt = false
 
 [functions.import-products-excel]
-verify_jwt = true
+verify_jwt = false
 
 [functions.update-products-excel]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-order-confirmation]
 verify_jwt = false
 
 [functions.enrich-product]
-verify_jwt = true
+verify_jwt = false
 
 [functions.update-products-pdf]
-verify_jwt = true
+verify_jwt = false
 
 [functions.fix-product-stock]
-verify_jwt = true
+verify_jwt = false
 
 [functions.fix-maggi-stock]
+verify_jwt = false
+
+[functions.manage-pos-user]
 verify_jwt = false
