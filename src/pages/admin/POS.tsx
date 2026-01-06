@@ -4574,7 +4574,10 @@ export default function POS() {
 
       <CashInDialog
         isOpen={showCashIn}
-        onClose={() => setShowCashIn(false)}
+        onClose={() => {
+          setShowCashIn(false);
+          setCashInSkipped(true); // Mark as skipped when dialog is closed (same as skip)
+        }}
         onConfirm={handleCashIn}
         onSkip={() => {
           setShowCashIn(false);
