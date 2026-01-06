@@ -197,30 +197,14 @@ export default function POSLogin() {
           throw new Error('No cached login data found. Please connect to internet and login once to enable offline mode.');
         }
         
-        console.log('🔴 Cached users details:', cachedUsers.map(u => ({ 
-          id: u.id,
-          name: u.full_name, 
-          active: u.is_active,
-          hasPin: !!u.pin_hash,
-          pinLength: u.pin_hash?.length
-        })));
-        console.log('🔴 Entered PIN:', pinValue, 'Length:', pinValue.length);
-        
         const matchedUser = cachedUsers.find(u => {
           const pinMatches = u.pin_hash === pinValue;
-          console.log(`🔴 Checking user: ${u.full_name}`);
-          console.log(`   - PIN in DB: ${u.pin_hash} (length: ${u.pin_hash?.length})`);
-          console.log(`   - PIN entered: ${pinValue} (length: ${pinValue.length})`);
-          console.log(`   - Match: ${pinMatches}, Active: ${u.is_active}`);
           return pinMatches && u.is_active;
         });
         
         if (!matchedUser) {
-          console.error('🔴 No matching user found for entered PIN');
           throw new Error('Invalid PIN. Please check your PIN and try again.');
         }
-        
-        console.log('✅ Offline login successful for:', matchedUser.full_name);
         return {
           posUserId: matchedUser.id,
           userId: matchedUser.user_id,
