@@ -304,6 +304,7 @@ export default function CloseDayReport() {
         .gte('created_at', `${startDate}T00:00:00`)
         .lte('created_at', `${endDate}T23:59:59`)
         .not('reference', 'ilike', 'CASHREG%')
+        .not('reference', 'ilike', 'EXP-%')
         .order('created_at', { ascending: false });
 
       // Categorize journal entries by payment method
