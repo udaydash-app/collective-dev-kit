@@ -477,12 +477,14 @@ export default function POSLogin() {
     }
     
     // If local server config provided, save and reload
+    // SECURITY: Only anon key is accepted - service role keys should never be stored client-side
     if (serverUrl.trim()) {
-      if (!serverKey.trim() && !serviceRoleKey.trim()) {
-        toast.error('Please enter at least the Service Role Key (recommended) or Anon Key for local server');
+      const keyToUse = serverKey.trim();
+      if (!keyToUse) {
+        toast.error('Please enter the Anon Key for local server');
         return;
       }
-      setLocalSupabaseConfig(serverUrl.trim(), serverKey.trim(), serviceRoleKey.trim() || undefined);
+      setLocalSupabaseConfig(serverUrl.trim(), keyToUse);
       // Page will reload automatically
     } else if (cloudServiceRoleKey.trim()) {
       // Only cloud key was updated, close dialog

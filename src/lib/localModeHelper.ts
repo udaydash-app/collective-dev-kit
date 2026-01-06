@@ -59,16 +59,14 @@ export const checkLocalSupabaseReachable = async (): Promise<boolean> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
     
+    // Just check if the URL is reachable - we don't need to include apikey for HEAD request
     const response = await fetch(`${localConfig.url}/rest/v1/`, {
       method: 'HEAD',
       signal: controller.signal,
-      headers: {
-        'apikey': localConfig.anonKey || '',
-      }
     });
     
     clearTimeout(timeout);
-    cachedLocalSupabaseReachable = response.ok || response.status === 400; // 400 is OK (just means no table specified)
+    cachedLocalSupabaseReachable = response.ok || response.status === 400 || response.status === 401; // 400/401 is OK (means server is responding)
     lastReachabilityCheck = Date.now();
     console.log('[LocalMode] Local Supabase reachable:', cachedLocalSupabaseReachable);
     return cachedLocalSupabaseReachable;
