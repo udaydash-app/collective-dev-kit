@@ -291,7 +291,9 @@ export default function CloseDayReport() {
       
       // Exclude cash register entries, expense journal entries, POS sales entries, purchase entries, and payment receipt entries
       // These are already accounted for in their respective data sources (transactions, expenses, purchases)
-      const { data: journalEntries } = await supabase
+      // Fetch all journal entries and filter client-side 
+      // Multiple .not() filters may not work correctly in Supabase JS client
+      const { data: allJournalEntries } = await supabase
         .from('journal_entries')
         .select(`
           *,
@@ -305,12 +307,15 @@ export default function CloseDayReport() {
         .eq('status', 'posted')
         .gte('created_at', `${startDate}T00:00:00`)
         .lte('created_at', `${endDate}T23:59:59`)
-        .not('reference', 'ilike', '%CASHREG%')
-        .not('reference', 'ilike', '%EXP-%')
-        .not('reference', 'ilike', '%POS-%')
-        .not('reference', 'ilike', '%PUR-%')
-        .not('reference', 'ilike', '%PMT-%')
         .order('created_at', { ascending: false });
+      
+      // Client-side filter to exclude automated journal entries (POS, expenses, purchases, payment receipts, cash register)
+      // These are already accounted for in their respective data sources
+      const excludePatterns = ['CASHREG', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      const journalEntries = allJournalEntries?.filter(je => {
+        const ref = (je.reference || '').toUpperCase();
+        return !excludePatterns.some(pattern => ref.includes(pattern));
+      });
 
       // Categorize journal entries by payment method
       const journalCashImpact = journalEntries?.map(je => {
