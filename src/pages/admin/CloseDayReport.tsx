@@ -311,10 +311,15 @@ export default function CloseDayReport() {
       
       // Client-side filter to exclude automated journal entries (POS, expenses, purchases, payment receipts, cash register)
       // These are already accounted for in their respective data sources
-      const excludePatterns = ['CASHREG', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      // Filter by BOTH reference and description to catch all automated entries
+      const excludeRefPatterns = ['CASHREG', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT'];
       const journalEntries = allJournalEntries?.filter(je => {
         const ref = (je.reference || '').toUpperCase();
-        return !excludePatterns.some(pattern => ref.includes(pattern));
+        const desc = (je.description || '').toUpperCase();
+        const isExcludedByRef = excludeRefPatterns.some(pattern => ref.includes(pattern));
+        const isExcludedByDesc = excludeDescPatterns.some(pattern => desc.includes(pattern));
+        return !isExcludedByRef && !isExcludedByDesc;
       });
 
       // Categorize journal entries by payment method
