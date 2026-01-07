@@ -1144,8 +1144,8 @@ export default function POS() {
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
 
-      // Get ALL journal entries (including credit sales) created during the session
-      // Exclude cash register opening entries
+      // Get ONLY manual journal entries (exclude automated entries from POS, expenses, purchases, payment receipts, cash register)
+      // Automated entries are already represented in their respective sections (sales, expenses, purchases)
       const { data, error: queryError } = await supabase
         .from('journal_entries')
         .select(`
@@ -1161,17 +1161,30 @@ export default function POS() {
         .eq('status', 'posted')
         .gte('created_at', sessionStart)
         .lte('created_at', sessionEnd)
-        .not('reference', 'ilike', 'CASHREG%')
         .order('created_at', { ascending: false });
       
-      console.log('Display journal entries query result:', { 
-        data, 
-        error: queryError, 
-        sessionStart, 
-        sessionEnd
+      // Client-side filter to exclude automated journal entries
+      // These are already shown in their respective sections (sales, expenses, purchases, payments)
+      const excludeRefPatterns = ['CASHREG', 'CAISSE', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE'];
+      const filteredData = data?.filter(je => {
+        const ref = (je.reference || '').toUpperCase();
+        const desc = (je.description || '').toUpperCase();
+        const isExcludedByRef = excludeRefPatterns.some(pattern => ref.includes(pattern));
+        const isExcludedByDesc = excludeDescPatterns.some(pattern => desc.includes(pattern));
+        return !isExcludedByRef && !isExcludedByDesc;
       });
       
-      return data || [];
+      console.log('Display journal entries query result:', { 
+        data: filteredData, 
+        error: queryError, 
+        sessionStart, 
+        sessionEnd,
+        totalBeforeFilter: data?.length,
+        totalAfterFilter: filteredData?.length
+      });
+      
+      return filteredData || [];
     },
     enabled: !!currentCashSession,
     refetchOnMount: 'always',
@@ -4108,7 +4121,7 @@ export default function POS() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">Recent Journal Entries</h3>
+                <h3 className="text-sm font-semibold">Manual Journal Entries</h3>
               </div>
               
               {displayJournalLoading ? (
