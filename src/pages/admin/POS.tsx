@@ -116,6 +116,7 @@ export default function POS() {
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [showCashIn, setShowCashIn] = useState(false);
   const [cashInSkipped, setCashInSkipped] = useState(false); // Track if user explicitly skipped
+  const cashInShownRef = useRef(false); // Ref guard to prevent showing dialog twice
   const [showCashOut, setShowCashOut] = useState(false);
   const [showHoldTicket, setShowHoldTicket] = useState(false);
   const [showCustomPriceConfirm, setShowCustomPriceConfirm] = useState(false);
@@ -720,6 +721,12 @@ export default function POS() {
       return;
     }
     
+    // Skip if dialog already shown (ref guard to prevent double showing)
+    if (cashInShownRef.current) {
+      console.log('[POS] Cash in dialog already shown once (ref guard), skipping');
+      return;
+    }
+    
     // Skip if showCashIn is already true (we just closed a session)
     if (showCashIn) {
       console.log('[POS] Cash in dialog already shown, skipping session check');
@@ -740,6 +747,7 @@ export default function POS() {
       } else if (!offlineSession && !activeCashSession) {
         // No offline session and no active session - show cash in
         console.log('[POS] Offline mode: No session, showing cash in dialog');
+        cashInShownRef.current = true;
         setShowCashIn(true);
       }
       return;
@@ -749,6 +757,7 @@ export default function POS() {
     if (selectedStoreId && !isLoadingCashSession) {
       if (!activeCashSession) {
         console.log('[POS] No active session, showing cash in dialog');
+        cashInShownRef.current = true;
         setShowCashIn(true);
         setCurrentCashSession(null);
       } else if (activeCashSession.status === 'open') {
