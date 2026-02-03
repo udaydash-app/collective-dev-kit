@@ -95,6 +95,18 @@ class SyncService {
       total: transaction.total
     });
 
+    // Check if transaction already exists to prevent duplicate key error
+    const { data: existingTransaction } = await supabase
+      .from('pos_transactions')
+      .select('id')
+      .eq('id', transaction.id)
+      .maybeSingle();
+
+    if (existingTransaction) {
+      console.log('⚠️ Transaction already exists in database, skipping insert:', transaction.id);
+      return; // Transaction already synced, just return success
+    }
+
     // Insert the transaction - stock deduction and COGS are handled by database triggers
     const { error } = await supabase
       .from('pos_transactions')
