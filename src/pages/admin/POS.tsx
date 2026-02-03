@@ -1832,65 +1832,8 @@ export default function POS() {
 
       if (error) throw error;
 
-      // Create journal entry for cash register closing
-      // Debit: Owner account (cash returned to owner)
-      // Credit: Cash account (cash removed from register)
-      if (closingCash > 0) {
-        try {
-          const cashAccountCode = '571';  // Caisse SYSCOHADA
-          const ownerAccountCode = '109';  // Compte de l'exploitant SYSCOHADA
-          
-          // Get account IDs
-          const { data: accounts } = await supabase
-            .from('accounts')
-            .select('id, account_code')
-            .in('account_code', [cashAccountCode, ownerAccountCode]);
-          
-          const cashAccount = accounts?.find(a => a.account_code === cashAccountCode);
-          const ownerAccount = accounts?.find(a => a.account_code === ownerAccountCode);
-          
-          if (cashAccount && ownerAccount) {
-            // Create journal entry
-            const { data: journalEntry, error: jeError } = await supabase
-              .from('journal_entries')
-              .insert({
-                description: 'Cash Register Closing - Session ' + currentCashSession.id,
-                entry_date: new Date().toISOString().split('T')[0],
-                reference: 'CASHCLOSE-' + currentCashSession.id.substring(0, 10).toUpperCase().replace(/-/g, ''),
-                total_debit: closingCash,
-                total_credit: closingCash,
-                status: 'posted',
-                posted_at: new Date().toISOString(),
-              })
-              .select()
-              .single();
-            
-            if (!jeError && journalEntry) {
-              // Insert journal entry lines
-              await supabase.from('journal_entry_lines').insert([
-                {
-                  journal_entry_id: journalEntry.id,
-                  account_id: ownerAccount.id,
-                  description: 'Cash returned to owner from register closing',
-                  debit_amount: closingCash,
-                  credit_amount: 0,
-                },
-                {
-                  journal_entry_id: journalEntry.id,
-                  account_id: cashAccount.id,
-                  description: 'Cash removed from register',
-                  debit_amount: 0,
-                  credit_amount: closingCash,
-                },
-              ]);
-              console.log('Journal entry created for cash register closing');
-            }
-          }
-        } catch (jeError) {
-          console.error('Error creating journal entry for cash closing:', jeError);
-          // Don't fail the cash session close if journal entry fails
-        }
-      }
+      // Journal entry for cash register closing is created automatically by database trigger
+      // (create_cash_register_closing_entry) - no frontend journal creation needed
 
       console.log('Cash register closed successfully');
       toast.success('Cash register closed successfully');
