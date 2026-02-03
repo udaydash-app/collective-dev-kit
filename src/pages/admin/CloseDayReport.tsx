@@ -312,8 +312,8 @@ export default function CloseDayReport() {
       // Client-side filter to exclude automated journal entries (POS, expenses, purchases, payment receipts, cash register)
       // These are already accounted for in their respective data sources
       // Filter by BOTH reference and description to catch all automated entries
-      const excludeRefPatterns = ['CASHREG', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
-      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT'];
+      const excludeRefPatterns = ['CASHREG', 'CASHCLOSE', 'CAISSE', 'REG-', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
       const journalEntries = allJournalEntries?.filter(je => {
         const ref = (je.reference || '').toUpperCase();
         const desc = (je.description || '').toUpperCase();
