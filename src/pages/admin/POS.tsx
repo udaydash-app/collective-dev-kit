@@ -1695,6 +1695,10 @@ export default function POS() {
           // Close dialog FIRST before state changes
           setShowCashOut(false);
           
+          // IMPORTANT: Set cashInSkipped BEFORE clearing session to prevent
+          // the useEffect from showing cash in dialog before reload
+          setCashInSkipped(true);
+          
           // Clear all session-related state and cache
           setCurrentCashSession(null);
           clearCart();
@@ -1893,6 +1897,10 @@ export default function POS() {
       
       // Close dialog FIRST before state changes
       setShowCashOut(false);
+      
+      // IMPORTANT: Set cashInSkipped BEFORE clearing session to prevent
+      // the useEffect from showing cash in dialog before reload
+      setCashInSkipped(true);
       
       // Clear all session-related state and cache
       setCurrentCashSession(null);
