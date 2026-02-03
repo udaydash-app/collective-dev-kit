@@ -1118,11 +1118,11 @@ export default function POS() {
         const desc = (entry.journal_entries.description || '').toUpperCase();
         
         // Exclude all automated journal entries by reference prefix
-        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-'];
+        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-'];
         const isExcludedByRef = excludedRefPrefixes.some(prefix => ref.startsWith(prefix)) || ref.endsWith('-PMT');
         
         // Also exclude by description pattern for older entries that might not have proper references
-        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE'];
+        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
         const isExcludedByDesc = excludedDescPatterns.some(pattern => desc.includes(pattern));
         
         return !isExcludedByRef && !isExcludedByDesc;
@@ -1168,8 +1168,8 @@ export default function POS() {
       
       // Client-side filter to exclude automated journal entries
       // These are already shown in their respective sections (sales, expenses, purchases, payments)
-      const excludeRefPatterns = ['CASHREG', 'CAISSE', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
-      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE'];
+      const excludeRefPatterns = ['CASHREG', 'CASHCLOSE', 'CAISSE', 'REG-', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
+      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
       const filteredData = data?.filter(je => {
         const ref = (je.reference || '').toUpperCase();
         const desc = (je.description || '').toUpperCase();
