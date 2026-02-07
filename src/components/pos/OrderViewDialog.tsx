@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +6,11 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { DollarSign, CreditCard, Smartphone, Wallet, Package, User, MapPin, Calendar, Receipt, Phone, Mail } from 'lucide-react';
+import { DollarSign, CreditCard, Smartphone, Wallet, Package, User, MapPin, Calendar, Receipt, Phone, Mail, Printer } from 'lucide-react';
+import { Receipt as ReceiptComponent } from './Receipt';
+import { useReactToPrint } from 'react-to-print';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrderItem {
   id?: string;
@@ -59,6 +64,25 @@ interface OrderViewDialogProps {
 }
 
 export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps) => {
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Fetch company settings for receipt
+  const { data: settings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('logo_url, company_phone, company_name')
+        .single();
+      return data;
+    },
+  });
+
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: `Receipt-${order?.order_number || 'order'}`,
+  });
+
   if (!order) return null;
   
 
@@ -327,10 +351,46 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t bg-muted/30">
-          <Button onClick={onClose} className="w-full">
+        <div className="p-4 border-t bg-muted/30 flex gap-2">
+          <Button variant="outline" onClick={() => handlePrint()} className="flex-1">
+            <Printer className="h-4 w-4 mr-2" />
+            Print Receipt
+          </Button>
+          <Button onClick={onClose} className="flex-1">
             Close
           </Button>
+        </div>
+
+        {/* Hidden Receipt for Printing */}
+        <div className="fixed -left-[9999px] top-0 bg-white">
+          <ReceiptComponent
+            ref={receiptRef}
+            transactionNumber={order.order_number}
+            date={new Date(order.created_at)}
+            items={order.items.map((item, idx) => ({
+              id: item.id || `item-${idx}`,
+              productId: item.id || `product-${idx}`,
+              name: order.type === 'pos' 
+                ? (item.displayName || item.name || '') 
+                : (item.products?.name || item.name || ''),
+              quantity: item.quantity,
+              price: order.type === 'pos'
+                ? (item.customPrice ?? item.price)
+                : (item.unit_price ?? item.products?.price ?? item.price),
+              customPrice: item.customPrice,
+              itemDiscount: item.itemDiscount || 0,
+            }))}
+            subtotal={order.subtotal}
+            discount={order.discount || 0}
+            customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
+            tax={order.tax || 0}
+            total={order.total}
+            paymentMethod={(order.payment_method || 'cash').toUpperCase()}
+            cashierName={order.type === 'pos' ? order.cashier_name : undefined}
+            storeName={order.stores?.name || settings?.company_name || 'Global Market'}
+            logoUrl={settings?.logo_url}
+            supportPhone={settings?.company_phone}
+          />
         </div>
       </DialogContent>
     </Dialog>
