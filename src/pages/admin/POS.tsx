@@ -64,6 +64,7 @@ import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
+import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -153,6 +154,7 @@ export default function POS() {
   const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
   const [journalEntryDialogOpen, setJournalEntryDialogOpen] = useState(false);
   const [selectedJournalEntry, setSelectedJournalEntry] = useState<any>(null);
+  const [showSearchAllSales, setShowSearchAllSales] = useState(false);
   
   // Cart resize and drag state
   const [cartWidth, setCartWidth] = useState(() => {
@@ -3218,6 +3220,13 @@ export default function POS() {
       shortcut: null
     },
     { 
+      icon: Search, 
+      label: 'Search Sales', 
+      color: 'bg-[#8B5CF6]', 
+      action: () => setShowSearchAllSales(true),
+      shortcut: null
+    },
+    { 
       icon: Clock, 
       label: 'Pending sales', 
       color: 'bg-[#5DADE2]', 
@@ -4922,6 +4931,12 @@ export default function POS() {
       
       {/* Floating Chat Button */}
       <FloatingChatButton />
+      
+      {/* Search All Sales Dialog */}
+      <SearchAllSalesDialog 
+        open={showSearchAllSales} 
+        onOpenChange={setShowSearchAllSales} 
+      />
     </div>
   );
 }
