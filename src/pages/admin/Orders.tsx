@@ -48,7 +48,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database } from "lucide-react";
+import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
+import { SearchAllSalesDialog } from "@/components/pos/SearchAllSalesDialog";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -97,6 +98,7 @@ export default function AdminOrders() {
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedViewOrder, setSelectedViewOrder] = useState<any>(null);
+  const [showSearchAllSales, setShowSearchAllSales] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -1406,6 +1408,14 @@ export default function AdminOrders() {
               All Orders
             </CardTitle>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowSearchAllSales(true)}
+                className="flex items-center gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Search All Sales
+              </Button>
               <Input
                 placeholder="Search orders..."
                 value={searchQuery}
@@ -2253,6 +2263,13 @@ export default function AdminOrders() {
         }}
         order={selectedViewOrder}
       />
+
+      {/* Search All Sales Dialog */}
+      <SearchAllSalesDialog
+        open={showSearchAllSales}
+        onOpenChange={setShowSearchAllSales}
+      />
+
       {selectedReceiptOrder && (
         <div className="fixed -left-[9999px] top-0 bg-white">
           <Receipt
