@@ -1,6 +1,26 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
+
+const compressImage = (src: string, maxWidth = 200, maxHeight = 80, quality = 0.7): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      if (width > maxWidth) { height = (maxWidth / width) * height; width = maxWidth; }
+      if (height > maxHeight) { width = (maxHeight / height) * width; height = maxHeight; }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+};
 
 interface ReceiptProps {
   transactionNumber: string;
@@ -41,6 +61,14 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     },
     ref
   ) => {
+    const [compressedLogo, setCompressedLogo] = useState<string | undefined>();
+
+    useEffect(() => {
+      if (logoUrl) {
+        compressImage(logoUrl).then(setCompressedLogo);
+      }
+    }, [logoUrl]);
+
     const formatCurrency = (amount: number) => {
       return amount.toLocaleString('fr-CI', { 
         minimumFractionDigits: 0, 
@@ -142,16 +170,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         }
       `}</style>
       <div className="text-center mb-3">
-        {logoUrl && (
+        {compressedLogo && (
           <div className="flex justify-center mb-2">
             <img 
-              src={logoUrl} 
+              src={compressedLogo} 
               alt="Company Logo" 
               style={{ maxHeight: '60px', maxWidth: '150px', width: 'auto' }}
             />
           </div>
         )}
-        <div className={logoUrl ? "mt-2" : ""}>
+        <div className={compressedLogo ? "mt-2" : ""}>
           <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
