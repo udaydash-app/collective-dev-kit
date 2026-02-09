@@ -104,8 +104,10 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             display: block !important;
-            max-height: 80px !important;
+            max-height: 60px !important;
+            max-width: 60mm !important;
             width: auto !important;
+            image-rendering: optimizeSpeed !important;
           }
         }
         .text-center { text-align: center; }
@@ -133,7 +135,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         .ml-2 { margin-left: 8px; }
         .space-y-1 > * + * { margin-top: 4px; }
         img { 
-          max-height: 80px;
+          max-height: 60px;
+          max-width: 150px;
           width: auto;
           object-fit: contain;
         }
@@ -144,7 +147,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <img 
               src={logoUrl} 
               alt="Company Logo" 
-              style={{ maxHeight: '80px', width: 'auto' }}
+              style={{ maxHeight: '60px', maxWidth: '150px', width: 'auto' }}
             />
           </div>
         )}
