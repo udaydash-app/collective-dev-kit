@@ -181,9 +181,11 @@ export default function AdminOrders() {
       }
 
       if (dateRange) {
-        ordersQuery = ordersQuery
-          .gte('created_at', dateRange.start.toISOString())
-          .lte('created_at', dateRange.end.toISOString());
+        // Use OR to include orders created OR updated within the date range
+        // This ensures edited/converted orders appear under today's view
+        ordersQuery = ordersQuery.or(
+          `and(created_at.gte.${dateRange.start.toISOString()},created_at.lte.${dateRange.end.toISOString()}),and(updated_at.gte.${dateRange.start.toISOString()},updated_at.lte.${dateRange.end.toISOString()})`
+        );
       }
 
       const { data: onlineOrders, error: ordersError } = await ordersQuery;
