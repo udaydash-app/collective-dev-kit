@@ -1024,6 +1024,7 @@ export const usePOSTransaction = () => {
 
           if (error) {
             console.error('Database error updating online order:', error);
+            toast.error(`Failed to update online order: ${error.message}`);
             setIsProcessing(false);
             return null;
           }
