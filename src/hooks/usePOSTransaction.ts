@@ -1005,6 +1005,7 @@ export const usePOSTransaction = () => {
         
         // CONVERT MODE: Update existing online order
         if (editingTransactionId && editingTransactionType === 'online') {
+          // 1. Update the order header
           const { data, error } = await supabase
             .from('orders')
             .update({
@@ -1025,6 +1026,43 @@ export const usePOSTransaction = () => {
             console.error('Database error updating online order:', error);
             setIsProcessing(false);
             return null;
+          }
+
+          // 2. Sync order_items: delete old items and insert current cart items
+          try {
+            // Delete existing order items
+            await supabase
+              .from('order_items')
+              .delete()
+              .eq('order_id', editingTransactionId);
+
+            // Insert updated items from cart (skip cart-discount pseudo-items)
+            const orderItems = allItems
+              .filter(item => item.id !== 'cart-discount')
+              .map(item => {
+                const effectivePrice = item.customPrice ?? item.price;
+                const discountPerUnit = item.itemDiscount || 0;
+                const unitPrice = effectivePrice - discountPerUnit;
+                return {
+                  order_id: editingTransactionId,
+                  product_id: item.productId || item.id,
+                  quantity: item.quantity,
+                  unit_price: Math.round(unitPrice * 100) / 100,
+                  subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
+                };
+              });
+
+            if (orderItems.length > 0) {
+              const { error: insertError } = await supabase
+                .from('order_items')
+                .insert(orderItems);
+
+              if (insertError) {
+                console.error('Error syncing order items:', insertError);
+              }
+            }
+          } catch (syncError) {
+            console.error('Error syncing order_items for online order:', syncError);
           }
 
           clearCart();
