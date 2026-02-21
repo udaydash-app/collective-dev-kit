@@ -24,6 +24,7 @@ interface TransactionResult {
   created_at: string;
   customer_id: string | null;
   customer_name: string | null;
+  customer_phone: string | null;
   items: any;
   subtotal: number;
   tax: number;
@@ -62,7 +63,7 @@ export function SearchAllSalesDialog({ open, onOpenChange }: SearchAllSalesDialo
           tax,
           discount,
           notes,
-          contacts:customer_id(name)
+          contacts:customer_id(name, phone)
         `)
         .ilike('transaction_number', `%${searchQuery.trim()}%`)
         .order('created_at', { ascending: false })
@@ -72,7 +73,8 @@ export function SearchAllSalesDialog({ open, onOpenChange }: SearchAllSalesDialo
 
       const formattedResults = (data || []).map(t => ({
         ...t,
-        customer_name: t.contacts?.name || null
+        customer_name: t.contacts?.name || null,
+        customer_phone: t.contacts?.phone || null
       }));
 
       setResults(formattedResults);
@@ -95,6 +97,7 @@ export function SearchAllSalesDialog({ open, onOpenChange }: SearchAllSalesDialo
       id: transaction.id,
       order_number: transaction.transaction_number,
       customer_name: transaction.customer_name,
+      customer_phone: transaction.customer_phone,
       type: 'pos',
       status: 'completed',
       payment_method: transaction.payment_method,
