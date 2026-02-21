@@ -1,5 +1,14 @@
 // @ts-nocheck
 import { useState } from "react";
+import { format } from "date-fns";
+
+const formatDate = (dateStr: string) => {
+  try {
+    return format(new Date(dateStr), 'MMM dd, yyyy');
+  } catch {
+    return dateStr;
+  }
+};
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
