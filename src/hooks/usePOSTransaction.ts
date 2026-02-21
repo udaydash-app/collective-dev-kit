@@ -1033,14 +1033,14 @@ export const usePOSTransaction = () => {
           // This prevents data loss if the insert fails
           try {
             const orderItems = allItems
-              .filter(item => item.id !== 'cart-discount')
+              .filter(item => item.id !== 'cart-discount' && !item.isBogo && !item.isCombo)
               .map(item => {
                 const effectivePrice = item.customPrice ?? item.price;
                 const discountPerUnit = item.itemDiscount || 0;
                 const unitPrice = effectivePrice - discountPerUnit;
                 return {
                   order_id: editingTransactionId,
-                  product_id: item.productId || item.id,
+                  product_id: item.productId,
                   quantity: item.quantity,
                   unit_price: Math.round(unitPrice * 100) / 100,
                   subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
