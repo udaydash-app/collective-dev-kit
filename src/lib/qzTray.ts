@@ -18,6 +18,7 @@ export interface QZReceiptData {
   paymentMethod: string;
   cashierName?: string;
   customerName?: string;
+  customerPhone?: string;
   supportPhone?: string;
 }
 
@@ -146,6 +147,10 @@ class QZTrayService {
     
       if (data.customerName) {
         commands += 'Customer: ' + data.customerName + '\n';
+      }
+
+      if (data.customerPhone) {
+        commands += 'Phone: ' + data.customerPhone + '\n';
       }
     
       // Left align for items
