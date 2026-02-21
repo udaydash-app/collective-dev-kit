@@ -394,7 +394,7 @@ export default function POSLogin() {
       const authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
       const authPassword = `PIN${pinValue.padStart(6, '0')}`;
       
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password: authPassword,
       });
@@ -407,53 +407,43 @@ export default function POSLogin() {
         return;
       }
       
-      // Ensure role exists for existing users
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession?.user) {
+      const authSession = authData?.session;
+      if (authSession?.user) {
+        // Set session in cache immediately
+        queryClient.setQueryData(['session'], authSession);
+        
+        // Check/create role in parallel with navigation prep
         const { data: existingRole } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', currentSession.user.id)
+          .eq('user_id', authSession.user.id)
           .maybeSingle();
         
         if (!existingRole) {
           console.log('No role found, creating cashier role for existing user');
           await supabase
             .from('user_roles')
-            .insert({
-              user_id: currentSession.user.id,
-              role: 'cashier'
-            });
+            .insert({ user_id: authSession.user.id, role: 'cashier' });
+          queryClient.setQueryData(['userRole', authSession.user.id], { role: 'cashier' });
+        } else {
+          queryClient.setQueryData(['userRole', authSession.user.id], existingRole);
         }
-      }
-
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      queryClient.setQueryData(['session'], freshSession);
-      
-      if (freshSession?.user) {
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', freshSession.user.id)
-          .maybeSingle();
-        queryClient.setQueryData(['userRole', freshSession.user.id], roleData);
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
       
-      if (navigator.onLine) {
-        toast.loading('Preparing data for offline use...', { id: 'cache-data' });
-        try {
-          await cacheEssentialData();
-          toast.success('Data cached successfully!', { id: 'cache-data' });
-        } catch (cacheError) {
-          console.error('Error caching data:', cacheError);
-          toast.dismiss('cache-data');
-        }
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Navigate immediately, cache data in background
       navigate('/admin/pos');
+      
+      if (navigator.onLine) {
+        (async () => {
+          try {
+            await cacheEssentialData();
+          } catch (cacheError) {
+            console.error('Error caching data:', cacheError);
+          }
+        })();
+      }
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
