@@ -168,7 +168,7 @@ class QZTrayService {
     
       // Totals
       commands += this.formatLine('Subtotal:', this.formatCurrency(data.subtotal));
-      commands += this.formatLine('Tmbre:', this.formatCurrency(data.tax));
+      commands += this.formatLine('Timbre:', this.formatCurrency(data.tax));
     
       if (data.discount && data.discount > 0) {
         commands += this.formatLine('Discount:', '-' + this.formatCurrency(data.discount));
