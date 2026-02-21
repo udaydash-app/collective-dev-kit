@@ -257,6 +257,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
       <div className="text-center text-xs">
         <p>Thank you for shopping with us!</p>
+        <p className="mt-2" style={{ fontWeight: 'bold' }}>Pay Online by OM & Wave - 07 79 78 47 83, MOMO - 05 46 94 31 31</p>
         {supportPhone && <p className="mt-2">For support: {supportPhone}</p>}
       </div>
       </div>
