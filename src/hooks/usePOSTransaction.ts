@@ -1029,15 +1029,9 @@ export const usePOSTransaction = () => {
             return null;
           }
 
-          // 2. Sync order_items: delete old items and insert current cart items
+          // 2. Sync order_items: insert new items first, then delete old ones
+          // This prevents data loss if the insert fails
           try {
-            // Delete existing order items
-            await supabase
-              .from('order_items')
-              .delete()
-              .eq('order_id', editingTransactionId);
-
-            // Insert updated items from cart (skip cart-discount pseudo-items)
             const orderItems = allItems
               .filter(item => item.id !== 'cart-discount')
               .map(item => {
@@ -1054,16 +1048,40 @@ export const usePOSTransaction = () => {
               });
 
             if (orderItems.length > 0) {
+              // First, get existing item IDs to delete later
+              const { data: existingItems } = await supabase
+                .from('order_items')
+                .select('id')
+                .eq('order_id', editingTransactionId);
+
+              const existingIds = (existingItems || []).map(i => i.id);
+
+              // Insert new items first
               const { error: insertError } = await supabase
                 .from('order_items')
                 .insert(orderItems);
 
               if (insertError) {
-                console.error('Error syncing order items:', insertError);
+                console.error('Error inserting new order items:', insertError);
+                toast.error(`Failed to update order items: ${insertError.message}. Original items preserved.`);
+                // Don't delete old items - they're still valid
+              } else if (existingIds.length > 0) {
+                // Only delete old items after successful insert
+                const { error: deleteError } = await supabase
+                  .from('order_items')
+                  .delete()
+                  .in('id', existingIds);
+
+                if (deleteError) {
+                  console.error('Error removing old order items:', deleteError);
+                }
               }
+            } else {
+              toast.error('No items to save - order items not updated.');
             }
           } catch (syncError) {
             console.error('Error syncing order_items for online order:', syncError);
+            toast.error('Failed to sync order items. Please check the order.');
           }
 
           clearCart();
