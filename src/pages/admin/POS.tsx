@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
 import { barcodeCache } from '@/hooks/useBarcodeCache';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { 
   Search, 
   User, 
@@ -4119,7 +4119,7 @@ export default function POS() {
                                 Transaction
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(entry.created_at), 'MMM dd, HH:mm')}
+                                {formatDateTime(entry.created_at)}
                               </span>
                             </div>
                             <p className="text-xs font-medium truncate">{entry.reference}</p>

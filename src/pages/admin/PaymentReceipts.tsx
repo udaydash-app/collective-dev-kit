@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Receipt, Search, Pencil, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -506,7 +506,7 @@ export default function PaymentReceipts() {
                 receipts?.map((receipt) => (
                   <TableRow key={receipt.id}>
                     <TableCell className="font-medium">{receipt.receipt_number}</TableCell>
-                    <TableCell>{format(new Date(receipt.payment_date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{formatDate(receipt.payment_date)}</TableCell>
                     <TableCell>{receipt.contacts.name}</TableCell>
                     <TableCell className="font-semibold">{formatCurrency(receipt.amount)}</TableCell>
                     <TableCell>

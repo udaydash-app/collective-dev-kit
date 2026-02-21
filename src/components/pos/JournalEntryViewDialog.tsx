@@ -4,9 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { BookOpen, Calendar, FileText, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
-import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -103,7 +102,7 @@ export const JournalEntryViewDialog = ({ isOpen, onClose, entry }: JournalEntryV
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Date:</span>
-                <span className="font-medium">{format(new Date(entry.created_at), 'MMM dd, yyyy HH:mm')}</span>
+                <span className="font-medium">{formatDateTime(entry.created_at)}</span>
               </div>
             </div>
             

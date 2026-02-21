@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, MapPin, CreditCard, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePageView } from "@/hooks/useAnalytics";
 
 interface OrderItem {
@@ -194,11 +194,7 @@ export default function OrderDetails() {
           <div>
             <h1 className="text-2xl font-bold">Order #{order.order_number}</h1>
             <p className="text-sm text-muted-foreground">
-              Placed on {new Date(order.created_at).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              })}
+              Placed on {formatDate(order.created_at)}
             </p>
           </div>
         </div>

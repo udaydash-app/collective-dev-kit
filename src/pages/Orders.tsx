@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Package, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 
 export default function Orders() {
   const { data: orders, isLoading } = useQuery({
@@ -94,7 +94,7 @@ export default function Orders() {
                       <div>
                         <h3 className="font-semibold text-lg">{order.order_number}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                          {formatDate(order.created_at)}
                         </p>
                       </div>
                       <Badge className={getStatusColor(order.status)}>

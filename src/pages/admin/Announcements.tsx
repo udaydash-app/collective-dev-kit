@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 import { Pencil, Trash2, Plus, Megaphone } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import {
@@ -446,11 +447,11 @@ export default function AdminAnnouncements() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Start:</span>{" "}
-                      {new Date(announcement.start_date).toLocaleDateString()}
+                      {formatDate(announcement.start_date)}
                     </div>
                     <div>
                       <span className="text-muted-foreground">End:</span>{" "}
-                      {new Date(announcement.end_date).toLocaleDateString()}
+                      {formatDate(announcement.end_date)}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Display Order:</span>{" "}

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { FileText, Package, AlertTriangle, TrendingUp, Printer, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -686,7 +686,7 @@ export default function InventoryReports() {
             <h3 className="text-2xl">
               {reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
             </h3>
-            <p className="text-sm text-muted-foreground">Generated on {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+            <p className="text-sm text-muted-foreground">Generated on {formatDateTime(new Date())}</p>
           </div>
 
           <Separator className="print-separator" />

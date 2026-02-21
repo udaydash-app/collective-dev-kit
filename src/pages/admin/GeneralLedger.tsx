@@ -26,7 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
@@ -764,7 +764,7 @@ export default function GeneralLedger() {
     // Add transaction rows
     ledgerEntries.forEach((entry: any) => {
       tableData.push([
-        new Date(entry.journal_entries.entry_date).toLocaleDateString(),
+        formatDate(entry.journal_entries.entry_date),
         entry.journal_entries.entry_number,
         entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
         entry.journal_entries.reference || '',
@@ -1055,7 +1055,7 @@ export default function GeneralLedger() {
                     ledgerEntries.map((entry: any) => (
                       <TableRow key={entry.id}>
                         <TableCell>
-                          {new Date(entry.journal_entries.entry_date).toLocaleDateString()}
+                          {formatDate(entry.journal_entries.entry_date)}
                         </TableCell>
                         <TableCell className="font-mono">
                           {entry.journal_entries.entry_number}

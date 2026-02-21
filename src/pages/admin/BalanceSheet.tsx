@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Building2, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function BalanceSheet() {
@@ -334,7 +334,7 @@ export default function BalanceSheet() {
         <div className="bg-muted/50 p-4 border-b text-center">
           <h2 className="text-xl font-bold">BALANCE SHEET</h2>
           <p className="text-sm text-muted-foreground">
-            As at {new Date(asOfDate).toLocaleDateString()}
+            As at {formatDate(asOfDate)}
           </p>
         </div>
 
@@ -637,8 +637,8 @@ export default function BalanceSheet() {
 
       {/* Report Footer */}
       <Card className="p-4 text-center text-sm text-muted-foreground">
-        <p>Report generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
-        <p>As at {new Date(asOfDate).toLocaleDateString()}</p>
+        <p>Report generated on {formatDateTime(new Date())}</p>
+        <p>As at {formatDate(asOfDate)}</p>
       </Card>
     </div>
   );

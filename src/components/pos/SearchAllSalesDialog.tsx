@@ -6,8 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { Search, Loader2, Receipt, User, Calendar, CreditCard, DollarSign, Smartphone, FileText } from 'lucide-react';
 import { OrderViewDialog } from './OrderViewDialog';
 
@@ -188,7 +187,7 @@ export function SearchAllSalesDialog({ open, onOpenChange }: SearchAllSalesDialo
                               <p className="font-semibold text-sm">{transaction.transaction_number}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                 <Calendar className="h-3 w-3" />
-                                <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm')}</span>
+                                <span>{formatDateTime(transaction.created_at)}</span>
                               </div>
                             </div>
                           </div>
