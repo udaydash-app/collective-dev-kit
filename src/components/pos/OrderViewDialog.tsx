@@ -383,6 +383,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             subtotal={order.subtotal}
             discount={order.discount || 0}
             customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
+            customerPhone={order.customer_phone}
             tax={order.tax || 0}
             total={order.total}
             paymentMethod={(order.payment_method || 'cash').toUpperCase()}
