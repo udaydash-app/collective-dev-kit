@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus, Pencil, Trash2, Tag, Package, Gift, ChevronDown } from "lucide-react";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { useNavigate } from "react-router-dom";
 
@@ -284,10 +284,10 @@ export default function AdminOffers() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(offer.start_date), "MMM dd, yyyy")}
+                    {formatDate(offer.start_date)}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(offer.end_date), "MMM dd, yyyy")}
+                    {formatDate(offer.end_date)}
                   </TableCell>
                   <TableCell>
                     <span

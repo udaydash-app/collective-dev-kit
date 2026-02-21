@@ -25,6 +25,7 @@ import { PurchaseOrderDialog } from "@/components/admin/PurchaseOrderDialog";
 import { QuoteReviewDialog } from "@/components/admin/QuoteReviewDialog";
 import { ConvertToPurchaseDialog } from "@/components/admin/ConvertToPurchaseDialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { formatDate } from "@/lib/utils";
 import { format } from "date-fns";
 
 export default function PurchaseOrders() {
@@ -178,9 +179,9 @@ export default function PurchaseOrders() {
                   <TableCell>{po.purchase_order_items?.length || 0} items</TableCell>
                   <TableCell>{getStatusBadge(po.status)}</TableCell>
                   <TableCell>
-                    {po.valid_until ? format(new Date(po.valid_until), "PP") : "-"}
+                    {po.valid_until ? formatDate(po.valid_until) : "-"}
                   </TableCell>
-                  <TableCell>{format(new Date(po.created_at), "PP")}</TableCell>
+                  <TableCell>{formatDate(po.created_at)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

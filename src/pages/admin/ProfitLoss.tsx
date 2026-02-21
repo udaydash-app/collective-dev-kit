@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { TrendingUp, Download, Calendar, FileSpreadsheet } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function ProfitLoss() {
@@ -391,7 +391,7 @@ export default function ProfitLoss() {
         <div className="bg-primary/5 p-4 border-b">
           <h2 className="text-xl font-bold text-center">PROFIT & LOSS ACCOUNT</h2>
           <p className="text-sm text-muted-foreground text-center">
-            For the period {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+            For the period {formatDate(startDate)} to {formatDate(endDate)}
           </p>
         </div>
         
@@ -635,7 +635,7 @@ export default function ProfitLoss() {
 
       {/* Report Footer */}
       <Card className="p-4 text-center text-sm text-muted-foreground">
-        <p>Report generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+        <p>Report generated on {formatDateTime(new Date())}</p>
       </Card>
     </div>
   );

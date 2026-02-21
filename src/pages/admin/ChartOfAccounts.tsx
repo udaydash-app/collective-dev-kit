@@ -33,6 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Pencil, Trash2, BookOpen, Merge, Filter, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { formatDate } from '@/lib/utils';
 import { MergeAccountsDialog } from '@/components/admin/MergeAccountsDialog';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
@@ -394,7 +395,7 @@ export default function ChartOfAccounts() {
       'Description': account.description || '',
       'Current Balance': account.current_balance,
       'Status': account.is_active ? 'Active' : 'Inactive',
-      'Created At': new Date(account.created_at).toLocaleDateString(),
+      'Created At': formatDate(account.created_at),
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);

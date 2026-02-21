@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 import { CheckCircle, Package } from "lucide-react";
 
 const currencies = ["USD", "EUR", "INR", "FCFA", "GBP", "JPY", "CNY"];
@@ -337,7 +338,7 @@ export default function SupplierQuoteForm() {
               {poData.valid_until && (
                 <div>
                   <span className="text-muted-foreground">Valid Until:</span>
-                  <span className="ml-2">{format(new Date(poData.valid_until), "PP")}</span>
+                  <span className="ml-2">{formatDate(poData.valid_until)}</span>
                 </div>
               )}
             </div>

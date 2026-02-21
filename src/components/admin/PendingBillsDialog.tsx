@@ -4,8 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { formatCurrency } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { FileText, ShoppingCart, Receipt } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
@@ -153,7 +152,7 @@ export default function PendingBillsDialog({
                               <div className="text-left">
                                 <p className="font-medium">{transaction.transaction_number}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  {format(new Date(transaction.created_at), 'MMM dd, yyyy')}
+                                  {formatDate(transaction.created_at)}
                                 </p>
                               </div>
                             </div>
@@ -220,7 +219,7 @@ export default function PendingBillsDialog({
                               <div className="text-left">
                                 <p className="font-medium">{order.order_number}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                                  {formatDate(order.created_at)}
                                 </p>
                               </div>
                             </div>

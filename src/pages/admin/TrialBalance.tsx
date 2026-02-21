@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function TrialBalance() {
@@ -206,7 +206,7 @@ export default function TrialBalance() {
         <div className="bg-muted/50 p-4 border-b text-center">
           <h2 className="text-xl font-bold">TRIAL BALANCE</h2>
           <p className="text-sm text-muted-foreground">
-            As at {new Date(asOfDate).toLocaleDateString()}
+            As at {formatDate(asOfDate)}
           </p>
         </div>
 
@@ -303,8 +303,8 @@ export default function TrialBalance() {
 
       {/* Report Footer */}
       <Card className="p-4 text-center text-sm text-muted-foreground">
-        <p>Report generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
-        <p>As at {new Date(asOfDate).toLocaleDateString()}</p>
+        <p>Report generated on {formatDateTime(new Date())}</p>
+        <p>As at {formatDate(asOfDate)}</p>
       </Card>
     </div>
   );

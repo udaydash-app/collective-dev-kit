@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -392,7 +392,7 @@ export default function Expenses() {
                     
                     return (
                       <TableRow key={expense.id}>
-                        <TableCell>{format(new Date(expense.expense_date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>{formatDate(expense.expense_date)}</TableCell>
                         <TableCell>
                           <span className="px-2 py-1 bg-accent rounded-md text-sm">
                             {expense.category}

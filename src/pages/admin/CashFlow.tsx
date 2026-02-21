@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Droplets, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function CashFlow() {
@@ -261,8 +261,8 @@ export default function CashFlow() {
         <div className="p-6">
           <h2 className="text-xl font-bold mb-4">Statement of Cash Flows</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            For the period {new Date(startDate).toLocaleDateString()} to{' '}
-            {new Date(endDate).toLocaleDateString()}
+            For the period {formatDate(startDate)} to{' '}
+            {formatDate(endDate)}
           </p>
 
           <Table>
@@ -294,7 +294,7 @@ export default function CashFlow() {
                           <div>
                             <p>{item.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(item.date).toLocaleDateString()}
+                              {formatDate(item.date)}
                             </p>
                           </div>
                         </TableCell>
@@ -341,7 +341,7 @@ export default function CashFlow() {
                           <div>
                             <p>{item.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(item.date).toLocaleDateString()}
+                              {formatDate(item.date)}
                             </p>
                           </div>
                         </TableCell>
@@ -388,7 +388,7 @@ export default function CashFlow() {
                           <div>
                             <p>{item.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(item.date).toLocaleDateString()}
+                              {formatDate(item.date)}
                             </p>
                           </div>
                         </TableCell>
@@ -454,8 +454,7 @@ export default function CashFlow() {
       {/* Report Footer */}
       <Card className="p-4 text-center text-sm text-muted-foreground">
         <p>
-          Report generated on {new Date().toLocaleDateString()} at{' '}
-          {new Date().toLocaleTimeString()}
+          Report generated on {formatDateTime(new Date())}
         </p>
         <p className="mt-1">
           Note: Cash flow categorization is simplified. For accurate reporting, ensure proper

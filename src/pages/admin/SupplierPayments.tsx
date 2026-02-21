@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Search, DollarSign, Pencil, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -344,7 +344,7 @@ export default function SupplierPayments() {
                 payments?.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">{payment.payment_number}</TableCell>
-                    <TableCell>{format(new Date(payment.payment_date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{formatDate(payment.payment_date)}</TableCell>
                     <TableCell>{payment.contacts.name}</TableCell>
                     <TableCell>
                       {payment.purchases?.purchase_number ? (
