@@ -33,6 +33,7 @@ interface ReceiptProps {
   date: Date;
   cashierName?: string;
   customerName?: string;
+  customerPhone?: string;
   storeName?: string;
   logoUrl?: string;
   supportPhone?: string;
@@ -53,6 +54,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       date,
       cashierName,
       customerName,
+      customerPhone,
       storeName,
       logoUrl,
       supportPhone,
@@ -185,6 +187,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
           <p className="text-xs">{formatDateTime(date)}</p>
           <p className="text-xs font-semibold mt-2 mb-2">Customer: {customerName || 'Walk-in Customer'}</p>
+          {customerPhone && <p className="text-xs">Phone: {customerPhone}</p>}
         </div>
       </div>
 

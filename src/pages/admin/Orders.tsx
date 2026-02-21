@@ -679,6 +679,7 @@ export default function AdminOrders() {
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
         customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
+        customerPhone: order.customer_phone || undefined,
         logoUrl: settings?.logo_url || undefined,
         supportPhone: settings?.company_phone || undefined,
         customerBalance: order.customerBalance
@@ -826,6 +827,7 @@ export default function AdminOrders() {
             date={new Date(order.created_at)}
             cashierName={order.type === 'pos' ? order.cashier_name : undefined}
             customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
+            customerPhone={order.customer_phone || undefined}
             storeName={order.stores?.name || settings?.company_name}
             logoUrl={settings?.logo_url}
             supportPhone={settings?.company_phone}

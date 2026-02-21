@@ -2558,6 +2558,7 @@ export default function POS() {
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       customerName: selectedCustomer?.name,
+      customerPhone: selectedCustomer?.phone,
       customerBalance: undefined, // Will be fetched after transaction for credit payments
       isUnifiedBalance: false,
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
@@ -2686,6 +2687,7 @@ export default function POS() {
         paymentMethod: completeTransactionData.paymentMethod,
         cashierName: completeTransactionData.cashierName,
         customerName: completeTransactionData.customerName,
+        customerPhone: completeTransactionData.customerPhone,
         customerBalance: completeTransactionData.customerBalance,
         supportPhone: completeTransactionData.supportPhone,
         isUnifiedBalance: completeTransactionData.isUnifiedBalance,
@@ -3033,6 +3035,7 @@ export default function POS() {
             date={lastTransactionData.date}
             cashierName={lastTransactionData.cashierName}
             customerName={lastTransactionData.customerName}
+            customerPhone={lastTransactionData.customerPhone}
             storeName={lastTransactionData.storeName}
             logoUrl={lastTransactionData.logoUrl}
             supportPhone={lastTransactionData.supportPhone}
@@ -3140,6 +3143,7 @@ export default function POS() {
         paymentMethod: lastTransactionData.paymentMethod,
         cashierName: lastTransactionData.cashierName,
         customerName: lastTransactionData.customerName,
+        customerPhone: lastTransactionData.customerPhone,
         customerBalance: lastTransactionData.customerBalance,
         logoUrl: lastTransactionData.logoUrl,
         supportPhone: lastTransactionData.supportPhone
@@ -4787,6 +4791,7 @@ export default function POS() {
               date={new Date()}
               cashierName={lastTransactionData.cashierName}
               customerName={lastTransactionData.customerName}
+              customerPhone={lastTransactionData.customerPhone}
               customerBalance={lastTransactionData.customerBalance}
               isUnifiedBalance={lastTransactionData.isUnifiedBalance}
               storeName={lastTransactionData.storeName}
