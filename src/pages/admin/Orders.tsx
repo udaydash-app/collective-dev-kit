@@ -2290,6 +2290,7 @@ export default function AdminOrders() {
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
             customerName={selectedReceiptOrder.customer_name && selectedReceiptOrder.customer_name !== 'Walk-in Customer' ? selectedReceiptOrder.customer_name : undefined}
+            customerPhone={selectedReceiptOrder.customer_phone || undefined}
             tax={Number(selectedReceiptOrder.tax || 0)}
             total={Number(selectedReceiptOrder.total)}
             paymentMethod={(selectedReceiptOrder.payment_method || 'Online').toUpperCase()}
