@@ -1,0 +1,1 @@
+UPDATE products SET is_available_online = true WHERE id = 'b134ffc7-20e6-44d7-8cdc-e84ecbdce94c';
