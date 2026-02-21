@@ -194,6 +194,11 @@ class QZTrayService {
       // Center align for footer
       commands += ESC + 'a' + '1';
       commands += 'Thank you for shopping with us!\n';
+      commands += ESC + '!' + '\x08'; // Bold
+      commands += 'Pay Online by OM & Wave\n';
+      commands += '07 79 78 47 83\n';
+      commands += 'MOMO - 05 46 94 31 31\n';
+      commands += ESC + '!' + '\x00'; // Reset
     
       if (data.supportPhone) {
         commands += 'For support: ' + data.supportPhone + '\n';
