@@ -106,12 +106,46 @@ export default function AdminOrders() {
   // Enable real-time sync for automatic updates
   useRealtimeSync();
 
-  const toggleOrderExpanded = (orderId: string) => {
+  const toggleOrderExpanded = async (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
     if (newExpanded.has(orderId)) {
       newExpanded.delete(orderId);
     } else {
       newExpanded.add(orderId);
+      // Fetch fresh items when expanding to reflect edits
+      const order = orders?.find((o: any) => o.id === orderId);
+      if (order) {
+        if (order.type === 'pos') {
+          const { data: freshTx } = await supabase
+            .from('pos_transactions')
+            .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+            .eq('id', orderId)
+            .single();
+          if (freshTx) {
+            Object.assign(order, {
+              items: freshTx.items || [],
+              subtotal: freshTx.subtotal,
+              tax: freshTx.tax,
+              discount: freshTx.discount || 0,
+              total: freshTx.total,
+              payment_method: freshTx.payment_method,
+              payment_details: freshTx.payment_details,
+            });
+          }
+        } else {
+          const { data: freshItems } = await supabase
+            .from('order_items')
+            .select('*, products(id, name, image_url, price, unit)')
+            .eq('order_id', orderId);
+          const { data: freshOrd } = await supabase
+            .from('orders')
+            .select('subtotal, tax, total, delivery_fee, status')
+            .eq('id', orderId)
+            .single();
+          if (freshItems) order.items = freshItems;
+          if (freshOrd) Object.assign(order, freshOrd);
+        }
+      }
     }
     setExpandedOrders(newExpanded);
   };
