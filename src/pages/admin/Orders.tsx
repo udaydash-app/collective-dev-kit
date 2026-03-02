@@ -842,7 +842,7 @@ export default function AdminOrders() {
       items: order.items.map((item: any) => {
         // For POS items: item.id IS the product ID
         // For online orders: item.products.id is the product ID
-        const productId = item.id || item.products?.id || item.productId || item.product_id;
+        const productId = item.product_id || item.products?.id || item.productId || item.id;
         console.log('🔧 Mapping item:', {
           itemId: item.id,
           productsId: item.products?.id,
@@ -1027,15 +1027,40 @@ export default function AdminOrders() {
           .eq('id', itemId)
           .single();
 
+        if (!item) throw new Error('Item not found');
+
+        const newSubtotal = Number(item.unit_price || 0) * quantity;
         const { error } = await supabase
           .from('order_items')
           .update({ 
             quantity,
-            subtotal: Number(item?.unit_price || 0) * quantity
+            subtotal: newSubtotal
           })
           .eq('id', itemId);
 
         if (error) throw error;
+
+        // Recalculate order totals
+        const { data: allItems } = await supabase
+          .from('order_items')
+          .select('subtotal')
+          .eq('order_id', orderId);
+
+        const orderSubtotal = allItems?.reduce((sum, i) => sum + Number(i.subtotal), 0) || 0;
+        
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('delivery_fee, tax')
+          .eq('id', orderId)
+          .single();
+
+        const deliveryFee = Number(orderData?.delivery_fee || 0);
+        const total = orderSubtotal + deliveryFee;
+
+        await supabase
+          .from('orders')
+          .update({ subtotal: orderSubtotal, total })
+          .eq('id', orderId);
       }
     },
     onSuccess: () => {
@@ -1092,6 +1117,28 @@ export default function AdminOrders() {
           .eq('id', itemId);
 
         if (error) throw error;
+
+        // Recalculate order totals after deletion
+        const { data: remainingItems } = await supabase
+          .from('order_items')
+          .select('subtotal')
+          .eq('order_id', orderId);
+
+        const orderSubtotal = remainingItems?.reduce((sum, i) => sum + Number(i.subtotal), 0) || 0;
+        
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('delivery_fee')
+          .eq('id', orderId)
+          .single();
+
+        const deliveryFee = Number(orderData?.delivery_fee || 0);
+        const total = orderSubtotal + deliveryFee;
+
+        await supabase
+          .from('orders')
+          .update({ subtotal: orderSubtotal, total })
+          .eq('id', orderId);
       }
     },
     onSuccess: () => {
