@@ -642,15 +642,38 @@ export default function AdminOrders() {
   };
 
   const handleReceiptClick = async (orderId: string) => {
-    const order = orders?.find(o => o.id === orderId);
-    if (!order) {
+    const cachedOrder = orders?.find(o => o.id === orderId);
+    if (!cachedOrder) {
       toast.error('Order not found');
       return;
     }
+
+    let freshOrder = { ...cachedOrder };
+
+    // For POS transactions, always fetch the latest items from DB to reflect edits
+    if (cachedOrder.type === 'pos') {
+      const { data: freshTx } = await supabase
+        .from('pos_transactions')
+        .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+        .eq('id', orderId)
+        .single();
+      if (freshTx) {
+        freshOrder = {
+          ...freshOrder,
+          items: freshTx.items || [],
+          subtotal: freshTx.subtotal,
+          tax: freshTx.tax,
+          discount: freshTx.discount || 0,
+          total: freshTx.total,
+          payment_method: freshTx.payment_method,
+          payment_details: freshTx.payment_details,
+        };
+      }
+    }
     
     // Fetch customer balance
-    const customerBalance = await fetchCustomerBalance(order.customer_name);
-    setSelectedReceiptOrder({ ...order, customerBalance });
+    const customerBalance = await fetchCustomerBalance(cachedOrder.customer_name);
+    setSelectedReceiptOrder({ ...freshOrder, customerBalance });
     setShowReceiptOptions(true);
   };
 
