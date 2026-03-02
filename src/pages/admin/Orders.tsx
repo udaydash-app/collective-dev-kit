@@ -650,7 +650,7 @@ export default function AdminOrders() {
 
     let freshOrder = { ...cachedOrder };
 
-    // For POS transactions, always fetch the latest items from DB to reflect edits
+    // Always fetch the latest data from DB to reflect edits
     if (cachedOrder.type === 'pos') {
       const { data: freshTx } = await supabase
         .from('pos_transactions')
@@ -667,6 +667,30 @@ export default function AdminOrders() {
           total: freshTx.total,
           payment_method: freshTx.payment_method,
           payment_details: freshTx.payment_details,
+        };
+      }
+    } else {
+      // For online orders, fetch fresh order_items and order totals
+      const [itemsResult, orderResult] = await Promise.all([
+        supabase
+          .from('order_items')
+          .select('*, products(id, name, image_url, price, unit)')
+          .eq('order_id', orderId),
+        supabase
+          .from('orders')
+          .select('subtotal, tax, total, delivery_fee, status')
+          .eq('id', orderId)
+          .single()
+      ]);
+      if (itemsResult.data) {
+        freshOrder = { ...freshOrder, items: itemsResult.data };
+      }
+      if (orderResult.data) {
+        freshOrder = {
+          ...freshOrder,
+          subtotal: orderResult.data.subtotal,
+          tax: orderResult.data.tax,
+          total: orderResult.data.total,
         };
       }
     }
@@ -1694,8 +1718,30 @@ export default function AdminOrders() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  setSelectedViewOrder(order);
+                                onClick={async () => {
+                                  let freshView = { ...order };
+                                  // For online orders, fetch fresh items from DB
+                                  if (order.type !== 'pos') {
+                                    const { data: freshItems } = await supabase
+                                      .from('order_items')
+                                      .select('*, products(id, name, image_url, price, unit)')
+                                      .eq('order_id', order.id);
+                                    const { data: freshOrd } = await supabase
+                                      .from('orders')
+                                      .select('subtotal, tax, total, delivery_fee, status')
+                                      .eq('id', order.id)
+                                      .single();
+                                    if (freshItems) freshView = { ...freshView, items: freshItems };
+                                    if (freshOrd) freshView = { ...freshView, ...freshOrd };
+                                  } else {
+                                    const { data: freshTx } = await supabase
+                                      .from('pos_transactions')
+                                      .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+                                      .eq('id', order.id)
+                                      .single();
+                                    if (freshTx) freshView = { ...freshView, ...freshTx, items: freshTx.items || [] };
+                                  }
+                                  setSelectedViewOrder(freshView);
                                   setViewDialogOpen(true);
                                 }}
                               >
