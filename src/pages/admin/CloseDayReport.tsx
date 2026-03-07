@@ -1041,10 +1041,10 @@ export default function CloseDayReport() {
                           <div className="space-y-1">
                             {order.items?.map((item: any, itemIndex: number) => {
                               const qty = Math.abs(item.quantity || 0);
-                              const unitPrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
+                              const basePrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
                                 ? Math.abs(item.customPrice)
                                 : (item.price || 0);
-                              const itemTotal = unitPrice * qty;
+                              const itemTotal = Math.max(0, basePrice - Math.abs(item.itemDiscount || 0)) * qty;
                               return (
                                 <div key={itemIndex} className="flex justify-between text-sm text-muted-foreground pl-4">
                                   <span>
