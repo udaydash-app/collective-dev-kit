@@ -758,7 +758,105 @@ export default function CloseDayReport() {
       );
     }
 
-    // Sales by Product Report
+    // Sales by Product — Detailed (single product) Report
+    if (reportData.type === 'sales-by-product-detail') {
+      const { productName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      return (
+        <div className="space-y-4">
+          {/* Product Info & Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                {productName} — Sales Report
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {formatDate(startDate)}{startDate !== endDate ? ` – ${formatDate(endDate)}` : ''}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(summary.totalRevenue)}</p>
+                </div>
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Qty Sold</p>
+                  <p className="text-2xl font-bold">{summary.totalQuantity}</p>
+                </div>
+                <div className="p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Profit</p>
+                  <p className={`text-2xl font-bold ${summary.totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {formatCurrency(summary.totalProfit)}
+                  </p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total COGS</p>
+                  <p className="text-2xl font-bold">{formatCurrency(summary.totalCOGS)}</p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Profit Margin</p>
+                  <p className={`text-2xl font-bold ${summary.avgProfitMargin >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {summary.avgProfitMargin.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Profit/Unit</p>
+                  <p className={`text-2xl font-bold ${summary.avgUnitProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {formatCurrency(summary.avgUnitProfit)}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm border-t pt-3">
+                <div><span className="text-muted-foreground">Selling Price: </span><span className="font-semibold">{formatCurrency(sellingPrice)}</span></div>
+                <div><span className="text-muted-foreground">Cost Price: </span><span className="font-semibold">{formatCurrency(costPrice)}</span></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transaction Detail Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {entries.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No transactions found for this product in the selected date range.</p>
+              ) : (
+                <div className="space-y-1">
+                  <div className="grid grid-cols-7 gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase">
+                    <div className="col-span-2">Date / Txn</div>
+                    <div className="text-right">Qty</div>
+                    <div className="text-right">Unit Price</div>
+                    <div className="text-right">Revenue</div>
+                    <div className="text-right">COGS</div>
+                    <div className="text-right">Profit</div>
+                  </div>
+                  {entries.map((entry: any, index: number) => (
+                    <div key={index} className="grid grid-cols-7 gap-2 py-2 border-b text-sm">
+                      <div className="col-span-2">
+                        <p className="font-medium">{format(new Date(entry.date), 'dd MMM yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{entry.transactionNumber}</p>
+                      </div>
+                      <div className="text-right">{entry.quantity}</div>
+                      <div className="text-right">{formatCurrency(entry.unitPrice)}</div>
+                      <div className="text-right font-semibold">{formatCurrency(entry.revenue)}</div>
+                      <div className="text-right text-muted-foreground">{formatCurrency(entry.cogs)}</div>
+                      <div className={`text-right font-semibold ${entry.profit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {formatCurrency(entry.profit)}
+                        <span className="block text-xs font-normal text-muted-foreground">{entry.profitMargin.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Sales by Product Report (all products summary)
     if (reportData.type === 'sales-by-product') {
       const data = reportData.data as Array<{ name: string; quantity: number; revenue: number; transactions: number }>;
       const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
