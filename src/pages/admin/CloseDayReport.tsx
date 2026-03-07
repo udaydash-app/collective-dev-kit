@@ -1309,65 +1309,66 @@ export default function CloseDayReport() {
 
           {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-4">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filters</p>
-              {/* Product selector */}
-              <div className="space-y-1.5">
-                <Label className="text-sm text-muted-foreground">Product <span className="text-muted-foreground/60">(optional)</span></Label>
-                <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={productComboOpen}
-                      className="w-full justify-between font-normal h-10"
-                    >
-                      {selectedProductId && selectedProductId !== 'all'
-                        ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
-                        : 'All Products'}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search product..." />
-                      <CommandList>
-                        <CommandEmpty>No product found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="all"
-                            onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); setSelectedCustomerId(''); }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
-                            All Products
-                          </CommandItem>
-                          {products?.map((p) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Product selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-muted-foreground">Product <span className="text-muted-foreground/60">(optional)</span></Label>
+                  <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={productComboOpen}
+                        className="w-full justify-between font-normal h-10"
+                      >
+                        {selectedProductId && selectedProductId !== 'all'
+                          ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
+                          : 'All Products'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search product..." />
+                        <CommandList>
+                          <CommandEmpty>No product found.</CommandEmpty>
+                          <CommandGroup>
                             <CommandItem
-                              key={p.id}
-                              value={p.name}
-                              onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
+                              value="all"
+                              onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); setSelectedCustomerId(''); }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                              {p.name}
+                              <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
+                              All Products
                             </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                            {products?.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.name}
+                                onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              {/* Customer filter — only shown when a specific product is selected */}
-              {selectedProductId && selectedProductId !== 'all' && (
+                {/* Customer filter — always visible when sales-by-product, enabled only when product selected */}
                 <div className="space-y-1.5">
                   <Label className="text-sm text-muted-foreground">Customer <span className="text-muted-foreground/60">(optional)</span></Label>
-                  <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
+                  <Popover open={customerComboOpen} onOpenChange={(open) => { if (!selectedProductId || selectedProductId === 'all') return; setCustomerComboOpen(open); }}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={customerComboOpen}
+                        disabled={!selectedProductId || selectedProductId === 'all'}
                         className="w-full justify-between font-normal h-10"
                       >
                         {selectedCustomerId && selectedCustomerId !== 'all'
@@ -1405,7 +1406,7 @@ export default function CloseDayReport() {
                     </PopoverContent>
                   </Popover>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
