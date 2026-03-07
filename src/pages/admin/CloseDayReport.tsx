@@ -131,16 +131,28 @@ export default function CloseDayReport() {
             .eq('id', selectedProductId)
             .single();
 
-          const { data: transactions } = await supabase
+          let txQuery = supabase
             .from('pos_transactions')
-            .select('id, items, total, created_at, transaction_number')
+            .select('id, items, total, created_at, transaction_number, customer_id, contacts:customer_id(name)')
             .eq('store_id', selectedStoreId)
             .gte('created_at', `${startDate}T00:00:00`)
             .lte('created_at', `${endDate}T23:59:59`);
 
+          // Filter by customer if selected
+          if (selectedCustomerId && selectedCustomerId !== 'all') {
+            txQuery = txQuery.eq('customer_id', selectedCustomerId);
+          }
+
+          const { data: transactions } = await txQuery;
+
+          const selectedCustomerName = selectedCustomerId && selectedCustomerId !== 'all'
+            ? customers?.find(c => c.id === selectedCustomerId)?.name || 'Unknown Customer'
+            : null;
+
           const salesEntries: Array<{
             date: string;
             transactionNumber: string;
+            customerName: string;
             quantity: number;
             unitPrice: number;
             revenue: number;
@@ -152,6 +164,7 @@ export default function CloseDayReport() {
 
           transactions?.forEach((t: any) => {
             const items = t.items || [];
+            const customerName = (t.contacts as any)?.name || 'Walk-in';
             items.forEach((item: any) => {
               const itemProductId = item.productId || item.product_id;
               if (itemProductId !== selectedProductId && item.name !== productInfo?.name) return;
@@ -170,6 +183,7 @@ export default function CloseDayReport() {
               salesEntries.push({
                 date: t.created_at,
                 transactionNumber: t.transaction_number,
+                customerName,
                 quantity: qty,
                 unitPrice,
                 revenue,
@@ -191,6 +205,7 @@ export default function CloseDayReport() {
           return {
             type: 'sales-by-product-detail',
             productName: productInfo?.name || 'Unknown Product',
+            filterCustomerName: selectedCustomerName,
             costPrice: productInfo?.cost_price || 0,
             sellingPrice: productInfo?.price || 0,
             entries: salesEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
