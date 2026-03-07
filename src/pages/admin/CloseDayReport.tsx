@@ -1216,31 +1216,39 @@ export default function CloseDayReport() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
+      {/* Page Header */}
       <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">Reports</h1>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Generate and analyse business reports</p>
+        </div>
         <div className="flex items-center gap-2">
           <ReturnToPOSButton />
           {showReport && (
-            <Button onClick={handlePrint}>
+            <Button onClick={handlePrint} variant="outline" size="sm">
               <Printer className="h-4 w-4 mr-2" />
-              Print Report
+              Print
             </Button>
           )}
         </div>
       </div>
 
       {/* Report Parameters */}
-      <Card className="no-print">
-        <CardHeader>
-          <CardTitle>Report Parameters</CardTitle>
+      <Card className="no-print border-2 border-border/60 shadow-sm">
+        <CardHeader className="pb-3 bg-muted/30 border-b">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Report Parameters
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-5 space-y-5">
+          {/* Row 1: Store + Report Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="store">Store *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="store" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Store *</Label>
               <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select store" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1253,38 +1261,66 @@ export default function CloseDayReport() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="reportType">Report Type *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="reportType" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Report Type *</Label>
               <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); setSelectedCustomerId(''); }}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily-summary">Daily Summary</SelectItem>
-                  <SelectItem value="sales-by-category">Sales by Category</SelectItem>
-                  <SelectItem value="sales-by-product">Sales by Product</SelectItem>
-                  <SelectItem value="sales-by-customer">Sales by Customer</SelectItem>
-                  <SelectItem value="purchases-by-category">Purchases by Category</SelectItem>
-                  <SelectItem value="purchases-by-supplier">Purchases by Supplier</SelectItem>
-                  <SelectItem value="purchases-by-product">Purchases by Product</SelectItem>
+                  <SelectItem value="daily-summary">📊 Daily Summary</SelectItem>
+                  <SelectItem value="sales-by-category">🏷️ Sales by Category</SelectItem>
+                  <SelectItem value="sales-by-product">📦 Sales by Product</SelectItem>
+                  <SelectItem value="sales-by-customer">👤 Sales by Customer</SelectItem>
+                  <SelectItem value="purchases-by-category">🗂️ Purchases by Category</SelectItem>
+                  <SelectItem value="purchases-by-supplier">🏭 Purchases by Supplier</SelectItem>
+                  <SelectItem value="purchases-by-product">📋 Purchases by Product</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {/* Row 2: Date Range */}
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date Range *</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="startDate" className="text-sm text-muted-foreground">From</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="endDate" className="text-sm text-muted-foreground">To</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
-            <div className="space-y-4">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filters</p>
               {/* Product selector */}
-              <div className="space-y-2">
-                <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm text-muted-foreground">Product <span className="text-muted-foreground/60">(optional)</span></Label>
                 <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={productComboOpen}
-                      className="w-full justify-between font-normal"
+                      className="w-full justify-between font-normal h-10"
                     >
                       {selectedProductId && selectedProductId !== 'all'
                         ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
@@ -1324,15 +1360,15 @@ export default function CloseDayReport() {
 
               {/* Customer filter — only shown when a specific product is selected */}
               {selectedProductId && selectedProductId !== 'all' && (
-                <div className="space-y-2">
-                  <Label>Filter by Customer <span className="text-muted-foreground font-normal">(optional — leave blank for all customers)</span></Label>
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-muted-foreground">Customer <span className="text-muted-foreground/60">(optional)</span></Label>
                   <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={customerComboOpen}
-                        className="w-full justify-between font-normal"
+                        className="w-full justify-between font-normal h-10"
                       >
                         {selectedCustomerId && selectedCustomerId !== 'all'
                           ? customers?.find(c => c.id === selectedCustomerId)?.name ?? 'All Customers'
@@ -1372,32 +1408,10 @@ export default function CloseDayReport() {
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <Button onClick={handleGenerateReport} disabled={isLoading} className="w-full">
+          <Button onClick={handleGenerateReport} disabled={isLoading} className="w-full h-11 text-base font-semibold">
             <FileText className="h-4 w-4 mr-2" />
-            {isLoading ? 'Generating...' : 'Generate Report'}
+            {isLoading ? 'Generating Report…' : 'Generate Report'}
           </Button>
         </CardContent>
       </Card>
