@@ -64,8 +64,21 @@ export default function CloseDayReport() {
     },
   });
 
+  const { data: customers } = useQuery<Array<{id: string; name: string}>>({
+    queryKey: ['customers-for-report'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .eq('is_customer', true)
+        .order('name');
+      if (error) console.error('Customers fetch error:', error);
+      return (data as any[]) || [];
+    },
+  });
+
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
