@@ -1658,13 +1658,12 @@ export default function CloseDayReport() {
                 {/* Customer filter — always visible when sales-by-product, enabled only when product selected */}
                 <div className="space-y-1.5">
                   <Label className="text-sm text-muted-foreground">Customer <span className="text-muted-foreground/60">(optional)</span></Label>
-                  <Popover open={customerComboOpen} onOpenChange={(open) => { if (!selectedProductId || selectedProductId === 'all') return; setCustomerComboOpen(open); }}>
+                  <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={customerComboOpen}
-                        disabled={!selectedProductId || selectedProductId === 'all'}
                         className="w-full justify-between font-normal h-10"
                       >
                         {selectedCustomerId && selectedCustomerId !== 'all'
