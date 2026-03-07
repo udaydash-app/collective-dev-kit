@@ -1194,7 +1194,7 @@ export default function CloseDayReport() {
 
             <div className="space-y-2">
               <Label htmlFor="reportType">Report Type *</Label>
-              <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
+              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
@@ -1210,6 +1210,39 @@ export default function CloseDayReport() {
               </Select>
             </div>
           </div>
+
+          {/* Product Selector — shown only for Sales by Product */}
+          {reportType === 'sales-by-product' && (
+            <div className="space-y-2">
+              <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
+              <Input
+                placeholder="Search product..."
+                value={productSearch}
+                onChange={(e) => { setProductSearch(e.target.value); setSelectedProductId(''); }}
+              />
+              {productSearch && (
+                <div className="border rounded-md max-h-48 overflow-y-auto bg-popover shadow-md">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-3">No products found</p>
+                  ) : (
+                    filteredProducts.slice(0, 20).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${selectedProductId === p.id ? 'bg-primary/10 font-semibold' : ''}`}
+                        onClick={() => { setSelectedProductId(p.id); setProductSearch(p.name); }}
+                      >
+                        {p.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              {selectedProductId && (
+                <p className="text-xs text-green-600 font-medium">✓ Selected: {productSearch}</p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
