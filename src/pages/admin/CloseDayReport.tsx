@@ -82,10 +82,15 @@ export default function CloseDayReport() {
           const items = t.items || [];
           items.forEach((item: any) => {
             const category = item.category || 'Uncategorized';
+            const qty = Math.abs(item.quantity || 0);
+            const unitPrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
+              ? Math.abs(item.customPrice)
+              : (item.price || 0);
+            const revenue = unitPrice * qty;
             const current = categoryMap.get(category) || { quantity: 0, revenue: 0, transactions: 0 };
             categoryMap.set(category, {
-              quantity: current.quantity + (item.quantity || 0),
-              revenue: current.revenue + (item.total || 0),
+              quantity: current.quantity + qty,
+              revenue: current.revenue + revenue,
               transactions: current.transactions + 1,
             });
           });
