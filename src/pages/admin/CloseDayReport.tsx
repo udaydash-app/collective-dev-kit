@@ -31,6 +31,8 @@ export default function CloseDayReport() {
   const [reportType, setReportType] = useState<ReportType>('daily-summary');
   const [showReport, setShowReport] = useState(false);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [productSearch, setProductSearch] = useState<string>('');
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -44,8 +46,26 @@ export default function CloseDayReport() {
     },
   });
 
+  const { data: products } = useQuery<Array<{id: string; name: string; cost_price: number | null; price: number}>>({
+    queryKey: ['products-for-report', selectedStoreId],
+    queryFn: async () => {
+      const res = await (supabase as any)
+        .from('products')
+        .select('id, name, cost_price, price, store_id')
+        .eq('is_active', true)
+        .order('name');
+      const rows: any[] = res.data || [];
+      if (selectedStoreId) return rows.filter((p: any) => p.store_id === selectedStoreId);
+      return rows;
+    },
+  });
+
+  const filteredProducts = products?.filter(p =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  ) || [];
+
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
@@ -84,6 +104,80 @@ export default function CloseDayReport() {
 
       // Sales by Product Report
       if (reportType === 'sales-by-product') {
+        // If a specific product is selected, show detailed report with profit
+        if (selectedProductId) {
+          // Get product cost price
+          const { data: productInfo } = await supabase
+            .from('products')
+            .select('id, name, cost_price, price')
+            .eq('id', selectedProductId)
+            .single();
+
+          const { data: transactions } = await supabase
+            .from('pos_transactions')
+            .select('id, items, total, created_at, transaction_number')
+            .eq('store_id', selectedStoreId)
+            .gte('created_at', `${startDate}T00:00:00`)
+            .lte('created_at', `${endDate}T23:59:59`);
+
+          const salesEntries: Array<{
+            date: string;
+            transactionNumber: string;
+            quantity: number;
+            unitPrice: number;
+            revenue: number;
+            costPrice: number;
+            cogs: number;
+            profit: number;
+            profitMargin: number;
+          }> = [];
+
+          transactions?.forEach((t: any) => {
+            const items = t.items || [];
+            items.forEach((item: any) => {
+              const itemProductId = item.productId || item.product_id;
+              if (itemProductId !== selectedProductId && item.name !== productInfo?.name) return;
+
+              const qty = Math.abs(item.quantity || 0);
+              const unitPrice = item.price || item.unit_price || 0;
+              const revenue = item.total || unitPrice * qty;
+              const costPrice = item.cost_price || productInfo?.cost_price || 0;
+              const cogs = costPrice * qty;
+              const profit = revenue - cogs;
+              const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+              salesEntries.push({
+                date: t.created_at,
+                transactionNumber: t.transaction_number,
+                quantity: qty,
+                unitPrice,
+                revenue,
+                costPrice,
+                cogs,
+                profit,
+                profitMargin,
+              });
+            });
+          });
+
+          const totalRevenue = salesEntries.reduce((s, e) => s + e.revenue, 0);
+          const totalQuantity = salesEntries.reduce((s, e) => s + e.quantity, 0);
+          const totalCOGS = salesEntries.reduce((s, e) => s + e.cogs, 0);
+          const totalProfit = salesEntries.reduce((s, e) => s + e.profit, 0);
+          const avgProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+          const avgUnitProfit = totalQuantity > 0 ? totalProfit / totalQuantity : 0;
+
+          return {
+            type: 'sales-by-product-detail',
+            productName: productInfo?.name || 'Unknown Product',
+            costPrice: productInfo?.cost_price || 0,
+            sellingPrice: productInfo?.price || 0,
+            entries: salesEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            summary: { totalRevenue, totalQuantity, totalCOGS, totalProfit, avgProfitMargin, avgUnitProfit },
+          };
+        }
+
+        // No specific product selected — show all products summary
         const { data: transactions } = await supabase
           .from('pos_transactions')
           .select('items, total, created_at')
@@ -96,7 +190,7 @@ export default function CloseDayReport() {
         transactions?.forEach((t: any) => {
           const items = t.items || [];
           items.forEach((item: any) => {
-            const productId = item.product_id || item.name;
+            const productId = item.productId || item.product_id || item.name;
             const current = productMap.get(productId) || { name: item.name, quantity: 0, revenue: 0, transactions: 0 };
             productMap.set(productId, {
               name: item.name,
@@ -664,7 +758,105 @@ export default function CloseDayReport() {
       );
     }
 
-    // Sales by Product Report
+    // Sales by Product — Detailed (single product) Report
+    if (reportData.type === 'sales-by-product-detail') {
+      const { productName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      return (
+        <div className="space-y-4">
+          {/* Product Info & Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                {productName} — Sales Report
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {formatDate(startDate)}{startDate !== endDate ? ` – ${formatDate(endDate)}` : ''}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(summary.totalRevenue)}</p>
+                </div>
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Qty Sold</p>
+                  <p className="text-2xl font-bold">{summary.totalQuantity}</p>
+                </div>
+                <div className="p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Profit</p>
+                  <p className={`text-2xl font-bold ${summary.totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {formatCurrency(summary.totalProfit)}
+                  </p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total COGS</p>
+                  <p className="text-2xl font-bold">{formatCurrency(summary.totalCOGS)}</p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Profit Margin</p>
+                  <p className={`text-2xl font-bold ${summary.avgProfitMargin >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {summary.avgProfitMargin.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Profit/Unit</p>
+                  <p className={`text-2xl font-bold ${summary.avgUnitProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {formatCurrency(summary.avgUnitProfit)}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm border-t pt-3">
+                <div><span className="text-muted-foreground">Selling Price: </span><span className="font-semibold">{formatCurrency(sellingPrice)}</span></div>
+                <div><span className="text-muted-foreground">Cost Price: </span><span className="font-semibold">{formatCurrency(costPrice)}</span></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transaction Detail Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {entries.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No transactions found for this product in the selected date range.</p>
+              ) : (
+                <div className="space-y-1">
+                  <div className="grid grid-cols-7 gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase">
+                    <div className="col-span-2">Date / Txn</div>
+                    <div className="text-right">Qty</div>
+                    <div className="text-right">Unit Price</div>
+                    <div className="text-right">Revenue</div>
+                    <div className="text-right">COGS</div>
+                    <div className="text-right">Profit</div>
+                  </div>
+                  {entries.map((entry: any, index: number) => (
+                    <div key={index} className="grid grid-cols-7 gap-2 py-2 border-b text-sm">
+                      <div className="col-span-2">
+                        <p className="font-medium">{format(new Date(entry.date), 'dd MMM yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{entry.transactionNumber}</p>
+                      </div>
+                      <div className="text-right">{entry.quantity}</div>
+                      <div className="text-right">{formatCurrency(entry.unitPrice)}</div>
+                      <div className="text-right font-semibold">{formatCurrency(entry.revenue)}</div>
+                      <div className="text-right text-muted-foreground">{formatCurrency(entry.cogs)}</div>
+                      <div className={`text-right font-semibold ${entry.profit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {formatCurrency(entry.profit)}
+                        <span className="block text-xs font-normal text-muted-foreground">{entry.profitMargin.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Sales by Product Report (all products summary)
     if (reportData.type === 'sales-by-product') {
       const data = reportData.data as Array<{ name: string; quantity: number; revenue: number; transactions: number }>;
       const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
@@ -1002,7 +1194,7 @@ export default function CloseDayReport() {
 
             <div className="space-y-2">
               <Label htmlFor="reportType">Report Type *</Label>
-              <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
+              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
@@ -1018,6 +1210,39 @@ export default function CloseDayReport() {
               </Select>
             </div>
           </div>
+
+          {/* Product Selector — shown only for Sales by Product */}
+          {reportType === 'sales-by-product' && (
+            <div className="space-y-2">
+              <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
+              <Input
+                placeholder="Search product..."
+                value={productSearch}
+                onChange={(e) => { setProductSearch(e.target.value); setSelectedProductId(''); }}
+              />
+              {productSearch && (
+                <div className="border rounded-md max-h-48 overflow-y-auto bg-popover shadow-md">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-3">No products found</p>
+                  ) : (
+                    filteredProducts.slice(0, 20).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${selectedProductId === p.id ? 'bg-primary/10 font-semibold' : ''}`}
+                        onClick={() => { setSelectedProductId(p.id); setProductSearch(p.name); }}
+                      >
+                        {p.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              {selectedProductId && (
+                <p className="text-xs text-green-600 font-medium">✓ Selected: {productSearch}</p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
