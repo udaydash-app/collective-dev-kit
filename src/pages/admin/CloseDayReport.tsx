@@ -37,6 +37,8 @@ export default function CloseDayReport() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productSearch, setProductSearch] = useState<string>('');
   const [productComboOpen, setProductComboOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [customerComboOpen, setCustomerComboOpen] = useState(false);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -62,8 +64,21 @@ export default function CloseDayReport() {
     },
   });
 
+  const { data: customers } = useQuery<Array<{id: string; name: string}>>({
+    queryKey: ['customers-for-report'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .eq('is_customer', true)
+        .order('name');
+      if (error) console.error('Customers fetch error:', error);
+      return (data as any[]) || [];
+    },
+  });
+
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
@@ -116,16 +131,28 @@ export default function CloseDayReport() {
             .eq('id', selectedProductId)
             .single();
 
-          const { data: transactions } = await supabase
+          let txQuery = supabase
             .from('pos_transactions')
-            .select('id, items, total, created_at, transaction_number')
+            .select('id, items, total, created_at, transaction_number, customer_id, contacts:customer_id(name)')
             .eq('store_id', selectedStoreId)
             .gte('created_at', `${startDate}T00:00:00`)
             .lte('created_at', `${endDate}T23:59:59`);
 
+          // Filter by customer if selected
+          if (selectedCustomerId && selectedCustomerId !== 'all') {
+            txQuery = txQuery.eq('customer_id', selectedCustomerId);
+          }
+
+          const { data: transactions } = await txQuery;
+
+          const selectedCustomerName = selectedCustomerId && selectedCustomerId !== 'all'
+            ? customers?.find(c => c.id === selectedCustomerId)?.name || 'Unknown Customer'
+            : null;
+
           const salesEntries: Array<{
             date: string;
             transactionNumber: string;
+            customerName: string;
             quantity: number;
             unitPrice: number;
             revenue: number;
@@ -137,6 +164,7 @@ export default function CloseDayReport() {
 
           transactions?.forEach((t: any) => {
             const items = t.items || [];
+            const customerName = (t.contacts as any)?.name || 'Walk-in';
             items.forEach((item: any) => {
               const itemProductId = item.productId || item.product_id;
               if (itemProductId !== selectedProductId && item.name !== productInfo?.name) return;
@@ -155,6 +183,7 @@ export default function CloseDayReport() {
               salesEntries.push({
                 date: t.created_at,
                 transactionNumber: t.transaction_number,
+                customerName,
                 quantity: qty,
                 unitPrice,
                 revenue,
@@ -176,6 +205,7 @@ export default function CloseDayReport() {
           return {
             type: 'sales-by-product-detail',
             productName: productInfo?.name || 'Unknown Product',
+            filterCustomerName: selectedCustomerName,
             costPrice: productInfo?.cost_price || 0,
             sellingPrice: productInfo?.price || 0,
             entries: salesEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -772,7 +802,8 @@ export default function CloseDayReport() {
 
     // Sales by Product — Detailed (single product) Report
     if (reportData.type === 'sales-by-product-detail') {
-      const { productName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const { productName, filterCustomerName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const showCustomerCol = !filterCustomerName; // show customer column when not filtered to one customer
       return (
         <div className="space-y-4">
           {/* Product Info & Summary */}
@@ -781,6 +812,11 @@ export default function CloseDayReport() {
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
                 {productName} — Sales Report
+                {filterCustomerName && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    Customer: {filterCustomerName}
+                  </span>
+                )}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 {formatDate(startDate)}{startDate !== endDate ? ` – ${formatDate(endDate)}` : ''}
@@ -833,11 +869,14 @@ export default function CloseDayReport() {
             </CardHeader>
             <CardContent>
               {entries.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No transactions found for this product in the selected date range.</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No transactions found{filterCustomerName ? ` for ${filterCustomerName}` : ''} in the selected date range.
+                </p>
               ) : (
                 <div className="space-y-1">
-                  <div className="grid grid-cols-7 gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase">
+                  <div className={`grid gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase ${showCustomerCol ? 'grid-cols-8' : 'grid-cols-7'}`}>
                     <div className="col-span-2">Date / Txn</div>
+                    {showCustomerCol && <div>Customer</div>}
                     <div className="text-right">Qty</div>
                     <div className="text-right">Unit Price</div>
                     <div className="text-right">Revenue</div>
@@ -845,11 +884,14 @@ export default function CloseDayReport() {
                     <div className="text-right">Profit</div>
                   </div>
                   {entries.map((entry: any, index: number) => (
-                    <div key={index} className="grid grid-cols-7 gap-2 py-2 border-b text-sm">
+                    <div key={index} className={`grid gap-2 py-2 border-b text-sm ${showCustomerCol ? 'grid-cols-8' : 'grid-cols-7'}`}>
                       <div className="col-span-2">
                         <p className="font-medium">{format(new Date(entry.date), 'dd MMM yyyy')}</p>
                         <p className="text-xs text-muted-foreground">{entry.transactionNumber}</p>
                       </div>
+                      {showCustomerCol && (
+                        <div className="text-sm text-muted-foreground truncate">{entry.customerName}</div>
+                      )}
                       <div className="text-right">{entry.quantity}</div>
                       <div className="text-right">{formatCurrency(entry.unitPrice)}</div>
                       <div className="text-right font-semibold">{formatCurrency(entry.revenue)}</div>
@@ -1210,7 +1252,7 @@ export default function CloseDayReport() {
 
             <div className="space-y-2">
               <Label htmlFor="reportType">Report Type *</Label>
-              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); }}>
+              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); setSelectedCustomerId(''); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
@@ -1227,55 +1269,106 @@ export default function CloseDayReport() {
             </div>
           </div>
 
-          {/* Product Selector — shown only for Sales by Product */}
+          {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
-            <div className="space-y-2">
-              <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
-              <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={productComboOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {selectedProductId && selectedProductId !== 'all'
-                      ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
-                      : 'All Products'}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search product..." />
-                    <CommandList>
-                      <CommandEmpty>No product found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="all"
-                          onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
-                          All Products
-                        </CommandItem>
-                        {products?.map((p) => (
+            <div className="space-y-4">
+              {/* Product selector */}
+              <div className="space-y-2">
+                <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
+                <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={productComboOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {selectedProductId && selectedProductId !== 'all'
+                        ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
+                        : 'All Products'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search product..." />
+                      <CommandList>
+                        <CommandEmpty>No product found.</CommandEmpty>
+                        <CommandGroup>
                           <CommandItem
-                            key={p.id}
-                            value={p.name}
-                            onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
+                            value="all"
+                            onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); setSelectedCustomerId(''); }}
                           >
-                            <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                            {p.name}
+                            <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
+                            All Products
                           </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                          {products?.map((p) => (
+                            <CommandItem
+                              key={p.id}
+                              value={p.name}
+                              onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
+                              {p.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Customer filter — only shown when a specific product is selected */}
+              {selectedProductId && selectedProductId !== 'all' && (
+                <div className="space-y-2">
+                  <Label>Filter by Customer <span className="text-muted-foreground font-normal">(optional — leave blank for all customers)</span></Label>
+                  <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={customerComboOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedCustomerId && selectedCustomerId !== 'all'
+                          ? customers?.find(c => c.id === selectedCustomerId)?.name ?? 'All Customers'
+                          : 'All Customers'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search customer..." />
+                        <CommandList>
+                          <CommandEmpty>No customer found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="all"
+                              onSelect={() => { setSelectedCustomerId('all'); setCustomerComboOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", (!selectedCustomerId || selectedCustomerId === 'all') ? "opacity-100" : "opacity-0")} />
+                              All Customers
+                            </CommandItem>
+                            {customers?.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => { setSelectedCustomerId(c.id); setCustomerComboOpen(false); }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
           )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div className="space-y-2">
