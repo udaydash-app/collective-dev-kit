@@ -1269,94 +1269,47 @@ export default function CloseDayReport() {
             </div>
           </div>
 
-          {/* Product Selector — shown only for Sales by Product */}
+          {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
-          {/* Product selector */}
-            <div className="space-y-2">
-              <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
-              <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={productComboOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {selectedProductId && selectedProductId !== 'all'
-                      ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
-                      : 'All Products'}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search product..." />
-                    <CommandList>
-                      <CommandEmpty>No product found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="all"
-                          onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); setSelectedCustomerId(''); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
-                          All Products
-                        </CommandItem>
-                        {products?.map((p) => (
-                          <CommandItem
-                            key={p.id}
-                            value={p.name}
-                            onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                            {p.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Customer filter — only shown when a specific product is selected */}
-            {selectedProductId && selectedProductId !== 'all' && (
+            <div className="space-y-4">
+              {/* Product selector */}
               <div className="space-y-2">
-                <Label>Filter by Customer <span className="text-muted-foreground font-normal">(optional — leave blank for all customers)</span></Label>
-                <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
+                <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
+                <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
-                      aria-expanded={customerComboOpen}
+                      aria-expanded={productComboOpen}
                       className="w-full justify-between font-normal"
                     >
-                      {selectedCustomerId && selectedCustomerId !== 'all'
-                        ? customers?.find(c => c.id === selectedCustomerId)?.name ?? 'All Customers'
-                        : 'All Customers'}
+                      {selectedProductId && selectedProductId !== 'all'
+                        ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
+                        : 'All Products'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search customer..." />
+                      <CommandInput placeholder="Search product..." />
                       <CommandList>
-                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandEmpty>No product found.</CommandEmpty>
                         <CommandGroup>
                           <CommandItem
                             value="all"
-                            onSelect={() => { setSelectedCustomerId('all'); setCustomerComboOpen(false); }}
+                            onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); setSelectedCustomerId(''); }}
                           >
-                            <Check className={cn("mr-2 h-4 w-4", (!selectedCustomerId || selectedCustomerId === 'all') ? "opacity-100" : "opacity-0")} />
-                            All Customers
+                            <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
+                            All Products
                           </CommandItem>
-                          {customers?.map((c) => (
+                          {products?.map((p) => (
                             <CommandItem
-                              key={c.id}
-                              value={c.name}
-                              onSelect={() => { setSelectedCustomerId(c.id); setCustomerComboOpen(false); }}
+                              key={p.id}
+                              value={p.name}
+                              onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                              {c.name}
+                              <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
+                              {p.name}
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -1365,9 +1318,57 @@ export default function CloseDayReport() {
                   </PopoverContent>
                 </Popover>
               </div>
-            )}
-          
 
+              {/* Customer filter — only shown when a specific product is selected */}
+              {selectedProductId && selectedProductId !== 'all' && (
+                <div className="space-y-2">
+                  <Label>Filter by Customer <span className="text-muted-foreground font-normal">(optional — leave blank for all customers)</span></Label>
+                  <Popover open={customerComboOpen} onOpenChange={setCustomerComboOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={customerComboOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedCustomerId && selectedCustomerId !== 'all'
+                          ? customers?.find(c => c.id === selectedCustomerId)?.name ?? 'All Customers'
+                          : 'All Customers'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search customer..." />
+                        <CommandList>
+                          <CommandEmpty>No customer found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="all"
+                              onSelect={() => { setSelectedCustomerId('all'); setCustomerComboOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", (!selectedCustomerId || selectedCustomerId === 'all') ? "opacity-100" : "opacity-0")} />
+                              All Customers
+                            </CommandItem>
+                            {customers?.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => { setSelectedCustomerId(c.id); setCustomerComboOpen(false); }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div className="space-y-2">
