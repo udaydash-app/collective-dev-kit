@@ -230,10 +230,11 @@ export default function CloseDayReport() {
           items.forEach((item: any) => {
             const productId = item.productId || item.product_id || item.name;
             const qty = Math.abs(item.quantity || 0);
-            // Use customPrice if available (actual sold price), otherwise fall back to designated price
-            const unitPrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
+            // Use customPrice if available, subtract itemDiscount to get net sold price
+            const basePrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
               ? Math.abs(item.customPrice)
               : (item.price || item.unit_price || 0);
+            const unitPrice = Math.max(0, basePrice - Math.abs(item.itemDiscount || 0));
             const revenue = unitPrice * qty;
             const current = productMap.get(productId) || { name: item.name, quantity: 0, revenue: 0, transactions: 0 };
             productMap.set(productId, {
