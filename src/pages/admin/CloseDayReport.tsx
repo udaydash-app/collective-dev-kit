@@ -9,10 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
-import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 type ReportType = 
@@ -33,6 +36,7 @@ export default function CloseDayReport() {
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productSearch, setProductSearch] = useState<string>('');
+  const [productComboOpen, setProductComboOpen] = useState(false);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -1209,17 +1213,48 @@ export default function CloseDayReport() {
           {reportType === 'sales-by-product' && (
             <div className="space-y-2">
               <Label>Select Product <span className="text-muted-foreground font-normal">(optional — leave blank for all products)</span></Label>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Products" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Products</SelectItem>
-                  {products?.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productComboOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedProductId && selectedProductId !== 'all'
+                      ? products?.find(p => p.id === selectedProductId)?.name ?? 'All Products'
+                      : 'All Products'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search product..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => { setSelectedProductId('all'); setProductComboOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", (!selectedProductId || selectedProductId === 'all') ? "opacity-100" : "opacity-0")} />
+                          All Products
+                        </CommandItem>
+                        {products?.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={p.name}
+                            onSelect={() => { setSelectedProductId(p.id); setProductComboOpen(false); }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
+                            {p.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
