@@ -802,7 +802,8 @@ export default function CloseDayReport() {
 
     // Sales by Product — Detailed (single product) Report
     if (reportData.type === 'sales-by-product-detail') {
-      const { productName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const { productName, filterCustomerName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const showCustomerCol = !filterCustomerName; // show customer column when not filtered to one customer
       return (
         <div className="space-y-4">
           {/* Product Info & Summary */}
@@ -811,6 +812,11 @@ export default function CloseDayReport() {
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
                 {productName} — Sales Report
+                {filterCustomerName && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    Customer: {filterCustomerName}
+                  </span>
+                )}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 {formatDate(startDate)}{startDate !== endDate ? ` – ${formatDate(endDate)}` : ''}
@@ -863,11 +869,14 @@ export default function CloseDayReport() {
             </CardHeader>
             <CardContent>
               {entries.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No transactions found for this product in the selected date range.</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No transactions found{filterCustomerName ? ` for ${filterCustomerName}` : ''} in the selected date range.
+                </p>
               ) : (
                 <div className="space-y-1">
-                  <div className="grid grid-cols-7 gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase">
+                  <div className={`grid gap-2 font-semibold text-xs border-b pb-2 text-muted-foreground uppercase ${showCustomerCol ? 'grid-cols-8' : 'grid-cols-7'}`}>
                     <div className="col-span-2">Date / Txn</div>
+                    {showCustomerCol && <div>Customer</div>}
                     <div className="text-right">Qty</div>
                     <div className="text-right">Unit Price</div>
                     <div className="text-right">Revenue</div>
@@ -875,11 +884,14 @@ export default function CloseDayReport() {
                     <div className="text-right">Profit</div>
                   </div>
                   {entries.map((entry: any, index: number) => (
-                    <div key={index} className="grid grid-cols-7 gap-2 py-2 border-b text-sm">
+                    <div key={index} className={`grid gap-2 py-2 border-b text-sm ${showCustomerCol ? 'grid-cols-8' : 'grid-cols-7'}`}>
                       <div className="col-span-2">
                         <p className="font-medium">{format(new Date(entry.date), 'dd MMM yyyy')}</p>
                         <p className="text-xs text-muted-foreground">{entry.transactionNumber}</p>
                       </div>
+                      {showCustomerCol && (
+                        <div className="text-sm text-muted-foreground truncate">{entry.customerName}</div>
+                      )}
                       <div className="text-right">{entry.quantity}</div>
                       <div className="text-right">{formatCurrency(entry.unitPrice)}</div>
                       <div className="text-right font-semibold">{formatCurrency(entry.revenue)}</div>
