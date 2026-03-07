@@ -13,10 +13,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
-import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight, Check, ChevronsUpDown } from 'lucide-react';
+import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown, TrendingUp, Printer, ChevronDown, ChevronRight, Check, ChevronsUpDown, BarChart2, TableProperties } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, LineChart, Line,
+} from 'recharts';
 
 type ReportType = 
   | 'daily-summary'
@@ -39,6 +43,8 @@ export default function CloseDayReport() {
   const [productComboOpen, setProductComboOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
+
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -753,8 +759,298 @@ export default function CloseDayReport() {
   const dailyBreakdown = getDailyBreakdown();
   const storeName = stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
 
+  // ── Graph helpers ──────────────────────────────────────────────
+  const CHART_COLORS = ['#22c55e','#3b82f6','#f97316','#a855f7','#ec4899','#14b8a6','#eab308','#ef4444'];
+
+  const renderGraph = () => {
+    if (!reportData) return null;
+
+    if (reportData.type === 'sales-by-category') {
+      const data = (reportData.data as any[]).slice(0, 12);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Sales by Category — Revenue</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Revenue by Category</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="category" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} labelStyle={{ fontWeight: 600 }} />
+                    <Bar dataKey="revenue" name="Revenue" radius={[4,4,0,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Share of Revenue</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie data={data} dataKey="revenue" nameKey="category" cx="50%" cy="50%" outerRadius={110} label={({ category, percent }: any) => `${category} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'sales-by-product') {
+      const data = (reportData.data as any[]).slice(0, 15);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Sales by Product — Revenue</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top Products by Revenue</p>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 80, left: 120, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={115} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Bar dataKey="revenue" name="Revenue" radius={[0,4,4,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top Products by Quantity</p>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, left: 120, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={115} />
+                    <Tooltip />
+                    <Bar dataKey="quantity" name="Qty" fill="#3b82f6" radius={[0,4,4,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'sales-by-product-detail') {
+      const { productName, filterCustomerName, entries, summary } = reportData as any;
+      const chartData = entries.map((e: any) => ({
+        date: format(new Date(e.date), 'dd MMM'),
+        Revenue: e.revenue,
+        COGS: e.cogs,
+        Profit: e.profit,
+      }));
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{productName} — Revenue vs Profit</CardTitle>
+            {filterCustomerName && <p className="text-sm text-muted-foreground">Customer: {filterCustomerName}</p>}
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {[
+                { label: 'Total Revenue', value: formatCurrency(summary.totalRevenue), color: 'text-primary' },
+                { label: 'Total COGS', value: formatCurrency(summary.totalCOGS), color: 'text-muted-foreground' },
+                { label: 'Total Profit', value: formatCurrency(summary.totalProfit), color: summary.totalProfit >= 0 ? 'text-green-600' : 'text-destructive' },
+                { label: 'Avg Margin', value: `${summary.avgProfitMargin.toFixed(1)}%`, color: summary.avgProfitMargin >= 0 ? 'text-green-600' : 'text-destructive' },
+              ].map(s => (
+                <div key={s.label} className="p-3 rounded-lg bg-muted/30 border">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Per-Transaction Breakdown</p>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                <Legend />
+                <Bar dataKey="Revenue" fill="#22c55e" radius={[4,4,0,0]} />
+                <Bar dataKey="COGS" fill="#f97316" radius={[4,4,0,0]} />
+                <Bar dataKey="Profit" fill="#3b82f6" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'sales-by-customer') {
+      const data = (reportData.data as any[]).slice(0, 12);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Sales by Customer — Revenue</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top Customers by Spend</p>
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 80, left: 120, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={115} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Bar dataKey="totalSpent" name="Spent" radius={[0,4,4,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Share of Revenue</p>
+                <ResponsiveContainer width="100%" height={340}>
+                  <PieChart>
+                    <Pie data={data} dataKey="totalSpent" nameKey="name" cx="50%" cy="50%" outerRadius={110}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'purchases-by-category') {
+      const data = (reportData.data as any[]).slice(0, 12);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Purchases by Category — Cost</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Cost by Category</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="category" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Bar dataKey="cost" name="Cost" radius={[4,4,0,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Cost Distribution</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie data={data} dataKey="cost" nameKey="category" cx="50%" cy="50%" outerRadius={110} label={({ category, percent }: any) => `${category} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'purchases-by-supplier') {
+      const data = (reportData.data as any[]).slice(0, 12);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Purchases by Supplier — Cost</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Cost by Supplier</p>
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 80, left: 130, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="supplier" tick={{ fontSize: 11 }} width={125} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Bar dataKey="totalCost" name="Cost" radius={[0,4,4,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Supplier Share</p>
+                <ResponsiveContainer width="100%" height={340}>
+                  <PieChart>
+                    <Pie data={data} dataKey="totalCost" nameKey="supplier" cx="50%" cy="50%" outerRadius={110}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (reportData.type === 'purchases-by-product') {
+      const data = (reportData.data as any[]).slice(0, 15);
+      return (
+        <Card>
+          <CardHeader><CardTitle>Purchases by Product — Cost</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top Products by Cost</p>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 80, left: 130, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={125} />
+                    <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    <Bar dataKey="cost" name="Cost" radius={[0,4,4,0]}>
+                      {data.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top Products by Quantity</p>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, left: 130, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={125} />
+                    <Tooltip />
+                    <Bar dataKey="quantity" name="Qty" fill="#3b82f6" radius={[0,4,4,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
+  };
+
+  // ── Detail table renderer ───────────────────────────────────────
   const renderReportContent = () => {
     if (!reportData) return null;
+
+    if (viewMode === 'graph') return renderGraph();
 
     // Sales by Category Report
     if (reportData.type === 'sales-by-category') {
@@ -1410,12 +1706,48 @@ export default function CloseDayReport() {
             </div>
           )}
 
+          {/* View Mode toggle — not shown for Daily Summary */}
+          {reportType !== 'daily-summary' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Output Format</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('detail')}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                    viewMode === 'detail'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background border-border hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  <TableProperties className="h-4 w-4" />
+                  Detailed Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('graph')}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                    viewMode === 'graph'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background border-border hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  <BarChart2 className="h-4 w-4" />
+                  Graph
+                </button>
+              </div>
+            </div>
+          )}
+
           <Button onClick={handleGenerateReport} disabled={isLoading} className="w-full h-11 text-base font-semibold">
             <FileText className="h-4 w-4 mr-2" />
             {isLoading ? 'Generating Report…' : 'Generate Report'}
           </Button>
         </CardContent>
       </Card>
+
 
       {/* Report Content */}
       {showReport && reportData && (
