@@ -1252,7 +1252,7 @@ export default function CloseDayReport() {
 
             <div className="space-y-2">
               <Label htmlFor="reportType">Report Type *</Label>
-              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); }}>
+              <Select value={reportType} onValueChange={(value) => { setReportType(value as ReportType); setSelectedProductId(''); setProductSearch(''); setSelectedCustomerId(''); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
