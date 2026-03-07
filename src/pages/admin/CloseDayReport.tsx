@@ -105,7 +105,7 @@ export default function CloseDayReport() {
       // Sales by Product Report
       if (reportType === 'sales-by-product') {
         // If a specific product is selected, show detailed report with profit
-        if (selectedProductId) {
+        if (selectedProductId && selectedProductId !== 'all') {
           // Get product cost price
           const { data: productInfo } = await supabase
             .from('products')
