@@ -37,6 +37,8 @@ export default function CloseDayReport() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productSearch, setProductSearch] = useState<string>('');
   const [productComboOpen, setProductComboOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [customerComboOpen, setCustomerComboOpen] = useState(false);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
