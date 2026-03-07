@@ -46,19 +46,17 @@ export default function CloseDayReport() {
     },
   });
 
-  const { data: products } = useQuery({
+  const { data: products } = useQuery<Array<{id: string; name: string; cost_price: number | null; price: number}>>({
     queryKey: ['products-for-report', selectedStoreId],
     queryFn: async () => {
-      const { data } = await supabase
+      const res = await (supabase as any)
         .from('products')
-        .select('id, name, cost_price, price')
+        .select('id, name, cost_price, price, store_id')
         .eq('is_active', true)
         .order('name');
-      if (!data) return [];
-      if (selectedStoreId) {
-        return data.filter((p: any) => p.store_id === selectedStoreId);
-      }
-      return data;
+      const rows: any[] = res.data || [];
+      if (selectedStoreId) return rows.filter((p: any) => p.store_id === selectedStoreId);
+      return rows;
     },
   });
 
