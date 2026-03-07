@@ -31,6 +31,8 @@ export default function CloseDayReport() {
   const [reportType, setReportType] = useState<ReportType>('daily-summary');
   const [showReport, setShowReport] = useState(false);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [productSearch, setProductSearch] = useState<string>('');
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
