@@ -47,22 +47,16 @@ export default function CloseDayReport() {
   });
 
   const { data: products } = useQuery<Array<{id: string; name: string; cost_price: number | null; price: number}>>({
-    queryKey: ['products-for-report', selectedStoreId],
+    queryKey: ['products-for-report'],
     queryFn: async () => {
-      const res = await (supabase as any)
+      const { data, error } = await supabase
         .from('products')
-        .select('id, name, cost_price, price, store_id')
-        .eq('is_active', true)
+        .select('id, name, cost_price, price')
         .order('name');
-      const rows: any[] = res.data || [];
-      if (selectedStoreId) return rows.filter((p: any) => p.store_id === selectedStoreId);
-      return rows;
+      if (error) console.error('Products fetch error:', error);
+      return (data as any[]) || [];
     },
   });
-
-  const filteredProducts = products?.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
-  ) || [];
 
   const { data: reportData, isLoading, refetch } = useQuery({
     queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId],
