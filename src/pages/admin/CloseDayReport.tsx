@@ -49,14 +49,16 @@ export default function CloseDayReport() {
   const { data: products } = useQuery({
     queryKey: ['products-for-report', selectedStoreId],
     queryFn: async () => {
-      let query = supabase
+      const { data } = await supabase
         .from('products')
         .select('id, name, cost_price, price')
         .eq('is_active', true)
         .order('name');
-      if (selectedStoreId) query = query.eq('store_id', selectedStoreId);
-      const { data } = await query;
-      return data || [];
+      if (!data) return [];
+      if (selectedStoreId) {
+        return data.filter((p: any) => p.store_id === selectedStoreId);
+      }
+      return data;
     },
   });
 
