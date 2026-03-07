@@ -1706,12 +1706,48 @@ export default function CloseDayReport() {
             </div>
           )}
 
+          {/* View Mode toggle — not shown for Daily Summary */}
+          {reportType !== 'daily-summary' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Output Format</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('detail')}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                    viewMode === 'detail'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background border-border hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  <TableProperties className="h-4 w-4" />
+                  Detailed Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('graph')}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                    viewMode === 'graph'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background border-border hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  <BarChart2 className="h-4 w-4" />
+                  Graph
+                </button>
+              </div>
+            </div>
+          )}
+
           <Button onClick={handleGenerateReport} disabled={isLoading} className="w-full h-11 text-base font-semibold">
             <FileText className="h-4 w-4 mr-2" />
             {isLoading ? 'Generating Report…' : 'Generate Report'}
           </Button>
         </CardContent>
       </Card>
+
 
       {/* Report Content */}
       {showReport && reportData && (
