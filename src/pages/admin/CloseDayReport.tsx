@@ -104,6 +104,80 @@ export default function CloseDayReport() {
 
       // Sales by Product Report
       if (reportType === 'sales-by-product') {
+        // If a specific product is selected, show detailed report with profit
+        if (selectedProductId) {
+          // Get product cost price
+          const { data: productInfo } = await supabase
+            .from('products')
+            .select('id, name, cost_price, price')
+            .eq('id', selectedProductId)
+            .single();
+
+          const { data: transactions } = await supabase
+            .from('pos_transactions')
+            .select('id, items, total, created_at, transaction_number')
+            .eq('store_id', selectedStoreId)
+            .gte('created_at', `${startDate}T00:00:00`)
+            .lte('created_at', `${endDate}T23:59:59`);
+
+          const salesEntries: Array<{
+            date: string;
+            transactionNumber: string;
+            quantity: number;
+            unitPrice: number;
+            revenue: number;
+            costPrice: number;
+            cogs: number;
+            profit: number;
+            profitMargin: number;
+          }> = [];
+
+          transactions?.forEach((t: any) => {
+            const items = t.items || [];
+            items.forEach((item: any) => {
+              const itemProductId = item.productId || item.product_id;
+              if (itemProductId !== selectedProductId && item.name !== productInfo?.name) return;
+
+              const qty = Math.abs(item.quantity || 0);
+              const unitPrice = item.price || item.unit_price || 0;
+              const revenue = item.total || unitPrice * qty;
+              const costPrice = item.cost_price || productInfo?.cost_price || 0;
+              const cogs = costPrice * qty;
+              const profit = revenue - cogs;
+              const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+              salesEntries.push({
+                date: t.created_at,
+                transactionNumber: t.transaction_number,
+                quantity: qty,
+                unitPrice,
+                revenue,
+                costPrice,
+                cogs,
+                profit,
+                profitMargin,
+              });
+            });
+          });
+
+          const totalRevenue = salesEntries.reduce((s, e) => s + e.revenue, 0);
+          const totalQuantity = salesEntries.reduce((s, e) => s + e.quantity, 0);
+          const totalCOGS = salesEntries.reduce((s, e) => s + e.cogs, 0);
+          const totalProfit = salesEntries.reduce((s, e) => s + e.profit, 0);
+          const avgProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+          const avgUnitProfit = totalQuantity > 0 ? totalProfit / totalQuantity : 0;
+
+          return {
+            type: 'sales-by-product-detail',
+            productName: productInfo?.name || 'Unknown Product',
+            costPrice: productInfo?.cost_price || 0,
+            sellingPrice: productInfo?.price || 0,
+            entries: salesEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            summary: { totalRevenue, totalQuantity, totalCOGS, totalProfit, avgProfitMargin, avgUnitProfit },
+          };
+        }
+
+        // No specific product selected — show all products summary
         const { data: transactions } = await supabase
           .from('pos_transactions')
           .select('items, total, created_at')
@@ -116,7 +190,7 @@ export default function CloseDayReport() {
         transactions?.forEach((t: any) => {
           const items = t.items || [];
           items.forEach((item: any) => {
-            const productId = item.product_id || item.name;
+            const productId = item.productId || item.product_id || item.name;
             const current = productMap.get(productId) || { name: item.name, quantity: 0, revenue: 0, transactions: 0 };
             productMap.set(productId, {
               name: item.name,
