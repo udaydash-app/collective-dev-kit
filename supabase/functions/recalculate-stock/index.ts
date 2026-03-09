@@ -16,17 +16,26 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+    console.log('Starting stock recalculation...');
+
     const { data, error } = await supabaseAdmin.rpc('recalculate_all_stock');
 
-    if (error) throw error;
+    if (error) {
+      console.error('RPC error:', JSON.stringify(error));
+      throw new Error(error.message);
+    }
+
+    console.log('Recalculation result:', JSON.stringify(data));
 
     return new Response(
       JSON.stringify({ success: true, result: data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Error:', msg);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ success: false, error: msg }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
