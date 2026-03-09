@@ -2852,6 +2852,8 @@ export type Database = {
           updated_variants: number
         }[]
       }
+      recalculate_products_stock: { Args: never; Returns: number }
+      recalculate_variants_stock: { Args: never; Returns: number }
       reverse_transaction_journal_entries: {
         Args: { p_reference: string }
         Returns: undefined
