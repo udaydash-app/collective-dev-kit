@@ -2845,15 +2845,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      recalculate_all_stock: {
-        Args: never
-        Returns: {
-          updated_products: number
-          updated_variants: number
-        }[]
-      }
-      recalculate_products_stock: { Args: never; Returns: number }
-      recalculate_variants_stock: { Args: never; Returns: number }
       reverse_transaction_journal_entries: {
         Args: { p_reference: string }
         Returns: undefined
