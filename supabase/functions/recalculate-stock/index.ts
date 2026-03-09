@@ -16,19 +16,28 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Starting stock recalculation...');
+    const body = await req.json().catch(() => ({}));
+    const mode = body.mode || 'products'; // 'products' or 'variants'
 
-    const { data, error } = await supabaseAdmin.rpc('recalculate_all_stock');
+    console.log(`Starting stock recalculation for: ${mode}`);
 
-    if (error) {
-      console.error('RPC error:', JSON.stringify(error));
-      throw new Error(error.message);
+    let result;
+    if (mode === 'products') {
+      const { data, error } = await supabaseAdmin.rpc('recalculate_products_stock');
+      if (error) throw new Error(error.message);
+      result = { mode, updated: data };
+    } else if (mode === 'variants') {
+      const { data, error } = await supabaseAdmin.rpc('recalculate_variants_stock');
+      if (error) throw new Error(error.message);
+      result = { mode, updated: data };
+    } else {
+      throw new Error('Invalid mode. Use "products" or "variants"');
     }
 
-    console.log('Recalculation result:', JSON.stringify(data));
+    console.log('Result:', JSON.stringify(result));
 
     return new Response(
-      JSON.stringify({ success: true, result: data }),
+      JSON.stringify({ success: true, result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
