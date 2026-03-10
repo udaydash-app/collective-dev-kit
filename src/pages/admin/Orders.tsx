@@ -232,7 +232,20 @@ export default function AdminOrders() {
       let posQuery = supabase
         .from('pos_transactions')
         .select(`
-          *,
+          id,
+          transaction_number,
+          total,
+          subtotal,
+          tax,
+          discount,
+          payment_method,
+          payment_details,
+          created_at,
+          cashier_id,
+          customer_id,
+          store_id,
+          items,
+          metadata,
           stores(name)
         `)
         .order('created_at', { ascending: false });
@@ -241,6 +254,9 @@ export default function AdminOrders() {
         posQuery = posQuery
           .gte('created_at', dateRange.start.toISOString())
           .lte('created_at', dateRange.end.toISOString());
+      } else {
+        // When no date filter, limit to most recent 500 to avoid loading entire history
+        posQuery = posQuery.limit(500);
       }
 
       const { data: posTransactions, error: posError } = await posQuery;
