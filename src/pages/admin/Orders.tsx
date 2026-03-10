@@ -73,7 +73,7 @@ export default function AdminOrders() {
   const [searchParams] = useSearchParams();
   const statusParam = searchParams.get('status');
   const [statusFilter, setStatusFilter] = useState<string>(statusParam || "all");
-  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("today");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
