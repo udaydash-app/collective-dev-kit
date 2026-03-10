@@ -103,6 +103,15 @@ export default function Purchases() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedPurchases, setSelectedPurchases] = useState<Set<string>>(new Set());
   const [viewDialogSearch, setViewDialogSearch] = useState('');
+
+  // Filter states for purchase history
+  const [filterSupplier, setFilterSupplier] = useState('');
+  const [filterProduct, setFilterProduct] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>(undefined);
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>(undefined);
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
+  const [dateFromOpen, setDateFromOpen] = useState(false);
+  const [dateToOpen, setDateToOpen] = useState(false);
   
   const lastItemRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
