@@ -800,6 +800,37 @@ export default function Purchases() {
     toast.success('Purchases exported to PDF successfully');
   };
 
+  // Filtered purchases based on search/filter state
+  const filteredPurchases = (purchases || []).filter((purchase: any) => {
+    if (filterProduct) {
+      const term = filterProduct.toLowerCase();
+      const matchesPurchaseNumber = purchase.purchase_number?.toLowerCase().includes(term);
+      const matchesProduct = purchase.purchase_items?.some((item: any) =>
+        item.products?.name?.toLowerCase().includes(term)
+      );
+      if (!matchesPurchaseNumber && !matchesProduct) return false;
+    }
+    if (filterSupplier && filterSupplier !== 'all') {
+      if (purchase.supplier_name !== filterSupplier) return false;
+    }
+    if (filterPaymentStatus && filterPaymentStatus !== 'all') {
+      if (purchase.payment_status !== filterPaymentStatus) return false;
+    }
+    if (filterDateFrom) {
+      const purchaseDate = new Date(purchase.purchased_at);
+      const from = new Date(filterDateFrom);
+      from.setHours(0, 0, 0, 0);
+      if (purchaseDate < from) return false;
+    }
+    if (filterDateTo) {
+      const purchaseDate = new Date(purchase.purchased_at);
+      const to = new Date(filterDateTo);
+      to.setHours(23, 59, 59, 999);
+      if (purchaseDate > to) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
