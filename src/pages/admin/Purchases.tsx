@@ -838,77 +838,181 @@ export default function Purchases() {
         {/* Purchase History */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Purchase History</CardTitle>
-              {purchases && purchases.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleSelectAll}
-                >
-                  {selectedPurchases.size === purchases.length ? 'Deselect All' : 'Select All'}
-                </Button>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>Purchase History</CardTitle>
+                {purchases && purchases.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSelectAll}
+                  >
+                    {selectedPurchases.size === filteredPurchases.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                )}
+              </div>
+
+              {/* Search & Filter Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* Purchase # / Product search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Purchase # or product..."
+                    value={filterProduct}
+                    onChange={(e) => setFilterProduct(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* Supplier filter */}
+                <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All suppliers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Suppliers</SelectItem>
+                    {suppliers?.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Payment status filter */}
+                <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Date From */}
+                <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filterDateFrom && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateFrom ? formatDateFns(filterDateFrom, 'dd/MM/yyyy') : 'From date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateFrom}
+                      onSelect={(d) => { setFilterDateFrom(d); setDateFromOpen(false); }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Date To */}
+                <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filterDateTo && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateTo ? formatDateFns(filterDateTo, 'dd/MM/yyyy') : 'To date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateTo}
+                      onSelect={(d) => { setFilterDateTo(d); setDateToOpen(false); }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Active filters summary + clear */}
+              {(filterProduct || (filterSupplier && filterSupplier !== 'all') || (filterPaymentStatus && filterPaymentStatus !== 'all') || filterDateFrom || filterDateTo) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">
+                    <Filter className="inline h-3 w-3 mr-1" />
+                    {filteredPurchases.length} of {purchases?.length || 0} results
+                  </span>
+                  {filterProduct && <Badge variant="secondary">{filterProduct} <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterProduct('')} /></Badge>}
+                  {filterSupplier && filterSupplier !== 'all' && <Badge variant="secondary">{filterSupplier} <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterSupplier('')} /></Badge>}
+                  {filterPaymentStatus && filterPaymentStatus !== 'all' && <Badge variant="secondary">{filterPaymentStatus} <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterPaymentStatus('')} /></Badge>}
+                  {filterDateFrom && <Badge variant="secondary">From: {formatDateFns(filterDateFrom, 'dd/MM/yy')} <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterDateFrom(undefined)} /></Badge>}
+                  {filterDateTo && <Badge variant="secondary">To: {formatDateFns(filterDateTo, 'dd/MM/yy')} <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterDateTo(undefined)} /></Badge>}
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setFilterProduct(''); setFilterSupplier(''); setFilterPaymentStatus(''); setFilterDateFrom(undefined); setFilterDateTo(undefined); }}>
+                    Clear all
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {purchases?.map((purchase: any) => (
-                <div key={purchase.id} className="border rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedPurchases.has(purchase.id)}
-                      onChange={() => togglePurchaseSelection(purchase.id)}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold">{purchase.purchase_number}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {purchase.supplier_name} • {purchase.stores.name}
-                      </p>
+              {purchasesLoading ? (
+                <p className="text-center text-muted-foreground py-8">Loading...</p>
+              ) : filteredPurchases.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No purchases found matching your filters.</p>
+              ) : (
+                filteredPurchases.map((purchase: any) => (
+                  <div key={purchase.id} className="border rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedPurchases.has(purchase.id)}
+                        onChange={() => togglePurchaseSelection(purchase.id)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold">{purchase.purchase_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {purchase.supplier_name} • {purchase.stores?.name}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg">{formatCurrency(purchase.total_amount)}</p>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          {purchase.payment_status}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg">{formatCurrency(purchase.total_amount)}</p>
-                      <p className="text-sm text-muted-foreground capitalize">
-                        {purchase.payment_status}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        {purchase.purchase_items.length} items • {formatDate(purchase.purchased_at)}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewPurchase(purchase)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditPurchase(purchase)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeletePurchase(purchase.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      {purchase.purchase_items.length} items • {formatDate(purchase.purchased_at)}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewPurchase(purchase)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditPurchase(purchase)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePurchase(purchase.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
