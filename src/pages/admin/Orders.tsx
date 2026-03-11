@@ -1531,36 +1531,50 @@ export default function AdminOrders() {
       <Header />
       
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Link to="/admin/pos">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-3xl font-bold">Order Management</h1>
             <p className="text-muted-foreground">View and fulfill customer orders</p>
           </div>
-          <Link to="/admin/offline-sync">
-            <Button variant="outline">
-              <Database className="h-4 w-4 mr-2" />
-              Offline Sync
-            </Button>
-          </Link>
-          <ReturnToPOSButton inline />
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/admin/offline-sync">
+              <Button variant="outline">
+                <Database className="h-4 w-4 mr-2" />
+                Offline Sync
+              </Button>
+            </Link>
+            <ReturnToPOSButton inline />
+          </div>
         </div>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              All Orders
-            </CardTitle>
-            <div className="flex gap-2">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                All Orders
+              </CardTitle>
+              {selectedOrders.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteSelectedDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedOrders.size})
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
               <Button
                 variant="outline"
                 onClick={() => setShowSearchAllSales(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 shrink-0"
               >
                 <Search className="h-4 w-4" />
                 Search All Sales
@@ -1569,10 +1583,10 @@ export default function AdminOrders() {
                 placeholder="Search orders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[250px]"
+                className="w-[200px] min-w-[140px]"
               />
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Filter by period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1587,7 +1601,7 @@ export default function AdminOrders() {
               {periodFilter === 'custom' && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal shrink-0">
                       <Calendar className="mr-2 h-4 w-4" />
                       {startDate && endDate ? (
                         `${formatDate(startDate)} - ${formatDate(endDate)}`
@@ -1621,7 +1635,7 @@ export default function AdminOrders() {
                 </Popover>
               )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1635,15 +1649,6 @@ export default function AdminOrders() {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              {selectedOrders.size > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteSelectedDialogOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected ({selectedOrders.size})
-                </Button>
-              )}
             </div>
           </CardHeader>
           <CardContent>
