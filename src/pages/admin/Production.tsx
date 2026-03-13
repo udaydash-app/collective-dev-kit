@@ -51,6 +51,7 @@ export default function Production() {
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingProduction, setEditingProduction] = useState<any>(null);
+  const [viewingProduction, setViewingProduction] = useState<any>(null);
   const [deleteProductionId, setDeleteProductionId] = useState<string | null>(null);
   
   // Form state
