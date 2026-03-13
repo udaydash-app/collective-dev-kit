@@ -148,7 +148,7 @@ export default function Production() {
           source_quantity: parseFloat(sourceQuantity),
           production_date: productionDate,
           notes: notes || null,
-          created_by: user.id,
+          created_by: userId,
         })
         .select()
         .single();
