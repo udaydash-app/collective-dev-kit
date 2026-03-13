@@ -117,8 +117,17 @@ export default function Production() {
   // Create production mutation
   const createProductionMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Support both online auth users and offline/POS sessions
+      let userId: string | null = null;
+      const offlineSessionRaw = localStorage.getItem('offline_pos_session');
+      if (offlineSessionRaw) {
+        try { userId = JSON.parse(offlineSessionRaw).pos_user_id; } catch {}
+      }
+      if (!userId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id ?? null;
+      }
+      if (!userId) throw new Error("Not authenticated");
 
       // Validate source has enough stock
       const sourceItem = sourceType === 'product' 
@@ -139,7 +148,7 @@ export default function Production() {
           source_quantity: parseFloat(sourceQuantity),
           production_date: productionDate,
           notes: notes || null,
-          created_by: user.id,
+          created_by: userId,
         })
         .select()
         .single();
@@ -357,7 +366,7 @@ export default function Production() {
               No production records found
             </p>
           ) : (
-            <Table fixedScroll>
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Production #</TableHead>
