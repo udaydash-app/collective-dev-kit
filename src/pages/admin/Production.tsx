@@ -655,6 +655,92 @@ export default function Production() {
         </DialogContent>
       </Dialog>
 
+      {/* View Details Dialog */}
+      <Dialog open={!!viewingProduction} onOpenChange={() => setViewingProduction(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Production Details</DialogTitle>
+            <DialogDescription>
+              {viewingProduction?.production_number}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingProduction && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Production Number</Label>
+                  <p className="font-medium mt-1">{viewingProduction.production_number}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Date</Label>
+                  <p className="font-medium mt-1">{formatDate(viewingProduction.production_date)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Source Type</Label>
+                  <p className="font-medium mt-1">{viewingProduction.source_product_id ? 'Product' : 'Variant'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Quantity Used</Label>
+                  <p className="font-medium mt-1">{viewingProduction.source_quantity}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Source ID</Label>
+                  <p className="font-medium mt-1 text-xs text-muted-foreground break-all">
+                    {viewingProduction.source_product_id || viewingProduction.source_variant_id || '-'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Status</Label>
+                  <p className="font-medium mt-1 capitalize">{viewingProduction.status || 'completed'}</p>
+                </div>
+              </div>
+
+              {viewingProduction.notes && (
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Notes</Label>
+                  <p className="mt-1 text-sm border rounded-md p-3 bg-muted/40">{viewingProduction.notes}</p>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Output Items</Label>
+                {viewingProduction.production_outputs?.length > 0 ? (
+                  <Table className="mt-2">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Item ID</TableHead>
+                        <TableHead>Quantity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {viewingProduction.production_outputs.map((output: any) => (
+                        <TableRow key={output.id}>
+                          <TableCell className="capitalize">
+                            {output.variant_id ? 'Variant' : 'Product'}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {output.product_id || output.variant_id || '-'}
+                          </TableCell>
+                          <TableCell>{output.quantity}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-muted-foreground text-sm mt-1">No output items</p>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={() => setViewingProduction(null)}>Close</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteProductionId} onOpenChange={() => setDeleteProductionId(null)}>
         <AlertDialogContent>
