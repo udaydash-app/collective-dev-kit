@@ -366,7 +366,7 @@ export default function Production() {
               No production records found
             </p>
           ) : (
-            <Table fixedScroll>
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Production #</TableHead>
