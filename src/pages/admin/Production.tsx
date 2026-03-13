@@ -403,6 +403,14 @@ export default function Production() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => setViewingProduction(production)}
+                          title="View Details"
+                        >
+                          <Edit className="w-4 h-4 text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => setDeleteProductionId(production.id)}
                           title="Delete Production"
                         >
