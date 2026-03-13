@@ -114,10 +114,9 @@ export default function Production() {
   const createProductionMutation = useMutation({
     mutationFn: async () => {
       let userId: string | null = null;
-      const offlineSessionRaw = localStorage.getItem('offline_pos_session');
-      if (offlineSessionRaw) { try { userId = JSON.parse(offlineSessionRaw).pos_user_id; } catch {} }
-      if (!userId) { const { data: { user } } = await supabase.auth.getUser(); userId = user?.id ?? null; }
-      if (!userId) throw new Error("Not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id ?? null;
+      // For offline/POS sessions, created_by can be null (no FK violation)
 
       const sourceItem = sourceType === 'product' ? products.find(p => p.id === sourceId) : variants.find(v => v.id === sourceId);
       if (!sourceItem) throw new Error("Source item not found");
