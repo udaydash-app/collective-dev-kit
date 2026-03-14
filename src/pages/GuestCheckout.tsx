@@ -105,7 +105,15 @@ export default function GuestCheckout() {
 
       if (error || !data?.success) {
         console.error("Order creation error:", error || data);
-        toast.error(`Failed to create order: ${error?.message || 'Unknown error'}`);
+        // FunctionsHttpError wraps the actual response body in context
+        let errorMsg = data?.error || error?.message || 'Unknown error';
+        if (error && typeof error === 'object' && 'context' in error) {
+          try {
+            const body = await (error as any).context.json();
+            errorMsg = body?.error || errorMsg;
+          } catch {}
+        }
+        toast.error(`Failed to create order: ${errorMsg}`);
         setLoading(false);
         return;
       }

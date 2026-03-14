@@ -268,12 +268,13 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in create-guest-order:', error);
+    const message = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: message
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
