@@ -18,7 +18,7 @@ interface UseKeyboardShortcutsOptions {
   enabled?: boolean;
 }
 
-export const useKeyboardShortcuts = ({ shortcuts, enabled = true }: UseKeyboardShortcutsOptions) => {
+export const useKeyboardShortcuts = ({ shortcuts = [], enabled = true }: UseKeyboardShortcutsOptions) => {
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!enabled) return;
 
