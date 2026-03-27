@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Check, Eye, Edit, AlertTriangle, ChevronsUpDown, CalendarIcon, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,9 +107,9 @@ export default function JournalEntries() {
   });
 
   const { data: journalEntries, isLoading } = useQuery({
-    queryKey: ['journal-entries'],
+    queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('journal_entries')
         .select(`
           *,
@@ -119,6 +119,29 @@ export default function JournalEntries() {
           )
         `)
         .order('created_at', { ascending: false });
+
+      // Server-side date filtering
+      if (startDate) {
+        query = query.gte('entry_date', startOfDay(startDate).toISOString().split('T')[0]);
+      }
+      if (endDate) {
+        query = query.lte('entry_date', endOfDay(endDate).toISOString().split('T')[0]);
+      }
+
+      // Server-side search by entry_number if search looks like an entry number
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim();
+        if (q.toUpperCase().startsWith('JE-')) {
+          query = query.ilike('entry_number', `%${q}%`);
+        } else {
+          query = query.or(`entry_number.ilike.%${q}%,description.ilike.%${q}%,reference.ilike.%${q}%`);
+        }
+      }
+
+      // Increase limit to get more results
+      query = query.limit(5000);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -338,56 +361,8 @@ export default function JournalEntries() {
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  // Filter journal entries by date range and search query
-  const filteredEntries = journalEntries?.filter((entry: any) => {
-    // Date filter
-    let passesDateFilter = true;
-    if (startDate || endDate) {
-      const entryDate = startOfDay(new Date(entry.entry_date));
-      
-      if (startDate && endDate) {
-        passesDateFilter = isWithinInterval(entryDate, {
-          start: startOfDay(startDate),
-          end: endOfDay(endDate)
-        });
-      } else if (startDate) {
-        passesDateFilter = entryDate >= startOfDay(startDate);
-      } else if (endDate) {
-        passesDateFilter = entryDate <= endOfDay(endDate);
-      }
-    }
-    
-    // Search filter
-    let passesSearchFilter = true;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      
-      // Search in entry fields
-      const matchesEntry = 
-        entry.entry_number?.toLowerCase().includes(query) ||
-        entry.description?.toLowerCase().includes(query) ||
-        entry.reference?.toLowerCase().includes(query) ||
-        entry.notes?.toLowerCase().includes(query) ||
-        entry.status?.toLowerCase().includes(query) ||
-        entry.entry_date?.toLowerCase().includes(query) ||
-        entry.transaction_amount?.toString().includes(query) ||
-        entry.total_debit?.toString().includes(query) ||
-        entry.total_credit?.toString().includes(query);
-      
-      // Search in journal entry lines (account codes, account names, descriptions)
-      const matchesLines = entry.journal_entry_lines?.some((line: any) => 
-        line.description?.toLowerCase().includes(query) ||
-        line.accounts?.account_code?.toLowerCase().includes(query) ||
-        line.accounts?.account_name?.toLowerCase().includes(query) ||
-        line.debit_amount?.toString().includes(query) ||
-        line.credit_amount?.toString().includes(query)
-      );
-      
-      passesSearchFilter = matchesEntry || matchesLines;
-    }
-    
-    return passesDateFilter && passesSearchFilter;
-  });
+  // Filtering is now done server-side; use fetched entries directly
+  const filteredEntries = journalEntries;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
