@@ -637,7 +637,7 @@ export default function JournalEntries() {
             <Input
               placeholder="Search by entry number, description, reference, account, status, or any field..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
               className="w-full"
             />
           </div>
