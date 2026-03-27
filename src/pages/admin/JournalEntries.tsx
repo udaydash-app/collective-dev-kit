@@ -361,56 +361,8 @@ export default function JournalEntries() {
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  // Filter journal entries by date range and search query
-  const filteredEntries = journalEntries?.filter((entry: any) => {
-    // Date filter
-    let passesDateFilter = true;
-    if (startDate || endDate) {
-      const entryDate = startOfDay(new Date(entry.entry_date));
-      
-      if (startDate && endDate) {
-        passesDateFilter = isWithinInterval(entryDate, {
-          start: startOfDay(startDate),
-          end: endOfDay(endDate)
-        });
-      } else if (startDate) {
-        passesDateFilter = entryDate >= startOfDay(startDate);
-      } else if (endDate) {
-        passesDateFilter = entryDate <= endOfDay(endDate);
-      }
-    }
-    
-    // Search filter
-    let passesSearchFilter = true;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      
-      // Search in entry fields
-      const matchesEntry = 
-        entry.entry_number?.toLowerCase().includes(query) ||
-        entry.description?.toLowerCase().includes(query) ||
-        entry.reference?.toLowerCase().includes(query) ||
-        entry.notes?.toLowerCase().includes(query) ||
-        entry.status?.toLowerCase().includes(query) ||
-        entry.entry_date?.toLowerCase().includes(query) ||
-        entry.transaction_amount?.toString().includes(query) ||
-        entry.total_debit?.toString().includes(query) ||
-        entry.total_credit?.toString().includes(query);
-      
-      // Search in journal entry lines (account codes, account names, descriptions)
-      const matchesLines = entry.journal_entry_lines?.some((line: any) => 
-        line.description?.toLowerCase().includes(query) ||
-        line.accounts?.account_code?.toLowerCase().includes(query) ||
-        line.accounts?.account_name?.toLowerCase().includes(query) ||
-        line.debit_amount?.toString().includes(query) ||
-        line.credit_amount?.toString().includes(query)
-      );
-      
-      passesSearchFilter = matchesEntry || matchesLines;
-    }
-    
-    return passesDateFilter && passesSearchFilter;
-  });
+  // Filtering is now done server-side; use fetched entries directly
+  const filteredEntries = journalEntries;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
