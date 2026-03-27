@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Check, Eye, Edit, AlertTriangle, ChevronsUpDown, CalendarIcon, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
