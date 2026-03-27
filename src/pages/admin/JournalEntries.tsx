@@ -106,9 +106,14 @@ export default function JournalEntries() {
     },
   });
 
-  const { data: journalEntries, isLoading } = useQuery({
-    queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery],
+  const [page, setPage] = useState(0);
+  const pageSize = 100;
+
+  const { data: journalResult, isLoading } = useQuery({
+    queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery, page],
     queryFn: async () => {
+      const isSearching = !!(searchQuery.trim() || startDate || endDate);
+
       let query = supabase
         .from('journal_entries')
         .select(`
@@ -117,7 +122,7 @@ export default function JournalEntries() {
             *,
             accounts (account_code, account_name)
           )
-        `)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       // Server-side date filtering
@@ -128,26 +133,30 @@ export default function JournalEntries() {
         query = query.lte('entry_date', endOfDay(endDate).toISOString().split('T')[0]);
       }
 
-      // Server-side search by entry_number if search looks like an entry number
+      // Server-side search
       if (searchQuery.trim()) {
         const q = searchQuery.trim();
-        if (q.toUpperCase().startsWith('JE-')) {
-          query = query.ilike('entry_number', `%${q}%`);
-        } else {
-          query = query.or(`entry_number.ilike.%${q}%,description.ilike.%${q}%,reference.ilike.%${q}%`);
-        }
+        query = query.or(`entry_number.ilike.%${q}%,description.ilike.%${q}%,reference.ilike.%${q}%,notes.ilike.%${q}%`);
       }
 
-      // Increase limit to get more results
-      query = query.limit(5000);
+      // Pagination when not searching, larger limit when searching
+      if (!isSearching) {
+        query = query.range(page * pageSize, (page + 1) * pageSize - 1);
+      } else {
+        query = query.limit(10000);
+      }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data;
+      return { entries: data, totalCount: count || 0 };
     },
     refetchOnMount: 'always',
     staleTime: 0,
   });
+
+  const journalEntries = journalResult?.entries;
+  const totalCount = journalResult?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -628,7 +637,7 @@ export default function JournalEntries() {
             <Input
               placeholder="Search by entry number, description, reference, account, status, or any field..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
               className="w-full"
             />
           </div>
@@ -702,6 +711,7 @@ export default function JournalEntries() {
                   setStartDate(undefined);
                   setEndDate(undefined);
                   setSearchQuery('');
+                  setPage(0);
                 }}
               >
                 <X className="h-4 w-4 mr-2" />
@@ -803,6 +813,33 @@ export default function JournalEntries() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Pagination */}
+      {!searchQuery.trim() && !startDate && !endDate && totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalCount)} of {totalCount} entries
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(p => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* View Entry Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
