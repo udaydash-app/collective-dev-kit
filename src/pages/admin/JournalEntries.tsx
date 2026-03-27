@@ -107,9 +107,9 @@ export default function JournalEntries() {
   });
 
   const { data: journalEntries, isLoading } = useQuery({
-    queryKey: ['journal-entries'],
+    queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('journal_entries')
         .select(`
           *,
@@ -119,6 +119,29 @@ export default function JournalEntries() {
           )
         `)
         .order('created_at', { ascending: false });
+
+      // Server-side date filtering
+      if (startDate) {
+        query = query.gte('entry_date', startOfDay(startDate).toISOString().split('T')[0]);
+      }
+      if (endDate) {
+        query = query.lte('entry_date', endOfDay(endDate).toISOString().split('T')[0]);
+      }
+
+      // Server-side search by entry_number if search looks like an entry number
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim();
+        if (q.toUpperCase().startsWith('JE-')) {
+          query = query.ilike('entry_number', `%${q}%`);
+        } else {
+          query = query.or(`entry_number.ilike.%${q}%,description.ilike.%${q}%,reference.ilike.%${q}%`);
+        }
+      }
+
+      // Increase limit to get more results
+      query = query.limit(5000);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
