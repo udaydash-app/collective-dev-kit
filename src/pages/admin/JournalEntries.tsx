@@ -711,6 +711,7 @@ export default function JournalEntries() {
                   setStartDate(undefined);
                   setEndDate(undefined);
                   setSearchQuery('');
+                  setPage(0);
                 }}
               >
                 <X className="h-4 w-4 mr-2" />
