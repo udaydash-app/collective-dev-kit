@@ -29,10 +29,30 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
             duration: 10000,
           });
 
-          // Play notification sound
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUB0KT6Xj8bJoGgU7lNn01og5BxpsveXrmU8ODEul4fGsZBUGPZPY88Z3KwU1hM3v2YhABxlpuOyplVMOCkunzO+xZxkFMobe8MV/MwU8j9Xt2YxABhJqt+mrmFMNDEuk5O6yYhgFMoje7cZ9MgU6jdTt2YpABhFqtuirlVQNCUuj5PCtYRgFMobf7MV9MgU5jNTs2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlABhFqtuirlVQOCkqi5O+uXxcFMYbe7MV9MgU5i9Tr2YlA');
-          audio.volume = 0.8;
-          audio.play().catch(() => {});
+          // Play loud bell sound for 2 seconds
+          try {
+            const audioCtx = new AudioContext();
+            const playBellTone = (freq: number, startTime: number, duration: number, gain: number) => {
+              const osc = audioCtx.createOscillator();
+              const gainNode = audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, audioCtx.currentTime + startTime);
+              gainNode.gain.setValueAtTime(gain, audioCtx.currentTime + startTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + startTime + duration);
+              osc.connect(gainNode);
+              gainNode.connect(audioCtx.destination);
+              osc.start(audioCtx.currentTime + startTime);
+              osc.stop(audioCtx.currentTime + startTime + duration);
+            };
+            // Ring bell pattern over 2 seconds
+            for (let i = 0; i < 6; i++) {
+              playBellTone(880, i * 0.33, 0.3, 0.8);
+              playBellTone(1760, i * 0.33, 0.25, 0.4);
+              playBellTone(1320, i * 0.33 + 0.05, 0.2, 0.3);
+            }
+          } catch (e) {
+            console.log('Bell sound failed:', e);
+          }
         }
       )
       .subscribe();
