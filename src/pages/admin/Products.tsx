@@ -50,6 +50,7 @@ interface Product {
   description: string | null;
   price: number;
   cost_price?: number;
+  local_charges?: number;
   wholesale_price?: number;
   vip_price?: number;
   unit: string;
