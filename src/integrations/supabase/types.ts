@@ -1907,6 +1907,7 @@ export type Database = {
           is_available: boolean | null
           is_available_online: boolean | null
           is_featured: boolean | null
+          local_charges: number | null
           name: string
           nutritional_info: Json | null
           original_price: number | null
@@ -1932,6 +1933,7 @@ export type Database = {
           is_available?: boolean | null
           is_available_online?: boolean | null
           is_featured?: boolean | null
+          local_charges?: number | null
           name: string
           nutritional_info?: Json | null
           original_price?: number | null
@@ -1957,6 +1959,7 @@ export type Database = {
           is_available?: boolean | null
           is_available_online?: boolean | null
           is_featured?: boolean | null
+          local_charges?: number | null
           name?: string
           nutritional_info?: Json | null
           original_price?: number | null
