@@ -170,6 +170,7 @@ export default function Purchases() {
             unit_cost,
             local_charges,
             total_cost,
+            created_at,
             products (id, name),
             product_variants (id, label, quantity, unit)
           )
