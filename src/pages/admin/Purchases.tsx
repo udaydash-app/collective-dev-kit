@@ -168,6 +168,7 @@ export default function Purchases() {
             variant_id,
             quantity,
             unit_cost,
+            local_charges,
             total_cost,
             products (id, name),
             product_variants (id, label, quantity, unit)
