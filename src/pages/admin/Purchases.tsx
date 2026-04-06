@@ -248,6 +248,7 @@ export default function Purchases() {
               product_id: product.id,
               quantity: 1,
               unit_cost: Number(unitCost),
+              local_charges: 0,
               total_cost: Number(unitCost),
               product_name: product.name,
             };
@@ -263,7 +264,7 @@ export default function Purchases() {
               updatedItems = [...savedState.items];
               updatedItems[existingIndex].quantity += 1;
               updatedItems[existingIndex].total_cost = 
-                updatedItems[existingIndex].quantity * updatedItems[existingIndex].unit_cost;
+                updatedItems[existingIndex].quantity * (updatedItems[existingIndex].unit_cost + updatedItems[existingIndex].local_charges);
             } else {
               // Add new item
               updatedItems = [...savedState.items, newItem];
@@ -379,6 +380,7 @@ export default function Purchases() {
         variant_id: item.variant_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        local_charges: item.local_charges,
         total_cost: item.total_cost,
       }));
 
@@ -423,7 +425,7 @@ export default function Purchases() {
     if (existingIndex >= 0) {
       const updated = [...items];
       updated[existingIndex].quantity += 1;
-      updated[existingIndex].total_cost = updated[existingIndex].quantity * updated[existingIndex].unit_cost;
+      updated[existingIndex].total_cost = updated[existingIndex].quantity * (updated[existingIndex].unit_cost + updated[existingIndex].local_charges);
       setItems(updated);
     } else {
       const unitCost = variant ? (variant.cost_price || variant.price) : (product.cost_price || product.price);
@@ -434,6 +436,7 @@ export default function Purchases() {
           variant_id: variant?.id,
           quantity: 1,
           unit_cost: Number(unitCost),
+          local_charges: 0,
           total_cost: Number(unitCost),
           product_name: product.name,
           variant_label: variant ? (variant.label || `${variant.quantity}${variant.unit}`) : undefined,
@@ -488,7 +491,7 @@ export default function Purchases() {
     }
     const updated = [...items];
     updated[index].quantity = quantity;
-    updated[index].total_cost = quantity * updated[index].unit_cost;
+    updated[index].total_cost = quantity * (updated[index].unit_cost + updated[index].local_charges);
     setItems(updated);
   };
 
