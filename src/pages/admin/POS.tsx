@@ -63,6 +63,7 @@ import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
+import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { cn } from '@/lib/utils';
@@ -3802,6 +3803,7 @@ export default function POS() {
               <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Credit Sales | F4: Mobile Money | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
                 Keyboard: F2-F12 + ↑↓←→
               </div>
+              <WalkieTalkieButton />
               <Button 
                 variant="ghost" 
                 size="sm"
