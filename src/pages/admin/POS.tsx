@@ -3802,6 +3802,7 @@ export default function POS() {
               <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Credit Sales | F4: Mobile Money | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
                 Keyboard: F2-F12 + ↑↓←→
               </div>
+              <WalkieTalkieButton />
               <Button 
                 variant="ghost" 
                 size="sm"
