@@ -2040,6 +2040,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          local_charges: number | null
           product_id: string
           purchase_id: string
           quantity: number
@@ -2050,6 +2051,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          local_charges?: number | null
           product_id: string
           purchase_id: string
           quantity: number
@@ -2060,6 +2062,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          local_charges?: number | null
           product_id?: string
           purchase_id?: string
           quantity?: number

@@ -32,6 +32,7 @@ interface PurchaseItem {
   variant_id?: string;
   quantity: number;
   unit_cost: number;
+  local_charges: number;
   total_cost: number;
   product_name?: string;
   variant_label?: string;
@@ -167,6 +168,7 @@ export default function Purchases() {
             variant_id,
             quantity,
             unit_cost,
+            local_charges,
             total_cost,
             products (id, name),
             product_variants (id, label, quantity, unit)
@@ -247,6 +249,7 @@ export default function Purchases() {
               product_id: product.id,
               quantity: 1,
               unit_cost: Number(unitCost),
+              local_charges: 0,
               total_cost: Number(unitCost),
               product_name: product.name,
             };
@@ -262,7 +265,7 @@ export default function Purchases() {
               updatedItems = [...savedState.items];
               updatedItems[existingIndex].quantity += 1;
               updatedItems[existingIndex].total_cost = 
-                updatedItems[existingIndex].quantity * updatedItems[existingIndex].unit_cost;
+                updatedItems[existingIndex].quantity * (updatedItems[existingIndex].unit_cost + updatedItems[existingIndex].local_charges);
             } else {
               // Add new item
               updatedItems = [...savedState.items, newItem];
@@ -378,6 +381,7 @@ export default function Purchases() {
         variant_id: item.variant_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        local_charges: item.local_charges,
         total_cost: item.total_cost,
       }));
 
@@ -422,7 +426,7 @@ export default function Purchases() {
     if (existingIndex >= 0) {
       const updated = [...items];
       updated[existingIndex].quantity += 1;
-      updated[existingIndex].total_cost = updated[existingIndex].quantity * updated[existingIndex].unit_cost;
+      updated[existingIndex].total_cost = updated[existingIndex].quantity * (updated[existingIndex].unit_cost + updated[existingIndex].local_charges);
       setItems(updated);
     } else {
       const unitCost = variant ? (variant.cost_price || variant.price) : (product.cost_price || product.price);
@@ -433,6 +437,7 @@ export default function Purchases() {
           variant_id: variant?.id,
           quantity: 1,
           unit_cost: Number(unitCost),
+          local_charges: 0,
           total_cost: Number(unitCost),
           product_name: product.name,
           variant_label: variant ? (variant.label || `${variant.quantity}${variant.unit}`) : undefined,
@@ -487,14 +492,21 @@ export default function Purchases() {
     }
     const updated = [...items];
     updated[index].quantity = quantity;
-    updated[index].total_cost = quantity * updated[index].unit_cost;
+    updated[index].total_cost = quantity * (updated[index].unit_cost + updated[index].local_charges);
     setItems(updated);
   };
 
   const updateItemCost = (index: number, cost: number) => {
     const updated = [...items];
     updated[index].unit_cost = cost;
-    updated[index].total_cost = cost * updated[index].quantity;
+    updated[index].total_cost = (cost + updated[index].local_charges) * updated[index].quantity;
+    setItems(updated);
+  };
+
+  const updateItemLocalCharges = (index: number, charges: number) => {
+    const updated = [...items];
+    updated[index].local_charges = charges;
+    updated[index].total_cost = (updated[index].unit_cost + charges) * updated[index].quantity;
     setItems(updated);
   };
 
@@ -572,6 +584,7 @@ export default function Purchases() {
         variant_id: item.variant_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        local_charges: item.local_charges,
         total_cost: item.total_cost,
       }));
 
@@ -638,6 +651,7 @@ export default function Purchases() {
       variant_id: item.variant_id || undefined,
       quantity: item.quantity,
       unit_cost: item.unit_cost,
+      local_charges: item.local_charges || 0,
       total_cost: item.total_cost,
       product_name: item.products?.name || '',
       variant_label: item.product_variants ? 
@@ -1171,10 +1185,11 @@ export default function Purchases() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[40%]">Product</TableHead>
-                          <TableHead className="w-[15%] text-center">Quantity</TableHead>
-                          <TableHead className="w-[15%] text-right">Unit Cost</TableHead>
-                          <TableHead className="w-[20%] text-right">Total</TableHead>
+                          <TableHead className="w-[30%]">Product</TableHead>
+                          <TableHead className="w-[12%] text-center">Quantity</TableHead>
+                          <TableHead className="w-[15%] text-right">Unit Cost CIF</TableHead>
+                          <TableHead className="w-[15%] text-right">Local Charges</TableHead>
+                          <TableHead className="w-[18%] text-right">Total</TableHead>
                           <TableHead className="w-[10%] text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1205,6 +1220,15 @@ export default function Purchases() {
                                 step="0.01"
                                 value={item.unit_cost}
                                 onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
+                                className="w-28 ml-auto text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.local_charges}
+                                onChange={(e) => updateItemLocalCharges(index, parseFloat(e.target.value) || 0)}
                                 className="w-28 ml-auto text-right"
                               />
                             </TableCell>
@@ -1392,10 +1416,11 @@ export default function Purchases() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[40%]">Product</TableHead>
-                          <TableHead className="w-[15%] text-center">Quantity</TableHead>
-                          <TableHead className="w-[15%] text-right">Unit Cost</TableHead>
-                          <TableHead className="w-[20%] text-right">Total</TableHead>
+                          <TableHead className="w-[30%]">Product</TableHead>
+                          <TableHead className="w-[12%] text-center">Quantity</TableHead>
+                          <TableHead className="w-[15%] text-right">Unit Cost CIF</TableHead>
+                          <TableHead className="w-[15%] text-right">Local Charges</TableHead>
+                          <TableHead className="w-[18%] text-right">Total</TableHead>
                           <TableHead className="w-[10%] text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1426,6 +1451,15 @@ export default function Purchases() {
                                 step="0.01"
                                 value={item.unit_cost}
                                 onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
+                                className="w-28 ml-auto text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.local_charges}
+                                onChange={(e) => updateItemLocalCharges(index, parseFloat(e.target.value) || 0)}
                                 className="w-28 ml-auto text-right"
                               />
                             </TableCell>
@@ -1649,7 +1683,7 @@ export default function Purchases() {
                           </p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × {formatCurrency(item.unit_cost)}
+                          Qty: {item.quantity} × {formatCurrency(item.unit_cost)}{item.local_charges > 0 ? ` + ${formatCurrency(item.local_charges)} local` : ''}
                         </p>
                       </div>
                       <p className="font-semibold">{formatCurrency(item.total_cost)}</p>
