@@ -554,30 +554,13 @@ export default function Purchases() {
         ? 'Multiple' 
         : paymentDetails?.[0]?.method || paymentMethod || selectedPurchase.payment_method;
 
-      // Update purchase with all editable fields
-      const { error: purchaseError } = await supabase
-        .from('purchases')
-        .update({
-          supplier_name: supplier.name,
-          supplier_contact: supplier.phone || supplier.email || null,
-          store_id: selectedStore,
-          payment_status: paymentStatus,
-          payment_method: displayMethod,
-          payment_details: paymentDetails || selectedPurchase.payment_details || [],
-          notes: notes,
-          total_amount: totalAmount,
-        })
-        .eq('id', selectedPurchase.id);
-
-      if (purchaseError) throw purchaseError;
-
-      // Delete existing purchase items
+      // Delete existing purchase items first
       await supabase
         .from('purchase_items')
         .delete()
         .eq('purchase_id', selectedPurchase.id);
 
-      // Create new purchase items
+      // Create new purchase items before updating purchase (so trigger can read them)
       const purchaseItems = items.map(item => ({
         purchase_id: selectedPurchase.id,
         product_id: item.product_id,
@@ -593,6 +576,24 @@ export default function Purchases() {
         .insert(purchaseItems);
 
       if (itemsError) throw itemsError;
+
+      // Update purchase AFTER items are saved so the trigger can read local_charges
+      const { error: purchaseError } = await supabase
+        .from('purchases')
+        .update({
+          supplier_name: supplier.name,
+          supplier_contact: supplier.phone || supplier.email || null,
+          store_id: selectedStore,
+          payment_status: paymentStatus,
+          payment_method: displayMethod,
+          payment_details: paymentDetails || selectedPurchase.payment_details || [],
+          notes: notes,
+          total_amount: totalAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedPurchase.id);
+
+      if (purchaseError) throw purchaseError;
       // Journal entries are automatically created/updated by database trigger
     },
     onSuccess: () => {
