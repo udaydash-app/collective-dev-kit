@@ -32,6 +32,7 @@ interface PurchaseItem {
   variant_id?: string;
   quantity: number;
   unit_cost: number;
+  local_charges: number;
   total_cost: number;
   product_name?: string;
   variant_label?: string;
@@ -494,7 +495,14 @@ export default function Purchases() {
   const updateItemCost = (index: number, cost: number) => {
     const updated = [...items];
     updated[index].unit_cost = cost;
-    updated[index].total_cost = cost * updated[index].quantity;
+    updated[index].total_cost = (cost + updated[index].local_charges) * updated[index].quantity;
+    setItems(updated);
+  };
+
+  const updateItemLocalCharges = (index: number, charges: number) => {
+    const updated = [...items];
+    updated[index].local_charges = charges;
+    updated[index].total_cost = (updated[index].unit_cost + charges) * updated[index].quantity;
     setItems(updated);
   };
 
