@@ -81,17 +81,38 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
     };
   }, [channelName]);
 
-  const playAudio = useCallback((url: string) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
+  const playAudio = useCallback(async (url: string) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      // Resume AudioContext if suspended (browser autoplay policy)
+      if (audioContextRef.current?.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      audioRef.current = audio;
+      setIsPlaying(true);
+      audio.onended = () => setIsPlaying(false);
+      audio.onerror = (e) => {
+        console.error('[WalkieTalkie] Playback error:', e);
+        setIsPlaying(false);
+      };
+      // Wait for audio to be ready before playing
+      await new Promise<void>((resolve, reject) => {
+        audio.oncanplaythrough = () => resolve();
+        audio.onerror = () => reject(new Error('Failed to load audio'));
+        setTimeout(() => resolve(), 3000); // fallback timeout
+      });
+      await audio.play();
+      console.log('[WalkieTalkie] Playing audio from broadcast');
+    } catch (err) {
+      console.error('[WalkieTalkie] Play failed:', err);
+      setIsPlaying(false);
+      toast({ title: 'Audio', description: 'Received message but could not play audio', variant: 'destructive' });
     }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    setIsPlaying(true);
-    audio.onended = () => setIsPlaying(false);
-    audio.onerror = () => setIsPlaying(false);
-    audio.play().catch(() => setIsPlaying(false));
-  }, []);
+  }, [toast]);
 
   const startRecording = useCallback(async () => {
     try {
