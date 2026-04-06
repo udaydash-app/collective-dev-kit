@@ -4,7 +4,9 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AudioMessage {
   id: string;
-  audioUrl: string;
+  audioPath?: string;
+  audioUrl?: string;
+  mimeType?: string;
   senderName: string;
   senderId: string;
   timestamp: number;
@@ -22,8 +24,16 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
   const channelRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
   const deviceIdRef = useRef(localStorage.getItem('walkie_talkie_device_id') || crypto.randomUUID());
   const { toast } = useToast();
+
+  const clearObjectUrl = useCallback(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  }, []);
 
   // Unlock audio playback on first user interaction
   useEffect(() => {
@@ -34,15 +44,16 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
       if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
-      // Play a silent buffer to unlock audio
       const buffer = audioContextRef.current.createBuffer(1, 1, 22050);
       const source = audioContextRef.current.createBufferSource();
       source.buffer = buffer;
       source.connect(audioContextRef.current.destination);
       source.start(0);
     };
+
     document.addEventListener('pointerdown', unlock, { once: true });
     document.addEventListener('click', unlock, { once: true });
+
     return () => {
       document.removeEventListener('pointerdown', unlock);
       document.removeEventListener('click', unlock);
@@ -54,10 +65,129 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
     localStorage.setItem('walkie_talkie_device_id', deviceIdRef.current);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      clearObjectUrl();
+    };
+  }, [clearObjectUrl]);
+
   const setAndSaveDeviceName = useCallback((name: string) => {
     setDeviceName(name);
     localStorage.setItem('walkie_talkie_device_name', name);
   }, []);
+
+  const resolveAudioSource = useCallback(async (message: AudioMessage) => {
+    if (message.audioPath) {
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const { data, error } = await supabase.storage
+          .from('walkie-talkie')
+          .download(message.audioPath);
+
+        if (data && data.size > 0) {
+          clearObjectUrl();
+          const objectUrl = URL.createObjectURL(data);
+          objectUrlRef.current = objectUrl;
+          return objectUrl;
+        }
+
+        lastError = new Error(error?.message || 'Failed to download audio');
+        await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+      }
+
+      throw lastError ?? new Error('Failed to download audio');
+    }
+
+    if (message.audioUrl) {
+      return message.audioUrl;
+    }
+
+    throw new Error('Missing audio source');
+  }, [clearObjectUrl]);
+
+  const playAudio = useCallback(async (message: AudioMessage) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      clearObjectUrl();
+
+      if (audioContextRef.current?.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+
+      const sourceUrl = await resolveAudioSource(message);
+      const audio = new Audio();
+      audio.src = sourceUrl;
+      audio.preload = 'auto';
+      audioRef.current = audio;
+      setIsPlaying(true);
+
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            cleanup();
+            resolve();
+          }
+        }, 5000);
+
+        const cleanup = () => {
+          window.clearTimeout(timeoutId);
+          audio.onloadeddata = null;
+          audio.oncanplaythrough = null;
+          audio.onerror = null;
+        };
+
+        const handleReady = () => {
+          if (!settled) {
+            settled = true;
+            cleanup();
+            resolve();
+          }
+        };
+
+        const handleError = () => {
+          if (!settled) {
+            settled = true;
+            cleanup();
+            reject(new Error('Failed to load audio'));
+          }
+        };
+
+        audio.onloadeddata = handleReady;
+        audio.oncanplaythrough = handleReady;
+        audio.onerror = handleError;
+        audio.load();
+      });
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        clearObjectUrl();
+      };
+
+      audio.onerror = (e) => {
+        console.error('[WalkieTalkie] Playback error:', e);
+        setIsPlaying(false);
+        clearObjectUrl();
+      };
+
+      await audio.play();
+      console.log('[WalkieTalkie] Playing audio from broadcast');
+    } catch (err) {
+      console.error('[WalkieTalkie] Play failed:', err);
+      setIsPlaying(false);
+      clearObjectUrl();
+      toast({ title: 'Audio', description: 'Received message but could not play audio', variant: 'destructive' });
+    }
+  }, [clearObjectUrl, resolveAudioSource, toast]);
 
   // Subscribe to broadcast channel
   useEffect(() => {
@@ -69,8 +199,7 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
       .on('broadcast', { event: 'audio_message' }, (payload) => {
         const msg = payload.payload as AudioMessage;
         setLastMessage(msg);
-        // Auto-play received audio
-        playAudio(msg.audioUrl);
+        void playAudio(msg);
       })
       .subscribe();
 
@@ -79,40 +208,7 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelName]);
-
-  const playAudio = useCallback(async (url: string) => {
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      // Resume AudioContext if suspended (browser autoplay policy)
-      if (audioContextRef.current?.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-      const audio = new Audio(url);
-      audio.preload = 'auto';
-      audioRef.current = audio;
-      setIsPlaying(true);
-      audio.onended = () => setIsPlaying(false);
-      audio.onerror = (e) => {
-        console.error('[WalkieTalkie] Playback error:', e);
-        setIsPlaying(false);
-      };
-      // Wait for audio to be ready before playing
-      await new Promise<void>((resolve, reject) => {
-        audio.oncanplaythrough = () => resolve();
-        audio.onerror = () => reject(new Error('Failed to load audio'));
-        setTimeout(() => resolve(), 3000); // fallback timeout
-      });
-      await audio.play();
-      console.log('[WalkieTalkie] Playing audio from broadcast');
-    } catch (err) {
-      console.error('[WalkieTalkie] Play failed:', err);
-      setIsPlaying(false);
-      toast({ title: 'Audio', description: 'Received message but could not play audio', variant: 'destructive' });
-    }
-  }, [toast]);
+  }, [channelName, playAudio]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -129,17 +225,15 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
       };
 
       mediaRecorder.onstop = async () => {
-        // Stop all tracks
         stream.getTracks().forEach(t => t.stop());
         
         const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
-        if (blob.size < 1000) return; // Skip tiny recordings (accidental taps)
+        if (blob.size < 1000) return;
 
         const ext = mediaRecorder.mimeType.includes('webm') ? 'webm' : 'mp4';
         const fileName = `${Date.now()}-${deviceIdRef.current.slice(0, 8)}.${ext}`;
 
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from('walkie-talkie')
           .upload(fileName, blob, {
             contentType: mediaRecorder.mimeType,
@@ -152,38 +246,33 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
           return;
         }
 
-        // Use signed URL for reliable access
         const { data: signedData, error: signError } = await supabase.storage
           .from('walkie-talkie')
-          .createSignedUrl(fileName, 300); // 5 min expiry
+          .createSignedUrl(fileName, 300);
 
-        if (signError || !signedData?.signedUrl) {
-          console.error('Signed URL error:', signError);
-          toast({ title: 'Error', description: 'Failed to generate audio URL', variant: 'destructive' });
-          return;
+        if (signError) {
+          console.warn('[WalkieTalkie] Signed URL fallback failed:', signError);
         }
 
         const message: AudioMessage = {
           id: crypto.randomUUID(),
-          audioUrl: signedData.signedUrl,
+          audioPath: fileName,
+          audioUrl: signedData?.signedUrl,
+          mimeType: mediaRecorder.mimeType,
           senderName: deviceName,
           senderId: deviceIdRef.current,
           timestamp: Date.now(),
         };
 
-        // Broadcast to all devices
         channelRef.current?.send({
           type: 'broadcast',
           event: 'audio_message',
           payload: message,
         });
-
-        // Also play locally so sender hears confirmation
-        console.log('[WalkieTalkie] Audio sent successfully:', fileName);
       };
 
       mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start(100); // collect data every 100ms
+      mediaRecorder.start(100);
       setIsRecording(true);
     } catch (err) {
       console.error('Microphone access error:', err);
