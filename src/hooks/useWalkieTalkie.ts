@@ -185,9 +185,9 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
       console.error('[WalkieTalkie] Play failed:', err);
       setIsPlaying(false);
       clearObjectUrl();
-      toast({ title: 'Audio', description: 'Received message but could not play audio', variant: 'destructive' });
+      toast.error('Received message but could not play audio');
     }
-  }, [clearObjectUrl, resolveAudioSource, toast]);
+  }, [clearObjectUrl, resolveAudioSource]);
 
   // Subscribe to broadcast channel
   useEffect(() => {
@@ -242,7 +242,7 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
 
         if (error) {
           console.error('Upload error:', error);
-          toast({ title: 'Error', description: 'Failed to send audio', variant: 'destructive' });
+          toast.error('Failed to send audio');
           return;
         }
 
@@ -276,13 +276,9 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
       setIsRecording(true);
     } catch (err) {
       console.error('Microphone access error:', err);
-      toast({
-        title: 'Microphone Access Required',
-        description: 'Please allow microphone access to use walkie-talkie',
-        variant: 'destructive',
-      });
+      toast.error('Please allow microphone access to use walkie-talkie');
     }
-  }, [deviceName, toast]);
+  }, [deviceName]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
