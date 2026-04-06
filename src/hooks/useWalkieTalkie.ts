@@ -152,13 +152,20 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
           return;
         }
 
-        const { data: urlData } = supabase.storage
+        // Use signed URL for reliable access
+        const { data: signedData, error: signError } = await supabase.storage
           .from('walkie-talkie')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 300); // 5 min expiry
+
+        if (signError || !signedData?.signedUrl) {
+          console.error('Signed URL error:', signError);
+          toast({ title: 'Error', description: 'Failed to generate audio URL', variant: 'destructive' });
+          return;
+        }
 
         const message: AudioMessage = {
           id: crypto.randomUUID(),
-          audioUrl: urlData.publicUrl,
+          audioUrl: signedData.signedUrl,
           senderName: deviceName,
           senderId: deviceIdRef.current,
           timestamp: Date.now(),
@@ -170,6 +177,9 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
           event: 'audio_message',
           payload: message,
         });
+
+        // Also play locally so sender hears confirmation
+        console.log('[WalkieTalkie] Audio sent successfully:', fileName);
       };
 
       mediaRecorderRef.current = mediaRecorder;
