@@ -583,6 +583,7 @@ export default function Purchases() {
         variant_id: item.variant_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        local_charges: item.local_charges,
         total_cost: item.total_cost,
       }));
 
@@ -649,6 +650,7 @@ export default function Purchases() {
       variant_id: item.variant_id || undefined,
       quantity: item.quantity,
       unit_cost: item.unit_cost,
+      local_charges: item.local_charges || 0,
       total_cost: item.total_cost,
       product_name: item.products?.name || '',
       variant_label: item.product_variants ? 
