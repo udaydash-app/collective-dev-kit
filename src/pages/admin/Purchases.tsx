@@ -648,7 +648,10 @@ export default function Purchases() {
     setNotes(purchase.notes || '');
     
     // Load items
-    const purchaseItems = purchase.purchase_items.map((item: any) => ({
+    const sortedItems = [...purchase.purchase_items].sort((a: any, b: any) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const purchaseItems = sortedItems.map((item: any) => ({
       product_id: item.product_id,
       variant_id: item.variant_id || undefined,
       quantity: item.quantity,
