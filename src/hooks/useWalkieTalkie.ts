@@ -21,8 +21,33 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
   const chunksRef = useRef<Blob[]>([]);
   const channelRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const deviceIdRef = useRef(localStorage.getItem('walkie_talkie_device_id') || crypto.randomUUID());
   const { toast } = useToast();
+
+  // Unlock audio playback on first user interaction
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      // Play a silent buffer to unlock audio
+      const buffer = audioContextRef.current.createBuffer(1, 1, 22050);
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContextRef.current.destination);
+      source.start(0);
+    };
+    document.addEventListener('pointerdown', unlock, { once: true });
+    document.addEventListener('click', unlock, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('click', unlock);
+    };
+  }, []);
 
   // Persist device ID
   useEffect(() => {
