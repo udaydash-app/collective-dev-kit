@@ -129,7 +129,7 @@ const AppContent = () => {
         <RouterContent />
         <ChatNotifications />
         <ChatWidget />
-        <WalkieTalkie />
+        <WalkieTalkieButton />
         <Routes>
           {/* Root - detects PWA/desktop vs browser and redirects accordingly */}
           <Route path="/" element={<Index />} />
