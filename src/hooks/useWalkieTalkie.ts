@@ -26,7 +26,7 @@ export const useWalkieTalkie = (channelName: string = 'office-walkie-talkie') =>
   const audioContextRef = useRef<AudioContext | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const deviceIdRef = useRef(localStorage.getItem('walkie_talkie_device_id') || crypto.randomUUID());
-  const { toast } = useToast();
+  
 
   const clearObjectUrl = useCallback(() => {
     if (objectUrlRef.current) {
