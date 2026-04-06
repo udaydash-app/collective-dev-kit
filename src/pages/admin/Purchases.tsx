@@ -1184,10 +1184,11 @@ export default function Purchases() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[40%]">Product</TableHead>
-                          <TableHead className="w-[15%] text-center">Quantity</TableHead>
-                          <TableHead className="w-[15%] text-right">Unit Cost</TableHead>
-                          <TableHead className="w-[20%] text-right">Total</TableHead>
+                          <TableHead className="w-[30%]">Product</TableHead>
+                          <TableHead className="w-[12%] text-center">Quantity</TableHead>
+                          <TableHead className="w-[15%] text-right">Unit Cost CIF</TableHead>
+                          <TableHead className="w-[15%] text-right">Local Charges</TableHead>
+                          <TableHead className="w-[18%] text-right">Total</TableHead>
                           <TableHead className="w-[10%] text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1218,6 +1219,15 @@ export default function Purchases() {
                                 step="0.01"
                                 value={item.unit_cost}
                                 onChange={(e) => updateItemCost(index, parseFloat(e.target.value) || 0)}
+                                className="w-28 ml-auto text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.local_charges}
+                                onChange={(e) => updateItemLocalCharges(index, parseFloat(e.target.value) || 0)}
                                 className="w-28 ml-auto text-right"
                               />
                             </TableCell>
