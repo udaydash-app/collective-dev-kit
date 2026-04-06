@@ -63,6 +63,7 @@ import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
+import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { cn } from '@/lib/utils';
