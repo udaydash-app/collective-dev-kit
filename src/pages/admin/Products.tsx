@@ -559,6 +559,7 @@ export default function Products() {
         description: formData.get("description") as string,
         price: parseFloat(formData.get("price") as string) || 0,
         cost_price: parseFloat(formData.get("cost_price") as string) || null,
+        local_charges: parseFloat(formData.get("local_charges") as string) || null,
         wholesale_price: parseFloat(formData.get("wholesale_price") as string) || null,
         vip_price: parseFloat(formData.get("vip_price") as string) || null,
         unit: formData.get("unit") as string,
@@ -2143,13 +2144,25 @@ export default function Products() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="cost_price" className="text-xs">Cost Price</Label>
+                        <Label htmlFor="cost_price" className="text-xs">Cost Price CIF</Label>
                         <Input
                           id="cost_price"
                           name="cost_price"
                           type="number"
                           step="0.01"
                           defaultValue={editingProduct.cost_price}
+                          placeholder="0.00"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="local_charges" className="text-xs">Local Charges</Label>
+                        <Input
+                          id="local_charges"
+                          name="local_charges"
+                          type="number"
+                          step="0.01"
+                          defaultValue={(editingProduct as any).local_charges}
                           placeholder="0.00"
                           className="h-9 text-sm"
                         />
