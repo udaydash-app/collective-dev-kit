@@ -83,6 +83,7 @@ import PWAInstall from "./pages/PWAInstall";
 import AdminLiveChat from "./pages/admin/LiveChat";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { ChatNotifications } from "./components/chat/ChatNotifications";
+import { WalkieTalkie } from "./components/chat/WalkieTalkie";
 import { useCloudSync } from "./hooks/useCloudSync";
 
 const queryClient = new QueryClient();
@@ -128,6 +129,7 @@ const AppContent = () => {
         <RouterContent />
         <ChatNotifications />
         <ChatWidget />
+        <WalkieTalkie />
         <Routes>
           {/* Root - detects PWA/desktop vs browser and redirects accordingly */}
           <Route path="/" element={<Index />} />
