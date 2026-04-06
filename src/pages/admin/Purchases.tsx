@@ -1682,7 +1682,7 @@ export default function Purchases() {
                           </p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × {formatCurrency(item.unit_cost)}
+                          Qty: {item.quantity} × {formatCurrency(item.unit_cost)}{item.local_charges > 0 ? ` + ${formatCurrency(item.local_charges)} local` : ''}
                         </p>
                       </div>
                       <p className="font-semibold">{formatCurrency(item.total_cost)}</p>
