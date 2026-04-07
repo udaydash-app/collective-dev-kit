@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trigger_purchase_journal_entry ON purchases;
