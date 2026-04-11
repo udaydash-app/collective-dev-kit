@@ -11,6 +11,7 @@ import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 export interface ProductSearchRef {
   focus: () => void;
+  clearSearch: () => void;
 }
 
 interface ProductSearchProps {
@@ -50,7 +51,11 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   useImperativeHandle(ref, () => ({
     focus: () => {
       searchInputRef.current?.focus();
-    }
+    },
+    clearSearch: () => {
+      setSearchTerm('');
+      setHighlightedIndex(-1);
+    },
   }));
 
   // Reset highlighted index when search term changes

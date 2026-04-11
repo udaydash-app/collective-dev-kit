@@ -684,10 +684,15 @@ export default function POS() {
 
   // USB barcode scanner interceptor - catches rapid input before it hits the search field
   const barcodeScanBuffer = useRef('');
-  const barcodeScanTimer = useRef<number | null>(null);
   const lastBarcodeKeyTime = useRef(0);
+  const isScannerInput = useRef(false);
 
   useEffect(() => {
+    const clearVisibleSearchInputs = () => {
+      setSearchTerm('');
+      productSearchRef.current?.clearSearch();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Focus product search on Esc key press
       if (e.key === 'Escape') {
@@ -701,19 +706,20 @@ export default function POS() {
       // Reset buffer if gap is too long (human typing is slower than 50ms between keys)
       if (timeSinceLastKey > 50) {
         barcodeScanBuffer.current = '';
+        isScannerInput.current = false;
       }
       lastBarcodeKeyTime.current = now;
 
       // Enter key = end of barcode scan
-      if (e.key === 'Enter' && barcodeScanBuffer.current.length >= 3) {
+      if (e.key === 'Enter' && isScannerInput.current && barcodeScanBuffer.current.length >= 3) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         const scanned = barcodeScanBuffer.current;
         barcodeScanBuffer.current = '';
-        // Clear any characters that leaked into the search input
-        setSearchTerm('');
-        handleBarcodeScan(scanned);
+        isScannerInput.current = false;
+        clearVisibleSearchInputs();
+        void handleBarcodeScan(scanned);
         return;
       }
 
@@ -721,10 +727,21 @@ export default function POS() {
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         barcodeScanBuffer.current += e.key;
 
-        // If we detect rapid consecutive keys (scanner), suppress them from the search input
-        if (barcodeScanBuffer.current.length >= 3 && timeSinceLastKey < 50) {
+        // Detect scanner-speed input as early as possible and clear leaked characters
+        if (timeSinceLastKey < 50 && barcodeScanBuffer.current.length >= 2) {
+          isScannerInput.current = true;
+          clearVisibleSearchInputs();
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation();
+          return;
+        }
+
+        if (isScannerInput.current) {
+          clearVisibleSearchInputs();
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
         }
       }
     };
