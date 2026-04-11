@@ -682,16 +682,56 @@ export default function POS() {
     };
   }, [queryClient, isOffline]);
 
-  // Focus product search on Esc key press
+  // USB barcode scanner interceptor - catches rapid input before it hits the search field
+  const barcodeScanBuffer = useRef('');
+  const barcodeScanTimer = useRef<number | null>(null);
+  const lastBarcodeKeyTime = useRef(0);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus product search on Esc key press
       if (e.key === 'Escape') {
         productSearchRef.current?.focus();
+        return;
+      }
+
+      const now = Date.now();
+      const timeSinceLastKey = now - lastBarcodeKeyTime.current;
+
+      // Reset buffer if gap is too long (human typing is slower than 50ms between keys)
+      if (timeSinceLastKey > 50) {
+        barcodeScanBuffer.current = '';
+      }
+      lastBarcodeKeyTime.current = now;
+
+      // Enter key = end of barcode scan
+      if (e.key === 'Enter' && barcodeScanBuffer.current.length >= 3) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const scanned = barcodeScanBuffer.current;
+        barcodeScanBuffer.current = '';
+        // Clear any characters that leaked into the search input
+        setSearchTerm('');
+        handleBarcodeScan(scanned);
+        return;
+      }
+
+      // Accumulate printable characters for barcode detection
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        barcodeScanBuffer.current += e.key;
+
+        // If we detect rapid consecutive keys (scanner), suppress them from the search input
+        if (barcodeScanBuffer.current.length >= 3 && timeSinceLastKey < 50) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Use capture phase to intercept before the search input receives the event
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, []);
 
   // Fetch all cash sessions for today to calculate total opening cash (only when online)
