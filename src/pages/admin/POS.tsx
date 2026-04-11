@@ -682,73 +682,15 @@ export default function POS() {
     };
   }, [queryClient, isOffline]);
 
-  // USB barcode scanner interceptor - catches rapid input before it hits the search field
-  const barcodeScanBuffer = useRef('');
-  const lastBarcodeKeyTime = useRef(0);
-  const isScannerInput = useRef(false);
-
+  // Focus product search on Esc key press
   useEffect(() => {
-    const clearVisibleSearchInputs = () => {
-      setSearchTerm('');
-      productSearchRef.current?.clearSearch();
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus product search on Esc key press
       if (e.key === 'Escape') {
         productSearchRef.current?.focus();
-        return;
-      }
-
-      const now = Date.now();
-      const timeSinceLastKey = now - lastBarcodeKeyTime.current;
-
-      // Reset buffer if gap is too long (human typing is slower than 50ms between keys)
-      if (timeSinceLastKey > 50) {
-        barcodeScanBuffer.current = '';
-        isScannerInput.current = false;
-      }
-      lastBarcodeKeyTime.current = now;
-
-      // Enter key = end of barcode scan
-      if (e.key === 'Enter' && isScannerInput.current && barcodeScanBuffer.current.length >= 3) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const scanned = barcodeScanBuffer.current;
-        barcodeScanBuffer.current = '';
-        isScannerInput.current = false;
-        clearVisibleSearchInputs();
-        void handleBarcodeScan(scanned);
-        return;
-      }
-
-      // Accumulate printable characters for barcode detection
-      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        barcodeScanBuffer.current += e.key;
-
-        // Detect scanner-speed input as early as possible and clear leaked characters
-        if (timeSinceLastKey < 50 && barcodeScanBuffer.current.length >= 2) {
-          isScannerInput.current = true;
-          clearVisibleSearchInputs();
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return;
-        }
-
-        if (isScannerInput.current) {
-          clearVisibleSearchInputs();
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        }
       }
     };
-
-    // Use capture phase to intercept before the search input receives the event
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Fetch all cash sessions for today to calculate total opening cash (only when online)
