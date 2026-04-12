@@ -40,6 +40,7 @@ try {
 }
 
 let mainWindow;
+let receiptPrintQueue = Promise.resolve();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -456,41 +457,88 @@ ipcMain.handle('app:getPath', (event, name) => {
 
 // IPC handler for printing receipts
 ipcMain.handle('print:receipt', async (event, html) => {
-  return new Promise((resolve, reject) => {
-    const printWindow = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-
-    printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-    
-    printWindow.webContents.on('did-finish-load', () => {
-      printWindow.webContents.print(
-        { 
-          silent: false,
-          printBackground: true,
-          margins: { marginType: 'none' }
+  receiptPrintQueue = receiptPrintQueue
+    .catch(() => {})
+    .then(() => new Promise((resolve, reject) => {
+      const printWindow = new BrowserWindow({
+        show: false,
+        paintWhenInitiallyHidden: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
         },
-        (success, errorType) => {
-          if (!success) {
-            console.error('Print failed:', errorType);
-            reject(new Error(`Print failed: ${errorType}`));
-          } else {
-            console.log('Print successful');
-            resolve();
-          }
-          printWindow.close();
-        }
-      );
-    });
+      });
 
-    printWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error('Failed to load print content:', errorDescription);
-      reject(new Error(`Failed to load print content: ${errorDescription}`));
-      printWindow.close();
-    });
-  });
+      let settled = false;
+      let printTimeout;
+
+      const cleanup = () => {
+        if (printTimeout) {
+          clearTimeout(printTimeout);
+        }
+
+        if (!printWindow.isDestroyed()) {
+          printWindow.destroy();
+        }
+      };
+
+      const resolvePrint = () => {
+        if (settled) return;
+        settled = true;
+        console.log('[PRINT] Receipt sent to printer successfully');
+        setTimeout(cleanup, 750);
+        resolve();
+      };
+
+      const rejectPrint = (message) => {
+        if (settled) return;
+        settled = true;
+        console.error('[PRINT]', message);
+        setTimeout(cleanup, 750);
+        reject(new Error(message));
+      };
+
+      printWindow.once('closed', () => {
+        if (!settled) {
+          rejectPrint('Print window closed before the print job finished');
+        }
+      });
+
+      printWindow.webContents.once('did-fail-load', (loadEvent, errorCode, errorDescription) => {
+        rejectPrint(`Failed to load print content: ${errorDescription} (${errorCode})`);
+      });
+
+      printWindow.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+          if (settled || printWindow.isDestroyed()) return;
+
+          printTimeout = setTimeout(() => {
+            rejectPrint('Print job timed out before completion');
+          }, 30000);
+
+          printWindow.webContents.print(
+            {
+              silent: false,
+              printBackground: true,
+              margins: { marginType: 'none' }
+            },
+            (success, errorType) => {
+              if (!success) {
+                rejectPrint(errorType ? `Print failed: ${errorType}` : 'Print failed with an unknown error');
+                return;
+              }
+
+              resolvePrint();
+            }
+          );
+        }, 250);
+      });
+
+      printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+        .catch((error) => {
+          rejectPrint(`Failed to load print content: ${error.message}`);
+        });
+    }));
+
+  return receiptPrintQueue;
 });
