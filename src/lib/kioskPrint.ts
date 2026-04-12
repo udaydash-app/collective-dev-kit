@@ -78,9 +78,20 @@ class KioskPrintService {
       iframeDoc.write(html);
       iframeDoc.close();
 
+      // Wait for iframe content to fully load before printing
+      await new Promise<void>((resolve) => {
+        iframe.onload = () => resolve();
+        // Fallback if onload already fired
+        setTimeout(resolve, 200);
+      });
+
       await new Promise<void>((resolve) => {
         const iframeWindow = iframe.contentWindow;
-        if (!iframeWindow) { resolve(); return; }
+        if (!iframeWindow) {
+          try { document.body.removeChild(iframe); } catch {}
+          resolve();
+          return;
+        }
         
         let cleaned = false;
         const cleanup = () => {
@@ -90,10 +101,15 @@ class KioskPrintService {
           resolve();
         };
         
+        // Multiple ways to detect print end for maximum compatibility
         iframeWindow.addEventListener('afterprint', cleanup, { once: true });
+        iframeWindow.onafterprint = cleanup;
         
-        // Fallback: clean up after 5 seconds so the next print isn't blocked
-        setTimeout(cleanup, 5000);
+        // Also listen on focus return (some browsers refocus after print dialog closes)
+        window.addEventListener('focus', () => setTimeout(cleanup, 300), { once: true });
+        
+        // Fallback: clean up after 3 seconds so the next print isn't blocked
+        setTimeout(cleanup, 3000);
         
         iframeWindow.focus();
         iframeWindow.print();
