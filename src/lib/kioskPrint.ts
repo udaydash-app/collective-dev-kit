@@ -68,12 +68,25 @@ class KioskPrintService {
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Print and cleanup immediately
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      
-      // Remove iframe immediately after print dialog opens
-      requestAnimationFrame(() => document.body.removeChild(iframe));
+      // Wait for content to fully render before printing
+      await new Promise<void>((resolve) => {
+        const iframeWindow = iframe.contentWindow;
+        if (!iframeWindow) { resolve(); return; }
+        
+        // Clean up iframe after print completes or is cancelled
+        const cleanup = () => {
+          try { document.body.removeChild(iframe); } catch {}
+          resolve();
+        };
+        
+        iframeWindow.addEventListener('afterprint', cleanup, { once: true });
+        
+        // Fallback cleanup after 60 seconds in case afterprint doesn't fire
+        setTimeout(cleanup, 60000);
+        
+        iframeWindow.focus();
+        iframeWindow.print();
+      });
 
     } catch (error) {
       throw new Error('Print failed: ' + (error as Error).message);
