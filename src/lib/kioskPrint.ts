@@ -43,7 +43,17 @@ class KioskPrintService {
     return KioskPrintService.instance;
   }
 
+  private printQueue: Promise<void> = Promise.resolve();
+
   async printReceipt(data: KioskReceiptData): Promise<void> {
+    // Queue prints sequentially so they don't collide
+    this.printQueue = this.printQueue
+      .catch(() => {}) // ignore previous errors
+      .then(() => this.doPrint(data));
+    return this.printQueue;
+  }
+
+  private async doPrint(data: KioskReceiptData): Promise<void> {
     try {
       const html = this.generateReceiptHTML(data);
       
@@ -53,7 +63,7 @@ class KioskPrintService {
         return;
       }
 
-      // Use hidden iframe for instant browser printing
+      // Use hidden iframe for browser printing
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
       iframe.style.width = '0';
@@ -68,21 +78,22 @@ class KioskPrintService {
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Wait for content to fully render before printing
       await new Promise<void>((resolve) => {
         const iframeWindow = iframe.contentWindow;
         if (!iframeWindow) { resolve(); return; }
         
-        // Clean up iframe after print completes or is cancelled
+        let cleaned = false;
         const cleanup = () => {
+          if (cleaned) return;
+          cleaned = true;
           try { document.body.removeChild(iframe); } catch {}
           resolve();
         };
         
         iframeWindow.addEventListener('afterprint', cleanup, { once: true });
         
-        // Fallback cleanup after 60 seconds in case afterprint doesn't fire
-        setTimeout(cleanup, 60000);
+        // Fallback: clean up after 5 seconds so the next print isn't blocked
+        setTimeout(cleanup, 5000);
         
         iframeWindow.focus();
         iframeWindow.print();
