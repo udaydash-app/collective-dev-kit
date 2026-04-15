@@ -352,28 +352,21 @@ export default function Quotations() {
   const handleLoadToCart = async (quotation: Quotation) => {
     const loadingToast = toast.loading('Loading quotation to cart...');
     try {
-      // Clear existing cart first
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.dismiss(loadingToast);
-        toast.error('Please login to continue');
-        return;
-      }
-
-      // Delete existing cart items
-      await supabase.from('cart_items').delete().eq('user_id', user.id);
-
-      // Add quotation items to cart
-      const cartItems = quotation.items.map(item => ({
-        user_id: user.id,
-        product_id: item.productId,
-        variant_id: item.variantId || null,
-        quantity: item.quantity
+      // Build POS cart items from quotation items
+      const posCartItems = quotation.items.map((item: any) => ({
+        id: crypto.randomUUID(),
+        productId: item.productId,
+        name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+        barcode: '',
+        image_url: '',
+        itemDiscount: item.discount || 0,
       }));
 
-      const { error } = await supabase.from('cart_items').insert(cartItems);
-      
-      if (error) throw error;
+      // Write directly to POS localStorage cart
+      localStorage.setItem('pos_cart_state', JSON.stringify(posCartItems));
+      localStorage.setItem('pos_discount_state', String(quotation.discount || 0));
 
       // Update quotation status
       await supabase
@@ -381,17 +374,13 @@ export default function Quotations() {
         .update({ status: 'converted' })
         .eq('id', quotation.id);
 
-      // Invalidate cart queries to ensure fresh data
-      await queryClient.invalidateQueries({ queryKey: ['cart-items'] });
       await queryClient.invalidateQueries({ queryKey: ['quotations'] });
 
       toast.dismiss(loadingToast);
-      toast.success('Quotation loaded to cart successfully');
+      toast.success('Quotation loaded to POS cart successfully');
       
-      // Navigate to POS after a small delay to ensure data is ready
-      setTimeout(() => {
-        navigate('/admin/pos');
-      }, 300);
+      // Navigate to POS
+      navigate('/admin/pos');
     } catch (error: any) {
       toast.dismiss(loadingToast);
       toast.error('Failed to load to cart: ' + error.message);
