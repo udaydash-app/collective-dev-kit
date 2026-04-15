@@ -929,7 +929,7 @@ export default function Quotations() {
                           size="icon"
                           onClick={() => handleLoadToCart(quotation)}
                           title="Load to Cart"
-                          disabled={quotation.status === 'converted'}
+                          disabled={false}
                         >
                           <ShoppingCart className="w-4 h-4" />
                         </Button>
