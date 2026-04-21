@@ -1254,13 +1254,18 @@ export default function POS() {
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
         const ref = entry.journal_entries.reference || '';
-        return !ref.startsWith('POS-') && 
-               !ref.startsWith('PUR-') && 
-               !ref.startsWith('SPM-') && 
-               !ref.startsWith('PMT-') &&
-               !ref.startsWith('OB-') &&
-               !ref.startsWith('CASHREG-') &&
-               !ref.endsWith('-PMT');
+        const desc = (entry.journal_entries.description || '').toUpperCase();
+
+        // Exclude all automated journal entries by reference prefix
+        // These are already counted in their respective sections (sales, purchases, expenses, payments)
+        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-'];
+        const isExcludedByRef = excludedRefPrefixes.some(prefix => ref.startsWith(prefix)) || ref.endsWith('-PMT');
+
+        // Also exclude by description pattern for older entries that might not have proper references
+        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
+        const isExcludedByDesc = excludedDescPatterns.some(pattern => desc.includes(pattern));
+
+        return !isExcludedByRef && !isExcludedByDesc;
       });
       
       return filteredData || [];
