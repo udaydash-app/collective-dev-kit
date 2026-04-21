@@ -293,6 +293,47 @@ export default function Expenses() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="contact_id">On Behalf Of (Optional)</Label>
+                <Select
+                  value={formData.contact_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, contact_id: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select contact (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {contacts?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.is_customer && c.is_supplier ? ' (Customer/Supplier)' : c.is_customer ? ' (Customer)' : c.is_supplier ? ' (Supplier)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="account_id">Ledger Account (Optional)</Label>
+                <Select
+                  value={formData.account_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, account_id: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ledger account (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {accounts?.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.account_code} - {a.account_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
                   id="notes"
