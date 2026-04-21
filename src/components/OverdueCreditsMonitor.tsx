@@ -99,8 +99,8 @@ export const OverdueCreditsMonitor = () => {
 
   const getSeverity = (days: number) => {
     if (days >= 60) return { label: "Critical", className: "bg-destructive text-destructive-foreground" };
-    if (days >= 30) return { label: "High", className: "bg-orange-500 text-white" };
-    return { label: "Overdue", className: "bg-yellow-500 text-yellow-950" };
+    if (days >= 30) return { label: "High", className: "bg-destructive/70 text-destructive-foreground" };
+    return { label: "Overdue", className: "bg-primary/15 text-primary" };
   };
 
   const handleViewCustomer = (id: string) => {
