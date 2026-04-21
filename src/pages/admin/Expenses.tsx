@@ -177,6 +177,8 @@ export default function Expenses() {
       payment_method: formData.payment_method,
       expense_date: formData.expense_date,
       notes: formData.notes || null,
+      contact_id: formData.contact_id || null,
+      account_id: formData.account_id || null,
     });
   };
 
