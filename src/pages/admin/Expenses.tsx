@@ -9,9 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone } from 'lucide-react';
+import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
@@ -37,6 +40,7 @@ const PAYMENT_METHODS = [
 export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [formData, setFormData] = useState({
     category: '',
     description: '',
@@ -44,7 +48,6 @@ export default function Expenses() {
     payment_method: '',
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
-    contact_id: '',
     account_id: '',
   });
 
