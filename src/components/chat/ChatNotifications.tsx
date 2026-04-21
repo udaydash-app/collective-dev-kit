@@ -18,7 +18,7 @@ export const ChatNotifications = () => {
     console.log('🔔 ChatNotifications: Setting up realtime subscription');
 
     const channel = supabase
-      .channel('chat_messages_notifications')
+      .channel(`chat_messages_notifications-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
