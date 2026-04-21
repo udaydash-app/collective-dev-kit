@@ -131,7 +131,6 @@ export default function Expenses() {
         payment_method: '',
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
-        contact_id: '',
         account_id: '',
       });
     },
@@ -180,7 +179,6 @@ export default function Expenses() {
       payment_method: formData.payment_method,
       expense_date: formData.expense_date,
       notes: formData.notes || null,
-      contact_id: formData.contact_id || null,
       account_id: formData.account_id || null,
     });
   };
