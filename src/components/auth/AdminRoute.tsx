@@ -13,7 +13,7 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isAdmin) return;
 
     const channel = supabase
-      .channel('admin-order-notifications')
+      .channel(`admin-order-notifications-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
