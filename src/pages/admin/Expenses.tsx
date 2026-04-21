@@ -9,9 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone } from 'lucide-react';
+import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
@@ -37,6 +40,7 @@ const PAYMENT_METHODS = [
 export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [formData, setFormData] = useState({
     category: '',
     description: '',
@@ -44,7 +48,6 @@ export default function Expenses() {
     payment_method: '',
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
-    contact_id: '',
     account_id: '',
   });
 
@@ -128,7 +131,6 @@ export default function Expenses() {
         payment_method: '',
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
-        contact_id: '',
         account_id: '',
       });
     },
@@ -177,7 +179,6 @@ export default function Expenses() {
       payment_method: formData.payment_method,
       expense_date: formData.expense_date,
       notes: formData.notes || null,
-      contact_id: formData.contact_id || null,
       account_id: formData.account_id || null,
     });
   };
@@ -293,44 +294,65 @@ export default function Expenses() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="contact_id">On Behalf Of (Optional)</Label>
-                <Select
-                  value={formData.contact_id || 'none'}
-                  onValueChange={(value) => setFormData({ ...formData, contact_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select contact (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
-                    {contacts?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                        {c.is_customer && c.is_supplier ? ' (Customer/Supplier)' : c.is_customer ? ' (Customer)' : c.is_supplier ? ' (Supplier)' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="account_id">Ledger Account (Optional)</Label>
-                <Select
-                  value={formData.account_id || 'none'}
-                  onValueChange={(value) => setFormData({ ...formData, account_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select ledger account (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
-                    {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.account_code} - {a.account_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={accountPickerOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {formData.account_id
+                        ? (() => {
+                            const a = accounts?.find((x) => x.id === formData.account_id);
+                            return a ? `${a.account_code} - ${a.account_name}` : 'Select ledger account';
+                          })()
+                        : 'Search ledger account...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search by code, name or type..." />
+                      <CommandList>
+                        <CommandEmpty>No account found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="none"
+                            onSelect={() => {
+                              setFormData({ ...formData, account_id: '' });
+                              setAccountPickerOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', !formData.account_id ? 'opacity-100' : 'opacity-0')} />
+                            — None —
+                          </CommandItem>
+                          {accounts?.map((a) => (
+                            <CommandItem
+                              key={a.id}
+                              value={`${a.account_code} ${a.account_name} ${a.account_type}`}
+                              onSelect={() => {
+                                setFormData({ ...formData, account_id: a.id });
+                                setAccountPickerOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  formData.account_id === a.id ? 'opacity-100' : 'opacity-0'
+                                )}
+                              />
+                              {a.account_code} - {a.account_name}
+                              <span className="ml-2 text-xs text-muted-foreground">({a.account_type})</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
