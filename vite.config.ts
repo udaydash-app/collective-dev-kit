@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => ({
     // mode === "development" && componentTagger(), // Disabled for local builds
     VitePWA({
       injectRegister: false,
+      selfDestroying: true,
       includeAssets: ["favicon.ico", "icon-192x192.png", "icon-512x512.png"],
       manifest: {
         name: "Global Market POS",
