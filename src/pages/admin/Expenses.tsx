@@ -128,6 +128,8 @@ export default function Expenses() {
         payment_method: '',
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
+        contact_id: '',
+        account_id: '',
       });
     },
     onError: (error: any) => {
