@@ -78,7 +78,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     if (isLocalMode) return;
     
     const channel = supabase
-      .channel('product-stock-changes')
+      .channel(`product-stock-changes-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
