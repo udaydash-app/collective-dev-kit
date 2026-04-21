@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const OVERDUE_DAYS = 15;
+const LAST_SHOWN_KEY = "overdueCreditsLastShown";
 
 interface OverdueCustomer {
   id: string;
@@ -35,6 +36,10 @@ export const OverdueCreditsMonitor = () => {
 
     const check = async () => {
       try {
+        // Throttle: don't show again within 1 hour of last display
+        const lastShown = Number(localStorage.getItem(LAST_SHOWN_KEY) || 0);
+        if (lastShown && Date.now() - lastShown < CHECK_INTERVAL_MS) return;
+
         const cutoff = new Date(Date.now() - OVERDUE_DAYS * 86400000)
           .toISOString()
           .slice(0, 10);
@@ -77,6 +82,7 @@ export const OverdueCreditsMonitor = () => {
         overdue.sort((a, b) => b.days - a.days);
         setOverdueList(overdue);
         setOpen(true);
+        localStorage.setItem(LAST_SHOWN_KEY, String(Date.now()));
       } catch (e) {
         console.error("Overdue credits check failed:", e);
       }
