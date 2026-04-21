@@ -270,8 +270,8 @@ export default function PaymentReceipts() {
               .from('pos_transactions')
               .update({ 
                 amount_paid: newAmountPaid,
-                payment_status: paymentStatus 
-              })
+                payment_status: paymentStatus,
+              } as any)
               .eq('id', selectedBillId);
           }
         } else {
