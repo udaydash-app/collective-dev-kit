@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import Categories from "./pages/Categories";
@@ -84,6 +84,7 @@ import PWAInstall from "./pages/PWAInstall";
 import AdminLiveChat from "./pages/admin/LiveChat";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { ChatNotifications } from "./components/chat/ChatNotifications";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 import { useCloudSync } from "./hooks/useCloudSync";
 
@@ -102,6 +103,12 @@ const RouterContent = () => {
   useGlobalShortcuts();
   useAdminShortcuts();
   return null;
+};
+
+const RouteErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
 };
 
 const AppContent = () => {
@@ -132,6 +139,7 @@ const AppContent = () => {
         <ChatWidget />
         <OverdueCreditsMonitor />
         
+        <RouteErrorBoundary>
         <Routes>
           {/* Root - detects PWA/desktop vs browser and redirects accordingly */}
           <Route path="/" element={<Index />} />
@@ -213,6 +221,7 @@ const AppContent = () => {
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </RouteErrorBoundary>
       </Router>
     </TooltipProvider>
   );
