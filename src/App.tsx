@@ -130,6 +130,7 @@ const AppContent = () => {
         <RouterContent />
         <ChatNotifications />
         <ChatWidget />
+        <OverdueCreditsMonitor />
         
         <Routes>
           {/* Root - detects PWA/desktop vs browser and redirects accordingly */}
