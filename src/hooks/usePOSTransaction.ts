@@ -282,12 +282,9 @@ export const usePOSTransaction = () => {
   // Automatic BOGO offer detection and application
   const detectAndApplyBOGOOffers = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
-      console.log('🎁 detectAndApplyBOGOOffers START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
       const bogoOffers = useCache ? cachedBOGOs : await fetchActiveBOGOOffers();
-      console.log('🎉 Fetched BOGO offers:', bogoOffers);
       
       if (!bogoOffers || bogoOffers.length === 0) {
-        console.log('❌ No active BOGO offers found');
         return currentCart;
       }
 
@@ -297,7 +294,6 @@ export const usePOSTransaction = () => {
 
       // Try to apply each BOGO offer
       for (const bogo of bogoOffers) {
-        console.log('🎁 Processing BOGO:', bogo.name);
         
         // Find matching buy items in cart
         const matchingBuyItems = regularItems.filter(item => {
@@ -307,7 +303,6 @@ export const usePOSTransaction = () => {
         });
 
         if (matchingBuyItems.length === 0) {
-          console.log('⚠️ No matching buy items for BOGO:', bogo.name);
           continue;
         }
 
@@ -320,14 +315,12 @@ export const usePOSTransaction = () => {
           timesApplicable = Math.min(timesApplicable, bogo.max_uses_per_transaction);
         }
         if (bogo.max_total_uses && bogo.current_uses >= bogo.max_total_uses) {
-          console.log('⚠️ BOGO offer limit reached:', bogo.name);
           continue;
         }
         if (bogo.max_total_uses) {
           timesApplicable = Math.min(timesApplicable, bogo.max_total_uses - bogo.current_uses);
         }
 
-        console.log(`✅ Can apply BOGO ${timesApplicable} time(s)`);
 
         if (timesApplicable === 0) continue;
 
@@ -345,7 +338,6 @@ export const usePOSTransaction = () => {
             .single();
           
           if (!variant) {
-            console.log('⚠️ Variant not found for BOGO:', bogo.name);
             continue;
           }
           
@@ -361,7 +353,6 @@ export const usePOSTransaction = () => {
             .single();
           
           if (!product) {
-            console.log('⚠️ Product not found for BOGO:', bogo.name);
             continue;
           }
           
@@ -400,7 +391,6 @@ export const usePOSTransaction = () => {
       if (appliedBOGOs.length > 0) {
         const bogoCount = appliedBOGOs.length;
         const totalGetQty = appliedBOGOs.reduce((sum, item) => sum + item.quantity, 0);
-        console.log(`🎉 BOGO applied! ${totalGetQty} item${totalGetQty > 1 ? 's' : ''} added with discount`);
       }
 
       // Return combined cart: regular items + applied BOGOs
@@ -414,11 +404,8 @@ export const usePOSTransaction = () => {
   // Automatic combo detection and application
   const detectAndApplyCombos = async (currentCart: CartItem[], useCache = true): Promise<CartItem[]> => {
     try {
-      console.log('🔍 detectAndApplyCombos START - Cart:', currentCart.map(i => ({ name: i.name, qty: i.quantity })));
       const combos = useCache ? cachedCombos : await fetchActiveCombos();
-      console.log('📦 Fetched combos:', combos);
       if (!combos || combos.length === 0) {
-        console.log('❌ No active combos found');
         return currentCart;
       }
 
@@ -429,9 +416,7 @@ export const usePOSTransaction = () => {
 
       // Try to apply each combo
       for (const combo of combos) {
-        console.log('🎁 Processing combo:', combo.name);
         if (!combo.combo_offer_items || combo.combo_offer_items.length === 0) {
-          console.log('⚠️ Combo has no items defined');
           continue;
         }
 
@@ -440,11 +425,9 @@ export const usePOSTransaction = () => {
           const productName = item.products?.name || '';
           return productName.toUpperCase();
         });
-        console.log('📋 Combo products from DB:', comboProducts);
 
         // Generate all possible 3-item patterns from combo products
         const uniqueProducts: string[] = [...new Set(comboProducts)];
-        console.log('🎯 Unique products:', uniqueProducts);
         const patterns: Record<string, number>[] = [];
 
         // Generate patterns: all combinations that sum to 3 items
@@ -487,7 +470,6 @@ export const usePOSTransaction = () => {
           }
         }
         
-        console.log('🔢 Generated patterns:', patterns);
         
         // Keep trying to form combos while possible
         while (true) {
@@ -497,26 +479,22 @@ export const usePOSTransaction = () => {
           // Try each pattern to see if we can form it
           for (const pattern of patterns) {
             let canFormPattern = true;
-            console.log('🧩 Trying pattern:', pattern);
             
             // Check if we have enough items for this pattern
             for (const [productName, requiredQty] of Object.entries(pattern)) {
               const cartItem = regularItems.find(item => {
                 const itemNameUpper = item.name.toUpperCase();
                 const matches = itemNameUpper.includes(productName);
-                console.log(`  Checking ${productName} (need ${requiredQty}): ${item.name} - ${matches ? 'MATCH' : 'NO MATCH'} (qty: ${item.quantity})`);
                 return matches;
               });
               
               if (!cartItem || cartItem.quantity < requiredQty) {
-                console.log(`  ❌ Cannot form pattern - ${productName}: ${!cartItem ? 'not found' : `only ${cartItem.quantity} available`}`);
                 canFormPattern = false;
                 break;
               }
             }
             
             if (canFormPattern) {
-              console.log('✅ Pattern matched!', pattern);
               patternMatched = true;
               matchedPattern = pattern;
               break;
@@ -524,7 +502,6 @@ export const usePOSTransaction = () => {
           }
           
           if (!patternMatched) {
-            console.log('❌ No patterns matched, stopping combo formation');
             break; // No patterns match, try next combo
           }
 
@@ -583,7 +560,6 @@ export const usePOSTransaction = () => {
       if (appliedCombos.length > 0) {
         const comboCount = appliedCombos.length;
         const comboNames = [...new Set(appliedCombos.map(c => c.name))].join(', ');
-        console.log(`${comboCount} combo${comboCount > 1 ? 's' : ''} applied: ${comboNames}`);
       }
 
       // Return combined cart: existing combos + regular items + newly applied combos
@@ -595,7 +571,6 @@ export const usePOSTransaction = () => {
   };
 
   const addToCart = async (product: any) => {
-    console.log('addToCart called with:', product);
     
     // Create updated cart with new product
     const cartItemId = product.selectedVariant?.id || product.id;
@@ -830,7 +805,6 @@ export const usePOSTransaction = () => {
   
   // Load multiple items directly into cart (for edit mode)
   const loadCart = (items: CartItem[]) => {
-    console.log('🔧 loadCart: Setting cart with', items.length, 'items');
     setCart(items);
   };
 
@@ -855,7 +829,6 @@ export const usePOSTransaction = () => {
     };
     
     setCart(prev => [...prev, comboCartItem]);
-    console.log(`Added ${combo.name} to cart`);
   };
 
   const calculateSubtotal = () => {
@@ -1139,7 +1112,6 @@ export const usePOSTransaction = () => {
           synced: false,
         });
         
-        console.log('Transaction saved offline - will sync automatically');
         clearCart();
         return { ...transactionData, offline: true };
       }
@@ -1188,7 +1160,6 @@ export const usePOSTransaction = () => {
             synced: false,
           });
           
-          console.log('Saved offline due to error - will retry sync automatically');
           clearCart();
           return { offline: true };
         }
