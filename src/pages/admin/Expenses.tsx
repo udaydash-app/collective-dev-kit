@@ -44,6 +44,8 @@ export default function Expenses() {
     payment_method: '',
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
+    contact_id: '',
+    account_id: '',
   });
 
   const queryClient = useQueryClient();
@@ -56,6 +58,29 @@ export default function Expenses() {
         .select('id, name')
         .eq('is_active', true)
         .order('name');
+      return data || [];
+    },
+  });
+
+  const { data: contacts } = useQuery({
+    queryKey: ['expense-contacts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, is_customer, is_supplier')
+        .order('name');
+      return data || [];
+    },
+  });
+
+  const { data: accounts } = useQuery({
+    queryKey: ['expense-accounts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('accounts')
+        .select('id, account_code, account_name, account_type')
+        .eq('is_active', true)
+        .order('account_code');
       return data || [];
     },
   });
