@@ -44,6 +44,8 @@ export default function Expenses() {
     payment_method: '',
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
+    contact_id: '',
+    account_id: '',
   });
 
   const queryClient = useQueryClient();
@@ -56,6 +58,29 @@ export default function Expenses() {
         .select('id, name')
         .eq('is_active', true)
         .order('name');
+      return data || [];
+    },
+  });
+
+  const { data: contacts } = useQuery({
+    queryKey: ['expense-contacts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, is_customer, is_supplier')
+        .order('name');
+      return data || [];
+    },
+  });
+
+  const { data: accounts } = useQuery({
+    queryKey: ['expense-accounts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('accounts')
+        .select('id, account_code, account_name, account_type')
+        .eq('is_active', true)
+        .order('account_code');
       return data || [];
     },
   });
@@ -103,6 +128,8 @@ export default function Expenses() {
         payment_method: '',
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
+        contact_id: '',
+        account_id: '',
       });
     },
     onError: (error: any) => {
@@ -150,6 +177,8 @@ export default function Expenses() {
       payment_method: formData.payment_method,
       expense_date: formData.expense_date,
       notes: formData.notes || null,
+      contact_id: formData.contact_id || null,
+      account_id: formData.account_id || null,
     });
   };
 
@@ -261,6 +290,47 @@ export default function Expenses() {
                   onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact_id">On Behalf Of (Optional)</Label>
+                <Select
+                  value={formData.contact_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, contact_id: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select contact (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {contacts?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.is_customer && c.is_supplier ? ' (Customer/Supplier)' : c.is_customer ? ' (Customer)' : c.is_supplier ? ' (Supplier)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="account_id">Ledger Account (Optional)</Label>
+                <Select
+                  value={formData.account_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, account_id: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ledger account (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {accounts?.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.account_code} - {a.account_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
