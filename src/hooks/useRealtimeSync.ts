@@ -8,6 +8,8 @@ export const useRealtimeSync = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const channelSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     // Check if using local HTTP server - skip realtime to avoid WebSocket errors
     // (HTTPS pages cannot connect to ws:// endpoints, only wss://)
     const localConfig = getLocalSupabaseConfigStatus();
@@ -17,7 +19,7 @@ export const useRealtimeSync = () => {
     }
     // Products realtime sync
     const productsChannel = supabase
-      .channel('products-changes')
+      .channel(`products-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -53,7 +55,7 @@ export const useRealtimeSync = () => {
 
     // Product variants realtime sync
     const variantsChannel = supabase
-      .channel('product-variants-changes')
+      .channel(`product-variants-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -83,7 +85,7 @@ export const useRealtimeSync = () => {
 
     // Orders realtime sync
     const ordersChannel = supabase
-      .channel('orders-changes')
+      .channel(`orders-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -113,7 +115,7 @@ export const useRealtimeSync = () => {
 
     // POS Transactions realtime sync
     const posTransactionsChannel = supabase
-      .channel('pos-transactions-changes')
+      .channel(`pos-transactions-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -147,7 +149,7 @@ export const useRealtimeSync = () => {
 
     // Purchases realtime sync
     const purchasesChannel = supabase
-      .channel('purchases-changes')
+      .channel(`purchases-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -180,7 +182,7 @@ export const useRealtimeSync = () => {
 
     // Categories realtime sync
     const categoriesChannel = supabase
-      .channel('categories-changes')
+      .channel(`categories-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -207,7 +209,7 @@ export const useRealtimeSync = () => {
 
     // Contacts realtime sync
     const contactsChannel = supabase
-      .channel('contacts-changes')
+      .channel(`contacts-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
