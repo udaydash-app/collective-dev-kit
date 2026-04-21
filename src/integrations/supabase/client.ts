@@ -38,7 +38,8 @@ const createSupabaseClient = (): SupabaseClient<Database> => {
 };
 
 // The supabase client instance
-export const supabase = createSupabaseClient();
+type AppSupabaseClient = SupabaseClient<Database> & { auth: any };
+export const supabase = createSupabaseClient() as AppSupabaseClient;
 
 // Helper to update local Supabase config (call this from Settings)
 // SECURITY: Only accepts anonKey, service role keys are rejected for security
