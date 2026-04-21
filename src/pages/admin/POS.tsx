@@ -662,7 +662,7 @@ export default function POS() {
     if (isOffline) return;
     
     const channel = supabase
-      .channel('pending-orders-updates')
+      .channel(`pending-orders-updates-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -1275,7 +1275,7 @@ export default function POS() {
     if (!currentCashSession) return;
 
     const channel = supabase
-      .channel('journal-entries-changes')
+      .channel(`journal-entries-changes-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

@@ -57,7 +57,7 @@ export const useChatMessages = (conversationId: string | null) => {
 
     // Subscribe to new messages
     const channel = supabase
-      .channel(`chat_messages:${conversationId}`)
+      .channel(`chat_messages:${conversationId}:${Date.now()}:${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -128,7 +128,7 @@ export const useChatConversations = (isAdmin: boolean = false) => {
 
     // Subscribe to conversation updates
     const channel = supabase
-      .channel('chat_conversations')
+      .channel(`chat_conversations-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

@@ -41,18 +41,21 @@ export const OrderStatusNotifications = () => {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isCancelled = false;
 
     const setupRealtimeSubscription = async () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) return;
+      if (!user || isCancelled) return;
 
       // Fetch initial order statuses
       const { data: initialOrders } = await supabase
         .from('orders')
         .select('id, status')
         .eq('user_id', user.id);
+
+      if (isCancelled) return;
 
       if (initialOrders) {
         initialOrders.forEach(order => {
@@ -62,7 +65,7 @@ export const OrderStatusNotifications = () => {
 
       // Subscribe to order updates
       channel = supabase
-        .channel('user-order-updates')
+        .channel(`user-order-updates-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
         .on(
           'postgres_changes',
           {
@@ -103,6 +106,7 @@ export const OrderStatusNotifications = () => {
     setupRealtimeSubscription();
 
     return () => {
+      isCancelled = true;
       if (channel) {
         supabase.removeChannel(channel);
       }
