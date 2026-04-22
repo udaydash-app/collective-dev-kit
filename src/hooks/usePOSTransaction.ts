@@ -39,6 +39,42 @@ export interface PaymentDetail {
 
 const POS_CART_KEY = 'pos_cart_state';
 const POS_DISCOUNT_KEY = 'pos_discount_state';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const getPersistableItemIds = (item: CartItem) => {
+  if (!item.isOneTimeOffer) {
+    return { id: item.id, productId: item.productId };
+  }
+
+  const firstComboItem = item.comboItems?.find(comboItem => UUID_PATTERN.test(comboItem.product_id));
+
+  return {
+    id: firstComboItem?.variant_id && UUID_PATTERN.test(firstComboItem.variant_id)
+      ? firstComboItem.variant_id
+      : firstComboItem?.product_id ?? item.id,
+    productId: firstComboItem?.product_id ?? item.productId,
+  };
+};
+
+const serializeCartItemForTransaction = (item: CartItem) => {
+  const persistableIds = getPersistableItemIds(item);
+
+  return {
+    id: persistableIds.id,
+    productId: persistableIds.productId,
+    name: item.name,
+    display_name: item.displayName,
+    quantity: item.quantity,
+    price: item.price,
+    customPrice: item.customPrice,
+    itemDiscount: item.itemDiscount || 0,
+    barcode: item.barcode,
+    isCombo: item.isCombo,
+    isOneTimeOffer: item.isOneTimeOffer,
+    comboId: item.comboId,
+    comboItems: item.comboItems,
+  };
+};
 
 export const usePOSTransaction = () => {
   // Load cart from localStorage on mount
@@ -961,20 +997,7 @@ export const usePOSTransaction = () => {
 
       // Map items - simplified structure
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
-      const itemsToSave = allItems.map(item => ({
-        id: item.id,
-        productId: item.productId,
-        name: item.name,
-        display_name: item.displayName,
-        quantity: item.quantity,
-        price: item.price,
-        customPrice: item.customPrice,
-        itemDiscount: item.itemDiscount || 0,
-        barcode: item.barcode,
-        isCombo: item.isCombo,
-        isOneTimeOffer: item.isOneTimeOffer,
-        comboItems: item.comboItems,
-      }));
+      const itemsToSave = allItems.map(serializeCartItemForTransaction);
 
       const transactionData = {
         id: transactionId,
@@ -1187,19 +1210,7 @@ export const usePOSTransaction = () => {
           
           // Combine cart items with any additional items (like cart discount)
           const allItemsForOffline = additionalItems ? [...cart, ...additionalItems] : cart;
-          const itemsForOffline = allItemsForOffline.map(item => ({
-            id: item.id,
-            productId: item.productId, // Base product ID for custom pricing
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price, // Original price (can be negative for cart-discount)
-            customPrice: item.customPrice, // Custom/modified price if any
-            itemDiscount: item.itemDiscount || 0,
-            barcode: item.barcode,
-            isCombo: item.isCombo,
-            isOneTimeOffer: item.isOneTimeOffer,
-            comboItems: item.comboItems,
-          }));
+          const itemsForOffline = allItemsForOffline.map(serializeCartItemForTransaction);
           
           const finalDiscountOffline = discountOverride !== undefined ? discountOverride : discount;
           
