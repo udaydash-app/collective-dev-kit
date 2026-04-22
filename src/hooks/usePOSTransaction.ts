@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateTimbreTax } from '@/lib/timbreTax';
+import { formatCurrency } from '@/lib/utils';
 
 export interface CartItem {
   id: string;
@@ -838,9 +839,10 @@ export const usePOSTransaction = () => {
       return false;
     }
 
+    const offerItemId = `one-time-offer-${Date.now()}`;
     const offerItem: CartItem = {
-      id: `one-time-offer-${Date.now()}`,
-      productId: `one-time-offer-${Date.now()}`,
+      id: offerItemId,
+      productId: offerItemId,
       comboId: 'one-time-offer',
       name: `Offer Price (${selectedItems.length} items)`,
       price: offerPrice,
@@ -970,6 +972,7 @@ export const usePOSTransaction = () => {
         itemDiscount: item.itemDiscount || 0,
         barcode: item.barcode,
         isCombo: item.isCombo,
+        isOneTimeOffer: item.isOneTimeOffer,
         comboItems: item.comboItems,
       }));
 
@@ -1194,6 +1197,7 @@ export const usePOSTransaction = () => {
             itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode,
             isCombo: item.isCombo,
+            isOneTimeOffer: item.isOneTimeOffer,
             comboItems: item.comboItems,
           }));
           
