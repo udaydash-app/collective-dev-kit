@@ -146,6 +146,9 @@ export default function POS() {
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
+  const [selectedOfferItemIds, setSelectedOfferItemIds] = useState<string[]>([]);
+  const [showOfferPriceDialog, setShowOfferPriceDialog] = useState(false);
+  const [offerPriceInput, setOfferPriceInput] = useState('');
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
@@ -240,6 +243,7 @@ export default function POS() {
     updateItemPrice,
     updateItemDiscount,
     updateItemDisplayName,
+    convertItemsToOneTimeOffer,
     clearCart,
     loadCart,
     calculateSubtotal,
