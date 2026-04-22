@@ -245,8 +245,8 @@ export const TransactionCart = ({
                       className={cn(
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer hover:bg-muted/30",
-                        isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
-                        isCombo && "bg-green-50 dark:bg-green-950/20"
+                        isCartDiscount && "bg-muted/60",
+                        isCombo && "bg-primary/5"
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -283,7 +283,7 @@ export const TransactionCart = ({
                             </Button>
                           )}
                           {isCartDiscount ? (
-                            <span className="text-[10px] font-medium line-clamp-2 text-orange-600 dark:text-orange-400">
+                            <span className="text-[10px] font-medium line-clamp-2 text-muted-foreground">
                               {item.name}
                             </span>
                           ) : (
