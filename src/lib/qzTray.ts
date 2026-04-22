@@ -10,6 +10,12 @@ export interface QZReceiptData {
     displayName?: string;
     quantity: number;
     price: number;
+    comboItems?: Array<{
+      product_id: string;
+      variant_id?: string;
+      quantity: number;
+      product_name: string;
+    }>;
   }>;
   subtotal: number;
   tax: number;
@@ -161,6 +167,12 @@ class QZTrayService {
       data.items.forEach(item => {
         // Item name (use displayName if available)
         commands += (item.displayName ?? item.name) + '\n';
+
+        if (item.comboItems && item.comboItems.length > 0) {
+          item.comboItems.forEach(comboItem => {
+            commands += `  • ${comboItem.quantity} x ${comboItem.product_name}\n`;
+          });
+        }
       
         // Quantity and price
         const qtyPrice = `${item.quantity} x ${this.formatCurrency(item.price)}`;

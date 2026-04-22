@@ -162,7 +162,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   // Get item details
   const getItemName = (item: OrderItem) => {
     return order.type === 'pos' 
-      ? (item.displayName || item.name) 
+      ? (item.displayName || item.display_name || item.name) 
       : (item.products?.name || item.name);
   };
 
@@ -389,8 +389,8 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             items={order.items.map((item, idx) => ({
               id: item.id || `item-${idx}`,
               productId: item.id || `product-${idx}`,
-              name: order.type === 'pos' 
-                ? (item.displayName || item.name || '') 
+                name: order.type === 'pos' 
+                  ? (item.displayName || item.display_name || item.name || '') 
                 : (item.products?.name || item.name || ''),
               quantity: item.quantity,
               price: order.type === 'pos'
