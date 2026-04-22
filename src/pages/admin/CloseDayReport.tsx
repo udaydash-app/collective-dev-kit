@@ -760,7 +760,16 @@ export default function CloseDayReport() {
   const storeName = stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
 
   // ── Graph helpers ──────────────────────────────────────────────
-  const CHART_COLORS = ['#22c55e','#3b82f6','#f97316','#a855f7','#ec4899','#14b8a6','#eab308','#ef4444'];
+  const CHART_COLORS = [
+    'hsl(var(--primary))',
+    'hsl(var(--info))',
+    'hsl(var(--accent))',
+    'hsl(var(--success))',
+    'hsl(var(--warning))',
+    'hsl(var(--destructive))',
+    'hsl(var(--muted-foreground))',
+    'hsl(var(--secondary))',
+  ];
 
   const renderGraph = () => {
     if (!reportData) return null;
@@ -832,7 +841,7 @@ export default function CloseDayReport() {
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={115} />
                     <Tooltip />
-                    <Bar dataKey="quantity" name="Qty" fill="#3b82f6" radius={[0,4,4,0]} />
+                    <Bar dataKey="quantity" name="Qty" fill="hsl(var(--info))" radius={[0,4,4,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -878,9 +887,9 @@ export default function CloseDayReport() {
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
                 <Tooltip formatter={(v: any) => formatCurrency(v)} />
                 <Legend />
-                <Bar dataKey="Revenue" fill="#22c55e" radius={[4,4,0,0]} />
-                <Bar dataKey="COGS" fill="#f97316" radius={[4,4,0,0]} />
-                <Bar dataKey="Profit" fill="#3b82f6" radius={[4,4,0,0]} />
+                <Bar dataKey="Revenue" fill="hsl(var(--success))" radius={[4,4,0,0]} />
+                <Bar dataKey="COGS" fill="hsl(var(--accent))" radius={[4,4,0,0]} />
+                <Bar dataKey="Profit" fill="hsl(var(--info))" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1033,7 +1042,7 @@ export default function CloseDayReport() {
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={125} />
                     <Tooltip />
-                    <Bar dataKey="quantity" name="Qty" fill="#3b82f6" radius={[0,4,4,0]} />
+                    <Bar dataKey="quantity" name="Qty" fill="hsl(var(--info))" radius={[0,4,4,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

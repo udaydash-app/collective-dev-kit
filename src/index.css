@@ -203,6 +203,240 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .bg-white,
+  .bg-gray-50,
+  .bg-slate-50,
+  .bg-zinc-50,
+  .bg-neutral-50 {
+    background-color: hsl(var(--background));
+  }
+
+  .bg-gray-100,
+  .bg-slate-100,
+  .bg-zinc-100,
+  .bg-neutral-100 {
+    background-color: hsl(var(--muted));
+  }
+
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700,
+  .text-slate-500,
+  .text-slate-600,
+  .text-slate-700,
+  .text-zinc-500,
+  .text-zinc-600,
+  .text-zinc-700,
+  .text-neutral-500,
+  .text-neutral-600,
+  .text-neutral-700 {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .border-gray-200,
+  .border-gray-300,
+  .border-slate-200,
+  .border-slate-300,
+  .border-zinc-200,
+  .border-zinc-300,
+  .border-neutral-200,
+  .border-neutral-300 {
+    border-color: hsl(var(--border));
+  }
+
+  .text-green-600,
+  .text-green-700,
+  .text-emerald-600,
+  .text-emerald-700 {
+    color: hsl(var(--success));
+  }
+
+  .text-red-600,
+  .text-red-700,
+  .text-rose-600,
+  .text-rose-700 {
+    color: hsl(var(--destructive));
+  }
+
+  .text-blue-500,
+  .text-blue-600,
+  .text-blue-700,
+  .text-sky-500,
+  .text-sky-600,
+  .text-sky-700 {
+    color: hsl(var(--info));
+  }
+
+  .text-orange-500,
+  .text-orange-600,
+  .text-orange-700,
+  .text-amber-500,
+  .text-amber-600,
+  .text-amber-700 {
+    color: hsl(var(--accent));
+  }
+
+  .text-purple-500,
+  .text-purple-600,
+  .text-purple-700,
+  .text-violet-500,
+  .text-violet-600,
+  .text-violet-700 {
+    color: hsl(var(--primary));
+  }
+
+  .bg-green-50,
+  .bg-green-100,
+  .bg-emerald-50,
+  .bg-emerald-100,
+  .bg-green-500\/10,
+  .bg-emerald-500\/10 {
+    background-color: hsl(var(--success) / 0.12);
+  }
+
+  .bg-red-50,
+  .bg-red-100,
+  .bg-rose-50,
+  .bg-rose-100,
+  .bg-red-500\/10,
+  .bg-rose-500\/10 {
+    background-color: hsl(var(--destructive) / 0.12);
+  }
+
+  .bg-blue-50,
+  .bg-blue-100,
+  .bg-sky-50,
+  .bg-sky-100,
+  .bg-blue-500\/10,
+  .bg-sky-500\/10 {
+    background-color: hsl(var(--info) / 0.12);
+  }
+
+  .bg-orange-50,
+  .bg-orange-100,
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-orange-500\/10,
+  .bg-amber-500\/10 {
+    background-color: hsl(var(--accent) / 0.12);
+  }
+
+  .bg-purple-50,
+  .bg-purple-100,
+  .bg-violet-50,
+  .bg-violet-100,
+  .bg-purple-500\/10,
+  .bg-violet-500\/10 {
+    background-color: hsl(var(--primary) / 0.12);
+  }
+
+  .border-green-300,
+  .border-emerald-300 {
+    border-color: hsl(var(--success) / 0.35);
+  }
+
+  .border-red-300,
+  .border-rose-300 {
+    border-color: hsl(var(--destructive) / 0.35);
+  }
+
+  .border-blue-300,
+  .border-sky-300 {
+    border-color: hsl(var(--info) / 0.35);
+  }
+
+  .border-orange-300,
+  .border-amber-300 {
+    border-color: hsl(var(--accent) / 0.35);
+  }
+
+  .border-purple-300,
+  .border-violet-300 {
+    border-color: hsl(var(--primary) / 0.35);
+  }
+
+  .dark .dark\:bg-green-950\/10,
+  .dark .dark\:bg-green-950\/20,
+  .dark .dark\:bg-green-950\/30,
+  .dark .dark\:bg-emerald-950\/10,
+  .dark .dark\:bg-emerald-950\/20,
+  .dark .dark\:bg-emerald-950\/30 {
+    background-color: hsl(var(--success) / 0.16);
+  }
+
+  .dark .dark\:bg-red-950\/10,
+  .dark .dark\:bg-red-950\/20,
+  .dark .dark\:bg-red-950\/30,
+  .dark .dark\:bg-rose-950\/10,
+  .dark .dark\:bg-rose-950\/20,
+  .dark .dark\:bg-rose-950\/30 {
+    background-color: hsl(var(--destructive) / 0.16);
+  }
+
+  .dark .dark\:bg-orange-950\/10,
+  .dark .dark\:bg-orange-950\/20,
+  .dark .dark\:bg-orange-950\/30,
+  .dark .dark\:bg-amber-950\/10,
+  .dark .dark\:bg-amber-950\/20,
+  .dark .dark\:bg-amber-950\/30 {
+    background-color: hsl(var(--accent) / 0.16);
+  }
+
+  .dark .dark\:bg-purple-950\/10,
+  .dark .dark\:bg-purple-950\/20,
+  .dark .dark\:bg-purple-950\/30,
+  .dark .dark\:bg-violet-950\/10,
+  .dark .dark\:bg-violet-950\/20,
+  .dark .dark\:bg-violet-950\/30 {
+    background-color: hsl(var(--primary) / 0.16);
+  }
+
+  .dark .dark\:text-green-400,
+  .dark .dark\:text-emerald-400 {
+    color: hsl(var(--success));
+  }
+
+  .dark .dark\:text-red-400,
+  .dark .dark\:text-rose-400 {
+    color: hsl(var(--destructive));
+  }
+
+  .dark .dark\:text-orange-400,
+  .dark .dark\:text-amber-400 {
+    color: hsl(var(--accent));
+  }
+
+  .dark .dark\:text-purple-400,
+  .dark .dark\:text-violet-400 {
+    color: hsl(var(--primary));
+  }
+
+  .recharts-cartesian-axis-tick text,
+  .recharts-polar-angle-axis-tick-value,
+  .recharts-legend-item-text {
+    fill: hsl(var(--muted-foreground));
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .recharts-cartesian-grid line,
+  .recharts-polar-grid-angle line,
+  .recharts-polar-grid-concentric path {
+    stroke: hsl(var(--border));
+  }
+
+  .recharts-default-tooltip {
+    background-color: hsl(var(--popover)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--popover-foreground)) !important;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .recharts-tooltip-label,
+  .recharts-tooltip-item {
+    color: hsl(var(--popover-foreground)) !important;
+  }
 }
 
 /* Custom Components */

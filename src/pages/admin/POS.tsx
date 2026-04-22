@@ -3222,7 +3222,7 @@ export default function POS() {
     { 
       icon: FileText, 
       label: 'End Of Day', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => {
         if (!currentCashSession) {
           return;
@@ -3234,35 +3234,35 @@ export default function POS() {
     { 
       icon: ShoppingCart, 
       label: 'Recent sales', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/orders'),
       shortcut: null
     },
     { 
       icon: Search, 
       label: 'Search Sales', 
-      color: 'bg-[#8B5CF6]', 
+      color: 'bg-primary', 
       action: () => setShowSearchAllSales(true),
       shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/orders?status=pending'),
       shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Hold / Fire', 
-      color: 'bg-[#F97316]', 
+      color: 'bg-accent', 
       action: () => setShowHoldTicket(true),
       shortcut: null
     },
     { 
       icon: DollarSign, 
       label: 'Cash Payment', 
-      color: 'bg-[#22C55E]', 
+      color: 'bg-success', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3276,7 +3276,7 @@ export default function POS() {
     { 
       icon: CreditCard, 
       label: 'Credit Sales', 
-      color: 'bg-[#3B82F6]', 
+      color: 'bg-info', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3295,7 +3295,7 @@ export default function POS() {
     { 
       icon: Smartphone, 
       label: 'Mobile Money', 
-      color: 'bg-[#F59E0B]', 
+      color: 'bg-warning', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3309,7 +3309,7 @@ export default function POS() {
     { 
       icon: Banknote, 
       label: 'Refund', 
-      color: 'bg-[#EF4444]', 
+      color: 'bg-destructive', 
       action: () => {
         if (cart.length === 0) {
           return;
@@ -3321,28 +3321,28 @@ export default function POS() {
     { 
       icon: Package, 
       label: 'Stock & Price', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/stock-and-price'),
       shortcut: null
     },
     { 
       icon: Gift,
       label: 'Notes', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => setShowNotesDialog(true),
       shortcut: null
     },
     { 
       icon: Tag, 
       label: isWholesaleMode ? 'Remove Wholesale' : 'Apply Wholesale', 
-      color: isWholesaleMode ? 'bg-[#F97316]' : 'bg-[#8B5CF6]', 
+      color: isWholesaleMode ? 'bg-accent' : 'bg-primary', 
       action: handleToggleWholesale,
       shortcut: null
     },
     { 
       icon: LogOut,
       label: 'Logout', 
-      color: 'bg-[#EF4444]', 
+      color: 'bg-destructive', 
       action: async () => {
         await supabase.auth.signOut();
         navigate('/auth/pos-login');
@@ -4889,11 +4889,11 @@ export default function POS() {
                           labelLine={false}
                           label={(entry) => `${entry.name}: ${formatCurrency(entry.value)}`}
                           outerRadius={80}
-                          fill="#8884d8"
+                          fill="hsl(var(--primary))"
                           dataKey="value"
                         >
                           {analyticsData.paymentMethodData.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={['#22C55E', '#3B82F6', '#F59E0B'][index % 3]} />
+                            <Cell key={`cell-${index}`} fill={['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))'][index % 3]} />
                           ))}
                         </Pie>
                         <RechartsTooltip 
@@ -4912,7 +4912,7 @@ export default function POS() {
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: ['#22C55E', '#3B82F6', '#F59E0B'][index % 3] }}
+                              style={{ backgroundColor: ['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))'][index % 3] }}
                             />
                             <span className="text-sm font-medium">{item.name}</span>
                           </div>
@@ -4947,8 +4947,8 @@ export default function POS() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="quantity" fill="#F59E0B" name="Quantity Sold" />
-                    <Bar dataKey="revenue" fill="#22C55E" name="Revenue" />
+                    <Bar dataKey="quantity" fill="hsl(var(--warning))" name="Quantity Sold" />
+                    <Bar dataKey="revenue" fill="hsl(var(--success))" name="Revenue" />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -4970,8 +4970,8 @@ export default function POS() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="count" fill="#3B82F6" name="Number of Orders" />
-                    <Bar dataKey="total" fill="#8B5CF6" name="Total Spent" />
+                    <Bar dataKey="count" fill="hsl(var(--info))" name="Number of Orders" />
+                    <Bar dataKey="total" fill="hsl(var(--primary))" name="Total Spent" />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
