@@ -2864,6 +2864,18 @@ export type Database = {
           supplier_ledger_account_id: string
         }[]
       }
+      gm_adjust_order_item_stock: {
+        Args: { p_product_id: string; p_quantity: number }
+        Returns: undefined
+      }
+      gm_apply_stock_for_pos_items: {
+        Args: { p_items: Json; p_multiplier: number }
+        Returns: undefined
+      }
+      gm_apply_stock_json_item: {
+        Args: { p_item: Json; p_multiplier: number }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
