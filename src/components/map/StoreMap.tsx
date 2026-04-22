@@ -60,7 +60,7 @@ export function StoreMap({ stores, userLocation, onStoreSelect }: StoreMapProps)
     if (userLocation) {
       const userIcon = L.divIcon({
         className: 'custom-user-marker',
-        html: '<div style="background-color: #22C55E; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+        html: '<div style="background-color: hsl(var(--primary)); width: 20px; height: 20px; border-radius: 50%; border: 3px solid hsl(var(--background)); box-shadow: var(--shadow-md);"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       });
@@ -81,8 +81,8 @@ export function StoreMap({ stores, userLocation, onStoreSelect }: StoreMapProps)
         .bindPopup(`
           <div style="font-size: 14px;">
             <h3 style="font-weight: 600; margin-bottom: 4px;">${store.name}</h3>
-            <p style="color: #64748b; margin: 2px 0;">${store.address}</p>
-            <p style="color: #64748b; margin: 2px 0;">${store.city}</p>
+            <p style="color: hsl(var(--muted-foreground)); margin: 2px 0;">${store.address}</p>
+            <p style="color: hsl(var(--muted-foreground)); margin: 2px 0;">${store.city}</p>
           </div>
         `)
         .addTo(mapRef.current!);
