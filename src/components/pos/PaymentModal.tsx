@@ -37,8 +37,19 @@ interface PaymentModalProps {
       id?: string;
       productId?: string;
       name: string;
+      displayName?: string;
       quantity: number;
       price: number;
+      customPrice?: number;
+      itemDiscount?: number;
+      isCombo?: boolean;
+      isOneTimeOffer?: boolean;
+      comboItems?: Array<{
+        product_id: string;
+        variant_id?: string;
+        quantity: number;
+        product_name: string;
+      }>;
     }>;
     subtotal: number;
     discount: number;
