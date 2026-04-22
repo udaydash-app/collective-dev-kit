@@ -871,12 +871,17 @@ export default function AdminOrders() {
         return {
           id: productId,
           productId: productId,
-          name: item.name || item.products?.name,
+            name: item.name || item.products?.name,
+            displayName: item.display_name || item.displayName,
           price: item.price || item.unit_price || item.products?.price || 0,
           customPrice: item.customPrice,
           quantity: item.quantity || 1,
           itemDiscount: item.itemDiscount || 0,
-          barcode: item.barcode || item.products?.barcode
+            barcode: item.barcode || item.products?.barcode,
+            isCombo: item.isCombo || item.is_combo,
+            isOneTimeOffer: item.isOneTimeOffer || item.is_one_time_offer,
+            comboId: item.comboId || item.combo_id,
+            comboItems: item.comboItems || item.combo_items,
         };
       }),
       discount: order.type === 'pos' ? (order.discount || 0) : 0,
@@ -1012,9 +1017,22 @@ export default function AdminOrders() {
         if (!transaction) throw new Error('Transaction not found');
 
         const items = transaction.items as any[];
-        const updatedItems = items.map((item: any) => 
-          item.id === itemId ? { ...item, quantity } : item
-        );
+        const updatedItems = items.map((item: any) => {
+          if (item.id !== itemId) return item;
+          if (item.comboItems?.length) {
+            const currentQuantity = Number(item.quantity || 1) || 1;
+            const multiplier = quantity / currentQuantity;
+            return {
+              ...item,
+              quantity,
+              comboItems: item.comboItems.map((comboItem: any) => ({
+                ...comboItem,
+                quantity: Number(comboItem.quantity || 0) * multiplier,
+              })),
+            };
+          }
+          return { ...item, quantity };
+        });
 
         // Recalculate totals
         const subtotal = updatedItems.reduce((sum, item) => {

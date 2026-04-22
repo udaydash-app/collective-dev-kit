@@ -427,6 +427,10 @@ export default function POS() {
             barcode: item.barcode,
             customPrice: item.customPrice || null,
             itemDiscount: item.itemDiscount || 0,
+            isCombo: item.isCombo || item.is_combo,
+            isOneTimeOffer: item.isOneTimeOffer || item.is_one_time_offer,
+            comboId: item.comboId || item.combo_id,
+            comboItems: item.comboItems || item.combo_items,
           });
           
           console.log(`🔧 Item loaded with customPrice: ${item.customPrice}, itemDiscount: ${item.itemDiscount}`);

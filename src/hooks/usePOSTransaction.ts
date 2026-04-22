@@ -76,6 +76,38 @@ const serializeCartItemForTransaction = (item: CartItem) => {
   };
 };
 
+const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
+  return items.flatMap(item => {
+    if (item.id === 'cart-discount' || item.isBogo) return [];
+
+    if (item.isCombo && item.comboItems?.length) {
+      return item.comboItems
+        .filter(comboItem => UUID_PATTERN.test(comboItem.product_id))
+        .map(comboItem => ({
+          order_id: orderId,
+          product_id: comboItem.product_id,
+          quantity: comboItem.quantity * item.quantity,
+          unit_price: 0,
+          subtotal: 0,
+        }));
+    }
+
+    if (item.isCombo || !UUID_PATTERN.test(item.productId)) return [];
+
+    const effectivePrice = item.customPrice ?? item.price;
+    const discountPerUnit = item.itemDiscount || 0;
+    const unitPrice = effectivePrice - discountPerUnit;
+
+    return [{
+      order_id: orderId,
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: Math.round(unitPrice * 100) / 100,
+      subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
+    }];
+  });
+};
+
 export const usePOSTransaction = () => {
   // Load cart from localStorage on mount
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -1087,20 +1119,7 @@ export const usePOSTransaction = () => {
           // 2. Sync order_items: insert new items first, then delete old ones
           // This prevents data loss if the insert fails
           try {
-            const orderItems = allItems
-              .filter(item => item.id !== 'cart-discount' && !item.isBogo && !item.isCombo)
-              .map(item => {
-                const effectivePrice = item.customPrice ?? item.price;
-                const discountPerUnit = item.itemDiscount || 0;
-                const unitPrice = effectivePrice - discountPerUnit;
-                return {
-                  order_id: editingTransactionId,
-                  product_id: item.productId,
-                  quantity: item.quantity,
-                  unit_price: Math.round(unitPrice * 100) / 100,
-                  subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
-                };
-              });
+            const orderItems = flattenCartItemsForOrderItems(allItems, editingTransactionId);
 
             if (orderItems.length > 0) {
               // First, get existing item IDs to delete later
