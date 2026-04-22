@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 import { z } from 'zod';
@@ -22,6 +23,8 @@ interface TransactionCartProps {
   onClear: () => void;
   selectedItemId?: string;
   onSelectItem?: (productId: string) => void;
+  selectedOfferItemIds?: string[];
+  onToggleOfferItem?: (productId: string) => void;
   onUpdatePrice?: (productId: string, price: number) => void;
   onUpdateDisplayName?: (productId: string, displayName: string) => void;
 }
@@ -34,6 +37,8 @@ export const TransactionCart = ({
   onClear,
   selectedItemId,
   onSelectItem,
+  selectedOfferItemIds = [],
+  onToggleOfferItem,
   onUpdatePrice,
   onUpdateDisplayName,
 }: TransactionCartProps) => {
@@ -217,6 +222,7 @@ export const TransactionCart = ({
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
+                <TableHead className="w-[28px] py-1 px-1"></TableHead>
                 <TableHead className="text-[10px] py-1 px-1">Product name</TableHead>
                 <TableHead className="text-center text-[10px] py-1 px-1 w-[110px]">Qty</TableHead>
                 <TableHead className="text-right text-[10px] py-1 px-1 w-[70px]">Price</TableHead>
