@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 import { z } from 'zod';
@@ -22,6 +23,8 @@ interface TransactionCartProps {
   onClear: () => void;
   selectedItemId?: string;
   onSelectItem?: (productId: string) => void;
+  selectedOfferItemIds?: string[];
+  onToggleOfferItem?: (productId: string) => void;
   onUpdatePrice?: (productId: string, price: number) => void;
   onUpdateDisplayName?: (productId: string, displayName: string) => void;
 }
@@ -34,6 +37,8 @@ export const TransactionCart = ({
   onClear,
   selectedItemId,
   onSelectItem,
+  selectedOfferItemIds = [],
+  onToggleOfferItem,
   onUpdatePrice,
   onUpdateDisplayName,
 }: TransactionCartProps) => {
@@ -217,6 +222,7 @@ export const TransactionCart = ({
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow className="text-xs">
+                <TableHead className="w-[28px] py-1 px-1"></TableHead>
                 <TableHead className="text-[10px] py-1 px-1">Product name</TableHead>
                 <TableHead className="text-center text-[10px] py-1 px-1 w-[110px]">Qty</TableHead>
                 <TableHead className="text-right text-[10px] py-1 px-1 w-[70px]">Price</TableHead>
@@ -229,6 +235,7 @@ export const TransactionCart = ({
               {items.map((item, index) => {
                 const isCartDiscount = item.id === 'cart-discount';
                 const isCombo = item.isCombo;
+                const canSelectForOffer = !isCartDiscount && !isCombo && !item.isBogo;
                 const isExpanded = expandedCombos.has(item.id);
                 const visibleIndex = items.filter((i, idx) => idx < index && i.id !== 'cart-discount').length;
                 const isKeyboardFocused = !isCartDiscount && visibleIndex === focusedItemIndex;
@@ -238,8 +245,8 @@ export const TransactionCart = ({
                       className={cn(
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer hover:bg-muted/30",
-                        isCartDiscount && "bg-orange-50 dark:bg-orange-950/20",
-                        isCombo && "bg-green-50 dark:bg-green-950/20"
+                        isCartDiscount && "bg-muted/60",
+                        isCombo && "bg-primary/5"
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -249,6 +256,17 @@ export const TransactionCart = ({
                         }
                       }}
                     >
+                      <TableCell className="py-1 px-1">
+                        {canSelectForOffer && (
+                          <Checkbox
+                            checked={selectedOfferItemIds.includes(item.id)}
+                            onCheckedChange={() => onToggleOfferItem?.(item.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Select ${item.displayName ?? item.name} for offer`}
+                            className="h-3.5 w-3.5"
+                          />
+                        )}
+                      </TableCell>
                       <TableCell className="py-1 px-1">
                         <div className="flex items-center gap-1">
                           {isCombo && item.comboItems && (
@@ -265,7 +283,7 @@ export const TransactionCart = ({
                             </Button>
                           )}
                           {isCartDiscount ? (
-                            <span className="text-[10px] font-medium line-clamp-2 text-orange-600 dark:text-orange-400">
+                            <span className="text-[10px] font-medium line-clamp-2 text-muted-foreground">
                               {item.name}
                             </span>
                           ) : (
@@ -287,8 +305,8 @@ export const TransactionCart = ({
                             />
                           )}
                           {isCombo && (
-                            <Badge variant="secondary" className="text-[8px] px-1 h-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              COMBO APPLIED
+                            <Badge variant="secondary" className="text-[8px] px-1 h-4">
+                              {item.isOneTimeOffer ? 'OFFER PRICE' : 'COMBO APPLIED'}
                             </Badge>
                           )}
                         </div>
@@ -458,7 +476,7 @@ export const TransactionCart = ({
                   </TableRow>
                   {isCombo && isExpanded && item.comboItems && (
                     <TableRow key={`${item.id}-details`}>
-                      <TableCell colSpan={6} className="py-1 px-1 bg-muted/30">
+                      <TableCell colSpan={7} className="py-1 px-1 bg-muted/30">
                         <div className="text-[9px] text-muted-foreground ml-6">
                           <span className="font-semibold">Includes: </span>
                           {item.comboItems.map((ci, idx) => (

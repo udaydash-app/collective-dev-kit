@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateTimbreTax } from '@/lib/timbreTax';
+import { formatCurrency } from '@/lib/utils';
 
 export interface CartItem {
   id: string;
@@ -28,6 +29,7 @@ export interface CartItem {
   }>;
   isBogo?: boolean; // Added for BOGO offers
   bogoOfferId?: string; // Added for BOGO offers
+  isOneTimeOffer?: boolean;
 }
 
 export interface PaymentDetail {
@@ -808,6 +810,60 @@ export const usePOSTransaction = () => {
     setCart(items);
   };
 
+  const convertItemsToOneTimeOffer = (selectedItemIds: string[], offerPrice: number) => {
+    const selectedIds = new Set(selectedItemIds);
+    const selectedItems = cart.filter(item =>
+      selectedIds.has(item.id) &&
+      item.id !== 'cart-discount' &&
+      !item.isCombo &&
+      !item.isBogo
+    );
+
+    if (selectedItems.length < 2) {
+      toast.error('Select at least 2 regular products for an offer');
+      return false;
+    }
+
+    if (!Number.isFinite(offerPrice) || offerPrice <= 0) {
+      toast.error('Enter a valid offer price');
+      return false;
+    }
+
+    const selectedTotal = selectedItems.reduce((sum, item) => {
+      const effectivePrice = item.customPrice ?? item.price;
+      return sum + (effectivePrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
+    }, 0);
+
+    if (offerPrice >= selectedTotal) {
+      toast.error('Offer price must be lower than the selected products total');
+      return false;
+    }
+
+    const offerItemId = `one-time-offer-${Date.now()}`;
+    const offerItem: CartItem = {
+      id: offerItemId,
+      productId: offerItemId,
+      comboId: 'one-time-offer',
+      name: `Offer Price (${selectedItems.length} items)`,
+      price: offerPrice,
+      originalPrice: selectedTotal,
+      quantity: 1,
+      itemDiscount: 0,
+      isCombo: true,
+      isOneTimeOffer: true,
+      comboItems: selectedItems.map(item => ({
+        product_id: item.productId,
+        variant_id: item.id !== item.productId ? item.id : undefined,
+        quantity: item.quantity,
+        product_name: item.displayName ?? item.name,
+      })),
+    };
+
+    setCart(prev => [...prev.filter(item => !selectedIds.has(item.id)), offerItem]);
+    toast.success(`Offer price applied: ${formatCurrency(offerPrice)}`);
+    return true;
+  };
+
   const addComboToCart = (combo: any) => {
     const comboCartItem: CartItem = {
       id: `combo-${combo.id}-${Date.now()}`,
@@ -916,6 +972,7 @@ export const usePOSTransaction = () => {
         itemDiscount: item.itemDiscount || 0,
         barcode: item.barcode,
         isCombo: item.isCombo,
+        isOneTimeOffer: item.isOneTimeOffer,
         comboItems: item.comboItems,
       }));
 
@@ -1140,6 +1197,7 @@ export const usePOSTransaction = () => {
             itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode,
             isCombo: item.isCombo,
+            isOneTimeOffer: item.isOneTimeOffer,
             comboItems: item.comboItems,
           }));
           
@@ -1184,6 +1242,7 @@ export const usePOSTransaction = () => {
     updateItemPrice,
     updateItemDiscount,
     updateItemDisplayName,
+    convertItemsToOneTimeOffer,
     clearCart,
     loadCart,
     calculateSubtotal,

@@ -146,6 +146,9 @@ export default function POS() {
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
+  const [selectedOfferItemIds, setSelectedOfferItemIds] = useState<string[]>([]);
+  const [showOfferPriceDialog, setShowOfferPriceDialog] = useState(false);
+  const [offerPriceInput, setOfferPriceInput] = useState('');
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderType, setEditingOrderType] = useState<'pos' | 'online' | null>(null);
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
@@ -240,6 +243,7 @@ export default function POS() {
     updateItemPrice,
     updateItemDiscount,
     updateItemDisplayName,
+    convertItemsToOneTimeOffer,
     clearCart,
     loadCart,
     calculateSubtotal,
@@ -3682,6 +3686,25 @@ export default function POS() {
     toast.success('Cart position reset');
   };
 
+  const toggleOfferSelection = (itemId: string) => {
+    setSelectedOfferItemIds(prev =>
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const selectedOfferTotal = cart
+    .filter(item => selectedOfferItemIds.includes(item.id))
+    .reduce((sum, item) => sum + ((item.customPrice ?? item.price) * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity), 0);
+
+  const handleApplyOfferPrice = () => {
+    const applied = convertItemsToOneTimeOffer(selectedOfferItemIds, parseFloat(offerPriceInput));
+    if (applied) {
+      setSelectedOfferItemIds([]);
+      setOfferPriceInput('');
+      setShowOfferPriceDialog(false);
+    }
+  };
+
   const handleKeypadEnter = () => {
     console.log('🔢 Enter pressed:', { keypadMode, keypadInput: keypadInputRef.current, isPercentMode });
     
@@ -3891,6 +3914,22 @@ export default function POS() {
               {formatCurrency(total)}
             </span>
           </div>
+          {selectedOfferItemIds.length > 0 && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2 text-xs">
+              <div>
+                <p className="font-medium">{selectedOfferItemIds.length} selected for offer</p>
+                <p className="text-muted-foreground">Current: {formatCurrency(selectedOfferTotal)}</p>
+              </div>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
+                  Clear
+                </Button>
+                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferItemIds.length < 2}>
+                  Offer Price
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cart Items */}
@@ -3913,16 +3952,20 @@ export default function POS() {
                 setDiscount(0);
                 console.log('Cart discount removed');
               } else {
+                setSelectedOfferItemIds(prev => prev.filter(itemId => itemId !== id));
                 removeFromCart(id);
               }
             }}
             onClear={() => {
               clearCart();
               setCartDiscountItem(null);
+              setSelectedOfferItemIds([]);
               setDiscount(0);
             }}
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
+            selectedOfferItemIds={selectedOfferItemIds}
+            onToggleOfferItem={toggleOfferSelection}
           />
         </div>
         
@@ -4948,6 +4991,41 @@ export default function POS() {
         open={showSearchAllSales} 
         onOpenChange={setShowSearchAllSales} 
       />
+
+      <Dialog open={showOfferPriceDialog} onOpenChange={setShowOfferPriceDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Offer Price</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Selected items</span>
+                <span className="font-medium">{selectedOfferItemIds.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current total</span>
+                <span className="font-medium">{formatCurrency(selectedOfferTotal)}</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">New offer price</Label>
+              <Input
+                type="number"
+                value={offerPriceInput}
+                onChange={(e) => setOfferPriceInput(e.target.value)}
+                min="0"
+                step="0.01"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOfferPriceDialog(false)}>Cancel</Button>
+            <Button onClick={handleApplyOfferPrice}>Apply</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
