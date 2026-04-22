@@ -2688,6 +2688,7 @@ export default function POS() {
           price: item.price,
           customPrice: item.customPrice,
           itemDiscount: item.itemDiscount,
+          comboItems: item.comboItems,
         })),
         subtotal: completeTransactionData.subtotal,
         discount: completeTransactionData.discount,
@@ -3143,7 +3144,8 @@ export default function POS() {
           displayName: item.displayName,
           quantity: item.quantity,
           price: item.customPrice ?? item.price,
-          itemDiscount: item.itemDiscount || 0
+          itemDiscount: item.itemDiscount || 0,
+          comboItems: item.comboItems,
         })),
         subtotal: lastTransactionData.subtotal,
         tax: lastTransactionData.tax || 0,
