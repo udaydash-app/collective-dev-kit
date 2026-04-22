@@ -16,10 +16,20 @@ interface OrderItem {
   id?: string;
   name?: string;
   displayName?: string;
+  display_name?: string;
   quantity: number;
   price: number;
   customPrice?: number;
   itemDiscount?: number;
+  item_discount?: number;
+  isCombo?: boolean;
+  isOneTimeOffer?: boolean;
+  comboItems?: Array<{
+    product_id: string;
+    variant_id?: string;
+    quantity: number;
+    product_name: string;
+  }>;
   image_url?: string;
   products?: {
     name: string;
@@ -152,7 +162,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   // Get item details
   const getItemName = (item: OrderItem) => {
     return order.type === 'pos' 
-      ? (item.displayName || item.name) 
+      ? (item.displayName || item.display_name || item.name) 
       : (item.products?.name || item.name);
   };
 
@@ -256,13 +266,22 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                     {order.items.map((item, idx) => {
                       const itemName = getItemName(item);
                       const unitPrice = getItemPrice(item);
-                      const discount = item.itemDiscount ?? 0;
+                      const discount = item.itemDiscount ?? item.item_discount ?? 0;
                       const final = getItemFinal(item);
 
                       return (
                         <TableRow key={item.id || idx} className="text-xs">
                           <TableCell className="py-2 px-2">
                             <span className="text-[11px] font-medium line-clamp-2">{itemName}</span>
+                            {item.comboItems && item.comboItems.length > 0 && (
+                              <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground">
+                                {item.comboItems.map((comboItem, comboIdx) => (
+                                  <div key={`${comboItem.product_id}-${comboIdx}`}>
+                                    • {comboItem.quantity} x {comboItem.product_name}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center py-2 px-2">
                             <span className="text-[11px]">{item.quantity}</span>
@@ -370,15 +389,18 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             items={order.items.map((item, idx) => ({
               id: item.id || `item-${idx}`,
               productId: item.id || `product-${idx}`,
-              name: order.type === 'pos' 
-                ? (item.displayName || item.name || '') 
+                name: order.type === 'pos' 
+                  ? (item.displayName || item.display_name || item.name || '') 
                 : (item.products?.name || item.name || ''),
               quantity: item.quantity,
               price: order.type === 'pos'
                 ? (item.customPrice ?? item.price)
                 : (item.unit_price ?? item.products?.price ?? item.price),
               customPrice: item.customPrice,
-              itemDiscount: item.itemDiscount || 0,
+                itemDiscount: item.itemDiscount || item.item_discount || 0,
+                isCombo: item.isCombo,
+                isOneTimeOffer: item.isOneTimeOffer,
+                comboItems: item.comboItems,
             }))}
             subtotal={order.subtotal}
             discount={order.discount || 0}

@@ -200,6 +200,15 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <div className="flex justify-between">
                 <span className="flex-1">{item.displayName ?? item.name}</span>
               </div>
+              {item.comboItems && item.comboItems.length > 0 && (
+                <div className="text-xs ml-2 mt-1">
+                  {item.comboItems.map((comboItem, comboIndex) => (
+                    <div key={`${comboItem.product_id}-${comboIndex}`}>
+                      • {comboItem.quantity} x {comboItem.product_name}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-between text-xs">
                 <span>{item.quantity} x {formatCurrency(effectivePrice)}</span>
                 <span>{formatCurrency(effectivePrice * item.quantity)}</span>
