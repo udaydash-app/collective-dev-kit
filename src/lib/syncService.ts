@@ -6,9 +6,53 @@ import { offlineDB, OfflineTransaction } from './offlineDB';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class SyncService {
   private isSyncing = false;
   private syncInterval: number | null = null;
+
+  private isUuid(value: unknown): value is string {
+    return typeof value === 'string' && UUID_PATTERN.test(value);
+  }
+
+  private normalizeTransactionItems(items: any[] = []) {
+    return items
+      .map((item, index) => {
+        const firstComboItem = Array.isArray(item?.comboItems)
+          ? item.comboItems.find((comboItem: any) => this.isUuid(comboItem?.product_id))
+          : undefined;
+
+        const productId = this.isUuid(item?.productId)
+          ? item.productId
+          : firstComboItem?.product_id;
+
+        const variantId = this.isUuid(item?.variantId)
+          ? item.variantId
+          : this.isUuid(item?.id) && productId && item.id !== productId
+            ? item.id
+            : this.isUuid(firstComboItem?.variant_id)
+              ? firstComboItem.variant_id
+              : null;
+
+        if (!this.isUuid(productId)) {
+          console.warn('Skipping offline sync item with invalid product UUID', {
+            itemId: item?.id,
+            productId: item?.productId,
+            name: item?.name,
+          });
+          return null;
+        }
+
+        return {
+          ...item,
+          id: this.isUuid(item?.id) ? item.id : variantId || productId || `offline-item-${index}`,
+          productId,
+          variantId,
+        };
+      })
+      .filter(Boolean);
+  }
 
   async syncTransactions(): Promise<{ success: number; failed: number }> {
     if (this.isSyncing) {
@@ -87,11 +131,17 @@ class SyncService {
   }
 
   private async syncSingleTransaction(transaction: OfflineTransaction): Promise<void> {
+    const normalizedItems = this.normalizeTransactionItems(transaction.items);
+
+    if (normalizedItems.length === 0) {
+      throw new Error('Offline transaction has no valid product items to sync');
+    }
+
     console.log('🔄 Syncing transaction:', {
       id: transaction.id,
       storeId: transaction.storeId,
       cashierId: transaction.cashierId,
-      itemCount: transaction.items.length,
+      itemCount: normalizedItems.length,
       total: transaction.total
     });
 
@@ -122,7 +172,7 @@ class SyncService {
         payment_method: transaction.paymentMethod,
         payment_details: [{ method: transaction.paymentMethod, amount: transaction.total }],
         notes: transaction.notes || '',
-        items: transaction.items,
+        items: normalizedItems,
         amount_paid: transaction.total,
         created_at: transaction.timestamp
       });
