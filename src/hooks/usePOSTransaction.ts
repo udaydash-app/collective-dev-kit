@@ -855,8 +855,10 @@ export const usePOSTransaction = () => {
       !item.isBogo
     );
 
-    if (selectedItems.length < 2) {
-      toast.error('Select at least 2 regular products for an offer');
+    const selectedQuantity = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+
+    if (selectedQuantity < 2) {
+      toast.error('Select at least 2 units for an offer');
       return false;
     }
 
@@ -880,7 +882,7 @@ export const usePOSTransaction = () => {
       id: offerItemId,
       productId: offerItemId,
       comboId: 'one-time-offer',
-      name: `Offer Price (${selectedItems.length} items)`,
+      name: `Offer Price (${selectedQuantity} units)`,
       price: offerPrice,
       originalPrice: selectedTotal,
       quantity: 1,
