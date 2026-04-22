@@ -235,6 +235,7 @@ export const TransactionCart = ({
               {items.map((item, index) => {
                 const isCartDiscount = item.id === 'cart-discount';
                 const isCombo = item.isCombo;
+                const canSelectForOffer = !isCartDiscount && !isCombo && !item.isBogo;
                 const isExpanded = expandedCombos.has(item.id);
                 const visibleIndex = items.filter((i, idx) => idx < index && i.id !== 'cart-discount').length;
                 const isKeyboardFocused = !isCartDiscount && visibleIndex === focusedItemIndex;
@@ -255,6 +256,17 @@ export const TransactionCart = ({
                         }
                       }}
                     >
+                      <TableCell className="py-1 px-1">
+                        {canSelectForOffer && (
+                          <Checkbox
+                            checked={selectedOfferItemIds.includes(item.id)}
+                            onCheckedChange={() => onToggleOfferItem?.(item.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Select ${item.displayName ?? item.name} for offer`}
+                            className="h-3.5 w-3.5"
+                          />
+                        )}
+                      </TableCell>
                       <TableCell className="py-1 px-1">
                         <div className="flex items-center gap-1">
                           {isCombo && item.comboItems && (
@@ -293,8 +305,8 @@ export const TransactionCart = ({
                             />
                           )}
                           {isCombo && (
-                            <Badge variant="secondary" className="text-[8px] px-1 h-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              COMBO APPLIED
+                            <Badge variant="secondary" className="text-[8px] px-1 h-4">
+                              {item.isOneTimeOffer ? 'OFFER PRICE' : 'COMBO APPLIED'}
                             </Badge>
                           )}
                         </div>
@@ -464,7 +476,7 @@ export const TransactionCart = ({
                   </TableRow>
                   {isCombo && isExpanded && item.comboItems && (
                     <TableRow key={`${item.id}-details`}>
-                      <TableCell colSpan={6} className="py-1 px-1 bg-muted/30">
+                      <TableCell colSpan={7} className="py-1 px-1 bg-muted/30">
                         <div className="text-[9px] text-muted-foreground ml-6">
                           <span className="font-semibold">Includes: </span>
                           {item.comboItems.map((ci, idx) => (
