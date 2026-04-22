@@ -3914,6 +3914,22 @@ export default function POS() {
               {formatCurrency(total)}
             </span>
           </div>
+          {selectedOfferItemIds.length > 0 && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2 text-xs">
+              <div>
+                <p className="font-medium">{selectedOfferItemIds.length} selected for offer</p>
+                <p className="text-muted-foreground">Current: {formatCurrency(selectedOfferTotal)}</p>
+              </div>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
+                  Clear
+                </Button>
+                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferItemIds.length < 2}>
+                  Offer Price
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cart Items */}
@@ -3936,16 +3952,20 @@ export default function POS() {
                 setDiscount(0);
                 console.log('Cart discount removed');
               } else {
+                setSelectedOfferItemIds(prev => prev.filter(itemId => itemId !== id));
                 removeFromCart(id);
               }
             }}
             onClear={() => {
               clearCart();
               setCartDiscountItem(null);
+              setSelectedOfferItemIds([]);
               setDiscount(0);
             }}
             selectedItemId={selectedCartItemId || undefined}
             onSelectItem={handleSelectCartItem}
+            selectedOfferItemIds={selectedOfferItemIds}
+            onToggleOfferItem={toggleOfferSelection}
           />
         </div>
         
