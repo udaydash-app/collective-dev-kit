@@ -4991,6 +4991,41 @@ export default function POS() {
         open={showSearchAllSales} 
         onOpenChange={setShowSearchAllSales} 
       />
+
+      <Dialog open={showOfferPriceDialog} onOpenChange={setShowOfferPriceDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Offer Price</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Selected items</span>
+                <span className="font-medium">{selectedOfferItemIds.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current total</span>
+                <span className="font-medium">{formatCurrency(selectedOfferTotal)}</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">New offer price</Label>
+              <Input
+                type="number"
+                value={offerPriceInput}
+                onChange={(e) => setOfferPriceInput(e.target.value)}
+                min="0"
+                step="0.01"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOfferPriceDialog(false)}>Cancel</Button>
+            <Button onClick={handleApplyOfferPrice}>Apply</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
