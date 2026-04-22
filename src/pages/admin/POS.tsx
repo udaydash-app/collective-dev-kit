@@ -4889,11 +4889,11 @@ export default function POS() {
                           labelLine={false}
                           label={(entry) => `${entry.name}: ${formatCurrency(entry.value)}`}
                           outerRadius={80}
-                          fill="#8884d8"
+                          fill="hsl(var(--primary))"
                           dataKey="value"
                         >
                           {analyticsData.paymentMethodData.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={['#22C55E', '#3B82F6', '#F59E0B'][index % 3]} />
+                            <Cell key={`cell-${index}`} fill={['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))'][index % 3]} />
                           ))}
                         </Pie>
                         <RechartsTooltip 
@@ -4912,7 +4912,7 @@ export default function POS() {
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: ['#22C55E', '#3B82F6', '#F59E0B'][index % 3] }}
+                              style={{ backgroundColor: ['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))'][index % 3] }}
                             />
                             <span className="text-sm font-medium">{item.name}</span>
                           </div>
@@ -4947,8 +4947,8 @@ export default function POS() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="quantity" fill="#F59E0B" name="Quantity Sold" />
-                    <Bar dataKey="revenue" fill="#22C55E" name="Revenue" />
+                    <Bar dataKey="quantity" fill="hsl(var(--warning))" name="Quantity Sold" />
+                    <Bar dataKey="revenue" fill="hsl(var(--success))" name="Revenue" />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -4970,8 +4970,8 @@ export default function POS() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="count" fill="#3B82F6" name="Number of Orders" />
-                    <Bar dataKey="total" fill="#8B5CF6" name="Total Spent" />
+                    <Bar dataKey="count" fill="hsl(var(--info))" name="Number of Orders" />
+                    <Bar dataKey="total" fill="hsl(var(--primary))" name="Total Spent" />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
