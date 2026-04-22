@@ -3696,6 +3696,10 @@ export default function POS() {
     .filter(item => selectedOfferItemIds.includes(item.id))
     .reduce((sum, item) => sum + ((item.customPrice ?? item.price) * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity), 0);
 
+  const selectedOfferUnitCount = cart
+    .filter(item => selectedOfferItemIds.includes(item.id))
+    .reduce((sum, item) => sum + item.quantity, 0);
+
   const handleApplyOfferPrice = () => {
     const applied = convertItemsToOneTimeOffer(selectedOfferItemIds, parseFloat(offerPriceInput));
     if (applied) {
@@ -3917,14 +3921,14 @@ export default function POS() {
           {selectedOfferItemIds.length > 0 && (
             <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2 text-xs">
               <div>
-                <p className="font-medium">{selectedOfferItemIds.length} selected for offer</p>
+                <p className="font-medium">{selectedOfferUnitCount} units selected for offer</p>
                 <p className="text-muted-foreground">Current: {formatCurrency(selectedOfferTotal)}</p>
               </div>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
                   Clear
                 </Button>
-                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferItemIds.length < 2}>
+                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferUnitCount < 2}>
                   Offer Price
                 </Button>
               </div>
@@ -5001,7 +5005,7 @@ export default function POS() {
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Selected items</span>
-                <span className="font-medium">{selectedOfferItemIds.length}</span>
+                <span className="font-medium">{selectedOfferUnitCount}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Current total</span>
