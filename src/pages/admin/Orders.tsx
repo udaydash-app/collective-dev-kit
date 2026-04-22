@@ -768,7 +768,8 @@ export default function AdminOrders() {
           displayName: item.display_name || item.displayName,
           quantity: item.quantity,
           price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
-          itemDiscount: item.itemDiscount || item.item_discount || 0
+          itemDiscount: item.itemDiscount || item.item_discount || 0,
+          comboItems: item.comboItems || item.combo_items,
         })),
         subtotal: Number(order.subtotal),
         tax: Number(order.tax || 0),
