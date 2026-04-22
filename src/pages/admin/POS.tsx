@@ -3222,7 +3222,7 @@ export default function POS() {
     { 
       icon: FileText, 
       label: 'End Of Day', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => {
         if (!currentCashSession) {
           return;
@@ -3234,35 +3234,35 @@ export default function POS() {
     { 
       icon: ShoppingCart, 
       label: 'Recent sales', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/orders'),
       shortcut: null
     },
     { 
       icon: Search, 
       label: 'Search Sales', 
-      color: 'bg-[#8B5CF6]', 
+      color: 'bg-primary', 
       action: () => setShowSearchAllSales(true),
       shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Pending sales', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/orders?status=pending'),
       shortcut: null
     },
     { 
       icon: Clock, 
       label: 'Hold / Fire', 
-      color: 'bg-[#F97316]', 
+      color: 'bg-accent', 
       action: () => setShowHoldTicket(true),
       shortcut: null
     },
     { 
       icon: DollarSign, 
       label: 'Cash Payment', 
-      color: 'bg-[#22C55E]', 
+      color: 'bg-success', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3276,7 +3276,7 @@ export default function POS() {
     { 
       icon: CreditCard, 
       label: 'Credit Sales', 
-      color: 'bg-[#3B82F6]', 
+      color: 'bg-info', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3295,7 +3295,7 @@ export default function POS() {
     { 
       icon: Smartphone, 
       label: 'Mobile Money', 
-      color: 'bg-[#F59E0B]', 
+      color: 'bg-warning', 
       action: () => {
         if (cart.length === 0) {
           toast.error('Cart is empty');
@@ -3309,7 +3309,7 @@ export default function POS() {
     { 
       icon: Banknote, 
       label: 'Refund', 
-      color: 'bg-[#EF4444]', 
+      color: 'bg-destructive', 
       action: () => {
         if (cart.length === 0) {
           return;
@@ -3321,28 +3321,28 @@ export default function POS() {
     { 
       icon: Package, 
       label: 'Stock & Price', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => navigate('/admin/stock-and-price'),
       shortcut: null
     },
     { 
       icon: Gift,
       label: 'Notes', 
-      color: 'bg-[#5DADE2]', 
+      color: 'bg-info', 
       action: () => setShowNotesDialog(true),
       shortcut: null
     },
     { 
       icon: Tag, 
       label: isWholesaleMode ? 'Remove Wholesale' : 'Apply Wholesale', 
-      color: isWholesaleMode ? 'bg-[#F97316]' : 'bg-[#8B5CF6]', 
+      color: isWholesaleMode ? 'bg-accent' : 'bg-primary', 
       action: handleToggleWholesale,
       shortcut: null
     },
     { 
       icon: LogOut,
       label: 'Logout', 
-      color: 'bg-[#EF4444]', 
+      color: 'bg-destructive', 
       action: async () => {
         await supabase.auth.signOut();
         navigate('/auth/pos-login');
