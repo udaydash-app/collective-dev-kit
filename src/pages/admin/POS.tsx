@@ -3686,6 +3686,25 @@ export default function POS() {
     toast.success('Cart position reset');
   };
 
+  const toggleOfferSelection = (itemId: string) => {
+    setSelectedOfferItemIds(prev =>
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const selectedOfferTotal = cart
+    .filter(item => selectedOfferItemIds.includes(item.id))
+    .reduce((sum, item) => sum + ((item.customPrice ?? item.price) * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity), 0);
+
+  const handleApplyOfferPrice = () => {
+    const applied = convertItemsToOneTimeOffer(selectedOfferItemIds, parseFloat(offerPriceInput));
+    if (applied) {
+      setSelectedOfferItemIds([]);
+      setOfferPriceInput('');
+      setShowOfferPriceDialog(false);
+    }
+  };
+
   const handleKeypadEnter = () => {
     console.log('🔢 Enter pressed:', { keypadMode, keypadInput: keypadInputRef.current, isPercentMode });
     
