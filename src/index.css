@@ -356,6 +356,62 @@
     border-color: hsl(var(--primary) / 0.35);
   }
 
+  .dark .dark\:bg-green-950\/10,
+  .dark .dark\:bg-green-950\/20,
+  .dark .dark\:bg-green-950\/30,
+  .dark .dark\:bg-emerald-950\/10,
+  .dark .dark\:bg-emerald-950\/20,
+  .dark .dark\:bg-emerald-950\/30 {
+    background-color: hsl(var(--success) / 0.16);
+  }
+
+  .dark .dark\:bg-red-950\/10,
+  .dark .dark\:bg-red-950\/20,
+  .dark .dark\:bg-red-950\/30,
+  .dark .dark\:bg-rose-950\/10,
+  .dark .dark\:bg-rose-950\/20,
+  .dark .dark\:bg-rose-950\/30 {
+    background-color: hsl(var(--destructive) / 0.16);
+  }
+
+  .dark .dark\:bg-orange-950\/10,
+  .dark .dark\:bg-orange-950\/20,
+  .dark .dark\:bg-orange-950\/30,
+  .dark .dark\:bg-amber-950\/10,
+  .dark .dark\:bg-amber-950\/20,
+  .dark .dark\:bg-amber-950\/30 {
+    background-color: hsl(var(--accent) / 0.16);
+  }
+
+  .dark .dark\:bg-purple-950\/10,
+  .dark .dark\:bg-purple-950\/20,
+  .dark .dark\:bg-purple-950\/30,
+  .dark .dark\:bg-violet-950\/10,
+  .dark .dark\:bg-violet-950\/20,
+  .dark .dark\:bg-violet-950\/30 {
+    background-color: hsl(var(--primary) / 0.16);
+  }
+
+  .dark .dark\:text-green-400,
+  .dark .dark\:text-emerald-400 {
+    color: hsl(var(--success));
+  }
+
+  .dark .dark\:text-red-400,
+  .dark .dark\:text-rose-400 {
+    color: hsl(var(--destructive));
+  }
+
+  .dark .dark\:text-orange-400,
+  .dark .dark\:text-amber-400 {
+    color: hsl(var(--accent));
+  }
+
+  .dark .dark\:text-purple-400,
+  .dark .dark\:text-violet-400 {
+    color: hsl(var(--primary));
+  }
+
   .recharts-cartesian-axis-tick text,
   .recharts-polar-angle-axis-tick-value,
   .recharts-legend-item-text {
