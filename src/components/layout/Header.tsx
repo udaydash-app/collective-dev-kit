@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { LocationDialog } from "./LocationDialog";
 import { LanguageSelector } from "./LanguageSelector";
+import { ThemeToggle } from "./ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 import {
@@ -66,6 +67,7 @@ export const Header = () => {
           
           <div className="flex items-center gap-2 ml-auto">
             <LanguageSelector />
+            <ThemeToggle />
             
             {!isHomePage && (
               <TooltipProvider>
