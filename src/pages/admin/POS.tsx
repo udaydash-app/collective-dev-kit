@@ -265,6 +265,35 @@ export default function POS() {
     }
   }, [searchParams, isLoadingOrder, cart.length]);
 
+  // Keep Supabase connection warm to avoid slow first scan after idle.
+  // Cold TLS/DNS handshakes can add 1-3s latency to the first query after inactivity.
+  useEffect(() => {
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        await supabase.from('product_variants').select('id').limit(1);
+      } catch {
+        // ignore - just keeping connection warm
+      }
+    };
+    // Warm immediately on mount
+    ping();
+    // Then re-ping every 45s to keep TCP/TLS connection alive
+    const interval = setInterval(() => {
+      if (!cancelled && document.visibilityState === 'visible') ping();
+    }, 45000);
+    // Also re-ping when tab regains focus after being idle
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') ping();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
   // Load order for editing from localStorage
   useEffect(() => {
     const editOrderId = searchParams.get('editOrder');
