@@ -146,6 +146,14 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "liga" 1, "calt" 1;
+    caret-color: transparent;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    caret-color: auto;
   }
   
   h1, h2, h3, h4, h5, h6 {
