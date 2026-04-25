@@ -493,7 +493,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         ref={searchInputRef}
         placeholder="Scan barcode..."
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={(e) => {
+          if (scannerBufferRef.current) return;
+          setSearchTerm(e.target.value);
+        }}
         onKeyDown={handleSearchKeyDown}
       />
 
