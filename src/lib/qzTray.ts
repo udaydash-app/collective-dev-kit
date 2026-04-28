@@ -10,6 +10,10 @@ export interface QZReceiptData {
     displayName?: string;
     quantity: number;
     price: number;
+    originalPrice?: number;
+    customPrice?: number;
+    itemDiscount?: number;
+    isOneTimeOffer?: boolean;
     comboItems?: Array<{
       product_id: string;
       variant_id?: string;
@@ -175,10 +179,18 @@ class QZTrayService {
         }
       
         // Quantity and price
-        const qtyPrice = `${item.quantity} x ${this.formatCurrency(item.price)}`;
-        const total = this.formatCurrency(item.price * item.quantity);
+        const effectivePrice = item.customPrice ?? item.price;
+        const qtyPrice = `${item.quantity} x ${this.formatCurrency(effectivePrice)}`;
+        const total = this.formatCurrency(effectivePrice * item.quantity);
         const spaces = 42 - qtyPrice.length - total.length;
         commands += qtyPrice + ' '.repeat(Math.max(spaces, 1)) + total + '\n';
+        if (item.originalPrice && item.originalPrice > effectivePrice * item.quantity) {
+          commands += this.formatLine('Original:', '~' + this.formatCurrency(item.originalPrice) + '~');
+        }
+        const itemDiscount = (item.itemDiscount || 0) * item.quantity;
+        if (itemDiscount > 0) {
+          commands += this.formatLine('Item Discount:', '-' + this.formatCurrency(itemDiscount));
+        }
       });
     
       commands += '-'.repeat(42) + '\n\n';
