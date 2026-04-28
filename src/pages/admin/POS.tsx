@@ -2719,6 +2719,7 @@ export default function POS() {
           displayName: item.displayName,
           quantity: item.quantity,
           price: item.price,
+          originalPrice: item.originalPrice,
           customPrice: item.customPrice,
           itemDiscount: item.itemDiscount,
           comboItems: item.comboItems,
@@ -3177,6 +3178,7 @@ export default function POS() {
           displayName: item.displayName,
           quantity: item.quantity,
           price: item.customPrice ?? item.price,
+          originalPrice: item.originalPrice,
           itemDiscount: item.itemDiscount || 0,
           comboItems: item.comboItems,
         })),
@@ -3963,7 +3965,7 @@ export default function POS() {
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
                   Clear
                 </Button>
-                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferUnitCount < 2}>
+                <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferUnitCount < 1}>
                   Offer Price
                 </Button>
               </div>
