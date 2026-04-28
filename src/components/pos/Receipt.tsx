@@ -164,6 +164,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         .flex-1 { flex: 1; }
         .ml-2 { margin-left: 8px; }
         .space-y-1 > * + * { margin-top: 4px; }
+        .line-through { text-decoration: line-through; }
         img { 
           max-height: 60px;
           max-width: 150px;
@@ -195,6 +196,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {items.map((item, index) => {
           const effectivePrice = item.customPrice ?? item.price;
           const itemDiscount = (item.itemDiscount || 0) * item.quantity;
+          const showOfferPrice = item.isOneTimeOffer && item.originalPrice && item.originalPrice > effectivePrice * item.quantity;
           return (
             <div key={index} className="mb-2">
               <div className="flex justify-between">
@@ -213,6 +215,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 <span>{item.quantity} x {formatCurrency(effectivePrice)}</span>
                 <span>{formatCurrency(effectivePrice * item.quantity)}</span>
               </div>
+              {showOfferPrice && (
+                <div className="flex justify-between text-xs ml-2">
+                  <span>Original:</span>
+                  <span className="line-through">{formatCurrency(item.originalPrice!)}</span>
+                </div>
+              )}
               {itemDiscount > 0 && (
                 <div className="flex justify-between text-xs ml-2">
                   <span>Item Discount:</span>
