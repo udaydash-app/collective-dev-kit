@@ -66,6 +66,7 @@ const serializeCartItemForTransaction = (item: CartItem) => {
     display_name: item.displayName,
     quantity: item.quantity,
     price: item.price,
+    originalPrice: item.originalPrice,
     customPrice: item.customPrice,
     itemDiscount: item.itemDiscount || 0,
     barcode: item.barcode,
@@ -889,8 +890,8 @@ export const usePOSTransaction = () => {
 
     const selectedQuantity = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
 
-    if (selectedQuantity < 2) {
-      toast.error('Select at least 2 units for an offer');
+    if (selectedQuantity < 1) {
+      toast.error('Select at least 1 unit for an offer');
       return false;
     }
 
