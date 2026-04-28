@@ -2455,9 +2455,11 @@ export default function POS() {
         displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
+        originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
         isCombo: item.isCombo,
+        isOneTimeOffer: item.isOneTimeOffer,
         comboItems: item.comboItems,
       })),
       subtotal: calculateSubtotal(),
@@ -2588,9 +2590,11 @@ export default function POS() {
         displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
+        originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
         isCombo: item.isCombo,
+        isOneTimeOffer: item.isOneTimeOffer,
         comboItems: item.comboItems,
       })),
       subtotal: calculateSubtotal(),
