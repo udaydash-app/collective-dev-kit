@@ -168,14 +168,7 @@ export function POSTodoList() {
             const overdue = remind && remind < now && !t.is_completed;
             const completed = !!t.is_completed;
             return (
-              <Card
-                key={t.id}
-                className={cn(
-                  'p-2 transition-colors',
-                  !completed && 'border-red-400 bg-red-50 dark:bg-red-950/30',
-                  completed && 'border-green-400 bg-green-50 dark:bg-green-950/30'
-                )}
-              >
+              <div key={t.id} className="py-1">
                 <div className="flex items-start gap-2">
                   <Checkbox
                     checked={t.is_completed}
@@ -219,7 +212,7 @@ export function POSTodoList() {
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
