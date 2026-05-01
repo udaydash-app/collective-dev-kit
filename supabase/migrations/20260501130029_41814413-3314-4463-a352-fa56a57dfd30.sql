@@ -1,0 +1,1 @@
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS paid_from_account_id uuid REFERENCES public.accounts(id);

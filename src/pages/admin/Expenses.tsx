@@ -41,6 +41,7 @@ export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
   const [formData, setFormData] = useState({
     category: '',
     description: '',
@@ -49,6 +50,7 @@ export default function Expenses() {
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
     account_id: '',
+    paid_from_account_id: '',
   });
 
   const queryClient = useQueryClient();
@@ -132,6 +134,7 @@ export default function Expenses() {
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
         account_id: '',
+        paid_from_account_id: '',
       });
     },
     onError: (error: any) => {
@@ -180,6 +183,7 @@ export default function Expenses() {
       expense_date: formData.expense_date,
       notes: formData.notes || null,
       account_id: formData.account_id || null,
+      paid_from_account_id: formData.paid_from_account_id || null,
     });
   };
 
@@ -291,6 +295,70 @@ export default function Expenses() {
                   onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pay From Account (Optional)</Label>
+                <Popover open={paidFromPickerOpen} onOpenChange={setPaidFromPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={paidFromPickerOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {formData.paid_from_account_id
+                        ? (() => {
+                            const a = accounts?.find((x) => x.id === formData.paid_from_account_id);
+                            return a ? `${a.account_code} - ${a.account_name}` : 'Select pay-from account';
+                          })()
+                        : 'Search cash / bank account...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search by code or name..." />
+                      <CommandList>
+                        <CommandEmpty>No account found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="none-paid-from"
+                            onSelect={() => {
+                              setFormData({ ...formData, paid_from_account_id: '' });
+                              setPaidFromPickerOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', !formData.paid_from_account_id ? 'opacity-100' : 'opacity-0')} />
+                            — None —
+                          </CommandItem>
+                          {accounts
+                            ?.filter((a) => a.account_code?.startsWith('5') || a.account_type === 'asset')
+                            .map((a) => (
+                              <CommandItem
+                                key={a.id}
+                                value={`${a.account_code} ${a.account_name}`}
+                                onSelect={() => {
+                                  setFormData({ ...formData, paid_from_account_id: a.id });
+                                  setPaidFromPickerOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    formData.paid_from_account_id === a.id ? 'opacity-100' : 'opacity-0'
+                                  )}
+                                />
+                                {a.account_code} - {a.account_name}
+                                <span className="ml-2 text-xs text-muted-foreground">({a.account_type})</span>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
