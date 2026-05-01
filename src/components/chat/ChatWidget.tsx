@@ -46,20 +46,20 @@ export const ChatWidget = () => {
           setConversationId(existingConversation.id);
         }
       } else {
-        // Check for anonymous conversation in localStorage
+        // Check for anonymous conversation in localStorage (requires session token)
         const storedConversationId = localStorage.getItem('anonymous_chat_conversation_id');
-        if (storedConversationId) {
-          const { data: existingConversation } = await supabase
-            .from('chat_conversations')
-            .select('id')
-            .eq('id', storedConversationId)
-            .eq('status', 'open')
-            .single();
-          
-          if (existingConversation) {
+        const storedSessionToken = localStorage.getItem('anonymous_chat_session_token');
+        if (storedConversationId && storedSessionToken) {
+          const { data: existingConversation } = await supabase.rpc('get_guest_conversation', {
+            p_conversation_id: storedConversationId,
+            p_session_token: storedSessionToken,
+          });
+
+          if (existingConversation && existingConversation.length > 0 && existingConversation[0].status === 'open') {
             setConversationId(storedConversationId);
           } else {
             localStorage.removeItem('anonymous_chat_conversation_id');
+            localStorage.removeItem('anonymous_chat_session_token');
           }
         }
       }
@@ -88,13 +88,24 @@ export const ChatWidget = () => {
 
   const markMessagesAsRead = async () => {
     if (!conversationId) return;
-    
-    const unreadMessages = messages.filter(m => m.sender_type === 'admin' && !m.is_read);
-    for (const msg of unreadMessages) {
-      await supabase
-        .from('chat_messages')
-        .update({ is_read: true })
-        .eq('id', msg.id);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const unreadMessages = messages.filter(m => m.sender_type === 'admin' && !m.is_read);
+      for (const msg of unreadMessages) {
+        await supabase
+          .from('chat_messages')
+          .update({ is_read: true })
+          .eq('id', msg.id);
+      }
+    } else {
+      const sessionToken = localStorage.getItem('anonymous_chat_session_token');
+      if (sessionToken) {
+        await supabase.rpc('mark_guest_messages_read', {
+          p_conversation_id: conversationId,
+          p_session_token: sessionToken,
+        });
+      }
     }
   };
 
@@ -116,12 +127,13 @@ export const ChatWidget = () => {
         user_id: user.id,
       };
     } else {
-      // Guest user
+      // Guest user — generate a private session token used to authorise reads/writes
       conversationData = {
         ...conversationData,
         user_id: null,
         customer_name: guestName,
         customer_phone: guestPhone,
+        guest_session_token: crypto.randomUUID(),
       };
     }
 
@@ -141,9 +153,10 @@ export const ChatWidget = () => {
       return null;
     }
 
-    // For anonymous users, store conversation ID in localStorage
+    // For anonymous users, store conversation ID and the secret token locally
     if (!user) {
       localStorage.setItem('anonymous_chat_conversation_id', data.id);
+      localStorage.setItem('anonymous_chat_session_token', conversationData.guest_session_token);
     }
 
     return data.id;
@@ -191,17 +204,28 @@ export const ChatWidget = () => {
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          conversation_id: currentConversationId,
-          sender_type: 'customer',
-          sender_id: user?.id || null,
-          message: message.trim()
-        });
 
-      if (error) throw error;
+      if (user) {
+        const { error } = await supabase
+          .from('chat_messages')
+          .insert({
+            conversation_id: currentConversationId,
+            sender_type: 'customer',
+            sender_id: user.id,
+            message: message.trim(),
+          });
+
+        if (error) throw error;
+      } else {
+        const sessionToken = localStorage.getItem('anonymous_chat_session_token');
+        if (!sessionToken) throw new Error('Missing guest session token');
+        const { error } = await supabase.rpc('send_guest_message', {
+          p_conversation_id: currentConversationId,
+          p_session_token: sessionToken,
+          p_message: message.trim(),
+        });
+        if (error) throw error;
+      }
 
       setMessage('');
     } catch (error) {
