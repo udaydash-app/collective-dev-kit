@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
+const AnyBadge = Badge as any;
+
 interface KeyboardBadgeProps {
   keys: string | string[];
   className?: string;
@@ -23,13 +25,13 @@ export const KeyboardBadge = ({ keys, className, variant = "secondary" }: Keyboa
   return (
     <div className={cn("inline-flex items-center gap-0.5", className)}>
       {keyArray.map((key, index) => (
-        <Badge
+        <AnyBadge
           key={index}
           variant={variant}
           className="font-mono text-[10px] px-1.5 py-0 h-5 min-w-[20px] justify-center"
         >
           {formatKey(key)}
-        </Badge>
+        </AnyBadge>
       ))}
     </div>
   );
