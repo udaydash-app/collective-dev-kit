@@ -66,6 +66,7 @@ import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
+import { POSTodoList } from '@/components/pos/POSTodoList';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -4185,63 +4186,10 @@ export default function POS() {
           </div>
         )}
 
-        {/* Recent Journal Entries or Products Grid - Flexible scrollable container */}
+        {/* To-Do & Reminders or Products Grid - Flexible scrollable container */}
         <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">Manual Journal Entries</h3>
-              </div>
-              
-              {displayJournalLoading ? (
-                <div className="text-center py-4 text-muted-foreground text-sm">Loading journal entries...</div>
-              ) : displayJournalEntries && displayJournalEntries.length > 0 ? (
-                <div className="space-y-1.5">
-                  {displayJournalEntries.slice(0, 10).map((entry: any, index: number) => {
-                    const amount = parseFloat(entry.total_debit?.toString() || '0');
-                    
-                    return (
-                      <Card 
-                        key={index} 
-                        className="p-2 hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => {
-                          setSelectedJournalEntry(entry);
-                          setJournalEntryDialogOpen(true);
-                        }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-                                Transaction
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDateTime(entry.created_at)}
-                              </span>
-                            </div>
-                            <p className="text-xs font-medium truncate">{entry.reference}</p>
-                            {entry.description && (
-                              <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
-                            )}
-                          </div>
-                          <div className="text-right ml-2">
-                            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                              {formatCurrency(amount)}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              ) : (
-                <Card className="p-4 text-center">
-                  <BookOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                  <p className="text-sm text-muted-foreground">No journal entries for this session</p>
-                </Card>
-              )}
-            </div>
+            <POSTodoList />
           ) : (
             <>
               {/* Breadcrumb */}
