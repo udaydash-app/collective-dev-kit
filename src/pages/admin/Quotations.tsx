@@ -26,7 +26,8 @@ import {
   User,
   Phone,
   Mail,
-  Edit
+  Edit,
+  Receipt
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
