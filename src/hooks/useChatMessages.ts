@@ -33,54 +33,99 @@ export const useChatMessages = (conversationId: string | null) => {
       return;
     }
 
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+    let cancelled = false;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const previousIdsRef = new Set<string>();
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load messages",
-          variant: "destructive"
-        });
-      } else {
-        setMessages((data || []) as ChatMessage[]);
+    const applyMessages = (incoming: ChatMessage[]) => {
+      if (cancelled) return;
+      // Detect new admin messages for notification sound
+      const newAdminMsg = incoming.find(
+        (m) => m.sender_type === 'admin' && !previousIdsRef.has(m.id)
+      );
+      incoming.forEach((m) => previousIdsRef.add(m.id));
+      setMessages(incoming);
+      if (newAdminMsg && previousIdsRef.size > incoming.length - 1) {
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch((e) => console.log('Audio play failed:', e));
       }
-      setLoading(false);
     };
 
-    fetchMessages();
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
 
-    // Subscribe to new messages
-    const channel = supabase
-      .channel(`chat_messages:${conversationId}:${Date.now()}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages((prev) => [...prev, newMessage]);
-          
-          // Play notification sound for incoming messages
-          if (newMessage.sender_type === 'admin') {
-            const audio = new Audio('/notification.mp3');
-            audio.play().catch(e => console.log('Audio play failed:', e));
-          }
+      if (user) {
+        // Authenticated: direct query + realtime
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching messages:', error);
+          toast({ title: 'Error', description: 'Failed to load messages', variant: 'destructive' });
+        } else {
+          applyMessages((data || []) as ChatMessage[]);
         }
-      )
-      .subscribe();
+        setLoading(false);
+
+        channel = supabase
+          .channel(`chat_messages:${conversationId}:${Date.now()}:${Math.random().toString(36).slice(2)}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            (payload) => {
+              const newMessage = payload.new as ChatMessage;
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMessage.id)) return prev;
+                return [...prev, newMessage];
+              });
+              if (newMessage.sender_type === 'admin') {
+                const audio = new Audio('/notification.mp3');
+                audio.play().catch((e) => console.log('Audio play failed:', e));
+              }
+            }
+          )
+          .subscribe();
+      } else {
+        // Guest: use SECURITY DEFINER RPC + polling (anon has no SELECT on chat_messages)
+        const sessionToken = localStorage.getItem('anonymous_chat_session_token');
+        if (!sessionToken) {
+          setLoading(false);
+          return;
+        }
+
+        const fetchGuest = async () => {
+          const { data, error } = await supabase.rpc('get_guest_messages', {
+            p_conversation_id: conversationId,
+            p_session_token: sessionToken,
+          });
+          if (error) {
+            console.error('Error fetching guest messages:', error);
+          } else {
+            applyMessages((data || []) as ChatMessage[]);
+          }
+        };
+
+        await fetchGuest();
+        setLoading(false);
+        pollInterval = setInterval(fetchGuest, 4000);
+      }
+    };
+
+    init();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (pollInterval) clearInterval(pollInterval);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [conversationId, toast]);
 
