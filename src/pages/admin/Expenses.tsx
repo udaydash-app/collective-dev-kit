@@ -41,6 +41,7 @@ export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
   const [formData, setFormData] = useState({
     category: '',
     description: '',
@@ -49,6 +50,7 @@ export default function Expenses() {
     expense_date: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
     account_id: '',
+    paid_from_account_id: '',
   });
 
   const queryClient = useQueryClient();
@@ -132,6 +134,7 @@ export default function Expenses() {
         expense_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
         account_id: '',
+        paid_from_account_id: '',
       });
     },
     onError: (error: any) => {
@@ -180,6 +183,7 @@ export default function Expenses() {
       expense_date: formData.expense_date,
       notes: formData.notes || null,
       account_id: formData.account_id || null,
+      paid_from_account_id: formData.paid_from_account_id || null,
     });
   };
 
