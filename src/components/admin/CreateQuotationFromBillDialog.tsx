@@ -5,9 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { Search, Loader2, Receipt, Calendar, FileText, User } from 'lucide-react';
+import { Search, Loader2, Receipt, Calendar as CalendarIcon, FileText, User, Hash, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -24,26 +29,49 @@ interface Props {
 }
 
 export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Props) {
+  const [mode, setMode] = useState<'bill' | 'customer' | 'date'>('bill');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
     setIsSearching(true);
     setHasSearched(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pos_transactions')
         .select(`
           id, transaction_number, total, created_at, customer_id, items, subtotal, tax, discount, notes,
           contacts:customer_id(name, phone, email)
         `)
-        .ilike('transaction_number', `%${searchQuery.trim()}%`)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
+      if (mode === 'bill') {
+        if (!searchQuery.trim()) { setIsSearching(false); return; }
+        query = query.ilike('transaction_number', `%${searchQuery.trim()}%`);
+      } else if (mode === 'customer') {
+        if (!searchQuery.trim()) { setIsSearching(false); return; }
+        const term = searchQuery.trim();
+        const { data: matchedContacts, error: cErr } = await supabase
+          .from('contacts')
+          .select('id')
+          .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+          .limit(50);
+        if (cErr) throw cErr;
+        const ids = (matchedContacts || []).map((c: any) => c.id);
+        if (ids.length === 0) { setResults([]); setIsSearching(false); return; }
+        query = query.in('customer_id', ids);
+      } else if (mode === 'date') {
+        if (!selectedDate) { setIsSearching(false); return; }
+        query = query
+          .gte('created_at', startOfDay(selectedDate).toISOString())
+          .lte('created_at', endOfDay(selectedDate).toISOString());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setResults(data || []);
     } catch (e: any) {
@@ -87,6 +115,8 @@ export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Pr
     setSearchQuery('');
     setResults([]);
     setHasSearched(false);
+    setMode('bill');
+    setSelectedDate(new Date());
     onOpenChange(false);
   };
 
@@ -101,22 +131,79 @@ export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Pr
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Enter transaction number (e.g., POS-XXXXX)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-9"
-                autoFocus
-              />
-            </div>
-            <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
-              {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
-            </Button>
-          </div>
+          <Tabs value={mode} onValueChange={(v) => { setMode(v as any); setResults([]); setHasSearched(false); setSearchQuery(''); }}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="bill"><Hash className="h-3.5 w-3.5 mr-1" />Bill #</TabsTrigger>
+              <TabsTrigger value="customer"><User className="h-3.5 w-3.5 mr-1" />Customer</TabsTrigger>
+              <TabsTrigger value="date"><CalendarIcon className="h-3.5 w-3.5 mr-1" />By Date</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="bill" className="mt-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Enter transaction number (e.g., POS-XXXXX)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-9"
+                    autoFocus
+                  />
+                </div>
+                <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
+                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="customer" className="mt-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Customer name or phone"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-9"
+                    autoFocus
+                  />
+                </div>
+                <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
+                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="date" className="mt-3">
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("flex-1 justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={handleSearch} disabled={isSearching || !selectedDate}>
+                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load Bills'}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <ScrollArea className="h-[400px]">
             {isSearching ? (
@@ -140,7 +227,7 @@ export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Pr
                           <div>
                             <p className="font-semibold text-sm">{t.transaction_number}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                              <Calendar className="h-3 w-3" />
+                              <CalendarIcon className="h-3 w-3" />
                               <span>{formatDateTime(t.created_at)}</span>
                             </div>
                           </div>
@@ -153,9 +240,11 @@ export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Pr
                         </div>
                       </div>
                       {t.contacts?.name && (
-                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-                          <User className="h-3 w-3" />
-                          <span>{t.contacts.name}</span>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><User className="h-3 w-3" />{t.contacts.name}</span>
+                          {t.contacts.phone && (
+                            <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.contacts.phone}</span>
+                          )}
                         </div>
                       )}
                     </CardContent>
@@ -165,14 +254,18 @@ export function CreateQuotationFromBillDialog({ open, onOpenChange, onLoad }: Pr
             ) : hasSearched ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">No transactions found</p>
+                <p className="text-muted-foreground">No bills found</p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Search className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">Search for a previous bill</p>
+                <p className="text-muted-foreground">
+                  {mode === 'bill' && 'Search by bill number'}
+                  {mode === 'customer' && 'Search by customer name or phone'}
+                  {mode === 'date' && 'Pick a date and load all bills from that day'}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Enter the transaction number to load its items into a new quotation
+                  Select a bill to load its items into a new quotation
                 </p>
               </div>
             )}
