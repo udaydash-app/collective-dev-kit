@@ -34,6 +34,7 @@ import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { CreateQuotationFromBillDialog } from '@/components/admin/CreateQuotationFromBillDialog';
 
 interface QuotationItem {
   productId: string;
@@ -71,6 +72,7 @@ export default function Quotations() {
   const printRef = useRef<HTMLDivElement>(null);
 
   const [showNewQuotation, setShowNewQuotation] = useState(false);
+  const [showFromBillDialog, setShowFromBillDialog] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [searchProduct, setSearchProduct] = useState('');
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
@@ -648,6 +650,10 @@ export default function Quotations() {
           </div>
           <div className="flex items-center gap-2">
             <ReturnToPOSButton />
+            <Button variant="outline" onClick={() => setShowFromBillDialog(true)}>
+              <Receipt className="w-4 h-4 mr-2" />
+              From Bill
+            </Button>
             <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
               <DialogTrigger asChild>
                 <Button>
