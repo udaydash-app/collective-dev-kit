@@ -359,16 +359,6 @@ export default function Expenses() {
                       <CommandList>
                         <CommandEmpty>No account found.</CommandEmpty>
                         <CommandGroup>
-                          <CommandItem
-                            value="none"
-                            onSelect={() => {
-                              setFormData({ ...formData, account_id: '' });
-                              setAccountPickerOpen(false);
-                            }}
-                          >
-                            <Check className={cn('mr-2 h-4 w-4', !formData.account_id ? 'opacity-100' : 'opacity-0')} />
-                            — None —
-                          </CommandItem>
                           {accounts?.map((a) => (
                             <CommandItem
                               key={a.id}
