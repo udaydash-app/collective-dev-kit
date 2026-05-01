@@ -18,19 +18,6 @@ import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, C
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
-const EXPENSE_CATEGORIES = [
-  'Rent',
-  'Utilities',
-  'Salaries',
-  'Transportation',
-  'Maintenance',
-  'Supplies',
-  'Marketing',
-  'Insurance',
-  'Taxes',
-  'Other',
-];
-
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash', icon: DollarSign },
   { value: 'credit', label: 'Credit', icon: CreditCard },
