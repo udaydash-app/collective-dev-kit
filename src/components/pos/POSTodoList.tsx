@@ -21,10 +21,13 @@ export function POSTodoList() {
   const { data: todos, isLoading } = useQuery({
     queryKey: ['pos-todos'],
     queryFn: async () => {
+      // Fetch all pending + tasks completed today (so they stay struck for the day, gone tomorrow)
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
         .from('pos_todos')
         .select('*')
-        .eq('is_completed', false)
+        .or(`is_completed.eq.false,completed_at.gte.${startOfToday.toISOString()}`)
         .order('remind_at', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
