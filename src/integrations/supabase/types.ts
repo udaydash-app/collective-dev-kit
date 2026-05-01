@@ -1641,6 +1641,42 @@ export type Database = {
           },
         ]
       }
+      pos_todos: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by_pos_user: string | null
+          id: string
+          is_completed: boolean
+          notes: string | null
+          remind_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by_pos_user?: string | null
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          remind_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by_pos_user?: string | null
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          remind_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pos_transactions: {
         Row: {
           amount_paid: number | null
