@@ -18,19 +18,6 @@ import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, C
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
-const EXPENSE_CATEGORIES = [
-  'Rent',
-  'Utilities',
-  'Salaries',
-  'Transportation',
-  'Maintenance',
-  'Supplies',
-  'Marketing',
-  'Insurance',
-  'Taxes',
-  'Other',
-];
-
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash', icon: DollarSign },
   { value: 'credit', label: 'Credit', icon: CreditCard },
@@ -43,7 +30,6 @@ export default function Expenses() {
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
   const [formData, setFormData] = useState({
-    category: '',
     description: '',
     amount: '',
     payment_method: '',
@@ -127,7 +113,6 @@ export default function Expenses() {
       toast.success('Expense added successfully');
       setShowDialog(false);
       setFormData({
-        category: '',
         description: '',
         amount: '',
         payment_method: '',
@@ -170,19 +155,22 @@ export default function Expenses() {
       return;
     }
 
-    if (!formData.category || !formData.description || !formData.amount || !formData.payment_method) {
-      toast.error('Please fill in all required fields');
+    if (!formData.account_id || !formData.description || !formData.amount || !formData.payment_method) {
+      toast.error('Please fill in all required fields (ledger account, description, amount, payment method)');
       return;
     }
 
+    const ledger = accounts?.find((a: any) => a.id === formData.account_id);
+    const derivedCategory = ledger ? `${ledger.account_code} - ${ledger.account_name}` : 'Uncategorized';
+
     createExpense.mutate({
-      category: formData.category,
+      category: derivedCategory,
       description: formData.description,
       amount: parseFloat(formData.amount),
       payment_method: formData.payment_method,
       expense_date: formData.expense_date,
       notes: formData.notes || null,
-      account_id: formData.account_id || null,
+      account_id: formData.account_id,
       paid_from_account_id: formData.paid_from_account_id || null,
     });
   };
@@ -220,22 +208,6 @@ export default function Expenses() {
                     {stores?.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -362,7 +334,7 @@ export default function Expenses() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="account_id">Ledger Account (Optional)</Label>
+                <Label htmlFor="account_id">Ledger Account *</Label>
                 <Popover open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -387,16 +359,6 @@ export default function Expenses() {
                       <CommandList>
                         <CommandEmpty>No account found.</CommandEmpty>
                         <CommandGroup>
-                          <CommandItem
-                            value="none"
-                            onSelect={() => {
-                              setFormData({ ...formData, account_id: '' });
-                              setAccountPickerOpen(false);
-                            }}
-                          >
-                            <Check className={cn('mr-2 h-4 w-4', !formData.account_id ? 'opacity-100' : 'opacity-0')} />
-                            — None —
-                          </CommandItem>
                           {accounts?.map((a) => (
                             <CommandItem
                               key={a.id}
@@ -538,7 +500,7 @@ export default function Expenses() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>Ledger Account</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Payment Method</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
