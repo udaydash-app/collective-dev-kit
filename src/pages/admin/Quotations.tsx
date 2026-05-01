@@ -26,7 +26,8 @@ import {
   User,
   Phone,
   Mail,
-  Edit
+  Edit,
+  Receipt
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -34,6 +35,7 @@ import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { CreateQuotationFromBillDialog } from '@/components/admin/CreateQuotationFromBillDialog';
 
 interface QuotationItem {
   productId: string;
@@ -71,6 +73,7 @@ export default function Quotations() {
   const printRef = useRef<HTMLDivElement>(null);
 
   const [showNewQuotation, setShowNewQuotation] = useState(false);
+  const [showFromBillDialog, setShowFromBillDialog] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [searchProduct, setSearchProduct] = useState('');
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
@@ -648,6 +651,10 @@ export default function Quotations() {
           </div>
           <div className="flex items-center gap-2">
             <ReturnToPOSButton />
+            <Button variant="outline" onClick={() => setShowFromBillDialog(true)}>
+              <Receipt className="w-4 h-4 mr-2" />
+              From Bill
+            </Button>
             <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
               <DialogTrigger asChild>
                 <Button>
@@ -1180,6 +1187,26 @@ export default function Quotations() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <CreateQuotationFromBillDialog
+          open={showFromBillDialog}
+          onOpenChange={setShowFromBillDialog}
+          onLoad={({ items, contactId, customerName, customerPhone, customerEmail, notes: billNotes }) => {
+            setEditingQuotation(null);
+            setQuotationItems(items);
+            setNotes(billNotes || '');
+            setValidUntil('');
+            if (contactId) {
+              setSelectedContactId(contactId);
+            } else {
+              setSelectedContactId('');
+              if (customerName) {
+                toast.info(`Bill had no linked customer (${customerName}). Please select a customer.`);
+              }
+            }
+            setShowNewQuotation(true);
+          }}
+        />
       </div>
     </div>
   );
