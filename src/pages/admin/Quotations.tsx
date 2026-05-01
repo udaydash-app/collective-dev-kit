@@ -1187,6 +1187,26 @@ export default function Quotations() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <CreateQuotationFromBillDialog
+          open={showFromBillDialog}
+          onOpenChange={setShowFromBillDialog}
+          onLoad={({ items, contactId, customerName, customerPhone, customerEmail, notes: billNotes }) => {
+            setEditingQuotation(null);
+            setQuotationItems(items);
+            setNotes(billNotes || '');
+            setValidUntil('');
+            if (contactId) {
+              setSelectedContactId(contactId);
+            } else {
+              setSelectedContactId('');
+              if (customerName) {
+                toast.info(`Bill had no linked customer (${customerName}). Please select a customer.`);
+              }
+            }
+            setShowNewQuotation(true);
+          }}
+        />
       </div>
     </div>
   );
