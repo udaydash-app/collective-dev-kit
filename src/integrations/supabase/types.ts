@@ -532,6 +532,7 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          guest_session_token: string | null
           id: string
           last_message_at: string | null
           status: string | null
@@ -543,6 +544,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          guest_session_token?: string | null
           id?: string
           last_message_at?: string | null
           status?: string | null
@@ -554,6 +556,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          guest_session_token?: string | null
           id?: string
           last_message_at?: string | null
           status?: string | null
@@ -2874,6 +2877,45 @@ export type Database = {
       }
       generate_order_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_guest_conversation: {
+        Args: { p_conversation_id: string; p_session_token: string }
+        Returns: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          guest_session_token: string | null
+          id: string
+          last_message_at: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_conversations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_guest_messages: {
+        Args: { p_conversation_id: string; p_session_token: string }
+        Returns: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          sender_id: string | null
+          sender_type: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_next_customer_account_code: { Args: never; Returns: string }
       get_next_supplier_account_code: { Args: never; Returns: string }
       get_suggested_adjustment_cost: {
@@ -2919,6 +2961,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_guest_messages_read: {
+        Args: { p_conversation_id: string; p_session_token: string }
+        Returns: undefined
+      }
       recalculate_all_stock: {
         Args: never
         Returns: {
@@ -2931,6 +2977,28 @@ export type Database = {
       reverse_transaction_journal_entries: {
         Args: { p_reference: string }
         Returns: undefined
+      }
+      send_guest_message: {
+        Args: {
+          p_conversation_id: string
+          p_message: string
+          p_session_token: string
+        }
+        Returns: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          sender_id: string | null
+          sender_type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
