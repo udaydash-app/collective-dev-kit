@@ -165,13 +165,15 @@ export function POSTodoList() {
         <div className="space-y-1.5">
           {todos.map((t: any) => {
             const remind = t.remind_at ? new Date(t.remind_at) : null;
-            const overdue = remind && remind < now;
+            const overdue = remind && remind < now && !t.is_completed;
+            const completed = !!t.is_completed;
             return (
               <Card
                 key={t.id}
                 className={cn(
                   'p-2 transition-colors',
-                  overdue && 'border-red-400 bg-red-50 dark:bg-red-950/30'
+                  !completed && 'border-red-400 bg-red-50 dark:bg-red-950/30',
+                  completed && 'border-green-400 bg-green-50 dark:bg-green-950/30'
                 )}
               >
                 <div className="flex items-start gap-2">
@@ -181,12 +183,25 @@ export function POSTodoList() {
                     className="mt-0.5"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium break-words">{t.title}</p>
+                    <p
+                      className={cn(
+                        'text-xs font-medium break-words',
+                        completed
+                          ? 'line-through text-green-700 dark:text-green-400'
+                          : 'text-red-700 dark:text-red-400'
+                      )}
+                    >
+                      {t.title}
+                    </p>
                     {remind && (
                       <div
                         className={cn(
                           'flex items-center gap-1 mt-0.5 text-[10px]',
-                          overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'
+                          completed
+                            ? 'text-green-600 line-through'
+                            : overdue
+                            ? 'text-red-600 font-semibold'
+                            : 'text-red-500'
                         )}
                       >
                         {overdue ? <Bell className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
