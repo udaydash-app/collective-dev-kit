@@ -956,6 +956,7 @@ export type Database = {
           expense_date: string
           id: string
           notes: string | null
+          paid_from_account_id: string | null
           payment_method: string
           receipt_url: string | null
           store_id: string
@@ -972,6 +973,7 @@ export type Database = {
           expense_date?: string
           id?: string
           notes?: string | null
+          paid_from_account_id?: string | null
           payment_method: string
           receipt_url?: string | null
           store_id: string
@@ -988,6 +990,7 @@ export type Database = {
           expense_date?: string
           id?: string
           notes?: string | null
+          paid_from_account_id?: string | null
           payment_method?: string
           receipt_url?: string | null
           store_id?: string
@@ -1006,6 +1009,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_paid_from_account_id_fkey"
+            columns: ["paid_from_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {
