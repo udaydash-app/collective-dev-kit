@@ -2302,75 +2302,8 @@ export default function POS() {
       description: 'Cash In',
       action: () => setShowCashIn(true),
     },
-    {
-      key: 'F2',
-      description: 'Cash Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process cash payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'cash',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Cash payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F3',
-      description: 'Mobile Money Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process mobile money payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'mobile_money',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F4',
-      description: 'Credit Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        if (!selectedCustomer) {
-          return;
-        }
-        
-        // Directly process credit payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'credit',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Credit payment completed:', transactionData?.transactionNumber);
-      },
-    },
+    // F2/F3/F4 payment shortcuts are handled by the capture-phase listener below
+    // so browser/system defaults and focused cart inputs cannot swallow them.
     {
       key: 'F5',
       description: 'Hold Ticket',
