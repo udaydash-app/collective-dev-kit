@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -2294,6 +2294,40 @@ export default function POS() {
   const cartDiscountAmount = cartDiscountItem ? Math.abs(cartDiscountItem.price) : 0;
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
+
+  const openQuickPaymentDialog = useCallback((method: 'cash' | 'mobile_money' | 'credit') => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return;
+    }
+
+    if (method === 'credit' && !selectedCustomer) {
+      toast.error('Please select a customer for credit sales');
+      setShowCustomerDialog(true);
+      return;
+    }
+
+    setQuickPaymentMethod(method);
+    setShowQuickPayment(true);
+  }, [cart.length, selectedCustomer]);
+
+  useEffect(() => {
+    const handlePaymentShortcut = (event: KeyboardEvent) => {
+      if (!['F2', 'F3', 'F4'].includes(event.key)) return;
+      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      if (event.key === 'F2') openQuickPaymentDialog('cash');
+      if (event.key === 'F3') openQuickPaymentDialog('mobile_money');
+      if (event.key === 'F4') openQuickPaymentDialog('credit');
+    };
+
+    window.addEventListener('keydown', handlePaymentShortcut, { capture: true });
+    return () => window.removeEventListener('keydown', handlePaymentShortcut, { capture: true });
+  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen]);
 
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
