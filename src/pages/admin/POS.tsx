@@ -2326,6 +2326,28 @@ export default function POS() {
     },
     {
       key: 'F3',
+      description: 'Mobile Money Payment (Print)',
+      action: async () => {
+        if (cart.length === 0) {
+          return;
+        }
+        
+        // Directly process mobile money payment and print
+        const total = calculateTotal();
+        const payment = {
+          id: '1',
+          method: 'mobile_money',
+          amount: total
+        };
+        
+        const transactionData = await handlePaymentConfirm([payment], total);
+        
+        // Automatic printing disabled - use "Last Receipt" button to print
+        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
+      },
+    },
+    {
+      key: 'F4',
       description: 'Credit Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
@@ -2347,28 +2369,6 @@ export default function POS() {
         
         // Automatic printing disabled - use "Last Receipt" button to print
         console.log('Credit payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F4',
-      description: 'Mobile Money Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process mobile money payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'mobile_money',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
       },
     },
     {
@@ -3873,7 +3873,7 @@ export default function POS() {
                   <X className="h-3 w-3 text-muted-foreground" />
                 </Button>
               )}
-              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Credit Sales | F4: Mobile Money | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
+              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Mobile Money | F4: Credit Sales | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
                 Keyboard: F2-F12 + ↑↓←→
               </div>
               <WalkieTalkieButton />
