@@ -48,9 +48,11 @@ const shortcuts: Shortcut[] = [
   
   // POS System
   { keys: ['F1'], description: 'Cash In', category: 'POS System' },
-  { keys: ['F2'], description: 'Cash Out', category: 'POS System' },
-  { keys: ['F3'], description: 'Hold Ticket', category: 'POS System' },
-  { keys: ['F4'], description: 'Recall Ticket', category: 'POS System' },
+  { keys: ['F2'], description: 'Cash Sales', category: 'POS System' },
+  { keys: ['F3'], description: 'Mobile Money', category: 'POS System' },
+  { keys: ['F4'], description: 'Credit Sales', category: 'POS System' },
+  { keys: ['F5'], description: 'Hold Ticket', category: 'POS System' },
+  { keys: ['F6'], description: 'Recall Ticket', category: 'POS System' },
   { keys: ['F9'], description: 'Process Payment', category: 'POS System' },
   { keys: ['F12'], description: 'Clear Cart', category: 'POS System' },
 ];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -2295,6 +2295,40 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
+  const openQuickPaymentDialog = useCallback((method: 'cash' | 'mobile_money' | 'credit') => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return;
+    }
+
+    if (method === 'credit' && !selectedCustomer) {
+      toast.error('Please select a customer for credit sales');
+      setShowCustomerDialog(true);
+      return;
+    }
+
+    setQuickPaymentMethod(method);
+    setShowQuickPayment(true);
+  }, [cart.length, selectedCustomer]);
+
+  useEffect(() => {
+    const handlePaymentShortcut = (event: KeyboardEvent) => {
+      if (!['F2', 'F3', 'F4'].includes(event.key)) return;
+      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      if (event.key === 'F2') openQuickPaymentDialog('cash');
+      if (event.key === 'F3') openQuickPaymentDialog('mobile_money');
+      if (event.key === 'F4') openQuickPaymentDialog('credit');
+    };
+
+    window.addEventListener('keydown', handlePaymentShortcut, { capture: true });
+    return () => window.removeEventListener('keydown', handlePaymentShortcut, { capture: true });
+  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen]);
+
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
     {
@@ -2302,75 +2336,8 @@ export default function POS() {
       description: 'Cash In',
       action: () => setShowCashIn(true),
     },
-    {
-      key: 'F2',
-      description: 'Cash Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process cash payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'cash',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Cash payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F3',
-      description: 'Mobile Money Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process mobile money payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'mobile_money',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F4',
-      description: 'Credit Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        if (!selectedCustomer) {
-          return;
-        }
-        
-        // Directly process credit payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'credit',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Credit payment completed:', transactionData?.transactionNumber);
-      },
-    },
+    // F2/F3/F4 payment shortcuts are handled by the capture-phase listener below
+    // so browser/system defaults and focused cart inputs cannot swallow them.
     {
       key: 'F5',
       description: 'Hold Ticket',
@@ -3299,47 +3266,21 @@ export default function POS() {
       icon: DollarSign, 
       label: 'Cash Payment', 
       color: 'bg-success', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('cash');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('cash'),
       shortcut: 'F2'
     },
     { 
       icon: CreditCard, 
       label: 'Credit Sales', 
       color: 'bg-info', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        if (!selectedCustomer) {
-          toast.error('Please select a customer for credit sales');
-          setShowCustomerDialog(true);
-          return;
-        }
-        setQuickPaymentMethod('credit');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('credit'),
       shortcut: 'F4'
     },
     { 
       icon: Smartphone, 
       label: 'Mobile Money', 
       color: 'bg-warning', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('mobile_money');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('mobile_money'),
       shortcut: 'F3'
     },
     { 
@@ -3386,29 +3327,6 @@ export default function POS() {
       shortcut: null
     },
   ];
-
-  // POS-specific keyboard shortcuts
-  useKeyboardShortcuts({
-    shortcuts: quickActions
-      .filter(action => action.shortcut)
-      .map(action => ({
-        key: action.shortcut!,
-        description: action.label,
-        action: () => {
-          // Only trigger if not focused on input and cart has items
-          const activeElement = document.activeElement as HTMLElement;
-          const isInputFocused = activeElement?.tagName === 'INPUT' || 
-                                activeElement?.tagName === 'TEXTAREA' || 
-                                activeElement?.tagName === 'SELECT';
-          
-          if (!isInputFocused && cart.length > 0) {
-            action.action();
-          }
-        },
-        preventDefault: true,
-      })),
-    enabled: !showPayment && !showQuickPayment && !showHoldTicket && !showCashIn && !showCashOut && !variantSelectorOpen,
-  });
 
   const handleHoldTicket = (ticketName: string) => {
     if (cart.length === 0) {
