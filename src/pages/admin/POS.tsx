@@ -3326,7 +3326,7 @@ export default function POS() {
         setQuickPaymentMethod('credit');
         setShowQuickPayment(true);
       },
-      shortcut: 'F3'
+      shortcut: 'F4'
     },
     { 
       icon: Smartphone, 
@@ -3340,7 +3340,7 @@ export default function POS() {
         setQuickPaymentMethod('mobile_money');
         setShowQuickPayment(true);
       },
-      shortcut: 'F4'
+      shortcut: 'F3'
     },
     { 
       icon: Banknote, 
