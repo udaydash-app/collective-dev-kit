@@ -99,6 +99,53 @@ export const TransactionCart = ({
           setFocusedItemIndex(prev => Math.max(prev - 1, 0));
           setFocusedField('name');
           break;
+        case 'Tab': {
+          // Tab navigates field-by-field, wrapping to next/prev item
+          const tabFields: Array<'name' | 'qty' | 'price' | 'disc' | 'final'> = ['name', 'qty', 'price', 'disc', 'final'];
+          const idx = tabFields.indexOf(focusedField);
+          if (e.shiftKey) {
+            if (idx > 0) {
+              e.preventDefault();
+              setFocusedField(tabFields[idx - 1]);
+              const it = visibleItems[focusedItemIndex];
+              if (it) {
+                const k = `${it.id}-${tabFields[idx - 1]}`;
+                setTimeout(() => { inputRefs.current[k]?.focus(); inputRefs.current[k]?.select(); }, 0);
+              }
+            } else if (focusedItemIndex > 0) {
+              e.preventDefault();
+              const newIndex = focusedItemIndex - 1;
+              setFocusedItemIndex(newIndex);
+              setFocusedField('final');
+              const it = visibleItems[newIndex];
+              if (it) {
+                const k = `${it.id}-final`;
+                setTimeout(() => { inputRefs.current[k]?.focus(); inputRefs.current[k]?.select(); }, 0);
+              }
+            }
+          } else {
+            if (idx < tabFields.length - 1) {
+              e.preventDefault();
+              setFocusedField(tabFields[idx + 1]);
+              const it = visibleItems[focusedItemIndex];
+              if (it) {
+                const k = `${it.id}-${tabFields[idx + 1]}`;
+                setTimeout(() => { inputRefs.current[k]?.focus(); inputRefs.current[k]?.select(); }, 0);
+              }
+            } else if (focusedItemIndex < visibleItems.length - 1) {
+              e.preventDefault();
+              const newIndex = focusedItemIndex + 1;
+              setFocusedItemIndex(newIndex);
+              setFocusedField('name');
+              const it = visibleItems[newIndex];
+              if (it) {
+                const k = `${it.id}-name`;
+                setTimeout(() => { inputRefs.current[k]?.focus(); inputRefs.current[k]?.select(); }, 0);
+              }
+            }
+          }
+          break;
+        }
         case 'ArrowRight':
           e.preventDefault();
           const fields: Array<'name' | 'qty' | 'price' | 'disc' | 'final'> = ['name', 'qty', 'price', 'disc', 'final'];
