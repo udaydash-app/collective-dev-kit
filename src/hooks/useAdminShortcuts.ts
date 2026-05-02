@@ -68,35 +68,8 @@ export const useAdminShortcuts = () => {
         navigate('/admin/quotations');
       }
 
-      // POS specific shortcuts (F keys)
-      if (location.pathname === '/admin/pos') {
-        switch(e.key) {
-          case 'F1':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-cash-in'));
-            break;
-          case 'F2':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-cash-out'));
-            break;
-          case 'F3':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-hold-ticket'));
-            break;
-          case 'F4':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-recall-ticket'));
-            break;
-          case 'F9':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-process-payment'));
-            break;
-          case 'F12':
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent('pos-clear-cart'));
-            break;
-        }
-      }
+      // POS-specific F-key shortcuts are handled inside src/pages/admin/POS.tsx
+      // via useKeyboardShortcuts to avoid conflicts (e.g. F2 = Cash Payment).
     };
 
     window.addEventListener('keydown', handleKeyDown);
