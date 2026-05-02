@@ -2928,6 +2928,33 @@ export type Database = {
       }
       get_next_customer_account_code: { Args: never; Returns: string }
       get_next_supplier_account_code: { Args: never; Returns: string }
+      get_po_responses_by_share_token: {
+        Args: { _token: string }
+        Returns: {
+          bags: number | null
+          cartons: number | null
+          currency: string
+          id: string
+          item_id: string
+          notes: string | null
+          pieces: number | null
+          price: number
+          purchase_order_id: string
+          submitted_at: string | null
+          weight: number | null
+          weight_unit: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "purchase_order_responses"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_purchase_order_by_share_token: {
+        Args: { _token: string }
+        Returns: Json
+      }
       get_suggested_adjustment_cost: {
         Args: { p_product_id: string; p_variant_id?: string }
         Returns: {

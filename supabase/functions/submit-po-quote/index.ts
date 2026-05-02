@@ -76,6 +76,33 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate each item's numeric ranges and currency code
+    const isFiniteNum = (n: unknown): n is number =>
+      typeof n === 'number' && Number.isFinite(n);
+    for (const it of items as QuoteItem[]) {
+      const price = Number(it.price ?? 0);
+      const cartons = Number(it.cartons ?? 0);
+      const pieces = Number(it.pieces ?? 0);
+      const weight = Number(it.weight ?? 0);
+      if (!isFiniteNum(price) || price < 0 || price > 1_000_000 ||
+          !isFiniteNum(cartons) || cartons < 0 || cartons > 100_000 ||
+          !isFiniteNum(pieces) || pieces < 0 || pieces > 10_000_000 ||
+          !isFiniteNum(weight) || weight < 0 || weight > 1_000_000) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid numeric values in quote item' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const currency = (it.currency || 'USD').toString().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid currency code' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      it.currency = currency;
+    }
+
     // Delete existing responses for this PO
     await supabase
       .from('purchase_order_responses')
@@ -86,11 +113,11 @@ Deno.serve(async (req) => {
     const responses = items.map((item: QuoteItem) => ({
       purchase_order_id: po.id,
       item_id: item.itemId,
-      cartons: item.cartons || 0,
-      pieces: item.pieces || 0,
-      price: item.price,
+      cartons: Number(item.cartons) || 0,
+      pieces: Number(item.pieces) || 0,
+      price: Number(item.price) || 0,
       currency: item.currency || 'USD',
-      weight: item.weight || 0,
+      weight: Number(item.weight) || 0,
     }));
 
     const { error: insertError } = await supabase
