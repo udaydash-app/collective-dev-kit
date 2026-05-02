@@ -3266,47 +3266,21 @@ export default function POS() {
       icon: DollarSign, 
       label: 'Cash Payment', 
       color: 'bg-success', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('cash');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('cash'),
       shortcut: 'F2'
     },
     { 
       icon: CreditCard, 
       label: 'Credit Sales', 
       color: 'bg-info', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        if (!selectedCustomer) {
-          toast.error('Please select a customer for credit sales');
-          setShowCustomerDialog(true);
-          return;
-        }
-        setQuickPaymentMethod('credit');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('credit'),
       shortcut: 'F4'
     },
     { 
       icon: Smartphone, 
       label: 'Mobile Money', 
       color: 'bg-warning', 
-      action: () => {
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('mobile_money');
-        setShowQuickPayment(true);
-      },
+      action: () => openQuickPaymentDialog('mobile_money'),
       shortcut: 'F3'
     },
     { 
@@ -3353,29 +3327,6 @@ export default function POS() {
       shortcut: null
     },
   ];
-
-  // POS-specific keyboard shortcuts
-  useKeyboardShortcuts({
-    shortcuts: quickActions
-      .filter(action => action.shortcut)
-      .map(action => ({
-        key: action.shortcut!,
-        description: action.label,
-        action: () => {
-          // Only trigger if not focused on input and cart has items
-          const activeElement = document.activeElement as HTMLElement;
-          const isInputFocused = activeElement?.tagName === 'INPUT' || 
-                                activeElement?.tagName === 'TEXTAREA' || 
-                                activeElement?.tagName === 'SELECT';
-          
-          if (!isInputFocused && cart.length > 0) {
-            action.action();
-          }
-        },
-        preventDefault: true,
-      })),
-    enabled: !showPayment && !showQuickPayment && !showHoldTicket && !showCashIn && !showCashOut && !variantSelectorOpen,
-  });
 
   const handleHoldTicket = (ticketName: string) => {
     if (cart.length === 0) {
