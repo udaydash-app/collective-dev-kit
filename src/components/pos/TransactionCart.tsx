@@ -239,6 +239,7 @@ export const TransactionCart = ({
                 const isExpanded = expandedCombos.has(item.id);
                 const visibleIndex = items.filter((i, idx) => idx < index && i.id !== 'cart-discount').length;
                 const isKeyboardFocused = !isCartDiscount && visibleIndex === focusedItemIndex;
+                const isSelected = !isCartDiscount && selectedItemId === item.id;
                 return (
                   <Fragment key={item.id}>
                     <TableRow
@@ -246,7 +247,8 @@ export const TransactionCart = ({
                         "text-xs transition-colors",
                         !isCartDiscount && "cursor-pointer hover:bg-muted/30",
                         isCartDiscount && "bg-muted/60",
-                        isCombo && "bg-primary/5"
+                        isCombo && "bg-primary/5",
+                        isSelected && "bg-blue-500/20 hover:bg-blue-500/25"
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -396,7 +398,7 @@ export const TransactionCart = ({
                     </TableCell>
                     <TableCell className="text-right py-1 px-1">
                       {!isCartDiscount && onUpdateDiscount ? (
-                        item.itemDiscount && item.itemDiscount > 0 ? (
+                        (isSelected || (item.itemDiscount && item.itemDiscount > 0)) ? (
                           <Input
                             ref={(el) => { inputRefs.current[`${item.id}-disc`] = el; }}
                             type="number"
