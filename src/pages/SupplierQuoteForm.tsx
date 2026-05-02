@@ -41,24 +41,22 @@ export default function SupplierQuoteForm() {
     queryKey: ["public-po", shareToken],
     queryFn: async () => {
       console.log("Fetching PO with share token:", shareToken);
-      
-      const { data, error } = await supabase
-        .from("purchase_orders")
-        .select(`
-          *,
-          purchase_order_items (
-            *,
-            products (name, image_url, unit),
-            product_variants (label, unit)
-          )
-        `)
-        .eq("share_token", shareToken)
-        .maybeSingle();
+
+      const { data, error } = await supabase.rpc(
+        "get_purchase_order_by_share_token" as any,
+        { _token: shareToken }
+      );
 
       console.log("PO Query result:", { data, error });
-
       if (error) throw error;
-      return data;
+      if (!data) return null;
+
+      // Function returns { order, items }; flatten for existing UI shape
+      const payload: any = data;
+      return {
+        ...(payload.order || {}),
+        purchase_order_items: payload.items || [],
+      };
     },
     enabled: !!shareToken,
   });
@@ -76,13 +74,13 @@ export default function SupplierQuoteForm() {
     queryKey: ["po-responses", poData?.id],
     queryFn: async () => {
       if (!poData?.id) return null;
-      
+
       console.log("Fetching existing responses for PO:", poData.id);
-      
-      const { data, error } = await supabase
-        .from("purchase_order_responses")
-        .select("*")
-        .eq("purchase_order_id", poData.id);
+
+      const { data, error } = await supabase.rpc(
+        "get_po_responses_by_share_token" as any,
+        { _token: shareToken }
+      );
 
       console.log("Existing responses fetched:", data);
       if (error) throw error;
