@@ -2326,6 +2326,28 @@ export default function POS() {
     },
     {
       key: 'F3',
+      description: 'Mobile Money Payment (Print)',
+      action: async () => {
+        if (cart.length === 0) {
+          return;
+        }
+        
+        // Directly process mobile money payment and print
+        const total = calculateTotal();
+        const payment = {
+          id: '1',
+          method: 'mobile_money',
+          amount: total
+        };
+        
+        const transactionData = await handlePaymentConfirm([payment], total);
+        
+        // Automatic printing disabled - use "Last Receipt" button to print
+        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
+      },
+    },
+    {
+      key: 'F4',
       description: 'Credit Payment (Print)',
       action: async () => {
         if (cart.length === 0) {
@@ -2347,28 +2369,6 @@ export default function POS() {
         
         // Automatic printing disabled - use "Last Receipt" button to print
         console.log('Credit payment completed:', transactionData?.transactionNumber);
-      },
-    },
-    {
-      key: 'F4',
-      description: 'Mobile Money Payment (Print)',
-      action: async () => {
-        if (cart.length === 0) {
-          return;
-        }
-        
-        // Directly process mobile money payment and print
-        const total = calculateTotal();
-        const payment = {
-          id: '1',
-          method: 'mobile_money',
-          amount: total
-        };
-        
-        const transactionData = await handlePaymentConfirm([payment], total);
-        
-        // Automatic printing disabled - use "Last Receipt" button to print
-        console.log('Mobile Money payment completed:', transactionData?.transactionNumber);
       },
     },
     {
