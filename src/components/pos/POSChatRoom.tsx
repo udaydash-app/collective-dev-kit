@@ -129,6 +129,9 @@ export function POSChatRoom() {
   const openRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const author = useRef(getAuthor());
+  // Refresh author name on every render so a re-login under a different PIN
+  // is reflected immediately without remounting the component.
+  author.current = getAuthor();
 
   const load = async () => {
     const { data } = await supabase
