@@ -67,7 +67,7 @@ import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { POSTodoList } from '@/components/pos/POSTodoList';
-import { POSStickyNotes } from '@/components/pos/POSStickyNotes';
+import { POSChatRoom } from '@/components/pos/POSChatRoom';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -3796,7 +3796,7 @@ export default function POS() {
                 Keyboard: F2-F12 + ↑↓←→
               </div>
               <WalkieTalkieButton />
-              <POSStickyNotes />
+              <POSChatRoom />
               <Button 
                 variant="ghost" 
                 size="sm"
