@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MessageCircle, Send, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -166,12 +166,21 @@ export function POSChatRoom() {
           </div>
 
           <div className="p-3 border-t flex gap-2 shrink-0">
-            <Input
+            <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={`Message as ${author.current}...`}
-              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  setInput((v) => v + '\n');
+                } else if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={`Message as ${author.current}... (Ctrl+Enter for new line)`}
+              className="flex-1 min-h-[40px] max-h-32 resize-none"
+              rows={1}
             />
             <Button onClick={send} size="icon" disabled={!input.trim()}>
               <Send className="h-4 w-4" />
