@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,8 @@ const COLOR_KEYS = Object.keys(COLORS);
 export function POSStickyNotes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<StickyNoteRow[]>([]);
+  const localActionIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(true);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -44,8 +46,30 @@ export function POSStickyNotes() {
     load();
     const channel = supabase
       .channel('pos_sticky_notes_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_sticky_notes' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_sticky_notes' }, (payload) => {
+        const row = (payload.new || payload.old) as StickyNoteRow | undefined;
+        const id = row?.id;
+        const isLocal = id ? localActionIdsRef.current.has(id) : false;
+        if (id && isLocal) localActionIdsRef.current.delete(id);
+
+        if (!isLocal && !initialLoadRef.current) {
+          const author = (row as StickyNoteRow)?.author_name || 'Someone';
+          if (payload.eventType === 'INSERT') {
+            toast.info(`${author} added a new note`);
+            try { new Audio('/notification.mp3').play().catch(() => {}); } catch {}
+          } else if (payload.eventType === 'UPDATE') {
+            const newRow = payload.new as StickyNoteRow;
+            const oldRow = payload.old as StickyNoteRow;
+            if (newRow?.content !== oldRow?.content) {
+              toast.info(`${author} edited a note`);
+              try { new Audio('/notification.mp3').play().catch(() => {}); } catch {}
+            }
+          }
+        }
+        load();
+      })
       .subscribe();
+    initialLoadRef.current = false;
     return () => {
       supabase.removeChannel(channel);
     };
@@ -61,26 +85,33 @@ export function POSStickyNotes() {
       }
     })();
     const color = COLOR_KEYS[Math.floor(Math.random() * COLOR_KEYS.length)];
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('pos_sticky_notes')
-      .insert({ content: '', color, author_name: author });
+      .insert({ content: '', color, author_name: author })
+      .select()
+      .single();
     if (error) {
       toast.error('Failed to add note');
+    } else if (data?.id) {
+      localActionIdsRef.current.add(data.id);
     }
   };
 
   const updateNote = async (id: string, content: string) => {
     setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)));
+    localActionIdsRef.current.add(id);
     await supabase.from('pos_sticky_notes').update({ content }).eq('id', id);
   };
 
   const cycleColor = async (note: StickyNoteRow) => {
     const idx = COLOR_KEYS.indexOf(note.color);
     const next = COLOR_KEYS[(idx + 1) % COLOR_KEYS.length];
+    localActionIdsRef.current.add(note.id);
     await supabase.from('pos_sticky_notes').update({ color: next }).eq('id', note.id);
   };
 
   const deleteNote = async (id: string) => {
+    localActionIdsRef.current.add(id);
     await supabase.from('pos_sticky_notes').delete().eq('id', id);
   };
 
