@@ -63,7 +63,49 @@ const scheduleBeep = (ctx: AudioContext) => {
   });
 };
 
+// Pre-built short beep WAV as data URI - HTMLAudio fallback works in background
+const BEEP_DATA_URI = (() => {
+  const sampleRate = 44100;
+  const duration = 0.5;
+  const numSamples = Math.floor(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE'); writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  writeStr(36, 'data'); view.setUint32(40, numSamples * 2, true);
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const freq = t < 0.18 ? 880 : (t < 0.36 ? 1320 : 0);
+    const env = freq ? Math.exp(-(t % 0.18) * 8) : 0;
+    const sample = Math.sin(2 * Math.PI * freq * t) * env * 0.5;
+    view.setInt16(44 + i * 2, sample * 32767, true);
+  }
+  const bytes = new Uint8Array(buffer);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+})();
+
+const playHtmlAudioBeep = () => {
+  try {
+    const audio = new Audio(BEEP_DATA_URI);
+    audio.volume = 0.7;
+    audio.play().catch((e) => console.warn('HTMLAudio beep failed:', e));
+  } catch (e) {
+    console.warn('HTMLAudio init failed:', e);
+  }
+};
+
 const playChatBeep = () => {
+  // Always try HTMLAudio - works in background tabs and when AudioContext suspended
+  playHtmlAudioBeep();
   const ctx = getCtx();
   if (!ctx) return;
   try {
