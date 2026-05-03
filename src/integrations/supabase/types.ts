@@ -1654,6 +1654,33 @@ export type Database = {
           },
         ]
       }
+      pos_sticky_notes: {
+        Row: {
+          author_name: string | null
+          color: string
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pos_todos: {
         Row: {
           completed_at: string | null
