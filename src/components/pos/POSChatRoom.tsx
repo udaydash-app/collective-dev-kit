@@ -22,6 +22,29 @@ const getAuthor = (): string => {
   return 'Anonymous';
 };
 
+const playChatBeep = () => {
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = now + i * 0.15;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.25, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.27);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 800);
+  } catch {}
+};
+
 export function POSChatRoom() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -52,7 +75,7 @@ export function POSChatRoom() {
         if (isLocal) localIdsRef.current.delete(row.id);
         setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
         if (!isLocal && !initRef.current) {
-          try { new Audio('/notification.mp3').play().catch(() => {}); } catch {}
+          playChatBeep();
           if (!openRef.current) {
             setUnread((n) => n + 1);
             toast.info(`${row.author_name || 'Someone'}: ${row.message.slice(0, 60)}`);
