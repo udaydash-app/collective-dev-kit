@@ -2328,13 +2328,10 @@ export default function POS() {
           return;
         }
         setQuickPaymentMethod('cash');
-        // Run payment directly with print=true
+        // handlePaymentConfirm already prints via kioskPrintService; do not double-print
         (async () => {
           const payment = { id: '1', method: 'cash', amount: total };
-          const transactionData = await handlePaymentConfirmRef.current?.([payment], total);
-          if (transactionData) {
-            setTimeout(() => handlePrintLastReceiptRef.current?.(), 300);
-          }
+          await handlePaymentConfirmRef.current?.([payment], total);
         })();
         return;
       }
@@ -2757,16 +2754,9 @@ export default function POS() {
       amount: total
     };
 
-    const transactionData = await handlePaymentConfirm([payment], total);
+    // handlePaymentConfirm already prints via kioskPrintService; avoid double print
+    await handlePaymentConfirm([payment], total);
     setShowQuickPayment(false);
-    
-    // If user wants to print and we have transaction data, print the receipt
-    if (shouldPrint && transactionData) {
-      // Wait a moment for the receipt to be ready
-      setTimeout(() => {
-        handlePrintLastReceipt();
-      }, 300);
-    }
   };
 
   // Toggle wholesale prices for all cart items
