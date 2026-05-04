@@ -2886,6 +2886,12 @@ export default function POS() {
     contentRef: lastReceiptRef,
   });
 
+  // Refs to break temporal dead zone for the F2 shortcut effect declared earlier
+  const handlePaymentConfirmRef = useRef<typeof handlePaymentConfirm | null>(null);
+  const handlePrintLastReceiptRef = useRef<typeof handlePrintLastReceipt | null>(null);
+  handlePaymentConfirmRef.current = handlePaymentConfirm;
+  handlePrintLastReceiptRef.current = handlePrintLastReceipt;
+
   const handleLastReceiptClick = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
