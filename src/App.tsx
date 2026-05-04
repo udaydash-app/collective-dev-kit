@@ -59,6 +59,7 @@ import AdminBarcode from "./pages/admin/Barcode";
 import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import AdminTaxCollectionReport from "./pages/admin/TaxCollectionReport";
 import AdminTradingAccount from "./pages/admin/TradingAccount";
+import AdminProfitLossAnalysis from "./pages/admin/ProfitLossAnalysis";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
