@@ -199,6 +199,7 @@ const AppContent = () => {
           <Route path="/admin/purchase-orders" element={<AdminRoute><AdminPurchaseOrders /></AdminRoute>} />
           <Route path="/admin/tax-collection-report" element={<AdminRoute><AdminTaxCollectionReport /></AdminRoute>} />
           <Route path="/admin/trading-account" element={<AdminRoute><AdminTradingAccount /></AdminRoute>} />
+          <Route path="/admin/profit-loss-analysis" element={<AdminRoute><AdminProfitLossAnalysis /></AdminRoute>} />
           <Route path="/admin/live-chat" element={<AdminRoute><AdminLiveChat /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
