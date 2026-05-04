@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown, Search, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
@@ -29,6 +29,8 @@ export default function Expenses() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -175,10 +177,22 @@ export default function Expenses() {
     });
   };
 
-  const totalExpenses = expenses?.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0) || 0;
-  const totalCash = expenses?.filter(e => e.payment_method === 'cash').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0) || 0;
-  const totalCredit = expenses?.filter(e => e.payment_method === 'credit').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0) || 0;
-  const totalMobileMoney = expenses?.filter(e => e.payment_method === 'mobile_money').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0) || 0;
+  const filteredExpenses = expenses?.filter((exp) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      exp.description?.toLowerCase().includes(q) ||
+      exp.category?.toLowerCase().includes(q) ||
+      exp.payment_method?.toLowerCase().includes(q) ||
+      exp.notes?.toLowerCase().includes(q) ||
+      exp.amount?.toString().includes(q)
+    );
+  }) || [];
+
+  const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
+  const totalCash = filteredExpenses.filter(e => e.payment_method === 'cash').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
+  const totalCredit = filteredExpenses.filter(e => e.payment_method === 'credit').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
+  const totalMobileMoney = filteredExpenses.filter(e => e.payment_method === 'mobile_money').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -186,6 +200,10 @@ export default function Expenses() {
         <h1 className="text-3xl font-bold">Daily Expenses</h1>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
+          <Button variant="outline" onClick={() => setShowSearch((v) => !v)}>
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -410,6 +428,32 @@ export default function Expenses() {
         </div>
       </div>
 
+      {showSearch && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Search expenses by description, category, payment, notes, or amount..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Store Selector */}
       <Card>
         <CardHeader>
@@ -493,8 +537,10 @@ export default function Expenses() {
           <CardContent>
             {isLoading ? (
               <p className="text-center text-muted-foreground py-8">Loading expenses...</p>
-            ) : !expenses || expenses.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No expenses recorded yet</p>
+            ) : !filteredExpenses || filteredExpenses.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                {searchQuery ? 'No expenses match your search' : 'No expenses recorded yet'}
+              </p>
             ) : (
               <Table fixedScroll>
                 <TableHeader>
@@ -508,7 +554,7 @@ export default function Expenses() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenses.map((expense) => {
+                  {filteredExpenses.map((expense) => {
                     const paymentMethod = PAYMENT_METHODS.find(m => m.value === expense.payment_method);
                     const PaymentIcon = paymentMethod?.icon || DollarSign;
                     
