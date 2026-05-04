@@ -2754,16 +2754,9 @@ export default function POS() {
       amount: total
     };
 
-    const transactionData = await handlePaymentConfirm([payment], total);
+    // handlePaymentConfirm already prints via kioskPrintService; avoid double print
+    await handlePaymentConfirm([payment], total);
     setShowQuickPayment(false);
-    
-    // If user wants to print and we have transaction data, print the receipt
-    if (shouldPrint && transactionData) {
-      // Wait a moment for the receipt to be ready
-      setTimeout(() => {
-        handlePrintLastReceipt();
-      }, 300);
-    }
   };
 
   // Toggle wholesale prices for all cart items
