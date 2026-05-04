@@ -2331,9 +2331,9 @@ export default function POS() {
         // Run payment directly with print=true
         (async () => {
           const payment = { id: '1', method: 'cash', amount: total };
-          const transactionData = await handlePaymentConfirm([payment], total);
+          const transactionData = await handlePaymentConfirmRef.current?.([payment], total);
           if (transactionData) {
-            setTimeout(() => handlePrintLastReceipt(), 300);
+            setTimeout(() => handlePrintLastReceiptRef.current?.(), 300);
           }
         })();
         return;
@@ -2344,7 +2344,7 @@ export default function POS() {
 
     window.addEventListener('keydown', handlePaymentShortcut, { capture: true });
     return () => window.removeEventListener('keydown', handlePaymentShortcut, { capture: true });
-  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen, cart.length, total, handlePaymentConfirm, handlePrintLastReceipt]);
+  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen, cart.length, total]);
 
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
@@ -2885,6 +2885,12 @@ export default function POS() {
   const handlePrintLastReceipt = useReactToPrint({
     contentRef: lastReceiptRef,
   });
+
+  // Refs to break temporal dead zone for the F2 shortcut effect declared earlier
+  const handlePaymentConfirmRef = useRef<typeof handlePaymentConfirm | null>(null);
+  const handlePrintLastReceiptRef = useRef<typeof handlePrintLastReceipt | null>(null);
+  handlePaymentConfirmRef.current = handlePaymentConfirm;
+  handlePrintLastReceiptRef.current = handlePrintLastReceipt;
 
   const handleLastReceiptClick = async () => {
     try {
