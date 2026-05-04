@@ -2321,14 +2321,30 @@ export default function POS() {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      if (event.key === 'F2') openQuickPaymentDialog('cash');
+      if (event.key === 'F2') {
+        // Direct cash payment + print, skip confirm dialog
+        if (cart.length === 0) {
+          toast.error('Cart is empty');
+          return;
+        }
+        setQuickPaymentMethod('cash');
+        // Run payment directly with print=true
+        (async () => {
+          const payment = { id: '1', method: 'cash', amount: total };
+          const transactionData = await handlePaymentConfirm([payment], total);
+          if (transactionData) {
+            setTimeout(() => handlePrintLastReceipt(), 300);
+          }
+        })();
+        return;
+      }
       if (event.key === 'F3') openQuickPaymentDialog('mobile_money');
       if (event.key === 'F4') openQuickPaymentDialog('credit');
     };
 
     window.addEventListener('keydown', handlePaymentShortcut, { capture: true });
     return () => window.removeEventListener('keydown', handlePaymentShortcut, { capture: true });
-  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen]);
+  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen, cart.length, total, handlePaymentConfirm, handlePrintLastReceipt]);
 
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
