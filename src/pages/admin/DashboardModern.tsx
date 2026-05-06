@@ -370,7 +370,7 @@ export default function DashboardModern() {
                           <div className="min-w-0">
                             <div className="font-medium truncate">{r.ref}</div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {r.customer} · {formatDateTime(r.date)}
+                              {r.customer} · {formatDateTime(r.date)} · <span className="font-medium">{(r as any).user}</span>
                             </div>
                           </div>
                         </div>
@@ -388,6 +388,45 @@ export default function DashboardModern() {
             </CollapsibleContent>
           </Card>
         </Collapsible>
+
+        {/* Per-user sales breakdown */}
+        <Card className="border-border/50 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5 text-primary" /> Sales by User
+              <Badge variant="secondary" className="ml-2">{userRows.length}</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">All POS users · last 14 days</p>
+          </CardHeader>
+          <CardContent>
+            {userRows.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No user activity</div>
+            ) : (
+              <div className="space-y-2">
+                {userRows.map((u) => {
+                  const pct = userRows[0].sales > 0 ? (u.sales / userRows[0].sales) * 100 : 0;
+                  return (
+                    <div key={u.id} className="p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                            {u.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="font-medium truncate">{u.name}</div>
+                          <Badge variant="outline" className="text-[10px]">{u.count} tx</Badge>
+                        </div>
+                        <div className="font-semibold tabular-nums">{formatCurrency(u.sales)}</div>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* All menu items grouped */}
         <div className="space-y-6">
