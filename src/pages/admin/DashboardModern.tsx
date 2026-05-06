@@ -636,3 +636,41 @@ function KpiCard({ label, value, icon: Icon, trend, sub, gradient }: {
     </Card>
   );
 }
+
+function RecentListCard({ title, icon: Icon, count, footer, items }: {
+  title: string; icon: any; count: number; footer?: string;
+  items: { id: string; primary: string; secondary: string; amount: string; to: string }[];
+}) {
+  return (
+    <Card className="border-border/50 backdrop-blur">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Icon className="h-5 w-5 text-primary" /> {title}
+          <Badge variant="secondary" className="ml-2">{count}</Badge>
+        </CardTitle>
+        {footer && <p className="text-sm text-muted-foreground mt-1">{footer}</p>}
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">No data</div>
+        ) : (
+          <div className="space-y-1.5">
+            {items.map((it) => (
+              <Link
+                key={it.id}
+                to={it.to}
+                className="flex items-center justify-between p-2.5 rounded-md border border-border/40 hover:border-primary/40 hover:bg-muted/40 transition-all"
+              >
+                <div className="min-w-0 flex-1 pr-3">
+                  <div className="font-medium text-sm truncate">{it.primary}</div>
+                  <div className="text-xs text-muted-foreground truncate">{it.secondary}</div>
+                </div>
+                <div className="font-semibold tabular-nums text-sm whitespace-nowrap">{it.amount}</div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
