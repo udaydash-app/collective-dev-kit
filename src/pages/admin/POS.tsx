@@ -43,7 +43,8 @@ import {
   Award,
   Banknote,
   Factory,
-  ScanBarcode as BarcodeIcon
+  ScanBarcode as BarcodeIcon,
+  LayoutDashboard
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -3809,6 +3810,15 @@ export default function POS() {
               </div>
               <WalkieTalkieButton />
               <POSChatRoom />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/admin/dashboard-modern')}
+                title="Dashboard"
+                className="h-7 w-7 p-0"
+              >
+                <LayoutDashboard className="h-3 w-3 text-muted-foreground" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm"
