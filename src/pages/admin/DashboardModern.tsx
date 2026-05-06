@@ -125,7 +125,7 @@ export default function DashboardModern() {
     queryFn: async () => {
       const { data } = await supabase
         .from("pos_transactions")
-        .select("id, transaction_number, total, subtotal, discount, tax, payment_method, customer_name, created_at, items")
+        .select("id, transaction_number, total, subtotal, discount, tax, payment_method, customer_name, created_at, items, created_by_pos_user, cashier_id")
         .gte("created_at", since.toISOString())
         .order("created_at", { ascending: false })
         .limit(500);
@@ -157,6 +157,29 @@ export default function DashboardModern() {
       return { products: products || 0, contacts: contacts || 0, lowStock: lowStock || 0 };
     },
   });
+
+  const { data: posUsers } = useQuery({
+    queryKey: ["dashmodern-pos-users"],
+    queryFn: async () => {
+      const { data } = await supabase.from("pos_users").select("id, full_name, is_active");
+      return data || [];
+    },
+  });
+
+  // Per-user aggregation
+  const userMap = new Map<string, { name: string }>();
+  (posUsers || []).forEach((u: any) => userMap.set(u.id, { name: u.full_name || "Unknown" }));
+  const perUser: Record<string, { name: string; sales: number; count: number }> = {};
+  (tx || []).forEach((t: any) => {
+    const uid = t.created_by_pos_user || t.cashier_id || "unknown";
+    const name = userMap.get(uid)?.name || (uid === "unknown" ? "Unassigned" : "Unknown user");
+    if (!perUser[uid]) perUser[uid] = { name, sales: 0, count: 0 };
+    perUser[uid].sales += Number(t.total) || 0;
+    perUser[uid].count += 1;
+  });
+  const userRows = Object.entries(perUser)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.sales - a.sales);
 
   // Aggregate per day
   const days: { date: string; sales: number; transactions: number }[] = [];
@@ -199,11 +222,13 @@ export default function DashboardModern() {
       id: t.id, ref: t.transaction_number, total: Number(t.total) || 0,
       date: t.created_at, type: "POS" as const, customer: t.customer_name || "Walk-in",
       items: Array.isArray(t.items) ? t.items.length : 0,
+      user: userMap.get(t.created_by_pos_user || t.cashier_id || "")?.name || "—",
     }))),
     ...((orders || []).map((o: any) => ({
       id: o.id, ref: o.order_number, total: Number(o.total) || 0,
       date: o.created_at, type: "Online" as const, customer: o.customer_name || "Guest",
       items: 0, status: o.status,
+      user: "Online",
     }))),
   ].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 25);
 
@@ -345,7 +370,7 @@ export default function DashboardModern() {
                           <div className="min-w-0">
                             <div className="font-medium truncate">{r.ref}</div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {r.customer} · {formatDateTime(r.date)}
+                              {r.customer} · {formatDateTime(r.date)} · <span className="font-medium">{(r as any).user}</span>
                             </div>
                           </div>
                         </div>
@@ -363,6 +388,45 @@ export default function DashboardModern() {
             </CollapsibleContent>
           </Card>
         </Collapsible>
+
+        {/* Per-user sales breakdown */}
+        <Card className="border-border/50 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5 text-primary" /> Sales by User
+              <Badge variant="secondary" className="ml-2">{userRows.length}</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">All POS users · last 14 days</p>
+          </CardHeader>
+          <CardContent>
+            {userRows.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No user activity</div>
+            ) : (
+              <div className="space-y-2">
+                {userRows.map((u) => {
+                  const pct = userRows[0].sales > 0 ? (u.sales / userRows[0].sales) * 100 : 0;
+                  return (
+                    <div key={u.id} className="p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                            {u.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="font-medium truncate">{u.name}</div>
+                          <Badge variant="outline" className="text-[10px]">{u.count} tx</Badge>
+                        </div>
+                        <div className="font-semibold tabular-nums">{formatCurrency(u.sales)}</div>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* All menu items grouped */}
         <div className="space-y-6">
