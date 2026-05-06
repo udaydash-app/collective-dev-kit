@@ -166,6 +166,70 @@ export default function DashboardModern() {
     },
   });
 
+  const { data: purchases } = useQuery({
+    queryKey: ["dashmodern-purchases", since.toISOString()],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchases")
+        .select("id, purchase_number, supplier_name, total_amount, created_at")
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+
+  const { data: expenses } = useQuery({
+    queryKey: ["dashmodern-expenses", since.toISOString()],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("id, description, category, amount, expense_date, created_at")
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+
+  const { data: journals } = useQuery({
+    queryKey: ["dashmodern-journals", since.toISOString()],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("journal_entries")
+        .select("id, entry_number, reference, description, entry_date, status, created_at")
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+
+  const { data: accounts } = useQuery({
+    queryKey: ["dashmodern-accounts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id, account_code, account_name, account_type, current_balance")
+        .eq("is_active", true)
+        .order("account_code", { ascending: true })
+        .limit(500);
+      return data || [];
+    },
+  });
+
+  const purchasesTotal = (purchases || []).reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0);
+  const expensesTotal = (expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+
+  // Group accounts by type for general accounts overview
+  const accountsByType: Record<string, { count: number; balance: number }> = {};
+  (accounts || []).forEach((a: any) => {
+    const t = a.account_type || "other";
+    if (!accountsByType[t]) accountsByType[t] = { count: 0, balance: 0 };
+    accountsByType[t].count += 1;
+    accountsByType[t].balance += Number(a.current_balance) || 0;
+  });
+
   // Per-user aggregation
   const userMap = new Map<string, { name: string }>();
   (posUsers || []).forEach((u: any) => userMap.set(u.id, { name: u.full_name || "Unknown" }));
@@ -425,6 +489,89 @@ export default function DashboardModern() {
                 })}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Purchases / Expenses / Journals — all users */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <RecentListCard
+            title="Recent Purchases"
+            icon={Truck}
+            count={(purchases || []).length}
+            footer={`Total: ${formatCurrency(purchasesTotal)}`}
+            items={(purchases || []).slice(0, 8).map((p: any) => ({
+              id: p.id,
+              primary: p.purchase_number || "—",
+              secondary: `${p.supplier_name || "Supplier"} · ${formatDateTime(p.created_at)}`,
+              amount: formatCurrency(Number(p.total_amount) || 0),
+              to: "/admin/purchases",
+            }))}
+          />
+          <RecentListCard
+            title="Recent Expenses"
+            icon={Wallet}
+            count={(expenses || []).length}
+            footer={`Total: ${formatCurrency(expensesTotal)}`}
+            items={(expenses || []).slice(0, 8).map((e: any) => ({
+              id: e.id,
+              primary: e.description || e.category || "Expense",
+              secondary: `${e.category || "—"} · ${formatDateTime(e.expense_date || e.created_at)}`,
+              amount: formatCurrency(Number(e.amount) || 0),
+              to: "/admin/expenses",
+            }))}
+          />
+          <RecentListCard
+            title="Recent Journal Entries"
+            icon={ScrollText}
+            count={(journals || []).length}
+            footer={`${(journals || []).length} entries · last 14 days`}
+            items={(journals || []).slice(0, 8).map((j: any) => ({
+              id: j.id,
+              primary: j.entry_number || j.reference || "Entry",
+              secondary: `${j.description || "—"} · ${formatDateTime(j.entry_date || j.created_at)}`,
+              amount: j.status || "",
+              to: "/admin/journal-entries",
+            }))}
+          />
+        </div>
+
+        {/* General Accounts Overview */}
+        <Card className="border-border/50 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BookOpen className="h-5 w-5 text-primary" /> General Accounts
+              <Badge variant="secondary" className="ml-2">{(accounts || []).length}</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Live chart-of-accounts balances · all users</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+              {Object.entries(accountsByType).map(([type, v]) => (
+                <div key={type} className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{type}</div>
+                  <div className="font-semibold tabular-nums mt-1">{formatCurrency(v.balance)}</div>
+                  <div className="text-xs text-muted-foreground">{v.count} accounts</div>
+                </div>
+              ))}
+            </div>
+            <ScrollArea className="h-[300px] pr-2">
+              <div className="space-y-1.5">
+                {(accounts || []).slice(0, 60).map((a: any) => (
+                  <Link
+                    key={a.id}
+                    to="/admin/general-ledger"
+                    className="flex items-center justify-between p-2.5 rounded-md border border-border/40 hover:border-primary/40 hover:bg-muted/40 transition-all"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="font-mono text-xs text-muted-foreground w-16 shrink-0">{a.account_code}</div>
+                      <div className="font-medium text-sm truncate">{a.account_name}</div>
+                      <Badge variant="outline" className="text-[10px] uppercase">{a.account_type}</Badge>
+                    </div>
+                    <div className="font-semibold tabular-nums text-sm">{formatCurrency(Number(a.current_balance) || 0)}</div>
+                  </Link>
+                ))}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
