@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -21,14 +21,25 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
   }
 
   return (
-    <Button
-      onClick={() => navigate("/admin/pos")}
-      variant="outline"
-      size="sm"
-      className={className}
-    >
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Return to POS
-    </Button>
+    <div className={`flex items-center gap-2 ${className}`}>
+      {location.pathname !== "/admin/dashboard-modern" && (
+        <Button
+          onClick={() => navigate("/admin/dashboard-modern")}
+          variant="outline"
+          size="sm"
+        >
+          <LayoutDashboard className="h-4 w-4 mr-2" />
+          Dashboard
+        </Button>
+      )}
+      <Button
+        onClick={() => navigate("/admin/pos")}
+        variant="outline"
+        size="sm"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Return to POS
+      </Button>
+    </div>
   );
 };
