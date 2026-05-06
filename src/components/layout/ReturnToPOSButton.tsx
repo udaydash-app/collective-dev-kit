@@ -11,6 +11,16 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Only show Dashboard button if logged in as admin (full_name === 'admin')
+  let isAdminUser = false;
+  try {
+    const s = localStorage.getItem("offline_pos_session");
+    if (s) {
+      const parsed = JSON.parse(s);
+      isAdminUser = (parsed?.full_name || "").toLowerCase() === "admin";
+    }
+  } catch {}
+
   // Only show on admin pages (not on /admin/pos or /pos-login)
   if (
     location.pathname === "/admin/pos" || 
@@ -22,7 +32,7 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {location.pathname !== "/admin/dashboard-modern" && (
+      {isAdminUser && location.pathname !== "/admin/dashboard-modern" && (
         <Button
           onClick={() => navigate("/admin/dashboard-modern")}
           variant="outline"
