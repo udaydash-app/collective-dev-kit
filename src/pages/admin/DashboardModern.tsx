@@ -112,6 +112,15 @@ const menuGroups: { label: string; items: { title: string; to: string; icon: any
 
 export default function DashboardModern() {
   const [recentOpen, setRecentOpen] = useState(true);
+  const offlineSession = (() => {
+    try {
+      const storedSession = localStorage.getItem('offline_pos_session');
+      return storedSession ? JSON.parse(storedSession) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const currentPin = sessionStorage.getItem('current_pos_pin');
 
   // Last 14 days range for chart
   const since = new Date();
@@ -120,103 +129,52 @@ export default function DashboardModern() {
   const today = new Date();
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
 
-  const { data: tx } = useQuery({
-    queryKey: ["dashmodern-tx", since.toISOString()],
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("pos_transactions")
-        .select("id, transaction_number, total, subtotal, discount, tax, payment_method, created_at, items, cashier_id")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(500);
-      return data || [];
-    },
-  });
+      if (offlineSession?.pos_user_id && currentPin) {
+        const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
+          input_pos_user_id: offlineSession.pos_user_id,
+          input_pin: currentPin,
+        });
+        if (!error && data) return data as any;
+        console.error("Modern dashboard RPC failed, falling back to direct queries:", error);
+      }
 
-  const { data: orders } = useQuery({
-    queryKey: ["dashmodern-orders", since.toISOString()],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, order_number, total, status, payment_status, created_at")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return data || [];
-    },
-  });
-
-  const { data: counts } = useQuery({
-    queryKey: ["dashmodern-counts"],
-    queryFn: async () => {
-      const [{ count: products }, { count: contacts }, { count: lowStock }] = await Promise.all([
+      const [tx, orders, products, contacts, lowStock, posUsers, purchases, expenses, journals, accounts] = await Promise.all([
+        supabase.from("pos_transactions").select("id, transaction_number, total, subtotal, discount, tax, payment_method, created_at, items, cashier_id").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(500),
+        supabase.from("orders").select("id, order_number, total, status, payment_status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200),
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("contacts").select("*", { count: "exact", head: true }),
         supabase.from("products").select("*", { count: "exact", head: true }).lte("stock_quantity", 5),
+        supabase.from("pos_users").select("id, full_name, is_active"),
+        supabase.from("purchases").select("id, purchase_number, supplier_name, total_amount, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(50),
+        supabase.from("expenses").select("id, description, category, amount, expense_date, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(50),
+        supabase.from("journal_entries").select("id, entry_number, reference, description, entry_date, status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(50),
+        supabase.from("accounts").select("id, account_code, account_name, account_type, current_balance").eq("is_active", true).order("account_code", { ascending: true }).limit(500),
       ]);
-      return { products: products || 0, contacts: contacts || 0, lowStock: lowStock || 0 };
+
+      return {
+        pos_transactions: tx.data || [],
+        orders: orders.data || [],
+        pos_users: posUsers.data || [],
+        purchases: purchases.data || [],
+        expenses: expenses.data || [],
+        journal_entries: journals.data || [],
+        accounts: accounts.data || [],
+        counts: { products: products.count || 0, contacts: contacts.count || 0, lowStock: lowStock.count || 0 },
+      };
     },
   });
 
-  const { data: posUsers } = useQuery({
-    queryKey: ["dashmodern-pos-users"],
-    queryFn: async () => {
-      const { data } = await supabase.from("pos_users").select("id, full_name, is_active");
-      return data || [];
-    },
-  });
-
-  const { data: purchases } = useQuery({
-    queryKey: ["dashmodern-purchases", since.toISOString()],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("purchases")
-        .select("id, purchase_number, supplier_name, total_amount, created_at")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return data || [];
-    },
-  });
-
-  const { data: expenses } = useQuery({
-    queryKey: ["dashmodern-expenses", since.toISOString()],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("expenses")
-        .select("id, description, category, amount, expense_date, created_at")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return data || [];
-    },
-  });
-
-  const { data: journals } = useQuery({
-    queryKey: ["dashmodern-journals", since.toISOString()],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("journal_entries")
-        .select("id, entry_number, reference, description, entry_date, status, created_at")
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return data || [];
-    },
-  });
-
-  const { data: accounts } = useQuery({
-    queryKey: ["dashmodern-accounts"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("accounts")
-        .select("id, account_code, account_name, account_type, current_balance")
-        .eq("is_active", true)
-        .order("account_code", { ascending: true })
-        .limit(500);
-      return data || [];
-    },
-  });
+  const tx = dashboardData?.pos_transactions || [];
+  const orders = dashboardData?.orders || [];
+  const counts = dashboardData?.counts || { products: 0, contacts: 0, lowStock: 0 };
+  const posUsers = dashboardData?.pos_users || [];
+  const purchases = dashboardData?.purchases || [];
+  const expenses = dashboardData?.expenses || [];
+  const journals = dashboardData?.journal_entries || [];
+  const accounts = dashboardData?.accounts || [];
 
   const purchasesTotal = (purchases || []).reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0);
   const expensesTotal = (expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
