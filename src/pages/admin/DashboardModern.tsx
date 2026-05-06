@@ -125,7 +125,7 @@ export default function DashboardModern() {
     queryFn: async () => {
       const { data } = await supabase
         .from("pos_transactions")
-        .select("id, transaction_number, total, subtotal, discount, tax, payment_method, customer_name, created_at, items")
+        .select("id, transaction_number, total, subtotal, discount, tax, payment_method, customer_name, created_at, items, created_by_pos_user, cashier_id")
         .gte("created_at", since.toISOString())
         .order("created_at", { ascending: false })
         .limit(500);
@@ -157,6 +157,29 @@ export default function DashboardModern() {
       return { products: products || 0, contacts: contacts || 0, lowStock: lowStock || 0 };
     },
   });
+
+  const { data: posUsers } = useQuery({
+    queryKey: ["dashmodern-pos-users"],
+    queryFn: async () => {
+      const { data } = await supabase.from("pos_users").select("id, full_name, is_active");
+      return data || [];
+    },
+  });
+
+  // Per-user aggregation
+  const userMap = new Map<string, { name: string }>();
+  (posUsers || []).forEach((u: any) => userMap.set(u.id, { name: u.full_name || "Unknown" }));
+  const perUser: Record<string, { name: string; sales: number; count: number }> = {};
+  (tx || []).forEach((t: any) => {
+    const uid = t.created_by_pos_user || t.cashier_id || "unknown";
+    const name = userMap.get(uid)?.name || (uid === "unknown" ? "Unassigned" : "Unknown user");
+    if (!perUser[uid]) perUser[uid] = { name, sales: 0, count: 0 };
+    perUser[uid].sales += Number(t.total) || 0;
+    perUser[uid].count += 1;
+  });
+  const userRows = Object.entries(perUser)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.sales - a.sales);
 
   // Aggregate per day
   const days: { date: string; sales: number; transactions: number }[] = [];
@@ -199,11 +222,13 @@ export default function DashboardModern() {
       id: t.id, ref: t.transaction_number, total: Number(t.total) || 0,
       date: t.created_at, type: "POS" as const, customer: t.customer_name || "Walk-in",
       items: Array.isArray(t.items) ? t.items.length : 0,
+      user: userMap.get(t.created_by_pos_user || t.cashier_id || "")?.name || "—",
     }))),
     ...((orders || []).map((o: any) => ({
       id: o.id, ref: o.order_number, total: Number(o.total) || 0,
       date: o.created_at, type: "Online" as const, customer: o.customer_name || "Guest",
       items: 0, status: o.status,
+      user: "Online",
     }))),
   ].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 25);
 
