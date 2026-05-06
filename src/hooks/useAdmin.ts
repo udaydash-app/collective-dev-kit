@@ -30,26 +30,6 @@ export const useAdmin = () => {
     }
   }, []);
   
-  // PRIORITY: If we have an offline/local session, return immediately without any queries
-  // This handles both true offline AND local LAN deployment scenarios
-  if (currentOfflineSession || offlineSession) {
-    const session = currentOfflineSession || offlineSession;
-    return {
-      isAdmin: true,
-      isCashier: true,
-      role: 'cashier',
-      isLoading: false,
-      user: {
-        id: session.pos_user_id,
-        email: `pos-${session.pos_user_id}@pos.globalmarket.app`,
-        app_metadata: {},
-        user_metadata: { full_name: session.full_name },
-        aud: 'authenticated',
-        created_at: session.timestamp
-      } as any,
-    };
-  }
-
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOffline(shouldUseLocalData());
@@ -89,7 +69,7 @@ export const useAdmin = () => {
       return session;
     },
     // Don't fetch if offline - use cached data
-    enabled: !isOffline,
+    enabled: !isOffline && !currentOfflineSession && !offlineSession,
     retry: isOffline ? false : 3,
   });
 
@@ -114,6 +94,25 @@ export const useAdmin = () => {
     enabled: !!session?.user?.id && !isOffline,
     retry: isOffline ? false : 3,
   });
+
+  // PRIORITY: If we have an offline/local session, return it (after all hooks have run)
+  if (currentOfflineSession || offlineSession) {
+    const s = currentOfflineSession || offlineSession;
+    return {
+      isAdmin: true,
+      isCashier: true,
+      role: 'cashier',
+      isLoading: false,
+      user: {
+        id: s.pos_user_id,
+        email: `pos-${s.pos_user_id}@pos.globalmarket.app`,
+        app_metadata: {},
+        user_metadata: { full_name: s.full_name },
+        aud: 'authenticated',
+        created_at: s.timestamp,
+      } as any,
+    };
+  }
 
   // If we have an offline session (either offline or no online session), use it
   if (offlineSession && (isOffline || !session)) {
