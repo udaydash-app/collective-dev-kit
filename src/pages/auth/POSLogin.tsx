@@ -390,9 +390,18 @@ export default function POSLogin() {
         return;
       }
       
-      // Cloud Supabase - use full auth flow
-      const authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
+      // Cloud Supabase - ensure the PIN user is linked to Supabase Auth before reading admin data
+      let authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
       const authPassword = `PIN${pinValue.padStart(6, '0')}`;
+      const { data: ensuredAuth, error: ensureAuthError } = await supabase.functions.invoke('ensure-pos-auth', {
+        body: { pos_user_id: userData.pos_user_id, pin: pinValue },
+      });
+
+      if (ensureAuthError) {
+        console.error('Failed to prepare POS auth:', ensureAuthError);
+      } else if ((ensuredAuth as any)?.auth_email) {
+        authEmail = (ensuredAuth as any).auth_email;
+      }
       
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
