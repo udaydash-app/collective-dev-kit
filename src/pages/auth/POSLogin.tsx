@@ -237,7 +237,7 @@ export default function POSLogin() {
           
           toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
           await new Promise(resolve => setTimeout(resolve, 500));
-          navigate('/admin/pos');
+          navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
           return;
         } catch (offlineError) {
           console.error('🔴 Offline login error:', offlineError);
@@ -298,7 +298,7 @@ export default function POSLogin() {
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
             await new Promise(resolve => setTimeout(resolve, 500));
-            navigate('/admin/pos');
+            navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
             return;
           } catch (offlineError) {
             console.error('🔴 Offline fallback failed:', offlineError);
@@ -370,7 +370,7 @@ export default function POSLogin() {
         toast.success(`Welcome, ${fullName}!`);
         
         // Navigate immediately - sync and cache data in background
-        navigate('/admin/pos');
+        navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
         
         // Trigger two-way sync in background (non-blocking)
         // First pull from cloud, then push local changes
@@ -422,7 +422,7 @@ export default function POSLogin() {
 
         toast.success(`Welcome, ${fullName}!`);
         queryClient.invalidateQueries({ queryKey: ['session'] });
-        navigate('/admin/pos');
+        navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
         return;
       }
       
@@ -452,7 +452,7 @@ export default function POSLogin() {
       toast.success(`Welcome, ${userData.full_name}!`);
       
       // Navigate immediately, cache data in background
-      navigate('/admin/pos');
+      navigate(userData.full_name?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
       
       if (navigator.onLine) {
         (async () => {
