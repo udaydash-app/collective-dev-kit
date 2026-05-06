@@ -60,6 +60,7 @@ import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import AdminTaxCollectionReport from "./pages/admin/TaxCollectionReport";
 import AdminTradingAccount from "./pages/admin/TradingAccount";
 import AdminProfitLossAnalysis from "./pages/admin/ProfitLossAnalysis";
+import DashboardModern from "./pages/admin/DashboardModern";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -157,6 +158,7 @@ const AppContent = () => {
           <Route path="/category/:id" element={<CategoryProducts />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/dashboard-modern" element={<AdminRoute><DashboardModern /></AdminRoute>} />
           <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
           <Route path="/admin/import-products" element={<AdminRoute><ProductImport /></AdminRoute>} />
           <Route path="/admin/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
