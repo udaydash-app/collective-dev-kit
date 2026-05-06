@@ -33,5 +33,8 @@ verify_jwt = false
 [functions.manage-pos-user]
 verify_jwt = false
 
+[functions.ensure-pos-auth]
+verify_jwt = false
+
 [functions.create-guest-order]
 verify_jwt = false

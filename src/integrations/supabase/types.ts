@@ -2974,6 +2974,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_modern_dashboard_data: {
+        Args: { input_pin: string; input_pos_user_id: string }
+        Returns: Json
+      }
       get_next_customer_account_code: { Args: never; Returns: string }
       get_next_supplier_account_code: { Args: never; Returns: string }
       get_po_responses_by_share_token: {
