@@ -122,7 +122,7 @@ const POSSessionKeeper = () => {
       if (!location.pathname.startsWith('/admin')) return;
 
       const rawSession = localStorage.getItem('offline_pos_session');
-      const pin = sessionStorage.getItem('current_pos_pin') || localStorage.getItem('current_pos_pin');
+      const pin = sessionStorage.getItem('current_pos_pin');
       if (!rawSession || !pin) return;
 
       try {
@@ -148,11 +148,17 @@ const POSSessionKeeper = () => {
     };
 
     restorePOSAuth();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setTimeout(restorePOSAuth, 0);
+      }
+    });
     const interval = window.setInterval(restorePOSAuth, 5 * 60 * 1000);
     window.addEventListener('focus', restorePOSAuth);
     document.addEventListener('visibilitychange', restorePOSAuth);
 
     return () => {
+      authListener.subscription.unsubscribe();
       window.clearInterval(interval);
       window.removeEventListener('focus', restorePOSAuth);
       document.removeEventListener('visibilitychange', restorePOSAuth);
