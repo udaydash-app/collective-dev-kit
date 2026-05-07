@@ -5,6 +5,17 @@ export default function Index() {
   const [destination, setDestination] = useState<string | null>(null);
 
   useEffect(() => {
+    // If a POS PIN session exists, always return to the POS app
+    try {
+      const sessRaw = localStorage.getItem("offline_pos_session");
+      if (sessRaw) {
+        const sess = JSON.parse(sessRaw);
+        const isAdmin = (sess?.full_name || "").toLowerCase() === "admin";
+        setDestination(isAdmin ? "/admin/dashboard-modern" : "/admin/pos");
+        return;
+      }
+    } catch {}
+
     // Check if running as Electron desktop app
     const isElectron = !!(window as any).electron;
     
