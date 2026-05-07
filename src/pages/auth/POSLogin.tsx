@@ -233,7 +233,6 @@ export default function POSLogin() {
             offline: true
           };
           localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-          localStorage.setItem('current_pos_pin', pinValue);
           sessionStorage.setItem('current_pos_pin', pinValue);
           console.log('✅ Stored offline session:', sessionData);
           
@@ -296,8 +295,7 @@ export default function POSLogin() {
               offline: true
             };
             localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-            localStorage.setItem('current_pos_pin', pinValue);
-          sessionStorage.setItem('current_pos_pin', pinValue);
+            sessionStorage.setItem('current_pos_pin', pinValue);
             console.log('✅ Offline fallback successful, stored session:', sessionData);
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
@@ -369,8 +367,7 @@ export default function POSLogin() {
           local: true
         };
         localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        localStorage.setItem('current_pos_pin', pinValue);
-          sessionStorage.setItem('current_pos_pin', pinValue);
+            sessionStorage.setItem('current_pos_pin', pinValue);
         console.log('✅ Stored local session:', sessionData);
         
         toast.success(`Welcome, ${fullName}!`);
@@ -426,8 +423,7 @@ export default function POSLogin() {
           auth_fallback: true
         };
         localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        localStorage.setItem('current_pos_pin', pinValue);
-          sessionStorage.setItem('current_pos_pin', pinValue);
+            sessionStorage.setItem('current_pos_pin', pinValue);
 
         // Try to refresh the auth password in background via manage-pos-user edge function
         const { data: { session: adminSession } } = await supabase.auth.getSession();
@@ -475,7 +471,6 @@ export default function POSLogin() {
         cloud: true
       };
       localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-      localStorage.setItem('current_pos_pin', pinValue);
           sessionStorage.setItem('current_pos_pin', pinValue);
       
       // Navigate immediately, cache data in background

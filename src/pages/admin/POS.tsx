@@ -1744,7 +1744,6 @@ export default function POS() {
 
           // Also clear localStorage offline session
           localStorage.removeItem('offline_pos_session');
-          localStorage.removeItem('current_pos_pin');
           sessionStorage.removeItem('current_pos_pin');
           
           console.log('Cash register closed successfully (offline mode)');
@@ -3338,7 +3337,6 @@ export default function POS() {
       color: 'bg-destructive', 
       action: async () => {
         localStorage.removeItem('offline_pos_session');
-        localStorage.removeItem('current_pos_pin');
         sessionStorage.removeItem('current_pos_pin');
         await supabase.auth.signOut();
         navigate('/pos-login');
@@ -3479,7 +3477,6 @@ export default function POS() {
       localStorage.removeItem('pos_cart_state');
       localStorage.removeItem('pos_discount_state');
       localStorage.removeItem('offline_pos_session');
-      localStorage.removeItem('current_pos_pin');
       sessionStorage.removeItem('current_pos_pin');
       
       await supabase.auth.signOut();
