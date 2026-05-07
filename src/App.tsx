@@ -179,6 +179,7 @@ const AppContent = () => {
       <KeyboardShortcutsDialog />
       <Router>
         <RouterContent />
+        <POSSessionKeeper />
         <ChatNotifications />
         <ChatWidget />
         <OverdueCreditsMonitor />
