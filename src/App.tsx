@@ -87,6 +87,7 @@ import AdminLiveChat from "./pages/admin/LiveChat";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { ChatNotifications } from "./components/chat/ChatNotifications";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { supabase } from "@/integrations/supabase/client";
 
 import { useCloudSync } from "./hooks/useCloudSync";
 
@@ -111,6 +112,47 @@ const RouteErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+};
+
+const POSSessionKeeper = () => {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    const restorePOSAuth = async () => {
+      if (!location.pathname.startsWith('/admin')) return;
+
+      const rawSession = localStorage.getItem('offline_pos_session');
+      const pin = sessionStorage.getItem('current_pos_pin');
+      if (!rawSession || !pin) return;
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) return;
+
+        const posSession = JSON.parse(rawSession);
+        await supabase.auth.signInWithPassword({
+          email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
+          password: `PIN${pin.padStart(6, '0')}`,
+        });
+        console.log('[POSSessionKeeper] Restored POS database session');
+      } catch (error) {
+        console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
+      }
+    };
+
+    restorePOSAuth();
+    const interval = window.setInterval(restorePOSAuth, 5 * 60 * 1000);
+    window.addEventListener('focus', restorePOSAuth);
+    document.addEventListener('visibilitychange', restorePOSAuth);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', restorePOSAuth);
+      document.removeEventListener('visibilitychange', restorePOSAuth);
+    };
+  }, [location.pathname]);
+
+  return null;
 };
 
 const AppContent = () => {
