@@ -463,6 +463,14 @@ export default function POSLogin() {
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
+      const sessionData = {
+        pos_user_id: posUserId,
+        user_id: userId,
+        full_name: fullName,
+        timestamp: new Date().toISOString(),
+        cloud: true
+      };
+      localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
       sessionStorage.setItem('current_pos_pin', pinValue);
       
       // Navigate immediately, cache data in background
