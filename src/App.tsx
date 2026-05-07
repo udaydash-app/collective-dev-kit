@@ -122,18 +122,25 @@ const POSSessionKeeper = () => {
       if (!location.pathname.startsWith('/admin')) return;
 
       const rawSession = localStorage.getItem('offline_pos_session');
-      const pin = sessionStorage.getItem('current_pos_pin');
+      const pin = sessionStorage.getItem('current_pos_pin') || localStorage.getItem('current_pos_pin');
       if (!rawSession || !pin) return;
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) return;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) return;
+        } catch (sessionError) {
+          console.warn('[POSSessionKeeper] Stored auth session expired, restoring from PIN session:', sessionError);
+        }
 
         const posSession = JSON.parse(rawSession);
+        if (posSession?.local || posSession?.offline) return;
+
         await supabase.auth.signInWithPassword({
           email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
           password: `PIN${pin.padStart(6, '0')}`,
         });
+        queryClient.invalidateQueries({ queryKey: ['session'] });
         console.log('[POSSessionKeeper] Restored POS database session');
       } catch (error) {
         console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
