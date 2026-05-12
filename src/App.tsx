@@ -145,10 +145,16 @@ const POSSessionKeeper = () => {
             const expiresSoon = session.expires_at ? session.expires_at * 1000 - Date.now() < 10 * 60 * 1000 : true;
             if (reason === 'wake' || expiresSoon) {
               const { data, error } = await supabase.auth.refreshSession();
-              if (error) throw error;
+              if (error) {
+                console.warn('[POSSessionKeeper] Session refresh failed; restoring from PIN session:', error);
+              } else {
+                queryClient.setQueryData(['session'], data.session ?? session);
+                return;
+              }
+            } else {
               queryClient.setQueryData(['session'], data.session ?? session);
+              return;
             }
-            return;
           }
 
           if (!pin) return;
