@@ -152,7 +152,7 @@ const POSSessionKeeper = () => {
                 return;
               }
             } else {
-              queryClient.setQueryData(['session'], data.session ?? session);
+              queryClient.setQueryData(['session'], session);
               return;
             }
           }
