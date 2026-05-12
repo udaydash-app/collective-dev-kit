@@ -116,25 +116,38 @@ const RouteErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
 const POSSessionKeeper = () => {
   const location = useLocation();
+  const restoreInFlightRef = React.useRef<Promise<void> | null>(null);
+  const lastWakeRecoveryRef = React.useRef(0);
 
   React.useEffect(() => {
-    const restorePOSAuth = async () => {
+    const restorePOSAuth = async (reason: 'initial' | 'periodic' | 'wake' | 'signout' = 'periodic') => {
       if (!location.pathname.startsWith('/admin')) return;
+      if (restoreInFlightRef.current) return restoreInFlightRef.current;
 
-      const rawSession = localStorage.getItem('offline_pos_session');
-      const pin = sessionStorage.getItem('current_pos_pin');
-      if (!rawSession || !pin) return;
+      restoreInFlightRef.current = (async () => {
+        const rawSession = localStorage.getItem('offline_pos_session');
+        const pin = sessionStorage.getItem('current_pos_pin');
+        if (!rawSession) return;
 
-      try {
+        const posSession = JSON.parse(rawSession);
+        if (posSession?.local || posSession?.offline) return;
+
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) return;
+          if (session?.user) {
+            const expiresSoon = session.expires_at ? session.expires_at * 1000 - Date.now() < 10 * 60 * 1000 : true;
+            if (reason === 'wake' || expiresSoon) {
+              const { data, error } = await supabase.auth.refreshSession();
+              if (error) throw error;
+              queryClient.setQueryData(['session'], data.session ?? session);
+            }
+            return;
+          }
         } catch (sessionError) {
           console.warn('[POSSessionKeeper] Stored auth session expired, restoring from PIN session:', sessionError);
         }
 
-        const posSession = JSON.parse(rawSession);
-        if (posSession?.local || posSession?.offline) return;
+        if (!pin) return;
 
         await supabase.auth.signInWithPassword({
           email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
@@ -144,24 +157,65 @@ const POSSessionKeeper = () => {
         console.log('[POSSessionKeeper] Restored POS database session');
       } catch (error) {
         console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
+      } finally {
+        restoreInFlightRef.current = null;
       }
+      })();
+
+      return restoreInFlightRef.current;
     };
 
-    restorePOSAuth();
+    const recoverAfterWake = () => {
+      if (!location.pathname.startsWith('/admin')) return;
+      const now = Date.now();
+      if (now - lastWakeRecoveryRef.current < 1500) return;
+      lastWakeRecoveryRef.current = now;
+
+      restorePOSAuth('wake').finally(() => {
+        try {
+          supabase.realtime.disconnect();
+          window.setTimeout(() => supabase.realtime.connect(), 250);
+        } catch (error) {
+          console.warn('[POSSessionKeeper] Realtime reconnect failed:', error);
+        }
+
+        queryClient.invalidateQueries();
+      });
+    };
+
+    restorePOSAuth('initial');
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        setTimeout(restorePOSAuth, 0);
+        setTimeout(() => restorePOSAuth('signout'), 0);
+      }
+      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+        queryClient.invalidateQueries({ queryKey: ['session'] });
       }
     });
-    const interval = window.setInterval(restorePOSAuth, 5 * 60 * 1000);
-    window.addEventListener('focus', restorePOSAuth);
-    document.addEventListener('visibilitychange', restorePOSAuth);
+
+    let lastTick = Date.now();
+    const sleepDetector = window.setInterval(() => {
+      const now = Date.now();
+      if (now - lastTick > 45 * 1000) {
+        recoverAfterWake();
+      } else {
+        restorePOSAuth('periodic');
+      }
+      lastTick = now;
+    }, 15 * 1000);
+
+    window.addEventListener('focus', recoverAfterWake);
+    window.addEventListener('online', recoverAfterWake);
+    window.addEventListener('pageshow', recoverAfterWake);
+    document.addEventListener('visibilitychange', recoverAfterWake);
 
     return () => {
       authListener.subscription.unsubscribe();
-      window.clearInterval(interval);
-      window.removeEventListener('focus', restorePOSAuth);
-      document.removeEventListener('visibilitychange', restorePOSAuth);
+      window.clearInterval(sleepDetector);
+      window.removeEventListener('focus', recoverAfterWake);
+      window.removeEventListener('online', recoverAfterWake);
+      window.removeEventListener('pageshow', recoverAfterWake);
+      document.removeEventListener('visibilitychange', recoverAfterWake);
     };
   }, [location.pathname]);
 
