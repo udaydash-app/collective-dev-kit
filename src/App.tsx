@@ -133,7 +133,14 @@ const POSSessionKeeper = () => {
           const posSession = JSON.parse(rawSession);
           if (posSession?.local || posSession?.offline) return;
 
-          const { data: { session } } = await supabase.auth.getSession();
+          let session: any = null;
+          try {
+            const result = await supabase.auth.getSession();
+            session = result.data.session;
+          } catch (sessionError) {
+            console.warn('[POSSessionKeeper] Stored auth session expired, restoring from PIN session:', sessionError);
+          }
+
           if (session?.user) {
             const expiresSoon = session.expires_at ? session.expires_at * 1000 - Date.now() < 10 * 60 * 1000 : true;
             if (reason === 'wake' || expiresSoon) {
