@@ -5,6 +5,39 @@ import type { Database } from './types';
 const CLOUD_SUPABASE_URL = "https://wvdrsofehwiopbkzrqit.supabase.co";
 const CLOUD_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2ZHJzb2ZlaHdpb3Bia3pycWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzE1NjUsImV4cCI6MjA3NjA0NzU2NX0.GH5r-1xInHsL_EyzMOTVtb2QWIImuyJe-_ysqF0LCQ0";
 
+const fetchWithWakeTimeout: typeof fetch = async (input, init = {}) => {
+  const method = (init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+  const isReadOnly = method === 'GET' || method === 'HEAD';
+  const timeoutMs = isReadOnly ? 20000 : 60000;
+
+  const run = async () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const abortFromCaller = () => controller.abort();
+
+    if (init.signal) {
+      if (init.signal.aborted) controller.abort();
+      init.signal.addEventListener('abort', abortFromCaller, { once: true });
+    }
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+      window.clearTimeout(timeout);
+      init.signal?.removeEventListener('abort', abortFromCaller);
+    }
+  };
+
+  try {
+    return await run();
+  } catch (error) {
+    if (!isReadOnly) throw error;
+    console.warn('[Supabase] Read request failed after wake; retrying once:', error);
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    return run();
+  }
+};
+
 // Check for local Supabase configuration (set via Settings page or localStorage)
 // SECURITY: Only anon key is supported for client-side use. Service role keys must never be stored client-side.
 export const getSupabaseConfig = () => {
@@ -33,6 +66,9 @@ const createSupabaseClient = (): SupabaseClient<Database> => {
       storage: localStorage,
       persistSession: true,
       autoRefreshToken: true,
+    },
+    global: {
+      fetch: fetchWithWakeTimeout,
     }
   });
 };
