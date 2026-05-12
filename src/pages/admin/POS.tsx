@@ -539,6 +539,8 @@ export default function POS() {
   }, [localMode]);
   
   useEffect(() => {
+    let lastTick = Date.now();
+
     const updateQueryState = async () => {
       if (localMode) {
         const reachable = await checkLocalSupabaseReachable();
@@ -546,14 +548,32 @@ export default function POS() {
       } else {
         setIsOffline(!navigator.onLine);
       }
+      queryClient.invalidateQueries({ queryKey: ['stores'] });
+      queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+      queryClient.invalidateQueries({ queryKey: ['active-cash-session'] });
     };
+
+    const sleepDetector = window.setInterval(() => {
+      const now = Date.now();
+      if (now - lastTick > 45 * 1000) updateQueryState();
+      lastTick = now;
+    }, 15 * 1000);
+
     window.addEventListener('online', updateQueryState);
     window.addEventListener('offline', updateQueryState);
+    window.addEventListener('focus', updateQueryState);
+    window.addEventListener('pageshow', updateQueryState);
+    document.addEventListener('visibilitychange', updateQueryState);
+
     return () => {
+      window.clearInterval(sleepDetector);
       window.removeEventListener('online', updateQueryState);
       window.removeEventListener('offline', updateQueryState);
+      window.removeEventListener('focus', updateQueryState);
+      window.removeEventListener('pageshow', updateQueryState);
+      document.removeEventListener('visibilitychange', updateQueryState);
     };
-  }, [localMode]);
+  }, [localMode, queryClient]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores', localMode ? 'local' : 'cloud'],
