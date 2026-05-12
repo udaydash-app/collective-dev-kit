@@ -125,14 +125,14 @@ const POSSessionKeeper = () => {
       if (restoreInFlightRef.current) return restoreInFlightRef.current;
 
       restoreInFlightRef.current = (async () => {
-        const rawSession = localStorage.getItem('offline_pos_session');
-        const pin = sessionStorage.getItem('current_pos_pin');
-        if (!rawSession) return;
-
-        const posSession = JSON.parse(rawSession);
-        if (posSession?.local || posSession?.offline) return;
-
         try {
+          const rawSession = localStorage.getItem('offline_pos_session');
+          const pin = sessionStorage.getItem('current_pos_pin');
+          if (!rawSession) return;
+
+          const posSession = JSON.parse(rawSession);
+          if (posSession?.local || posSession?.offline) return;
+
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             const expiresSoon = session.expires_at ? session.expires_at * 1000 - Date.now() < 10 * 60 * 1000 : true;
@@ -143,23 +143,20 @@ const POSSessionKeeper = () => {
             }
             return;
           }
-        } catch (sessionError) {
-          console.warn('[POSSessionKeeper] Stored auth session expired, restoring from PIN session:', sessionError);
+
+          if (!pin) return;
+
+          await supabase.auth.signInWithPassword({
+            email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
+            password: `PIN${pin.padStart(6, '0')}`,
+          });
+          queryClient.invalidateQueries({ queryKey: ['session'] });
+          console.log('[POSSessionKeeper] Restored POS database session');
+        } catch (error) {
+          console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
+        } finally {
+          restoreInFlightRef.current = null;
         }
-
-        if (!pin) return;
-
-        await supabase.auth.signInWithPassword({
-          email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
-          password: `PIN${pin.padStart(6, '0')}`,
-        });
-        queryClient.invalidateQueries({ queryKey: ['session'] });
-        console.log('[POSSessionKeeper] Restored POS database session');
-      } catch (error) {
-        console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
-      } finally {
-        restoreInFlightRef.current = null;
-      }
       })();
 
       return restoreInFlightRef.current;
@@ -171,7 +168,7 @@ const POSSessionKeeper = () => {
       if (now - lastWakeRecoveryRef.current < 1500) return;
       lastWakeRecoveryRef.current = now;
 
-      restorePOSAuth('wake').finally(() => {
+      Promise.resolve(restorePOSAuth('wake')).finally(() => {
         try {
           supabase.realtime.disconnect();
           window.setTimeout(() => supabase.realtime.connect(), 250);
