@@ -71,6 +71,34 @@ export default function PaymentReceipts() {
 
   const queryClient = useQueryClient();
 
+  // Fetch outstanding balance for the selected customer (debit - credit on their ledger account)
+  const { data: customerBalance, isLoading: balanceLoading } = useQuery({
+    queryKey: ['customer-balance', formData.contact_id],
+    enabled: !!formData.contact_id,
+    queryFn: async () => {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('customer_ledger_account_id, opening_balance')
+        .eq('id', formData.contact_id)
+        .single();
+
+      if (!contact?.customer_ledger_account_id) {
+        return Number(contact?.opening_balance || 0);
+      }
+
+      const { data: lines } = await supabase
+        .from('journal_entry_lines')
+        .select('debit_amount, credit_amount')
+        .eq('account_id', contact.customer_ledger_account_id);
+
+      const total = (lines || []).reduce(
+        (sum, l: any) => sum + (Number(l.debit_amount) || 0) - (Number(l.credit_amount) || 0),
+        0
+      );
+      return total + Number(contact?.opening_balance || 0);
+    },
+  });
+
   // Fetch stores
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -593,6 +621,14 @@ export default function PaymentReceipts() {
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.contact_id && (
+                  <div className="flex items-center justify-between text-sm rounded-md border bg-muted/40 px-3 py-2">
+                    <span className="text-muted-foreground">Balance to date</span>
+                    <span className={`font-semibold ${(customerBalance ?? 0) > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+                      {balanceLoading ? '...' : formatCurrency(customerBalance ?? 0)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {formData.contact_id && !editingReceipt && (
