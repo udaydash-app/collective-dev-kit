@@ -149,6 +149,9 @@ export default function POS() {
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
+  const [specialOfferApplied, setSpecialOfferApplied] = useState<{ id: string; name: string; percentage: number } | null>(null);
+  const [pendingSpecialOffer, setPendingSpecialOffer] = useState<{ id: string; name: string; percentage: number; threshold: number } | null>(null);
+  const declinedOfferKeysRef = useRef<Set<string>>(new Set());
   const [selectedOfferItemIds, setSelectedOfferItemIds] = useState<string[]>([]);
   const [showOfferPriceDialog, setShowOfferPriceDialog] = useState(false);
   const [offerPriceInput, setOfferPriceInput] = useState('');
