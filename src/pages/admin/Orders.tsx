@@ -196,9 +196,10 @@ export default function AdminOrders() {
   const { data: allOrders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim()],
     queryFn: async () => {
-      // When user is searching, ignore date/period filter and search across all-time orders
+      // Search respects the selected period. To search across all-time orders,
+      // pick the "All time" period filter.
       const isSearching = searchQuery.trim().length > 0;
-      const dateRange = isSearching ? null : getDateRange();
+      const dateRange = getDateRange();
 
       // When searching, pre-resolve contact IDs whose name/phone match the query
       // so we can push the search down to the database (covers ALL historical orders).
