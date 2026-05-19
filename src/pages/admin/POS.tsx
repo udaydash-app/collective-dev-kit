@@ -3196,6 +3196,7 @@ export default function POS() {
             supportPhone={lastTransactionData.supportPhone}
             customerBalance={lastTransactionData.customerBalance}
             isUnifiedBalance={lastTransactionData.isUnifiedBalance}
+            specialOfferNote={lastTransactionData.specialOfferNote}
           />
         );
         setTimeout(resolve, 200);
