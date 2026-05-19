@@ -2355,7 +2355,35 @@ export default function POS() {
       return;
     }
 
-    // Find matching offers (filter by store when specified)
+    // If a special offer is already applied, keep it applied as long as the
+    // cart subtotal is still at or above the offer threshold. Recompute the
+    // discount amount live so newly added items also receive the discount.
+    if (specialOfferApplied) {
+      const applied = specialOffers.find((o: any) => o.id === specialOfferApplied.id);
+      if (!applied || subtotal < Number(applied.threshold_amount)) {
+        setSpecialOfferApplied(null);
+        setCartDiscountItem(null);
+        setDiscount(0);
+      } else {
+        const amount = (subtotal * specialOfferApplied.percentage) / 100;
+        const rounded = Math.round(amount);
+        if (Math.round(discount) !== rounded) {
+          setDiscount(amount);
+          setCartDiscountItem({
+            id: 'cart-discount',
+            name: `Special Offer (${specialOfferApplied.percentage}%)`,
+            price: -amount,
+            quantity: 1,
+            itemDiscount: 0,
+          });
+        }
+        return;
+      }
+    }
+
+    // Find matching offers (filter by store when specified). For detection
+    // we always treat threshold as ">=" so a cart that reaches the threshold
+    // (even by going slightly over) still triggers the prompt.
     const matches = specialOffers.filter((o: any) => {
       if (o.store_id && o.store_id !== selectedStoreId) return false;
       const threshold = Number(o.threshold_amount);
@@ -2363,15 +2391,8 @@ export default function POS() {
       return Math.round(subtotal) === Math.round(threshold);
     });
 
-    // If a special offer was already applied but cart no longer matches → unapply
-    if (specialOfferApplied && !matches.find((m: any) => m.id === specialOfferApplied.id)) {
-      setSpecialOfferApplied(null);
-      setCartDiscountItem(null);
-      setDiscount(0);
-    }
-
     if (matches.length === 0) return;
-    if (specialOfferApplied || cartDiscountItem || pendingSpecialOffer) return;
+    if (cartDiscountItem || pendingSpecialOffer) return;
 
     // Pick the highest discount %
     const best = matches.reduce((a: any, b: any) =>
@@ -2386,7 +2407,7 @@ export default function POS() {
       percentage: Number(best.discount_percentage),
       threshold: Number(best.threshold_amount),
     });
-  }, [subtotal, cart.length, specialOffers, selectedStoreId, specialOfferApplied, cartDiscountItem, pendingSpecialOffer]);
+  }, [subtotal, cart.length, specialOffers, selectedStoreId, specialOfferApplied, cartDiscountItem, pendingSpecialOffer, discount]);
 
   const confirmSpecialOffer = () => {
     if (!pendingSpecialOffer) return;
