@@ -4921,6 +4921,7 @@ export default function POS() {
               storeName={lastTransactionData.storeName}
               logoUrl={lastTransactionData.logoUrl}
               supportPhone={lastTransactionData.supportPhone}
+              specialOfferNote={lastTransactionData.specialOfferNote}
             />
           )}
         </div>
