@@ -2340,6 +2340,83 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
+  // Special-offer detection: when cart subtotal matches an active threshold,
+  // prompt the cashier to apply the special offer discount.
+  useEffect(() => {
+    if (!specialOffers || specialOffers.length === 0) return;
+    if (cart.length === 0) {
+      if (specialOfferApplied) {
+        setSpecialOfferApplied(null);
+        setCartDiscountItem(null);
+        setDiscount(0);
+      }
+      if (pendingSpecialOffer) setPendingSpecialOffer(null);
+      declinedOfferKeysRef.current.clear();
+      return;
+    }
+
+    // Find matching offers (filter by store when specified)
+    const matches = specialOffers.filter((o: any) => {
+      if (o.store_id && o.store_id !== selectedStoreId) return false;
+      const threshold = Number(o.threshold_amount);
+      if (o.match_mode === 'gte') return subtotal >= threshold;
+      return Math.round(subtotal) === Math.round(threshold);
+    });
+
+    // If a special offer was already applied but cart no longer matches → unapply
+    if (specialOfferApplied && !matches.find((m: any) => m.id === specialOfferApplied.id)) {
+      setSpecialOfferApplied(null);
+      setCartDiscountItem(null);
+      setDiscount(0);
+    }
+
+    if (matches.length === 0) return;
+    if (specialOfferApplied || cartDiscountItem || pendingSpecialOffer) return;
+
+    // Pick the highest discount %
+    const best = matches.reduce((a: any, b: any) =>
+      Number(b.discount_percentage) > Number(a.discount_percentage) ? b : a
+    );
+    const key = `${best.id}:${Math.round(subtotal)}`;
+    if (declinedOfferKeysRef.current.has(key)) return;
+
+    setPendingSpecialOffer({
+      id: best.id,
+      name: best.name,
+      percentage: Number(best.discount_percentage),
+      threshold: Number(best.threshold_amount),
+    });
+  }, [subtotal, cart.length, specialOffers, selectedStoreId, specialOfferApplied, cartDiscountItem, pendingSpecialOffer]);
+
+  const confirmSpecialOffer = () => {
+    if (!pendingSpecialOffer) return;
+    const amount = (subtotal * pendingSpecialOffer.percentage) / 100;
+    setDiscount(amount);
+    setCartDiscountItem({
+      id: 'cart-discount',
+      name: `Special Offer (${pendingSpecialOffer.percentage}%)`,
+      price: -amount,
+      quantity: 1,
+      itemDiscount: 0,
+    });
+    setSpecialOfferApplied({
+      id: pendingSpecialOffer.id,
+      name: pendingSpecialOffer.name,
+      percentage: pendingSpecialOffer.percentage,
+    });
+    setPendingSpecialOffer(null);
+  };
+
+  const declineSpecialOffer = () => {
+    if (!pendingSpecialOffer) return;
+    declinedOfferKeysRef.current.add(`${pendingSpecialOffer.id}:${Math.round(subtotal)}`);
+    setPendingSpecialOffer(null);
+  };
+
+  const specialOfferNote = specialOfferApplied
+    ? `You have availed special offer discount ${specialOfferApplied.percentage}%`
+    : undefined;
+
   const openQuickPaymentDialog = useCallback((method: 'cash' | 'mobile_money' | 'credit') => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
