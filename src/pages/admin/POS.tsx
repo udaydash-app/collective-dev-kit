@@ -2846,6 +2846,7 @@ export default function POS() {
         customerBalance: completeTransactionData.customerBalance,
         supportPhone: completeTransactionData.supportPhone,
         isUnifiedBalance: completeTransactionData.isUnifiedBalance,
+        specialOfferNote: completeTransactionData.specialOfferNote,
       })
         .then(() => {
           console.log('✅ Receipt printed successfully');
