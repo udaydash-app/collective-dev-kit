@@ -199,7 +199,20 @@ export default function AdminOrders() {
       // When user is searching, ignore date/period filter and search across all-time orders
       const isSearching = searchQuery.trim().length > 0;
       const dateRange = isSearching ? null : getDateRange();
-      
+
+      // When searching, pre-resolve contact IDs whose name/phone match the query
+      // so we can push the search down to the database (covers ALL historical orders).
+      let matchingContactIds: string[] = [];
+      if (isSearching) {
+        const q = searchQuery.trim();
+        const { data: matchedContacts } = await supabase
+          .from('contacts')
+          .select('id')
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(500);
+        matchingContactIds = (matchedContacts || []).map((c: any) => c.id);
+      }
+
       // Fetch online orders
       let ordersQuery = supabase
         .from('orders')
@@ -222,6 +235,18 @@ export default function AdminOrders() {
         ordersQuery = ordersQuery.or(
           `and(created_at.gte.${dateRange.start.toISOString()},created_at.lte.${dateRange.end.toISOString()}),and(updated_at.gte.${dateRange.start.toISOString()},updated_at.lte.${dateRange.end.toISOString()})`
         );
+      }
+
+      if (isSearching) {
+        const q = searchQuery.trim();
+        const orParts = [
+          `order_number.ilike.%${q}%`,
+          `delivery_instructions.ilike.%${q}%`,
+        ];
+        if (matchingContactIds.length > 0) {
+          orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        }
+        ordersQuery = ordersQuery.or(orParts.join(',')).limit(5000);
       }
 
       const { data: onlineOrders, error: ordersError } = await ordersQuery;
@@ -257,8 +282,13 @@ export default function AdminOrders() {
           .gte('created_at', dateRange.start.toISOString())
           .lte('created_at', dateRange.end.toISOString());
       } else if (isSearching) {
-        // Searching all-time: raise the cap so historical sales are reachable
-        posQuery = posQuery.limit(5000);
+        // Push search to the DB so ALL historical transactions are scanned (no recent-cap cutoff)
+        const q = searchQuery.trim();
+        const orParts = [`transaction_number.ilike.%${q}%`];
+        if (matchingContactIds.length > 0) {
+          orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        }
+        posQuery = posQuery.or(orParts.join(',')).limit(5000);
       } else {
         // When no date filter, limit to most recent 500 to avoid loading entire history
         posQuery = posQuery.limit(500);
