@@ -2759,6 +2759,8 @@ export default function POS() {
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
       setDiscount(0);
+      setSpecialOfferApplied(null);
+      declinedOfferKeysRef.current.clear();
       
       // Reset wholesale mode after transaction
       setIsWholesaleMode(false);
