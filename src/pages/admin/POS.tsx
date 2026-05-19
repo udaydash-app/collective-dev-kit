@@ -3304,7 +3304,8 @@ export default function POS() {
         customerPhone: lastTransactionData.customerPhone,
         customerBalance: lastTransactionData.customerBalance,
         logoUrl: lastTransactionData.logoUrl,
-        supportPhone: lastTransactionData.supportPhone
+        supportPhone: lastTransactionData.supportPhone,
+        specialOfferNote: lastTransactionData.specialOfferNote,
       });
       
       console.log('✅ Print dialog opened! Check your printer.');
