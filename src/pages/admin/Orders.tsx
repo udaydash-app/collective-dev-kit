@@ -194,9 +194,11 @@ export default function AdminOrders() {
   };
 
   const { data: allOrders, isLoading, error: queryError } = useQuery({
-    queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate],
+    queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim()],
     queryFn: async () => {
-      const dateRange = getDateRange();
+      // When user is searching, ignore date/period filter and search across all-time orders
+      const isSearching = searchQuery.trim().length > 0;
+      const dateRange = isSearching ? null : getDateRange();
       
       // Fetch online orders
       let ordersQuery = supabase
@@ -254,6 +256,9 @@ export default function AdminOrders() {
         posQuery = posQuery
           .gte('created_at', dateRange.start.toISOString())
           .lte('created_at', dateRange.end.toISOString());
+      } else if (isSearching) {
+        // Searching all-time: raise the cap so historical sales are reachable
+        posQuery = posQuery.limit(5000);
       } else {
         // When no date filter, limit to most recent 500 to avoid loading entire history
         posQuery = posQuery.limit(500);
@@ -1590,19 +1595,11 @@ export default function AdminOrders() {
               )}
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowSearchAllSales(true)}
-                className="flex items-center gap-2 shrink-0"
-              >
-                <Search className="h-4 w-4" />
-                Search All Sales
-              </Button>
               <Input
-                placeholder="Search orders..."
+                placeholder="Search orders (all time)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[200px] min-w-[140px]"
+                className="w-[240px] min-w-[160px]"
               />
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
                 <SelectTrigger className="w-[160px]">
