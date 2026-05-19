@@ -37,6 +37,7 @@ export interface KioskReceiptData {
   supportPhone?: string;
   customerBalance?: number;
   isUnifiedBalance?: boolean;
+  specialOfferNote?: string;
 }
 
 class KioskPrintService {
