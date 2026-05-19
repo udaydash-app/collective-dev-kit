@@ -2574,6 +2574,7 @@ export default function POS() {
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
+      specialOfferNote,
     };
     
     setLastTransactionData(transactionDataPrep);
@@ -2713,6 +2714,7 @@ export default function POS() {
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
+      specialOfferNote,
     };
     
     // Pass cartDiscountItem as additionalItems to processTransaction
