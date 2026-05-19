@@ -630,6 +630,25 @@ export default function POS() {
     enabled: !isOffline,
   });
 
+  // Active Special Offers (cart threshold promotions)
+  const { data: specialOffers } = useQuery({
+    queryKey: ['special-offers'],
+    queryFn: async () => {
+      if (isOffline) return [];
+      const { data, error } = await supabase
+        .from('special_offers')
+        .select('id, name, threshold_amount, discount_percentage, match_mode, is_active, store_id')
+        .eq('is_active', true);
+      if (error) {
+        console.error('[POS] special_offers error:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !isOffline,
+    staleTime: 60 * 1000,
+  });
+
   // Set "Global Market" as default store
   useEffect(() => {
     if (stores && stores.length > 0 && !selectedStoreId) {
