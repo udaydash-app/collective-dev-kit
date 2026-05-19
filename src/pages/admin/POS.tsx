@@ -4094,8 +4094,9 @@ export default function POS() {
                       timestamp: new Date(),
                     };
                     setHeldTickets(prev => [...prev, newTicket]);
-                    // Remove selected items from current cart
-                    itemsToSeparate.forEach(item => { removeFromCart(item.id); });
+                    // Remove selected items from current cart in a single batch
+                    const remaining = cart.filter(item => !selectedOfferItemIds.includes(item.id));
+                    loadCart(remaining);
                     setSelectedOfferItemIds([]);
                     toast.success(`${itemsToSeparate.length} item(s) moved to separate bill. Use Hold Tickets to recall.`);
                   }}
