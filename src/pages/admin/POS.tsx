@@ -4927,6 +4927,28 @@ export default function POS() {
         </div>
       </div>
 
+      {/* Special Offer prompt */}
+      <AlertDialog open={!!pendingSpecialOffer} onOpenChange={(open) => { if (!open) declineSpecialOffer(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply Special Offer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSpecialOffer && (
+                <>
+                  Cart total matches <strong>{pendingSpecialOffer.name}</strong> ({formatCurrency(pendingSpecialOffer.threshold)}).
+                  <br />
+                  Convert to special offer and apply a <strong>{pendingSpecialOffer.percentage}%</strong> cart discount?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={declineSpecialOffer}>No, keep regular price</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSpecialOffer}>Yes, apply discount</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Analytics Detail Dialog */}
       <Dialog open={expandedMetric !== null} onOpenChange={() => setExpandedMetric(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
