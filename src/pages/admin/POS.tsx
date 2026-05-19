@@ -149,6 +149,9 @@ export default function POS() {
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
+  const [specialOfferApplied, setSpecialOfferApplied] = useState<{ id: string; name: string; percentage: number } | null>(null);
+  const [pendingSpecialOffer, setPendingSpecialOffer] = useState<{ id: string; name: string; percentage: number; threshold: number } | null>(null);
+  const declinedOfferKeysRef = useRef<Set<string>>(new Set());
   const [selectedOfferItemIds, setSelectedOfferItemIds] = useState<string[]>([]);
   const [showOfferPriceDialog, setShowOfferPriceDialog] = useState(false);
   const [offerPriceInput, setOfferPriceInput] = useState('');
@@ -625,6 +628,25 @@ export default function POS() {
       return data;
     },
     enabled: !isOffline,
+  });
+
+  // Active Special Offers (cart threshold promotions)
+  const { data: specialOffers } = useQuery({
+    queryKey: ['special-offers'],
+    queryFn: async () => {
+      if (isOffline) return [];
+      const { data, error } = await supabase
+        .from('special_offers')
+        .select('id, name, threshold_amount, discount_percentage, match_mode, is_active, store_id')
+        .eq('is_active', true);
+      if (error) {
+        console.error('[POS] special_offers error:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !isOffline,
+    staleTime: 60 * 1000,
   });
 
   // Set "Global Market" as default store
@@ -2318,6 +2340,83 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
+  // Special-offer detection: when cart subtotal matches an active threshold,
+  // prompt the cashier to apply the special offer discount.
+  useEffect(() => {
+    if (!specialOffers || specialOffers.length === 0) return;
+    if (cart.length === 0) {
+      if (specialOfferApplied) {
+        setSpecialOfferApplied(null);
+        setCartDiscountItem(null);
+        setDiscount(0);
+      }
+      if (pendingSpecialOffer) setPendingSpecialOffer(null);
+      declinedOfferKeysRef.current.clear();
+      return;
+    }
+
+    // Find matching offers (filter by store when specified)
+    const matches = specialOffers.filter((o: any) => {
+      if (o.store_id && o.store_id !== selectedStoreId) return false;
+      const threshold = Number(o.threshold_amount);
+      if (o.match_mode === 'gte') return subtotal >= threshold;
+      return Math.round(subtotal) === Math.round(threshold);
+    });
+
+    // If a special offer was already applied but cart no longer matches → unapply
+    if (specialOfferApplied && !matches.find((m: any) => m.id === specialOfferApplied.id)) {
+      setSpecialOfferApplied(null);
+      setCartDiscountItem(null);
+      setDiscount(0);
+    }
+
+    if (matches.length === 0) return;
+    if (specialOfferApplied || cartDiscountItem || pendingSpecialOffer) return;
+
+    // Pick the highest discount %
+    const best = matches.reduce((a: any, b: any) =>
+      Number(b.discount_percentage) > Number(a.discount_percentage) ? b : a
+    );
+    const key = `${best.id}:${Math.round(subtotal)}`;
+    if (declinedOfferKeysRef.current.has(key)) return;
+
+    setPendingSpecialOffer({
+      id: best.id,
+      name: best.name,
+      percentage: Number(best.discount_percentage),
+      threshold: Number(best.threshold_amount),
+    });
+  }, [subtotal, cart.length, specialOffers, selectedStoreId, specialOfferApplied, cartDiscountItem, pendingSpecialOffer]);
+
+  const confirmSpecialOffer = () => {
+    if (!pendingSpecialOffer) return;
+    const amount = (subtotal * pendingSpecialOffer.percentage) / 100;
+    setDiscount(amount);
+    setCartDiscountItem({
+      id: 'cart-discount',
+      name: `Special Offer (${pendingSpecialOffer.percentage}%)`,
+      price: -amount,
+      quantity: 1,
+      itemDiscount: 0,
+    });
+    setSpecialOfferApplied({
+      id: pendingSpecialOffer.id,
+      name: pendingSpecialOffer.name,
+      percentage: pendingSpecialOffer.percentage,
+    });
+    setPendingSpecialOffer(null);
+  };
+
+  const declineSpecialOffer = () => {
+    if (!pendingSpecialOffer) return;
+    declinedOfferKeysRef.current.add(`${pendingSpecialOffer.id}:${Math.round(subtotal)}`);
+    setPendingSpecialOffer(null);
+  };
+
+  const specialOfferNote = specialOfferApplied
+    ? `You have availed special offer discount ${specialOfferApplied.percentage}%`
+    : undefined;
+
   const openQuickPaymentDialog = useCallback((method: 'cash' | 'mobile_money' | 'credit') => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -2475,6 +2574,7 @@ export default function POS() {
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
+      specialOfferNote,
     };
     
     setLastTransactionData(transactionDataPrep);
@@ -2614,6 +2714,7 @@ export default function POS() {
       storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
+      specialOfferNote,
     };
     
     // Pass cartDiscountItem as additionalItems to processTransaction
@@ -2658,6 +2759,8 @@ export default function POS() {
       // Clear cart discount after successful transaction
       setCartDiscountItem(null);
       setDiscount(0);
+      setSpecialOfferApplied(null);
+      declinedOfferKeysRef.current.clear();
       
       // Reset wholesale mode after transaction
       setIsWholesaleMode(false);
@@ -2743,6 +2846,7 @@ export default function POS() {
         customerBalance: completeTransactionData.customerBalance,
         supportPhone: completeTransactionData.supportPhone,
         isUnifiedBalance: completeTransactionData.isUnifiedBalance,
+        specialOfferNote: completeTransactionData.specialOfferNote,
       })
         .then(() => {
           console.log('✅ Receipt printed successfully');
@@ -3092,6 +3196,7 @@ export default function POS() {
             supportPhone={lastTransactionData.supportPhone}
             customerBalance={lastTransactionData.customerBalance}
             isUnifiedBalance={lastTransactionData.isUnifiedBalance}
+            specialOfferNote={lastTransactionData.specialOfferNote}
           />
         );
         setTimeout(resolve, 200);
@@ -3199,7 +3304,8 @@ export default function POS() {
         customerPhone: lastTransactionData.customerPhone,
         customerBalance: lastTransactionData.customerBalance,
         logoUrl: lastTransactionData.logoUrl,
-        supportPhone: lastTransactionData.supportPhone
+        supportPhone: lastTransactionData.supportPhone,
+        specialOfferNote: lastTransactionData.specialOfferNote,
       });
       
       console.log('✅ Print dialog opened! Check your printer.');
@@ -4815,10 +4921,33 @@ export default function POS() {
               storeName={lastTransactionData.storeName}
               logoUrl={lastTransactionData.logoUrl}
               supportPhone={lastTransactionData.supportPhone}
+              specialOfferNote={lastTransactionData.specialOfferNote}
             />
           )}
         </div>
       </div>
+
+      {/* Special Offer prompt */}
+      <AlertDialog open={!!pendingSpecialOffer} onOpenChange={(open) => { if (!open) declineSpecialOffer(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply Special Offer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSpecialOffer && (
+                <>
+                  Cart total matches <strong>{pendingSpecialOffer.name}</strong> ({formatCurrency(pendingSpecialOffer.threshold)}).
+                  <br />
+                  Convert to special offer and apply a <strong>{pendingSpecialOffer.percentage}%</strong> cart discount?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={declineSpecialOffer}>No, keep regular price</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSpecialOffer}>Yes, apply discount</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Analytics Detail Dialog */}
       <Dialog open={expandedMetric !== null} onOpenChange={() => setExpandedMetric(null)}>

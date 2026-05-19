@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Pencil, Trash2, Tag, Package, Gift, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Package, Gift, ChevronDown, BadgePercent } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +47,15 @@ interface Offer {
   created_at: string;
 }
 
+interface SpecialOffer {
+  id: string;
+  name: string;
+  threshold_amount: number;
+  discount_percentage: number;
+  match_mode: 'equals' | 'gte';
+  is_active: boolean;
+}
+
 export default function AdminOffers() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +63,18 @@ export default function AdminOffers() {
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Special offers (cart-threshold)
+  const [specialOffers, setSpecialOffers] = useState<SpecialOffer[]>([]);
+  const [specialDialogOpen, setSpecialDialogOpen] = useState(false);
+  const [editingSpecial, setEditingSpecial] = useState<SpecialOffer | null>(null);
+  const [specialForm, setSpecialForm] = useState({
+    name: '',
+    threshold_amount: '',
+    discount_percentage: '15',
+    match_mode: 'equals' as 'equals' | 'gte',
+    is_active: true,
+  });
 
   const [formData, setFormData] = useState({
     title: "",
@@ -69,6 +90,7 @@ export default function AdminOffers() {
 
   useEffect(() => {
     fetchOffers();
+    fetchSpecialOffers();
   }, []);
 
   const fetchOffers = async () => {
@@ -88,6 +110,94 @@ export default function AdminOffers() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSpecialOffers = async () => {
+    const { data, error } = await supabase
+      .from('special_offers')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setSpecialOffers((data as SpecialOffer[]) || []);
+  };
+
+  const resetSpecialForm = () => {
+    setSpecialForm({ name: '', threshold_amount: '', discount_percentage: '15', match_mode: 'equals', is_active: true });
+    setEditingSpecial(null);
+  };
+
+  const openSpecialCreate = () => {
+    resetSpecialForm();
+    setSpecialDialogOpen(true);
+  };
+
+  const handleEditSpecial = (s: SpecialOffer) => {
+    setEditingSpecial(s);
+    setSpecialForm({
+      name: s.name,
+      threshold_amount: String(s.threshold_amount),
+      discount_percentage: String(s.discount_percentage),
+      match_mode: s.match_mode,
+      is_active: s.is_active,
+    });
+    setSpecialDialogOpen(true);
+  };
+
+  const handleDeleteSpecial = async (id: string) => {
+    if (!confirm('Delete this special offer?')) return;
+    const { error } = await supabase.from('special_offers').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Special offer deleted' });
+    fetchSpecialOffers();
+  };
+
+  const handleToggleSpecial = async (s: SpecialOffer) => {
+    const { error } = await supabase
+      .from('special_offers')
+      .update({ is_active: !s.is_active })
+      .eq('id', s.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    fetchSpecialOffers();
+  };
+
+  const handleSubmitSpecial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      name: specialForm.name,
+      threshold_amount: parseFloat(specialForm.threshold_amount),
+      discount_percentage: parseFloat(specialForm.discount_percentage),
+      match_mode: specialForm.match_mode,
+      is_active: specialForm.is_active,
+    };
+    if (!payload.name || !(payload.threshold_amount > 0) || !(payload.discount_percentage > 0)) {
+      toast({ title: 'Invalid input', description: 'Name, threshold and discount % are required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      if (editingSpecial) {
+        const { error } = await supabase.from('special_offers').update(payload).eq('id', editingSpecial.id);
+        if (error) throw error;
+        toast({ title: 'Special offer updated' });
+      } else {
+        const { error } = await supabase.from('special_offers').insert([payload]);
+        if (error) throw error;
+        toast({ title: 'Special offer created' });
+      }
+      setSpecialDialogOpen(false);
+      resetSpecialForm();
+      fetchSpecialOffers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -248,6 +358,10 @@ export default function AdminOffers() {
               <DropdownMenuItem onClick={() => navigate('/admin/multi-product-bogo')}>
                 <Gift className="mr-2 h-4 w-4" />
                 Multi-Product BOGO
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openSpecialCreate}>
+                <BadgePercent className="mr-2 h-4 w-4" />
+                Special Offer (Cart Threshold)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -469,6 +583,156 @@ export default function AdminOffers() {
               <Button type="submit">
                 {editingOffer ? "Update" : "Create"} Offer
               </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Special Offers section */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <BadgePercent className="h-6 w-6" />
+              Special Offers (Cart Threshold)
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              When cart subtotal hits the threshold, POS asks the cashier to apply the discount.
+            </p>
+          </div>
+          <Button onClick={openSpecialCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Special Offer
+          </Button>
+        </div>
+        <div className="bg-card rounded-lg border">
+          <Table fixedScroll>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Threshold</TableHead>
+                <TableHead>Match</TableHead>
+                <TableHead>Discount %</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {specialOffers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    No special offers yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                specialOffers.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell>{Number(s.threshold_amount).toLocaleString('fr-CI')} FCFA</TableCell>
+                    <TableCell>{s.match_mode === 'gte' ? '≥' : '='}</TableCell>
+                    <TableCell>{s.discount_percentage}%</TableCell>
+                    <TableCell>
+                      <Switch checked={s.is_active} onCheckedChange={() => handleToggleSpecial(s)} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditSpecial(s)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSpecial(s.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <Dialog open={specialDialogOpen} onOpenChange={setSpecialDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingSpecial ? 'Edit Special Offer' : 'New Special Offer'}</DialogTitle>
+            <DialogDescription>
+              Triggered automatically at checkout when cart subtotal matches the threshold.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitSpecial} className="space-y-4">
+            <div>
+              <Label htmlFor="sp-name">Name *</Label>
+              <Input
+                id="sp-name"
+                value={specialForm.name}
+                onChange={(e) => setSpecialForm({ ...specialForm, name: e.target.value })}
+                placeholder="e.g., 150K Bundle"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sp-threshold">Cart Threshold (FCFA) *</Label>
+                <Input
+                  id="sp-threshold"
+                  type="number"
+                  min="1"
+                  value={specialForm.threshold_amount}
+                  onChange={(e) => setSpecialForm({ ...specialForm, threshold_amount: e.target.value })}
+                  placeholder="150000"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="sp-disc">Discount % *</Label>
+                <Input
+                  id="sp-disc"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={specialForm.discount_percentage}
+                  onChange={(e) => setSpecialForm({ ...specialForm, discount_percentage: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Match Mode</Label>
+              <div className="flex gap-4 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="match_mode"
+                    checked={specialForm.match_mode === 'equals'}
+                    onChange={() => setSpecialForm({ ...specialForm, match_mode: 'equals' })}
+                  />
+                  Exact match (=)
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="match_mode"
+                    checked={specialForm.match_mode === 'gte'}
+                    onChange={() => setSpecialForm({ ...specialForm, match_mode: 'gte' })}
+                  />
+                  Greater than or equal (≥)
+                </label>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="sp-active"
+                checked={specialForm.is_active}
+                onCheckedChange={(c) => setSpecialForm({ ...specialForm, is_active: c })}
+              />
+              <Label htmlFor="sp-active">Active</Label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSpecialDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">{editingSpecial ? 'Update' : 'Create'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

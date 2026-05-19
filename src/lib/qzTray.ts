@@ -30,6 +30,7 @@ export interface QZReceiptData {
   customerName?: string;
   customerPhone?: string;
   supportPhone?: string;
+  specialOfferNote?: string;
 }
 
 class QZTrayService {
@@ -217,6 +218,12 @@ class QZTrayService {
     
       // Center align for footer
       commands += ESC + 'a' + '1';
+      if (data.specialOfferNote) {
+        commands += ESC + '!' + '\x08'; // Bold
+        commands += data.specialOfferNote + '\n';
+        commands += ESC + '!' + '\x00';
+        commands += '\n';
+      }
       commands += 'Thank you for shopping with us!\n';
       commands += ESC + '!' + '\x08'; // Bold
       commands += 'Pay Online by OM & Wave\n';

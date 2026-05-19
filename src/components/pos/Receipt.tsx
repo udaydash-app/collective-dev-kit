@@ -39,6 +39,7 @@ interface ReceiptProps {
   supportPhone?: string;
   customerBalance?: number;
   isUnifiedBalance?: boolean;
+  specialOfferNote?: string;
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
@@ -60,6 +61,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       supportPhone,
       customerBalance,
       isUnifiedBalance,
+      specialOfferNote,
     },
     ref
   ) => {
@@ -269,6 +271,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               (Combined customer & supplier account)
             </p>
           )}
+        </div>
+      )}
+
+      {specialOfferNote && (
+        <div className="border-t border-dashed border-black pt-2 mb-2 text-center">
+          <p className="text-sm font-bold">🎉 {specialOfferNote}</p>
         </div>
       )}
 

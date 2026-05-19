@@ -2611,6 +2611,42 @@ export type Database = {
         }
         Relationships: []
       }
+      special_offers: {
+        Row: {
+          created_at: string
+          discount_percentage: number
+          id: string
+          is_active: boolean
+          match_mode: string
+          name: string
+          store_id: string | null
+          threshold_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percentage: number
+          id?: string
+          is_active?: boolean
+          match_mode?: string
+          name: string
+          store_id?: string | null
+          threshold_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_percentage?: number
+          id?: string
+          is_active?: boolean
+          match_mode?: string
+          name?: string
+          store_id?: string | null
+          threshold_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_adjustments: {
         Row: {
           adjusted_by: string | null
