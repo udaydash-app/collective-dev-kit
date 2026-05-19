@@ -4073,6 +4073,35 @@ export default function POS() {
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
                   Clear
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    const itemsToSeparate = cart.filter(item => selectedOfferItemIds.includes(item.id));
+                    if (itemsToSeparate.length === 0) return;
+                    const separatedTotal = itemsToSeparate.reduce((sum, item) => {
+                      const price = item.customPrice ?? item.price;
+                      const disc = (item.itemDiscount || 0) * item.quantity;
+                      return sum + Math.max(0, price * item.quantity - disc);
+                    }, 0);
+                    const ticketName = `Separated Bill - ${new Date().toLocaleTimeString()}`;
+                    const newTicket = {
+                      id: Date.now().toString(),
+                      name: ticketName,
+                      items: itemsToSeparate,
+                      total: separatedTotal,
+                      timestamp: new Date(),
+                    };
+                    setHeldTickets(prev => [...prev, newTicket]);
+                    // Remove selected items from current cart
+                    itemsToSeparate.forEach(item => { removeFromCart(item.id); });
+                    setSelectedOfferItemIds([]);
+                    toast.success(`${itemsToSeparate.length} item(s) moved to separate bill. Use Hold Tickets to recall.`);
+                  }}
+                >
+                  Separate Bill
+                </Button>
                 <Button size="sm" className="h-7 text-xs" onClick={() => setShowOfferPriceDialog(true)} disabled={selectedOfferUnitCount < 1}>
                   Offer Price
                 </Button>
