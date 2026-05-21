@@ -716,7 +716,7 @@ export default function Quotations() {
                     />
                   </div>
                   {searchProduct && products.length > 0 && (
-                    <Card className="absolute z-10 mt-1 max-h-60 overflow-auto">
+                    <Card className="absolute z-10 mt-1 max-h-60 overflow-y-auto overflow-x-hidden left-0 right-0 w-full">
                       <div className="p-2 space-y-1">
                         {products.map(product => (
                           <div key={product.id} className="space-y-1">
@@ -725,7 +725,7 @@ export default function Quotations() {
                                 <Button
                                   key={variant.id}
                                   variant="ghost"
-                                  className="w-full justify-start"
+                                  className="w-full justify-start h-auto py-2 whitespace-normal text-left"
                                   onClick={() => addProductToQuotation(product, variant)}
                                 >
                                   {product.name} - {variant.name} - {formatCurrency(variant.price)}
@@ -737,7 +737,7 @@ export default function Quotations() {
                             ) : (
                               <Button
                                 variant="ghost"
-                                className="w-full justify-start"
+                                className="w-full justify-start h-auto py-2 whitespace-normal text-left"
                                 onClick={() => addProductToQuotation(product)}
                               >
                                 {product.name} - {formatCurrency(product.price)}
