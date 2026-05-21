@@ -729,6 +729,9 @@ export default function Quotations() {
                                   onClick={() => addProductToQuotation(product, variant)}
                                 >
                                   {product.name} - {variant.name} - {formatCurrency(variant.price)}
+                                  <span className={`ml-2 text-xs ${Number(variant.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                    (Stock: {variant.stock_quantity ?? 0})
+                                  </span>
                                 </Button>
                               ))
                             ) : (
@@ -738,6 +741,9 @@ export default function Quotations() {
                                 onClick={() => addProductToQuotation(product)}
                               >
                                 {product.name} - {formatCurrency(product.price)}
+                                <span className={`ml-2 text-xs ${Number(product.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                  (Stock: {product.stock_quantity ?? 0})
+                                </span>
                               </Button>
                             )}
                           </div>
