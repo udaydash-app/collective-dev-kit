@@ -985,6 +985,7 @@ export default function Quotations() {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Quotation #</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Phone</TableHead>
@@ -999,17 +1000,29 @@ export default function Quotations() {
             <TableBody>
               {quotationsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={10} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : quotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     No quotations yet. Create your first quotation!
                   </TableCell>
                 </TableRow>
               ) : (
                 quotations.map((quotation) => (
                   <TableRow key={quotation.id}>
+                    <TableCell>
+                      <input
+                        type="radio"
+                        name="quotation-select"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        checked={selectedQuotationId === quotation.id}
+                        onChange={() => setSelectedQuotationId(quotation.id)}
+                        onClick={() => {
+                          if (selectedQuotationId === quotation.id) setSelectedQuotationId(null);
+                        }}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{quotation.quotation_number}</TableCell>
                     <TableCell>{quotation.customer_name}</TableCell>
                     <TableCell>{quotation.customer_phone || '-'}</TableCell>
