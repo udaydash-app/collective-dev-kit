@@ -735,6 +735,15 @@ export default function Quotations() {
           </div>
           <div className="flex items-center gap-2">
             <ReturnToPOSButton />
+            {selectedQuotationId && (
+              <Button
+                variant="secondary"
+                onClick={() => applyWholesaleToQuotation(selectedQuotationId)}
+                disabled={applyingWholesale}
+              >
+                Apply Wholesale Price
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowFromBillDialog(true)}>
               <Receipt className="w-4 h-4 mr-2" />
               From Bill
