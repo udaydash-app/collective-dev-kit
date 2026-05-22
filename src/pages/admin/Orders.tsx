@@ -1508,6 +1508,78 @@ export default function AdminOrders() {
     }
   });
 
+  const convertSelectedToQuotes = useMutation({
+    mutationFn: async () => {
+      const orderIds = Array.from(selectedOrders);
+      const ordersToConvert = orders?.filter((o: any) => orderIds.includes(o.id)) || [];
+      if (ordersToConvert.length === 0) throw new Error('No orders selected');
+
+      for (const order of ordersToConvert) {
+        const rawItems = order.items || [];
+        const items = rawItems.map((it: any) => {
+          const price = Number(it.price ?? it.unit_price ?? 0);
+          const quantity = Number(it.quantity) || 1;
+          const discount = Number(it.itemDiscount ?? it.discount ?? 0);
+          return {
+            productId: it.productId || it.product_id || it.id || it.products?.id || null,
+            productName: it.name || it.product_name || it.products?.name || 'Item',
+            variantId: it.variantId || it.variant_id,
+            variantName: it.variantName || it.variant_name,
+            quantity,
+            price,
+            discount,
+            total: price * quantity - discount,
+          };
+        });
+
+        if (items.length === 0) continue;
+
+        const subtotal = items.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+        const discount = items.reduce((s: number, i: any) => s + i.discount, 0);
+        const total = subtotal - discount;
+
+        const { data: quotationNumber } = await supabase.rpc('generate_quotation_number');
+
+        const { error: insErr } = await supabase.from('quotations').insert([{
+          quotation_number: quotationNumber,
+          contact_id: order.customer_id || null,
+          customer_name: order.customer_name || 'Walk-in Customer',
+          customer_email: order.customer_email || null,
+          customer_phone: order.customer_phone || null,
+          items,
+          subtotal,
+          discount,
+          tax: 0,
+          total,
+          notes: `From order ${order.order_number}`,
+          status: 'draft',
+          valid_until: null,
+        }]);
+        if (insErr) throw insErr;
+
+        if (order.type === 'online') {
+          await supabase.from('order_items').delete().eq('order_id', order.id);
+          const { error: oErr } = await supabase.from('orders').delete().eq('id', order.id);
+          if (oErr) throw oErr;
+        } else {
+          const { error: pErr } = await supabase.from('pos_transactions').delete().eq('id', order.id);
+          if (pErr) throw pErr;
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success(`${selectedOrders.size} order(s) converted to quotations`);
+      setSelectedOrders(new Set());
+      setConvertToQuoteDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to convert: ' + (error?.message || 'Unknown error'));
+      console.error(error);
+    }
+  });
+
   const updatePaymentStatus = useMutation({
     mutationFn: async ({ orderId, paymentStatus }: { orderId: string; paymentStatus: string }) => {
       const { error } = await supabase
