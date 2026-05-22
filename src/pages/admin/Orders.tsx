@@ -94,6 +94,7 @@ export default function AdminOrders() {
   const [taxRate, setTaxRate] = useState("0");
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [convertToQuoteDialogOpen, setConvertToQuoteDialogOpen] = useState(false);
   const [showReceiptOptions, setShowReceiptOptions] = useState(false);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
