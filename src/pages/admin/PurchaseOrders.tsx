@@ -38,6 +38,19 @@ export default function PurchaseOrders() {
   const [convertingPO, setConvertingPO] = useState<any>(null);
   const queryClient = useQueryClient();
 
+  const { data: companySettings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("company_name, company_email, company_phone, company_address, logo_url")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ["purchase-orders", searchTerm],
     queryFn: async () => {
@@ -122,28 +135,105 @@ export default function PurchaseOrders() {
     toast.success("Link copied to clipboard");
   };
 
-  const generatePDF = (po: any) => {
+  const loadImageAsDataURL = async (url: string): Promise<{ dataUrl: string; w: number; h: number } | null> => {
     try {
-      const doc = new jsPDF();
+      const res = await fetch(url, { mode: "cors" });
+      const blob = await res.blob();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.width, h: img.height });
+        img.onerror = () => resolve({ w: 1, h: 1 });
+        img.src = dataUrl;
+      });
+      return { dataUrl, w: dims.w, h: dims.h };
+    } catch {
+      return null;
+    }
+  };
+
+  const generatePDF = async (po: any) => {
+    try {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 14;
+      let yPos = 12;
 
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("PURCHASE ORDER", pageWidth / 2, 20, { align: "center" });
+      // Logo
+      if (companySettings?.logo_url) {
+        const img = await loadImageAsDataURL(companySettings.logo_url);
+        if (img) {
+          const maxH = 20;
+          const ratio = img.w / img.h;
+          const h = maxH;
+          const w = h * ratio;
+          try {
+            doc.addImage(img.dataUrl, "PNG", (pageWidth - w) / 2, yPos, w, h);
+            yPos += h + 3;
+          } catch {}
+        }
+      }
 
-      doc.setFontSize(11);
+      // Company name & contact
+      if (companySettings?.company_name) {
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: "center" });
+        yPos += 5;
+      }
+      doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`PO Number: ${po.po_number}`, 14, 32);
-      doc.text(`Date: ${formatDate(po.created_at)}`, 14, 38);
-      if (po.valid_until) doc.text(`Valid Until: ${formatDate(po.valid_until)}`, 14, 44);
-      doc.text(`Status: ${(po.status || "").toUpperCase()}`, pageWidth - 14, 32, { align: "right" });
+      if (companySettings?.company_address) {
+        const lines = doc.splitTextToSize(companySettings.company_address, pageWidth - margin * 2);
+        doc.text(lines, pageWidth / 2, yPos, { align: "center" });
+        yPos += lines.length * 4;
+      }
+      const contactBits = [
+        companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : null,
+        companySettings?.company_email || null,
+      ].filter(Boolean);
+      if (contactBits.length) {
+        doc.text(contactBits.join("  |  "), pageWidth / 2, yPos, { align: "center" });
+        yPos += 5;
+      }
 
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 6;
+
+      // Title
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Supplier:", 14, 56);
+      doc.text("PURCHASE ORDER", pageWidth / 2, yPos, { align: "center" });
+      yPos += 8;
+
+      // Meta
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(po.supplier_name || "-", 14, 62);
-      if (po.supplier_email) doc.text(po.supplier_email, 14, 68);
-      if (po.supplier_phone) doc.text(po.supplier_phone, 14, 74);
+      doc.text(`PO Number: ${po.po_number}`, margin, yPos);
+      doc.text(`Status: ${(po.status || "").toUpperCase()}`, pageWidth - margin, yPos, { align: "right" });
+      yPos += 5;
+      doc.text(`Date: ${formatDate(po.created_at)}`, margin, yPos);
+      if (po.valid_until) {
+        doc.text(`Valid Until: ${formatDate(po.valid_until)}`, pageWidth - margin, yPos, { align: "right" });
+      }
+      yPos += 8;
+
+      // Supplier
+      doc.setFont("helvetica", "bold");
+      doc.text("Supplier:", margin, yPos);
+      yPos += 5;
+      doc.setFont("helvetica", "normal");
+      doc.text(po.supplier_name || "-", margin, yPos);
+      yPos += 5;
+      if (po.supplier_email) { doc.text(po.supplier_email, margin, yPos); yPos += 5; }
+      if (po.supplier_phone) { doc.text(po.supplier_phone, margin, yPos); yPos += 5; }
+      yPos += 2;
 
       const items = (po.purchase_order_items || []).map((it: any, idx: number) => [
         idx + 1,
@@ -152,20 +242,20 @@ export default function PurchaseOrders() {
       ]);
 
       autoTable(doc, {
-        startY: 84,
+        startY: yPos,
         head: [["#", "Product", "Qty"]],
         body: items,
         theme: "striped",
         headStyles: { fillColor: [30, 41, 59] },
       });
 
-      let y = (doc as any).lastAutoTable.finalY + 10;
+      const y = (doc as any).lastAutoTable.finalY + 10;
       if (po.notes) {
         doc.setFont("helvetica", "bold");
-        doc.text("Notes:", 14, y);
+        doc.text("Notes:", margin, y);
         doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(po.notes, pageWidth - 28);
-        doc.text(lines, 14, y + 6);
+        const lines = doc.splitTextToSize(po.notes, pageWidth - margin * 2);
+        doc.text(lines, margin, y + 6);
       }
 
       doc.save(`${po.po_number}.pdf`);
