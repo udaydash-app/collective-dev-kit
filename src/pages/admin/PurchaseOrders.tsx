@@ -20,13 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Copy, Eye, Trash2, Send, CheckCircle } from "lucide-react";
+import { Plus, MoreVertical, Copy, Eye, Trash2, Send, CheckCircle, FileDown } from "lucide-react";
 import { PurchaseOrderDialog } from "@/components/admin/PurchaseOrderDialog";
 import { QuoteReviewDialog } from "@/components/admin/QuoteReviewDialog";
 import { ConvertToPurchaseDialog } from "@/components/admin/ConvertToPurchaseDialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatDate } from "@/lib/utils";
 import { format } from "date-fns";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -120,6 +122,59 @@ export default function PurchaseOrders() {
     toast.success("Link copied to clipboard");
   };
 
+  const generatePDF = (po: any) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("PURCHASE ORDER", pageWidth / 2, 20, { align: "center" });
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(`PO Number: ${po.po_number}`, 14, 32);
+      doc.text(`Date: ${formatDate(po.created_at)}`, 14, 38);
+      if (po.valid_until) doc.text(`Valid Until: ${formatDate(po.valid_until)}`, 14, 44);
+      doc.text(`Status: ${(po.status || "").toUpperCase()}`, pageWidth - 14, 32, { align: "right" });
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Supplier:", 14, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(po.supplier_name || "-", 14, 62);
+      if (po.supplier_email) doc.text(po.supplier_email, 14, 68);
+      if (po.supplier_phone) doc.text(po.supplier_phone, 14, 74);
+
+      const items = (po.purchase_order_items || []).map((it: any, idx: number) => [
+        idx + 1,
+        it.product_name + (it.variant_name ? ` (${it.variant_name})` : ""),
+        it.requested_quantity,
+      ]);
+
+      autoTable(doc, {
+        startY: 84,
+        head: [["#", "Product", "Qty"]],
+        body: items,
+        theme: "striped",
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+
+      let y = (doc as any).lastAutoTable.finalY + 10;
+      if (po.notes) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Notes:", 14, y);
+        doc.setFont("helvetica", "normal");
+        const lines = doc.splitTextToSize(po.notes, pageWidth - 28);
+        doc.text(lines, 14, y + 6);
+      }
+
+      doc.save(`${po.po_number}.pdf`);
+      toast.success("PDF generated");
+    } catch (e: any) {
+      toast.error("Failed to generate PDF: " + e.message);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -193,6 +248,10 @@ export default function PurchaseOrders() {
                         <DropdownMenuItem onClick={() => setEditingPO(po)}>
                           <Eye className="h-4 w-4 mr-2" />
                           View/Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => generatePDF(po)}>
+                          <FileDown className="h-4 w-4 mr-2" />
+                          Download PDF
                         </DropdownMenuItem>
                         {po.status !== "converted" && (
                           <DropdownMenuItem onClick={() => copyShareLink(po.share_token)}>
