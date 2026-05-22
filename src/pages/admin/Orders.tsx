@@ -2506,6 +2506,24 @@ export default function AdminOrders() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Convert Selected Orders to Quote Confirmation Dialog */}
+      <AlertDialog open={convertToQuoteDialogOpen} onOpenChange={setConvertToQuoteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convert to Quotation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create {selectedOrders.size} quotation{selectedOrders.size > 1 ? 's' : ''} from the selected order{selectedOrders.size > 1 ? 's' : ''} and then permanently delete the original order{selectedOrders.size > 1 ? 's' : ''}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => convertSelectedToQuotes.mutate()}>
+              {convertSelectedToQuotes.isPending ? "Converting..." : `Convert ${selectedOrders.size} Order${selectedOrders.size > 1 ? 's' : ''}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Receipt Options Dialog */}
       <Dialog open={showReceiptOptions} onOpenChange={setShowReceiptOptions}>
         <DialogContent>
