@@ -740,30 +740,52 @@ export default function Quotations() {
                         {products.map(product => (
                           <div key={product.id} className="space-y-1">
                             {product.product_variants && product.product_variants.length > 0 ? (
-                              product.product_variants.map((variant: any) => (
-                                <Button
-                                  key={variant.id}
-                                  variant="ghost"
-                                  className="w-full justify-start h-auto py-2 whitespace-normal text-left"
-                                  onClick={() => addProductToQuotation(product, variant)}
-                                >
-                                  {product.name} - {variant.name} - {formatCurrency(variant.price)}
-                                  <span className={`ml-2 text-xs ${Number(variant.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                    (Stock: {variant.stock_quantity ?? 0})
-                                  </span>
-                                </Button>
-                              ))
+                              product.product_variants.map((variant: any) => {
+                                const sell = Number(variant.price ?? product.price ?? 0);
+                                const cost = Number(variant.cost_price ?? product.cost_price ?? 0);
+                                const whole = Number(variant.wholesale_price ?? product.wholesale_price ?? 0);
+                                return (
+                                  <div key={variant.id} className="border rounded-md p-2 space-y-1">
+                                    <div className="text-sm font-medium">
+                                      {product.name} - {variant.name}
+                                      <span className={`ml-2 text-xs ${Number(variant.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                        (Stock: {variant.stock_quantity ?? 0})
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, variant, 'selling')}>
+                                        Sell: {formatCurrency(sell)}
+                                      </Button>
+                                      <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, variant, 'cost')}>
+                                        Cost: {formatCurrency(cost)}
+                                      </Button>
+                                      <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, variant, 'wholesale')}>
+                                        Wholesale: {formatCurrency(whole)}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })
                             ) : (
-                              <Button
-                                variant="ghost"
-                                className="w-full justify-start h-auto py-2 whitespace-normal text-left"
-                                onClick={() => addProductToQuotation(product)}
-                              >
-                                {product.name} - {formatCurrency(product.price)}
-                                <span className={`ml-2 text-xs ${Number(product.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                  (Stock: {product.stock_quantity ?? 0})
-                                </span>
-                              </Button>
+                              <div className="border rounded-md p-2 space-y-1">
+                                <div className="text-sm font-medium">
+                                  {product.name}
+                                  <span className={`ml-2 text-xs ${Number(product.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                    (Stock: {product.stock_quantity ?? 0})
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, undefined, 'selling')}>
+                                    Sell: {formatCurrency(Number(product.price ?? 0))}
+                                  </Button>
+                                  <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, undefined, 'cost')}>
+                                    Cost: {formatCurrency(Number(product.cost_price ?? 0))}
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, undefined, 'wholesale')}>
+                                    Wholesale: {formatCurrency(Number(product.wholesale_price ?? 0))}
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
