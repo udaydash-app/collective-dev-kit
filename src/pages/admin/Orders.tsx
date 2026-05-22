@@ -1688,14 +1688,24 @@ export default function AdminOrders() {
                 All Orders
               </CardTitle>
               {selectedOrders.size > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteSelectedDialogOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected ({selectedOrders.size})
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConvertToQuoteDialogOpen(true)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Convert to Quote ({selectedOrders.size})
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteSelectedDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected ({selectedOrders.size})
+                  </Button>
+                </div>
               )}
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
