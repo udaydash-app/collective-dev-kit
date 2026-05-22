@@ -84,6 +84,8 @@ export default function Quotations() {
   const [viewMode, setViewMode] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [deleteQuotationId, setDeleteQuotationId] = useState<string | null>(null);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
+  const [applyingWholesale, setApplyingWholesale] = useState(false);
 
   // Auto-select newly created customer from Contacts page
   useEffect(() => {
@@ -253,7 +255,24 @@ export default function Quotations() {
   });
 
   const addProductToQuotation = (product: any, variant?: any) => {
-    const price = variant?.price || product.price;
+    return addProductToQuotationWithPrice(product, variant);
+  };
+
+  const addProductToQuotationWithPrice = (
+    product: any,
+    variant?: any,
+    priceType: 'selling' | 'cost' | 'wholesale' = 'selling',
+  ) => {
+    const source = variant || product;
+    const sellingPrice = Number(source.price ?? product.price ?? 0);
+    const costPrice = Number(source.cost_price ?? product.cost_price ?? 0);
+    const wholesalePrice = Number(source.wholesale_price ?? product.wholesale_price ?? 0);
+    const price =
+      priceType === 'cost'
+        ? costPrice || sellingPrice
+        : priceType === 'wholesale'
+        ? wholesalePrice || sellingPrice
+        : sellingPrice;
     const name = variant ? `${product.name} - ${variant.name}` : product.name;
     
     const newItem: QuotationItem = {
@@ -264,7 +283,7 @@ export default function Quotations() {
       quantity: 1,
       price: price,
       discount: 0,
-      total: price
+      total: price,
     };
 
     setQuotationItems([...quotationItems, newItem]);
@@ -393,6 +412,71 @@ export default function Quotations() {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
   });
+
+  const applyWholesaleToQuotation = async (quotationId: string) => {
+    const quotation = quotations.find(q => q.id === quotationId);
+    if (!quotation) {
+      toast.error('Quotation not found');
+      return;
+    }
+    setApplyingWholesale(true);
+    const loadingToast = toast.loading('Applying wholesale price...');
+    try {
+      const productIds = Array.from(new Set(quotation.items.map(i => i.productId).filter(Boolean)));
+      const variantIds = Array.from(new Set(quotation.items.map(i => i.variantId).filter(Boolean) as string[]));
+
+      const [{ data: prods }, { data: vars }] = await Promise.all([
+        productIds.length
+          ? supabase.from('products').select('id, price, wholesale_price').in('id', productIds)
+          : Promise.resolve({ data: [] as any[] }),
+        variantIds.length
+          ? supabase.from('product_variants').select('id, price, wholesale_price').in('id', variantIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const prodMap = new Map((prods || []).map((p: any) => [p.id, p]));
+      const varMap = new Map((vars || []).map((v: any) => [v.id, v]));
+
+      const updatedItems = quotation.items.map(item => {
+        const variant = item.variantId ? varMap.get(item.variantId) : null;
+        const product = prodMap.get(item.productId);
+        const wholesale = Number(
+          (variant as any)?.wholesale_price ?? (product as any)?.wholesale_price ?? 0
+        );
+        const newPrice = wholesale > 0 ? wholesale : item.price;
+        return {
+          ...item,
+          price: newPrice,
+          total: newPrice * item.quantity - (item.discount || 0),
+        };
+      });
+
+      const newSubtotal = updatedItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const newDiscount = updatedItems.reduce((s, i) => s + (i.discount || 0), 0);
+      const newTotal = newSubtotal - newDiscount;
+
+      const { error } = await supabase
+        .from('quotations')
+        .update({
+          items: updatedItems as any,
+          subtotal: newSubtotal,
+          discount: newDiscount,
+          total: newTotal,
+        })
+        .eq('id', quotationId);
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.dismiss(loadingToast);
+      toast.success('Wholesale price applied');
+      setSelectedQuotationId(null);
+    } catch (e: any) {
+      toast.dismiss(loadingToast);
+      toast.error('Failed to apply wholesale price: ' + e.message);
+    } finally {
+      setApplyingWholesale(false);
+    }
+  };
 
   const handleDownloadPDF = () => {
     if (!selectedQuotation) return;
@@ -651,6 +735,15 @@ export default function Quotations() {
           </div>
           <div className="flex items-center gap-2">
             <ReturnToPOSButton />
+            {selectedQuotationId && (
+              <Button
+                variant="secondary"
+                onClick={() => applyWholesaleToQuotation(selectedQuotationId)}
+                disabled={applyingWholesale}
+              >
+                Apply Wholesale Price
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowFromBillDialog(true)}>
               <Receipt className="w-4 h-4 mr-2" />
               From Bill
@@ -721,30 +814,52 @@ export default function Quotations() {
                         {products.map(product => (
                           <div key={product.id} className="space-y-1">
                             {product.product_variants && product.product_variants.length > 0 ? (
-                              product.product_variants.map((variant: any) => (
-                                <Button
-                                  key={variant.id}
-                                  variant="ghost"
-                                  className="w-full justify-start h-auto py-2 whitespace-normal text-left"
-                                  onClick={() => addProductToQuotation(product, variant)}
-                                >
-                                  {product.name} - {variant.name} - {formatCurrency(variant.price)}
-                                  <span className={`ml-2 text-xs ${Number(variant.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                    (Stock: {variant.stock_quantity ?? 0})
-                                  </span>
-                                </Button>
-                              ))
+                              product.product_variants.map((variant: any) => {
+                                const sell = Number(variant.price ?? product.price ?? 0);
+                                const cost = Number(variant.cost_price ?? product.cost_price ?? 0);
+                                const whole = Number(variant.wholesale_price ?? product.wholesale_price ?? 0);
+                                return (
+                                  <div key={variant.id} className="border rounded-md p-2 space-y-1">
+                                    <div className="text-sm font-medium">
+                                      {product.name} - {variant.name}
+                                      <span className={`ml-2 text-xs ${Number(variant.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                        (Stock: {variant.stock_quantity ?? 0})
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, variant, 'selling')}>
+                                        Sell: {formatCurrency(sell)}
+                                      </Button>
+                                      <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, variant, 'cost')}>
+                                        Cost: {formatCurrency(cost)}
+                                      </Button>
+                                      <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, variant, 'wholesale')}>
+                                        Wholesale: {formatCurrency(whole)}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })
                             ) : (
-                              <Button
-                                variant="ghost"
-                                className="w-full justify-start h-auto py-2 whitespace-normal text-left"
-                                onClick={() => addProductToQuotation(product)}
-                              >
-                                {product.name} - {formatCurrency(product.price)}
-                                <span className={`ml-2 text-xs ${Number(product.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                  (Stock: {product.stock_quantity ?? 0})
-                                </span>
-                              </Button>
+                              <div className="border rounded-md p-2 space-y-1">
+                                <div className="text-sm font-medium">
+                                  {product.name}
+                                  <span className={`ml-2 text-xs ${Number(product.stock_quantity ?? 0) <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                    (Stock: {product.stock_quantity ?? 0})
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, undefined, 'selling')}>
+                                    Sell: {formatCurrency(Number(product.price ?? 0))}
+                                  </Button>
+                                  <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, undefined, 'cost')}>
+                                    Cost: {formatCurrency(Number(product.cost_price ?? 0))}
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, undefined, 'wholesale')}>
+                                    Wholesale: {formatCurrency(Number(product.wholesale_price ?? 0))}
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -870,6 +985,7 @@ export default function Quotations() {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Quotation #</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Phone</TableHead>
@@ -884,17 +1000,29 @@ export default function Quotations() {
             <TableBody>
               {quotationsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={10} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : quotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     No quotations yet. Create your first quotation!
                   </TableCell>
                 </TableRow>
               ) : (
                 quotations.map((quotation) => (
                   <TableRow key={quotation.id}>
+                    <TableCell>
+                      <input
+                        type="radio"
+                        name="quotation-select"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        checked={selectedQuotationId === quotation.id}
+                        onChange={() => setSelectedQuotationId(quotation.id)}
+                        onClick={() => {
+                          if (selectedQuotationId === quotation.id) setSelectedQuotationId(null);
+                        }}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{quotation.quotation_number}</TableCell>
                     <TableCell>{quotation.customer_name}</TableCell>
                     <TableCell>{quotation.customer_phone || '-'}</TableCell>
