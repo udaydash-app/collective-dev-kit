@@ -84,6 +84,8 @@ export default function Quotations() {
   const [viewMode, setViewMode] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [deleteQuotationId, setDeleteQuotationId] = useState<string | null>(null);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
+  const [applyingWholesale, setApplyingWholesale] = useState(false);
 
   // Auto-select newly created customer from Contacts page
   useEffect(() => {
@@ -253,7 +255,24 @@ export default function Quotations() {
   });
 
   const addProductToQuotation = (product: any, variant?: any) => {
-    const price = variant?.price || product.price;
+    return addProductToQuotationWithPrice(product, variant);
+  };
+
+  const addProductToQuotationWithPrice = (
+    product: any,
+    variant?: any,
+    priceType: 'selling' | 'cost' | 'wholesale' = 'selling',
+  ) => {
+    const source = variant || product;
+    const sellingPrice = Number(source.price ?? product.price ?? 0);
+    const costPrice = Number(source.cost_price ?? product.cost_price ?? 0);
+    const wholesalePrice = Number(source.wholesale_price ?? product.wholesale_price ?? 0);
+    const price =
+      priceType === 'cost'
+        ? costPrice || sellingPrice
+        : priceType === 'wholesale'
+        ? wholesalePrice || sellingPrice
+        : sellingPrice;
     const name = variant ? `${product.name} - ${variant.name}` : product.name;
     
     const newItem: QuotationItem = {
@@ -264,7 +283,7 @@ export default function Quotations() {
       quantity: 1,
       price: price,
       discount: 0,
-      total: price
+      total: price,
     };
 
     setQuotationItems([...quotationItems, newItem]);
