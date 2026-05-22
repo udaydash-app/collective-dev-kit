@@ -413,6 +413,71 @@ export default function Quotations() {
     contentRef: printRef,
   });
 
+  const applyWholesaleToQuotation = async (quotationId: string) => {
+    const quotation = quotations.find(q => q.id === quotationId);
+    if (!quotation) {
+      toast.error('Quotation not found');
+      return;
+    }
+    setApplyingWholesale(true);
+    const loadingToast = toast.loading('Applying wholesale price...');
+    try {
+      const productIds = Array.from(new Set(quotation.items.map(i => i.productId).filter(Boolean)));
+      const variantIds = Array.from(new Set(quotation.items.map(i => i.variantId).filter(Boolean) as string[]));
+
+      const [{ data: prods }, { data: vars }] = await Promise.all([
+        productIds.length
+          ? supabase.from('products').select('id, price, wholesale_price').in('id', productIds)
+          : Promise.resolve({ data: [] as any[] }),
+        variantIds.length
+          ? supabase.from('product_variants').select('id, price, wholesale_price').in('id', variantIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const prodMap = new Map((prods || []).map((p: any) => [p.id, p]));
+      const varMap = new Map((vars || []).map((v: any) => [v.id, v]));
+
+      const updatedItems = quotation.items.map(item => {
+        const variant = item.variantId ? varMap.get(item.variantId) : null;
+        const product = prodMap.get(item.productId);
+        const wholesale = Number(
+          (variant as any)?.wholesale_price ?? (product as any)?.wholesale_price ?? 0
+        );
+        const newPrice = wholesale > 0 ? wholesale : item.price;
+        return {
+          ...item,
+          price: newPrice,
+          total: newPrice * item.quantity - (item.discount || 0),
+        };
+      });
+
+      const newSubtotal = updatedItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const newDiscount = updatedItems.reduce((s, i) => s + (i.discount || 0), 0);
+      const newTotal = newSubtotal - newDiscount;
+
+      const { error } = await supabase
+        .from('quotations')
+        .update({
+          items: updatedItems as any,
+          subtotal: newSubtotal,
+          discount: newDiscount,
+          total: newTotal,
+        })
+        .eq('id', quotationId);
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.dismiss(loadingToast);
+      toast.success('Wholesale price applied');
+      setSelectedQuotationId(null);
+    } catch (e: any) {
+      toast.dismiss(loadingToast);
+      toast.error('Failed to apply wholesale price: ' + e.message);
+    } finally {
+      setApplyingWholesale(false);
+    }
+  };
+
   const handleDownloadPDF = () => {
     if (!selectedQuotation) return;
 
