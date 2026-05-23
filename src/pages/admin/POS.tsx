@@ -3166,6 +3166,7 @@ export default function POS() {
       const canvas = await html2canvas(lastReceiptRef.current, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
       });
       
@@ -3199,6 +3200,8 @@ export default function POS() {
       container.style.left = '-9999px';
       document.body.appendChild(container);
       
+      const outputLogoUrl = await resolveLogoForOutput(lastTransactionData.logoUrl || settings?.logo_url);
+
       // Render the receipt component
       const root = ReactDOM.createRoot(container);
       await new Promise<void>((resolve) => {
@@ -3216,7 +3219,7 @@ export default function POS() {
             customerName={lastTransactionData.customerName}
             customerPhone={lastTransactionData.customerPhone}
             storeName={lastTransactionData.storeName}
-            logoUrl={lastTransactionData.logoUrl}
+            logoUrl={outputLogoUrl}
             supportPhone={lastTransactionData.supportPhone}
             customerBalance={lastTransactionData.customerBalance}
             isUnifiedBalance={lastTransactionData.isUnifiedBalance}
@@ -3229,12 +3232,14 @@ export default function POS() {
       // Convert to canvas
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
       if (!receiptElement) throw new Error('Receipt element not found');
+      await waitForImagesToLoad(receiptElement);
       
       const canvas = await html2canvas(receiptElement, {
         scale: 3,
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
+        allowTaint: false,
       });
       
       // Convert canvas to blob
