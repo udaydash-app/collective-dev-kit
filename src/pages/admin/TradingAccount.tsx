@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 
 interface SalesReportItem {
   productId: string;
@@ -163,14 +164,18 @@ export default function TradingAccount() {
     XLSX.writeFile(wb, `Sales_Report_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.xlsx`);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.text('SALES REPORT', 105, 15, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text(`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, 25, { align: 'center' });
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SALES REPORT', 105, yPos, { align: 'center' });
+    yPos += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, yPos, { align: 'center' });
+    yPos += 5;
 
     const tableData = salesReport?.map(item => [
       item.productName,
@@ -182,7 +187,7 @@ export default function TradingAccount() {
     ]) || [];
 
     autoTable(doc, {
-      startY: 35,
+      startY: yPos,
       head: [['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']],
       body: tableData,
       foot: [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]],
