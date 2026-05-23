@@ -49,9 +49,13 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     const [compressedLogo, setCompressedLogo] = useState<string | undefined>();
 
     useEffect(() => {
-      setCompressedLogo(undefined);
       if (logoUrl) {
-        resolveLogoForOutput(logoUrl).then(setCompressedLogo);
+        setCompressedLogo(logoUrl);
+        resolveLogoForOutput(logoUrl).then((resolvedLogo) => {
+          if (resolvedLogo) setCompressedLogo(resolvedLogo);
+        });
+      } else {
+        setCompressedLogo(undefined);
       }
     }, [logoUrl]);
 
