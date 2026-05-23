@@ -125,6 +125,32 @@ export async function loadLogoTransparent(url: string): Promise<LogoData | null>
         }
       }
       ctx.putImageData(imgData, 0, 0);
+
+      let top = 0, bottom = canvas.height - 1, left = 0, right = canvas.width - 1;
+      const isOpaque = (x: number, y: number) => d[(y * canvas.width + x) * 4 + 3] > 10;
+      outerTop: for (; top < canvas.height; top++) {
+        for (let x = 0; x < canvas.width; x++) if (isOpaque(x, top)) break outerTop;
+      }
+      outerBottom: for (; bottom > top; bottom--) {
+        for (let x = 0; x < canvas.width; x++) if (isOpaque(x, bottom)) break outerBottom;
+      }
+      outerLeft: for (; left < canvas.width; left++) {
+        for (let y = top; y <= bottom; y++) if (isOpaque(left, y)) break outerLeft;
+      }
+      outerRight: for (; right > left; right--) {
+        for (let y = top; y <= bottom; y++) if (isOpaque(right, y)) break outerRight;
+      }
+      const tw = right - left + 1;
+      const th = bottom - top + 1;
+      if (tw > 0 && th > 0 && (tw < canvas.width || th < canvas.height)) {
+        const trimmed = document.createElement('canvas');
+        trimmed.width = tw;
+        trimmed.height = th;
+        trimmed.getContext('2d')?.drawImage(canvas, left, top, tw, th, 0, 0, tw, th);
+        canvas.width = tw;
+        canvas.height = th;
+        canvas.getContext('2d')?.drawImage(trimmed, 0, 0);
+      }
     } catch {
       // cross-origin tainted; fall back to original
     }
