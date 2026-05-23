@@ -31,6 +31,33 @@ const compressImage = (src: string, maxWidth = 400, maxHeight = 180, _quality = 
           }
         }
         ctx.putImageData(imgData, 0, 0);
+        // Trim transparent borders so the logo sits flush with adjacent text
+        try {
+          let top = 0, bottom = height - 1, left = 0, right = width - 1;
+          const isOpaque = (x: number, y: number) => d[(y * width + x) * 4 + 3] > 10;
+          outerTop: for (; top < height; top++) {
+            for (let x = 0; x < width; x++) if (isOpaque(x, top)) break outerTop;
+          }
+          outerBottom: for (; bottom > top; bottom--) {
+            for (let x = 0; x < width; x++) if (isOpaque(x, bottom)) break outerBottom;
+          }
+          outerLeft: for (; left < width; left++) {
+            for (let y = top; y <= bottom; y++) if (isOpaque(left, y)) break outerLeft;
+          }
+          outerRight: for (; right > left; right--) {
+            for (let y = top; y <= bottom; y++) if (isOpaque(right, y)) break outerRight;
+          }
+          const tw = right - left + 1;
+          const th = bottom - top + 1;
+          if (tw > 0 && th > 0 && (tw < width || th < height)) {
+            const trimmed = document.createElement('canvas');
+            trimmed.width = tw;
+            trimmed.height = th;
+            trimmed.getContext('2d')!.drawImage(canvas, left, top, tw, th, 0, 0, tw, th);
+            resolve(trimmed.toDataURL('image/png'));
+            return;
+          }
+        } catch {}
       } catch {
         // CORS-tainted canvas: fall back to original
       }
@@ -195,7 +222,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       `}</style>
       <div className="text-center mb-3">
         {compressedLogo && (
-          <div className="flex justify-center" style={{ marginBottom: '2px' }}>
+          <div className="flex justify-center" style={{ marginBottom: '0px', lineHeight: 0 }}>
             <img 
               src={compressedLogo} 
               alt="Company Logo" 
