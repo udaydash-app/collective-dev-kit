@@ -479,7 +479,7 @@ export default function Quotations() {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!selectedQuotation) return;
 
     try {
