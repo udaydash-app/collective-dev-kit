@@ -628,7 +628,7 @@ export default function AdminOrders() {
                   <img src="${latestSettings.logo_url}" alt="Company Logo" style="height: 120px; width: auto; object-fit: contain;" id="companyLogo" crossorigin="anonymous" />
                 </div>
               ` : ''}
-              <h1 class="text-xl font-bold">${order.stores?.name || latestSettings?.company_name || 'Global Market'}</h1>
+              <h1 class="text-xl font-bold">${latestSettings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART'}</h1>
               <p class="text-xs">Fresh groceries delivered to your doorstep</p>
               <p class="text-xs mt-2">Transaction: ${order.order_number}</p>
               <p class="text-xs">${formatDateTime(order.created_at)}</p>
@@ -797,7 +797,7 @@ export default function AdminOrders() {
     
     try {
       await kioskPrintService.printReceipt({
-        storeName: order.stores?.name || settings?.company_name || 'Global Market',
+        storeName: settings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART',
         transactionNumber: order.order_number,
         date: new Date(order.created_at),
         items: order.items.map((item: any) => ({
