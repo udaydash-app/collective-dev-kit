@@ -34,6 +34,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader } from '@/lib/pdfBranding';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { CreateQuotationFromBillDialog } from '@/components/admin/CreateQuotationFromBillDialog';
 
