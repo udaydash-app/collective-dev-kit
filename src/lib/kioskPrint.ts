@@ -4,6 +4,7 @@
  */
 
 import { formatDateTime } from './utils';
+import { resolveLogoForOutput } from './pdfBranding';
 
 export interface KioskReceiptData {
   storeName: string;
@@ -64,7 +65,11 @@ class KioskPrintService {
 
   private async doPrint(data: KioskReceiptData): Promise<void> {
     try {
-      const html = this.generateReceiptHTML(data);
+      const printableData = {
+        ...data,
+        logoUrl: await resolveLogoForOutput(data.logoUrl),
+      };
+      const html = this.generateReceiptHTML(printableData);
       
       // Check if we're in Electron environment
       if (window.electron?.print) {
