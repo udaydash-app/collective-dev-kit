@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
-const compressImage = (src: string, maxWidth = 200, maxHeight = 80, _quality = 0.7): Promise<string> => {
+const compressImage = (src: string, maxWidth = 400, maxHeight = 180, _quality = 0.7): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -155,8 +155,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             display: block !important;
-            max-height: 60px !important;
-            max-width: 60mm !important;
+            max-height: 140px !important;
+            max-width: 75mm !important;
             width: auto !important;
             image-rendering: optimizeSpeed !important;
           }
@@ -187,8 +187,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         .space-y-1 > * + * { margin-top: 4px; }
         .line-through { text-decoration: line-through; }
         img { 
-          max-height: 60px;
-          max-width: 150px;
+          max-height: 140px;
+          max-width: 280px;
           width: auto;
           object-fit: contain;
         }
@@ -199,12 +199,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <img 
               src={compressedLogo} 
               alt="Company Logo" 
-              style={{ maxHeight: '60px', maxWidth: '150px', width: 'auto' }}
+              style={{ maxHeight: '140px', maxWidth: '280px', width: 'auto' }}
             />
           </div>
         )}
         <div className={compressedLogo ? "mt-2" : ""}>
-          <h1 className="text-xl font-bold">{storeName || 'Global Market'}</h1>
+          <h1 className="text-xl font-bold">{storeName || 'GLOBAL INDIAN MART'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
           <p className="text-xs">{formatDateTime(date)}</p>
