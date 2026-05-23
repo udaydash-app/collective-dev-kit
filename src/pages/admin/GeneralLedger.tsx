@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 import {
   Table,
   TableBody,
@@ -717,7 +718,7 @@ export default function GeneralLedger() {
 
   const netChange = totalDebit - totalCredit;
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!ledgerData?.account || !ledgerEntries.length) {
       return;
     }
@@ -726,21 +727,25 @@ export default function GeneralLedger() {
     const accountName = accountInfo.isUnified ? 'UNIFIED' : accountInfo.account_code;
     
     const doc = new jsPDF();
-    
+    const settings = await fetchCompanySettings();
+    let headerY = await addPdfHeader(doc, settings);
+
     // Title
     doc.setFontSize(16);
-    doc.text('General Ledger Report', 14, 15);
-    
+    doc.setFont('helvetica', 'bold');
+    doc.text('General Ledger Report', 14, headerY);
+    headerY += 6;
+
     // Account info
     doc.setFontSize(9);
-    doc.text(`Account: ${accountName} - ${accountInfo.account_name}`, 14, 23);
-    doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, 28);
-    doc.text(`Period: ${startDate} to ${endDate}`, 14, 33);
-    
-    // For unified accounts, show A/R and A/P info
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Account: ${accountName} - ${accountInfo.account_name}`, 14, headerY); headerY += 5;
+    doc.text(`Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, 14, headerY); headerY += 5;
+    doc.text(`Period: ${startDate} to ${endDate}`, 14, headerY); headerY += 5;
+
     if (accountInfo.isUnified) {
-      doc.text(`Customer Balance (A/R): ${accountInfo.customer_balance.toFixed(2)}`, 14, 38);
-      doc.text(`Supplier Balance (A/P): ${accountInfo.supplier_balance.toFixed(2)}`, 14, 43);
+      doc.text(`Customer Balance (A/R): ${accountInfo.customer_balance.toFixed(2)}`, 14, headerY); headerY += 5;
+      doc.text(`Supplier Balance (A/P): ${accountInfo.supplier_balance.toFixed(2)}`, 14, headerY); headerY += 5;
     }
     
     // Prepare table data
@@ -780,7 +785,7 @@ export default function GeneralLedger() {
     
     // Add table
     autoTable(doc, {
-      startY: accountInfo.isUnified ? 48 : 38,
+      startY: headerY + 2,
       head: [['Date', 'Entry', 'Description', 'Ref', 'Note', 'Debit', 'Credit', 'Balance']],
       body: tableData,
       foot: [

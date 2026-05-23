@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 
 type GroupBy = 'customer' | 'month' | 'year';
 
@@ -158,17 +159,23 @@ export default function ProfitLossAnalysis() {
     XLSX.writeFile(wb, `PL_Analysis_${groupBy}_${startDate}_${endDate}.xlsx`);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     const doc = new jsPDF();
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
     doc.setFontSize(16);
-    doc.text(`Profit & Loss Analysis - by ${groupLabel}`, 105, 15, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Profit & Loss Analysis - by ${groupLabel}`, 105, yPos, { align: 'center' });
+    yPos += 7;
     doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
     doc.text(
       `Period: ${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`,
-      105, 23, { align: 'center' },
+      105, yPos, { align: 'center' },
     );
+    yPos += 5;
     autoTable(doc, {
-      startY: 30,
+      startY: yPos,
       head: [[groupLabel, 'Units', 'Sales', 'Cost', 'Profit/Loss', 'Margin %']],
       body: (rows || []).map((r) => [
         r.label,

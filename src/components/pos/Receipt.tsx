@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
-const compressImage = (src: string, maxWidth = 200, maxHeight = 80, quality = 0.7): Promise<string> => {
+const compressImage = (src: string, maxWidth = 200, maxHeight = 80, _quality = 0.7): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -14,8 +14,27 @@ const compressImage = (src: string, maxWidth = 200, maxHeight = 80, quality = 0.
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      if (!ctx) { resolve(src); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      try {
+        // Remove near-white background so the logo prints/displays cleanly
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const d = imgData.data;
+        const threshold = 240;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          if (r >= threshold && g >= threshold && b >= threshold) {
+            d[i + 3] = 0;
+          } else if (r >= 220 && g >= 220 && b >= 220) {
+            const avg = (r + g + b) / 3;
+            d[i + 3] = Math.max(0, Math.min(255, Math.round(255 - (avg - 220) * (255 / 35))));
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } catch {
+        // CORS-tainted canvas: fall back to original
+      }
+      resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = () => resolve(src);
     img.src = src;

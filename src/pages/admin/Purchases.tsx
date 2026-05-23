@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -740,7 +741,7 @@ export default function Purchases() {
     toast.success('Purchases exported to Excel successfully');
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (selectedPurchases.size === 0) {
       toast.error('Please select at least one purchase to export');
       return;
@@ -749,13 +750,17 @@ export default function Purchases() {
     const selectedData = purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [];
     
     const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.text('Purchase Report', 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Generated: ${formatDate(new Date())}`, 14, 30);
-    
-    let yPos = 40;
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Purchase Report', 14, yPos);
+    yPos += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${formatDate(new Date())}`, 14, yPos);
+    yPos += 8;
     
     selectedData.forEach((purchase: any, index: number) => {
       if (index > 0) {

@@ -34,6 +34,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfHeader } from '@/lib/pdfBranding';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { CreateQuotationFromBillDialog } from '@/components/admin/CreateQuotationFromBillDialog';
 
@@ -478,7 +479,7 @@ export default function Quotations() {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!selectedQuotation) return;
 
     try {
@@ -505,41 +506,8 @@ export default function Quotations() {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
-      let yPos = 10;
-      
-      // Company Header
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      if (companySettings?.company_name) {
-        doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 5;
-      }
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      if (companySettings?.company_address) {
-        const address = doc.splitTextToSize(companySettings.company_address, contentWidth);
-        doc.text(address, pageWidth / 2, yPos, { align: 'center' });
-        yPos += address.length * 4;
-      }
-      
-      if (companySettings?.company_phone) {
-        doc.text(`Tel: ${companySettings.company_phone}`, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      }
-      
-      if (companySettings?.company_email) {
-        doc.text(companySettings.company_email, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      }
-      
-      yPos += 4;
-      
-      // Quotation Header
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
-      
+      let yPos = await addPdfHeader(doc, companySettings ?? null);
+
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('QUOTATION', pageWidth / 2, yPos, { align: 'center' });
@@ -1076,8 +1044,20 @@ export default function Quotations() {
                               return;
                             }
                             
-                            // Use wa.me (official WhatsApp link)
-                            const whatsappUrl = `https://wa.me/${phone}`;
+                            // Use wa.me (official WhatsApp link) with company-branded greeting
+                            const greeting = companySettings?.company_name
+                              ? `Hello from ${companySettings.company_name}`
+                              : 'Hello';
+                            const contactBits = [
+                              companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : '',
+                              companySettings?.company_email || '',
+                            ].filter(Boolean).join(' | ');
+                            const body = [
+                              greeting,
+                              `Quotation #${quotation.quotation_number}`,
+                              contactBits,
+                            ].filter(Boolean).join('\n');
+                            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
                             console.log('Opening WhatsApp URL:', whatsappUrl);
                             
                             try {
@@ -1267,8 +1247,20 @@ export default function Quotations() {
                           return;
                         }
                         
-                        // Use wa.me (official WhatsApp link)
-                        const whatsappUrl = `https://wa.me/${phone}`;
+                        // Use wa.me (official WhatsApp link) with company-branded greeting
+                        const greeting = companySettings?.company_name
+                          ? `Hello from ${companySettings.company_name}`
+                          : 'Hello';
+                        const contactBits = [
+                          companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : '',
+                          companySettings?.company_email || '',
+                        ].filter(Boolean).join(' | ');
+                        const body = [
+                          greeting,
+                          `Quotation #${selectedQuotation.quotation_number}`,
+                          contactBits,
+                        ].filter(Boolean).join('\n');
+                        const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
                         console.log('Opening WhatsApp URL:', whatsappUrl);
                         
                         try {

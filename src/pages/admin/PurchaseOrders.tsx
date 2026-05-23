@@ -29,6 +29,7 @@ import { formatDate } from "@/lib/utils";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { addPdfHeader } from "@/lib/pdfBranding";
 
 export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,76 +136,12 @@ export default function PurchaseOrders() {
     toast.success("Link copied to clipboard");
   };
 
-  const loadImageAsDataURL = async (url: string): Promise<{ dataUrl: string; w: number; h: number } | null> => {
-    try {
-      const res = await fetch(url, { mode: "cors" });
-      const blob = await res.blob();
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.width, h: img.height });
-        img.onerror = () => resolve({ w: 1, h: 1 });
-        img.src = dataUrl;
-      });
-      return { dataUrl, w: dims.w, h: dims.h };
-    } catch {
-      return null;
-    }
-  };
-
   const generatePDF = async (po: any) => {
     try {
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 14;
-      let yPos = 12;
-
-      // Logo
-      if (companySettings?.logo_url) {
-        const img = await loadImageAsDataURL(companySettings.logo_url);
-        if (img) {
-          const maxH = 20;
-          const ratio = img.w / img.h;
-          const h = maxH;
-          const w = h * ratio;
-          try {
-            doc.addImage(img.dataUrl, "PNG", (pageWidth - w) / 2, yPos, w, h);
-            yPos += h + 3;
-          } catch {}
-        }
-      }
-
-      // Company name & contact
-      if (companySettings?.company_name) {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: "center" });
-        yPos += 5;
-      }
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      if (companySettings?.company_address) {
-        const lines = doc.splitTextToSize(companySettings.company_address, pageWidth - margin * 2);
-        doc.text(lines, pageWidth / 2, yPos, { align: "center" });
-        yPos += lines.length * 4;
-      }
-      const contactBits = [
-        companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : null,
-        companySettings?.company_email || null,
-      ].filter(Boolean);
-      if (contactBits.length) {
-        doc.text(contactBits.join("  |  "), pageWidth / 2, yPos, { align: "center" });
-        yPos += 5;
-      }
-
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
+      let yPos = await addPdfHeader(doc, companySettings ?? null);
 
       // Title
       doc.setFontSize(16);
