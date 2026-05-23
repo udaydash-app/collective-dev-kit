@@ -2625,7 +2625,7 @@ export default function AdminOrders() {
             total={Number(selectedReceiptOrder.total)}
             paymentMethod={(selectedReceiptOrder.payment_method || 'Online').toUpperCase()}
             cashierName={selectedReceiptOrder.type === 'pos' ? selectedReceiptOrder.cashier_name : undefined}
-            storeName={selectedReceiptOrder.stores?.name || settings?.company_name || 'Global Market'}
+            storeName={settings?.company_name || selectedReceiptOrder.stores?.name || 'GLOBAL INDIAN MART'}
             logoUrl={settings?.logo_url}
             supportPhone={settings?.company_phone}
             customerBalance={selectedReceiptOrder.customerBalance}
