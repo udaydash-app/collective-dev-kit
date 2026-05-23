@@ -410,7 +410,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             total={order.total}
             paymentMethod={(order.payment_method || 'cash').toUpperCase()}
             cashierName={order.type === 'pos' ? order.cashier_name : undefined}
-            storeName={order.stores?.name || settings?.company_name || 'Global Market'}
+            storeName={order.stores?.name || settings?.company_name || 'GLOBAL INDIAN MART'}
             logoUrl={settings?.logo_url}
             supportPhone={settings?.company_phone}
           />
