@@ -222,7 +222,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       `}</style>
       <div className="text-center mb-3">
         {compressedLogo && (
-          <div className="flex justify-center" style={{ marginBottom: '2px' }}>
+          <div className="flex justify-center" style={{ marginBottom: '0px', lineHeight: 0 }}>
             <img 
               src={compressedLogo} 
               alt="Company Logo" 
