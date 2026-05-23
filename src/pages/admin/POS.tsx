@@ -75,6 +75,7 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
+import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2837,6 +2838,7 @@ export default function POS() {
         ...transactionDataPrep,
         transactionNumber,
         date: new Date(),
+        logoUrl: await resolveLogoForOutput(transactionDataPrep.logoUrl),
       };
       
       setLastTransactionData(completeTransactionData);
@@ -2865,6 +2867,7 @@ export default function POS() {
         customerName: completeTransactionData.customerName,
         customerPhone: completeTransactionData.customerPhone,
         customerBalance: completeTransactionData.customerBalance,
+        logoUrl: completeTransactionData.logoUrl,
         supportPhone: completeTransactionData.supportPhone,
         isUnifiedBalance: completeTransactionData.isUnifiedBalance,
         specialOfferNote: completeTransactionData.specialOfferNote,
