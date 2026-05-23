@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
 
-const compressImage = (src: string, maxWidth = 200, maxHeight = 80, _quality = 0.7): Promise<string> => {
+const compressImage = (src: string, maxWidth = 400, maxHeight = 180, _quality = 0.7): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
