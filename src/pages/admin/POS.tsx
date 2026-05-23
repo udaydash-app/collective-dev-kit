@@ -2592,7 +2592,7 @@ export default function POS() {
       total: total,
       paymentMethod: "Pending",
       cashierName: currentCashSession?.cashier_name || "Cashier",
-      storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
+      storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
       specialOfferNote,
@@ -2732,7 +2732,7 @@ export default function POS() {
       customerPhone: selectedCustomer?.phone,
       customerBalance: undefined, // Will be fetched after transaction for credit payments
       isUnifiedBalance: false,
-      storeName: stores?.find(s => s.id === selectedStoreId)?.name || settings?.company_name || "Global Market",
+      storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
       logoUrl: settings?.logo_url,
       supportPhone: settings?.company_phone,
       specialOfferNote,
@@ -3141,7 +3141,7 @@ export default function POS() {
         customerName,
           customerBalance,
           isUnifiedBalance,
-          storeName: stores?.find(s => s.id === transaction.store_id)?.name || settings?.company_name || 'Global Market',
+          storeName: settings?.company_name || stores?.find(s => s.id === transaction.store_id)?.name || 'GLOBAL INDIAN MART',
         logoUrl: settings?.logo_url,
         supportPhone: settings?.company_phone,
       };
@@ -3303,7 +3303,7 @@ export default function POS() {
       console.log('🖨️ Calling kiosk print service...');
       
       await kioskPrintService.printReceipt({
-        storeName: lastTransactionData.storeName || 'Global Market',
+        storeName: lastTransactionData.storeName || settings?.company_name || 'GLOBAL INDIAN MART',
         transactionNumber: lastTransactionData.transactionNumber,
         date: new Date(),
         items: lastTransactionData.items.map((item: any) => ({
