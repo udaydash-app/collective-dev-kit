@@ -40,6 +40,50 @@ export interface LogoData {
 
 const logoCache = new Map<string, LogoData | null>();
 
+async function imageUrlToDataUrl(url: string): Promise<string | null> {
+  try {
+    if (url.startsWith('data:')) return url;
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveLogoForOutput(url?: string | null): Promise<string | undefined> {
+  if (!url) return undefined;
+  const logo = await loadLogoTransparent(url);
+  return logo?.dataUrl || (await imageUrlToDataUrl(url)) || url;
+}
+
+export async function waitForImagesToLoad(container: HTMLElement, timeoutMs = 3000): Promise<void> {
+  const images = Array.from(container.querySelectorAll('img'));
+  if (!images.length) return;
+
+  await Promise.all(images.map((img) => new Promise<void>((resolve) => {
+    if (img.complete && img.naturalWidth > 0) {
+      resolve();
+      return;
+    }
+    const done = () => {
+      img.removeEventListener('load', done);
+      img.removeEventListener('error', done);
+      resolve();
+    };
+    img.addEventListener('load', done, { once: true });
+    img.addEventListener('error', done, { once: true });
+    setTimeout(done, timeoutMs);
+  })));
+}
+
 /**
  * Load an image URL and return a PNG data URL with near-white pixels
  * converted to transparent (background removal for logos with white bg).
@@ -49,12 +93,13 @@ export async function loadLogoTransparent(url: string): Promise<LogoData | null>
   if (logoCache.has(url)) return logoCache.get(url)!;
 
   try {
+    const source = (await imageUrlToDataUrl(url)) || url;
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.crossOrigin = 'anonymous';
       i.onload = () => resolve(i);
       i.onerror = reject;
-      i.src = url;
+      i.src = source;
     });
 
     const canvas = document.createElement('canvas');
@@ -80,6 +125,32 @@ export async function loadLogoTransparent(url: string): Promise<LogoData | null>
         }
       }
       ctx.putImageData(imgData, 0, 0);
+
+      let top = 0, bottom = canvas.height - 1, left = 0, right = canvas.width - 1;
+      const isOpaque = (x: number, y: number) => d[(y * canvas.width + x) * 4 + 3] > 10;
+      outerTop: for (; top < canvas.height; top++) {
+        for (let x = 0; x < canvas.width; x++) if (isOpaque(x, top)) break outerTop;
+      }
+      outerBottom: for (; bottom > top; bottom--) {
+        for (let x = 0; x < canvas.width; x++) if (isOpaque(x, bottom)) break outerBottom;
+      }
+      outerLeft: for (; left < canvas.width; left++) {
+        for (let y = top; y <= bottom; y++) if (isOpaque(left, y)) break outerLeft;
+      }
+      outerRight: for (; right > left; right--) {
+        for (let y = top; y <= bottom; y++) if (isOpaque(right, y)) break outerRight;
+      }
+      const tw = right - left + 1;
+      const th = bottom - top + 1;
+      if (tw > 0 && th > 0 && (tw < canvas.width || th < canvas.height)) {
+        const trimmed = document.createElement('canvas');
+        trimmed.width = tw;
+        trimmed.height = th;
+        trimmed.getContext('2d')?.drawImage(canvas, left, top, tw, th, 0, 0, tw, th);
+        canvas.width = tw;
+        canvas.height = th;
+        canvas.getContext('2d')?.drawImage(trimmed, 0, 0);
+      }
     } catch {
       // cross-origin tainted; fall back to original
     }

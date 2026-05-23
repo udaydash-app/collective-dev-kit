@@ -67,6 +67,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
+import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function AdminOrders() {
@@ -837,9 +838,11 @@ export default function AdminOrders() {
     if (!receiptRef.current) return;
     
     try {
+      await waitForImagesToLoad(receiptRef.current);
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         logging: false,
       });
       
@@ -946,6 +949,7 @@ export default function AdminOrders() {
       document.body.appendChild(receiptContainer);
 
       const root = ReactDOM.createRoot(receiptContainer);
+      const outputLogoUrl = await resolveLogoForOutput(settings?.logo_url);
       
       await new Promise<void>((resolve) => {
         root.render(
@@ -969,8 +973,8 @@ export default function AdminOrders() {
             cashierName={order.type === 'pos' ? order.cashier_name : undefined}
             customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
             customerPhone={order.customer_phone || undefined}
-            storeName={order.stores?.name || settings?.company_name}
-            logoUrl={settings?.logo_url}
+            storeName={settings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART'}
+            logoUrl={outputLogoUrl}
             supportPhone={settings?.company_phone}
             customerBalance={order.customerBalance}
           />
@@ -978,9 +982,15 @@ export default function AdminOrders() {
         setTimeout(resolve, 100);
       });
 
-      const canvas = await html2canvas(receiptContainer.querySelector('.receipt-container') as HTMLElement, {
+      const receiptElement = receiptContainer.querySelector('.receipt-container') as HTMLElement;
+      if (!receiptElement) throw new Error('Receipt element not found');
+      await waitForImagesToLoad(receiptElement);
+
+      const canvas = await html2canvas(receiptElement, {
         backgroundColor: '#ffffff',
         scale: 2,
+        useCORS: true,
+        allowTaint: false,
       });
 
       canvas.toBlob(async (blob) => {
@@ -2615,7 +2625,7 @@ export default function AdminOrders() {
             total={Number(selectedReceiptOrder.total)}
             paymentMethod={(selectedReceiptOrder.payment_method || 'Online').toUpperCase()}
             cashierName={selectedReceiptOrder.type === 'pos' ? selectedReceiptOrder.cashier_name : undefined}
-            storeName={selectedReceiptOrder.stores?.name || settings?.company_name || 'Global Market'}
+            storeName={settings?.company_name || selectedReceiptOrder.stores?.name || 'GLOBAL INDIAN MART'}
             logoUrl={settings?.logo_url}
             supportPhone={settings?.company_phone}
             customerBalance={selectedReceiptOrder.customerBalance}

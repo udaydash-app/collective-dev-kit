@@ -75,6 +75,7 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
+import { fetchCompanySettings, resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2700,6 +2701,7 @@ export default function POS() {
   const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
+    const receiptSettings = settings ?? await fetchCompanySettings();
     
     // Log editing state for debugging
     console.log('🔧 [PAYMENT] Starting payment with editing state:', {
@@ -2732,9 +2734,9 @@ export default function POS() {
       customerPhone: selectedCustomer?.phone,
       customerBalance: undefined, // Will be fetched after transaction for credit payments
       isUnifiedBalance: false,
-      storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
-      logoUrl: settings?.logo_url,
-      supportPhone: settings?.company_phone,
+      storeName: receiptSettings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
+      logoUrl: receiptSettings?.logo_url,
+      supportPhone: receiptSettings?.company_phone,
       specialOfferNote,
     };
     
@@ -2837,6 +2839,7 @@ export default function POS() {
         ...transactionDataPrep,
         transactionNumber,
         date: new Date(),
+        logoUrl: await resolveLogoForOutput(transactionDataPrep.logoUrl),
       };
       
       setLastTransactionData(completeTransactionData);
@@ -2865,6 +2868,7 @@ export default function POS() {
         customerName: completeTransactionData.customerName,
         customerPhone: completeTransactionData.customerPhone,
         customerBalance: completeTransactionData.customerBalance,
+        logoUrl: completeTransactionData.logoUrl,
         supportPhone: completeTransactionData.supportPhone,
         isUnifiedBalance: completeTransactionData.isUnifiedBalance,
         specialOfferNote: completeTransactionData.specialOfferNote,
@@ -3142,7 +3146,7 @@ export default function POS() {
           customerBalance,
           isUnifiedBalance,
           storeName: settings?.company_name || stores?.find(s => s.id === transaction.store_id)?.name || 'GLOBAL INDIAN MART',
-        logoUrl: settings?.logo_url,
+        logoUrl: await resolveLogoForOutput(settings?.logo_url),
         supportPhone: settings?.company_phone,
       };
 
@@ -3159,10 +3163,12 @@ export default function POS() {
     try {
       const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
+      await waitForImagesToLoad(lastReceiptRef.current);
       
       const canvas = await html2canvas(lastReceiptRef.current, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
       });
       
@@ -3196,6 +3202,8 @@ export default function POS() {
       container.style.left = '-9999px';
       document.body.appendChild(container);
       
+      const outputLogoUrl = await resolveLogoForOutput(lastTransactionData.logoUrl || settings?.logo_url);
+
       // Render the receipt component
       const root = ReactDOM.createRoot(container);
       await new Promise<void>((resolve) => {
@@ -3213,7 +3221,7 @@ export default function POS() {
             customerName={lastTransactionData.customerName}
             customerPhone={lastTransactionData.customerPhone}
             storeName={lastTransactionData.storeName}
-            logoUrl={lastTransactionData.logoUrl}
+            logoUrl={outputLogoUrl}
             supportPhone={lastTransactionData.supportPhone}
             customerBalance={lastTransactionData.customerBalance}
             isUnifiedBalance={lastTransactionData.isUnifiedBalance}
@@ -3226,12 +3234,14 @@ export default function POS() {
       // Convert to canvas
       const receiptElement = container.querySelector('.receipt-container') as HTMLElement;
       if (!receiptElement) throw new Error('Receipt element not found');
+      await waitForImagesToLoad(receiptElement);
       
       const canvas = await html2canvas(receiptElement, {
         scale: 3,
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
+        allowTaint: false,
       });
       
       // Convert canvas to blob
