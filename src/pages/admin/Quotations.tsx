@@ -506,41 +506,8 @@ export default function Quotations() {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
-      let yPos = 10;
-      
-      // Company Header
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      if (companySettings?.company_name) {
-        doc.text(companySettings.company_name, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 5;
-      }
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      if (companySettings?.company_address) {
-        const address = doc.splitTextToSize(companySettings.company_address, contentWidth);
-        doc.text(address, pageWidth / 2, yPos, { align: 'center' });
-        yPos += address.length * 4;
-      }
-      
-      if (companySettings?.company_phone) {
-        doc.text(`Tel: ${companySettings.company_phone}`, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      }
-      
-      if (companySettings?.company_email) {
-        doc.text(companySettings.company_email, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      }
-      
-      yPos += 4;
-      
-      // Quotation Header
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
-      
+      let yPos = await addPdfHeader(doc, companySettings ?? null);
+
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('QUOTATION', pageWidth / 2, yPos, { align: 'center' });
