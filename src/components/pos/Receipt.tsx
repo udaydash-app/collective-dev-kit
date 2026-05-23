@@ -1,72 +1,7 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { formatDateTime } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
-
-const compressImage = (src: string, maxWidth = 400, maxHeight = 180, _quality = 0.7): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let { width, height } = img;
-      if (width > maxWidth) { height = (maxWidth / width) * height; width = maxWidth; }
-      if (height > maxHeight) { width = (maxHeight / height) * width; height = maxHeight; }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(src); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      try {
-        // Remove near-white background so the logo prints/displays cleanly
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const d = imgData.data;
-        const threshold = 240;
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          if (r >= threshold && g >= threshold && b >= threshold) {
-            d[i + 3] = 0;
-          } else if (r >= 220 && g >= 220 && b >= 220) {
-            const avg = (r + g + b) / 3;
-            d[i + 3] = Math.max(0, Math.min(255, Math.round(255 - (avg - 220) * (255 / 35))));
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        // Trim transparent borders so the logo sits flush with adjacent text
-        try {
-          let top = 0, bottom = height - 1, left = 0, right = width - 1;
-          const isOpaque = (x: number, y: number) => d[(y * width + x) * 4 + 3] > 10;
-          outerTop: for (; top < height; top++) {
-            for (let x = 0; x < width; x++) if (isOpaque(x, top)) break outerTop;
-          }
-          outerBottom: for (; bottom > top; bottom--) {
-            for (let x = 0; x < width; x++) if (isOpaque(x, bottom)) break outerBottom;
-          }
-          outerLeft: for (; left < width; left++) {
-            for (let y = top; y <= bottom; y++) if (isOpaque(left, y)) break outerLeft;
-          }
-          outerRight: for (; right > left; right--) {
-            for (let y = top; y <= bottom; y++) if (isOpaque(right, y)) break outerRight;
-          }
-          const tw = right - left + 1;
-          const th = bottom - top + 1;
-          if (tw > 0 && th > 0 && (tw < width || th < height)) {
-            const trimmed = document.createElement('canvas');
-            trimmed.width = tw;
-            trimmed.height = th;
-            trimmed.getContext('2d')!.drawImage(canvas, left, top, tw, th, 0, 0, tw, th);
-            resolve(trimmed.toDataURL('image/png'));
-            return;
-          }
-        } catch {}
-      } catch {
-        // CORS-tainted canvas: fall back to original
-      }
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(src);
-    img.src = src;
-  });
-};
+import { resolveLogoForOutput } from '@/lib/pdfBranding';
 
 interface ReceiptProps {
   transactionNumber: string;
@@ -114,8 +49,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     const [compressedLogo, setCompressedLogo] = useState<string | undefined>();
 
     useEffect(() => {
+      setCompressedLogo(undefined);
       if (logoUrl) {
-        compressImage(logoUrl).then(setCompressedLogo);
+        resolveLogoForOutput(logoUrl).then(setCompressedLogo);
       }
     }, [logoUrl]);
 
