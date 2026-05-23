@@ -75,7 +75,7 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
-import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
+import { fetchCompanySettings, resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2701,6 +2701,7 @@ export default function POS() {
   const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
+    const receiptSettings = settings ?? await fetchCompanySettings();
     
     // Log editing state for debugging
     console.log('🔧 [PAYMENT] Starting payment with editing state:', {
@@ -2733,9 +2734,9 @@ export default function POS() {
       customerPhone: selectedCustomer?.phone,
       customerBalance: undefined, // Will be fetched after transaction for credit payments
       isUnifiedBalance: false,
-      storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
-      logoUrl: settings?.logo_url,
-      supportPhone: settings?.company_phone,
+      storeName: receiptSettings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
+      logoUrl: receiptSettings?.logo_url,
+      supportPhone: receiptSettings?.company_phone,
       specialOfferNote,
     };
     
