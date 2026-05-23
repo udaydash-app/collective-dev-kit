@@ -3145,7 +3145,7 @@ export default function POS() {
           customerBalance,
           isUnifiedBalance,
           storeName: settings?.company_name || stores?.find(s => s.id === transaction.store_id)?.name || 'GLOBAL INDIAN MART',
-        logoUrl: settings?.logo_url,
+        logoUrl: await resolveLogoForOutput(settings?.logo_url),
         supportPhone: settings?.company_phone,
       };
 
@@ -3162,6 +3162,7 @@ export default function POS() {
     try {
       const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
+      await waitForImagesToLoad(lastReceiptRef.current);
       
       const canvas = await html2canvas(lastReceiptRef.current, {
         scale: 2,
