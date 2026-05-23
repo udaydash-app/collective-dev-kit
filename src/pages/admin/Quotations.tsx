@@ -1044,8 +1044,20 @@ export default function Quotations() {
                               return;
                             }
                             
-                            // Use wa.me (official WhatsApp link)
-                            const whatsappUrl = `https://wa.me/${phone}`;
+                            // Use wa.me (official WhatsApp link) with company-branded greeting
+                            const greeting = companySettings?.company_name
+                              ? `Hello from ${companySettings.company_name}`
+                              : 'Hello';
+                            const contactBits = [
+                              companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : '',
+                              companySettings?.company_email || '',
+                            ].filter(Boolean).join(' | ');
+                            const body = [
+                              greeting,
+                              `Quotation #${quotation.quotation_number}`,
+                              contactBits,
+                            ].filter(Boolean).join('\n');
+                            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
                             console.log('Opening WhatsApp URL:', whatsappUrl);
                             
                             try {
@@ -1235,8 +1247,20 @@ export default function Quotations() {
                           return;
                         }
                         
-                        // Use wa.me (official WhatsApp link)
-                        const whatsappUrl = `https://wa.me/${phone}`;
+                        // Use wa.me (official WhatsApp link) with company-branded greeting
+                        const greeting = companySettings?.company_name
+                          ? `Hello from ${companySettings.company_name}`
+                          : 'Hello';
+                        const contactBits = [
+                          companySettings?.company_phone ? `Tel: ${companySettings.company_phone}` : '',
+                          companySettings?.company_email || '',
+                        ].filter(Boolean).join(' | ');
+                        const body = [
+                          greeting,
+                          `Quotation #${selectedQuotation.quotation_number}`,
+                          contactBits,
+                        ].filter(Boolean).join('\n');
+                        const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
                         console.log('Opening WhatsApp URL:', whatsappUrl);
                         
                         try {
