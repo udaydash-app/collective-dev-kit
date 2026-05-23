@@ -195,7 +195,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       `}</style>
       <div className="text-center mb-3">
         {compressedLogo && (
-          <div className="flex justify-center mb-2">
+          <div className="flex justify-center" style={{ marginBottom: '2px' }}>
             <img 
               src={compressedLogo} 
               alt="Company Logo" 
@@ -203,7 +203,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             />
           </div>
         )}
-        <div className={compressedLogo ? "mt-2" : ""}>
+        <div style={compressedLogo ? { marginTop: '0px' } : undefined}>
           <h1 className="text-xl font-bold">{storeName || 'GLOBAL INDIAN MART'}</h1>
           <p className="text-xs">Fresh groceries delivered to your doorstep</p>
           <p className="text-xs mt-2">Transaction: {transactionNumber}</p>
