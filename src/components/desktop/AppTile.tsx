@@ -4,15 +4,21 @@ import { cn } from '@/lib/utils';
 interface Props {
   app: AppDef;
   onOpen: (id: string) => void;
+  variant?: 'desktop' | 'panel';
 }
 
-export function AppTile({ app, onOpen }: Props) {
+export function AppTile({ app, onOpen, variant = 'desktop' }: Props) {
   const Icon = app.icon;
   return (
     <button
       onDoubleClick={() => onOpen(app.id)}
       onClick={() => onOpen(app.id)}
-      className="group flex flex-col items-center gap-2 w-24 p-2 rounded-lg hover:bg-white/10 focus-visible:bg-white/15 focus:outline-none transition-colors"
+      className={cn(
+        'group flex flex-col items-center gap-2 w-24 p-2 rounded-lg focus:outline-none transition-colors',
+        variant === 'desktop'
+          ? 'hover:bg-white/10 focus-visible:bg-white/15'
+          : 'hover:bg-accent focus-visible:bg-accent',
+      )}
       aria-label={`Open ${app.title}`}
     >
       <div
@@ -23,7 +29,12 @@ export function AppTile({ app, onOpen }: Props) {
       >
         <Icon className="h-8 w-8 drop-shadow" strokeWidth={2.2} />
       </div>
-      <span className="text-xs text-center text-foreground leading-tight line-clamp-2">
+      <span
+        className={cn(
+          'text-xs text-center leading-tight line-clamp-2',
+          variant === 'desktop' ? 'text-white/90 drop-shadow' : 'text-foreground',
+        )}
+      >
         {app.title}
       </span>
     </button>
