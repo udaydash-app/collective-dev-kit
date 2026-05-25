@@ -8,7 +8,7 @@ import { WindowManager } from '@/components/desktop/WindowManager';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Search, LogOut, User as UserIcon, X,
+  Search, LogOut, User as UserIcon,
   ShoppingCart, Package, ShoppingBag, BookOpen, BarChart3, Megaphone, UserCog,
   type LucideIcon,
 } from 'lucide-react';
