@@ -23,7 +23,7 @@ export function AppTile({ app, onOpen }: Props) {
       >
         <Icon className="h-8 w-8 drop-shadow" strokeWidth={2.2} />
       </div>
-      <span className="text-xs text-center text-white/90 leading-tight line-clamp-2 drop-shadow">
+      <span className="text-xs text-center text-foreground leading-tight line-clamp-2">
         {app.title}
       </span>
     </button>
