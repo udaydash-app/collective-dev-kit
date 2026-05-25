@@ -50,6 +50,7 @@ export const Header = () => {
   }, []);
 
   return (
+    inDesktop ? null :
     <>
       <header className="sticky top-0 z-20 bg-card border-b border-border pointer-events-none">
         <div className="flex items-center justify-between h-14 px-4 max-w-screen-xl mx-auto gap-2 pointer-events-auto">
