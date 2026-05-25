@@ -83,7 +83,7 @@ export const windowActions = {
         height: size.height,
         zIndex: topZ,
         minimized: false,
-        maximized: false,
+        maximized: true,
       };
       return { topZ, windows: [...s.windows, newWin] };
     });
