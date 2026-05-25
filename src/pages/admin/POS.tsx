@@ -3924,7 +3924,7 @@ export default function POS() {
   };
 
   return (
-    <div className="h-screen max-h-full bg-background flex overflow-hidden">
+    <div className={cn("bg-background flex overflow-hidden", inDesktop ? "h-full w-full" : "h-screen")}>
       {/* Left Sidebar - Cart */}
       <div 
         className={cn(
