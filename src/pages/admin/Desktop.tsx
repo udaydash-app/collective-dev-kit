@@ -115,8 +115,8 @@ export default function Desktop() {
       {/* Desktop area */}
       <div className="flex-1 relative overflow-hidden">
         {/* Tile grid (sits behind windows) */}
-        <div className="absolute inset-0 overflow-y-auto px-6 py-8 z-0">
-          <div className="max-w-5xl mx-auto">
+        <div className="absolute inset-0 overflow-y-auto px-6 py-8 z-0 flex items-center justify-center">
+          <div className="w-full max-w-4xl min-h-[440px] rounded-2xl border border-white/15 bg-background/20 p-6 shadow-2xl backdrop-blur-xl">
             {q ? (
               <>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-white/70 mb-3 pl-2">
@@ -134,7 +134,7 @@ export default function Desktop() {
                 </div>
               </>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4 place-items-center">
                 {APP_GROUPS.map((g) => {
                   const meta = GROUP_META[g];
                   const Icon = meta.icon;

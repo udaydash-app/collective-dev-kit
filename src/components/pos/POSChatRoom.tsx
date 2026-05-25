@@ -144,8 +144,9 @@ export function POSChatRoom() {
 
   useEffect(() => {
     load();
+    const channelName = `pos_chat_messages_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('pos_chat_messages_changes')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_chat_messages' }, (payload) => {
         const row = payload.new as ChatMsg;
         const isLocal = localIdsRef.current.has(row.id);
