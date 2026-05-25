@@ -71,22 +71,11 @@ const defaultSize = () => {
 export const windowActions = {
   openApp(appId: string) {
     set((s) => {
-      const existing = s.windows.find((w) => w.appId === appId);
-      if (existing) {
-        // focus + restore
-        const topZ = s.topZ + 1;
-        return {
-          topZ,
-          windows: s.windows.map((w) =>
-            w.id === existing.id ? { ...w, minimized: false, zIndex: topZ } : w,
-          ),
-        };
-      }
       const topZ = s.topZ + 1;
       const size = defaultSize();
       const pos = cascadeOffset(s.windows.length);
       const newWin: WindowState = {
-        id: `${appId}-${Date.now()}`,
+        id: `${appId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         appId,
         x: pos.x,
         y: pos.y,
