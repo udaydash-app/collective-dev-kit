@@ -1,6 +1,5 @@
 import React, { Suspense } from 'react';
 import { Rnd } from 'react-rnd';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Minus, Square, X, Maximize2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { findAppById } from '@/lib/appRegistry';
@@ -92,20 +91,15 @@ export const AppWindow = React.memo(function AppWindow({ win, desktopBounds, top
       {/* Body */}
       <div className="flex-1 overflow-auto bg-background">
         <ErrorBoundary>
-          <MemoryRouter initialEntries={[app.path]}>
-            <Suspense
-              fallback={
-                <div className="h-full w-full flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              }
-            >
-              <Routes>
-                <Route path={app.path} element={<Component />} />
-                <Route path="*" element={<Component />} />
-              </Routes>
-            </Suspense>
-          </MemoryRouter>
+          <Suspense
+            fallback={
+              <div className="h-full w-full flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            }
+          >
+            <Component />
+          </Suspense>
         </ErrorBoundary>
       </div>
     </Rnd>
