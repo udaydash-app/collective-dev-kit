@@ -184,7 +184,7 @@ export default function Desktop() {
           </DialogHeader>
           <div className="flex flex-wrap gap-2 pt-2">
             {groupApps.map((app) => (
-              <AppTile key={app.id} app={app} onOpen={handleOpen} />
+              <AppTile key={app.id} app={app} onOpen={handleOpen} variant="panel" />
             ))}
           </div>
         </DialogContent>
