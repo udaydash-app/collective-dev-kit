@@ -8,6 +8,7 @@ import { LanguageSelector } from "./LanguageSelector";
 import { ThemeToggle } from "./ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
+import { useInDesktopWindow } from "@/components/desktop/DesktopWindowContext";
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export const Header = () => {
+  const inDesktop = useInDesktopWindow();
   const location = useLocation();
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Select location");
