@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useInDesktopWindow } from '@/components/desktop/DesktopWindowContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSup
 
 export default function POS() {
   const navigate = useNavigate();
+  const inDesktop = useInDesktopWindow();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -4171,6 +4173,7 @@ export default function POS() {
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Admin Menu - Horizontal Layout */}
+        {!inDesktop && (
         <div className="bg-primary/5 border-b border-primary/20 px-2 py-1">
           <div className="flex gap-1 overflow-x-auto">
             {/* Sales Section */}
@@ -4298,6 +4301,7 @@ export default function POS() {
             </DropdownMenu>
           </div>
         </div>
+        )}
 
         {/* Search Bar - Only show when browsing products */}
         {(selectedCategory || searchTerm) && (
