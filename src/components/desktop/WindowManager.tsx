@@ -23,7 +23,7 @@ export function WindowManager() {
   }, []);
 
   return (
-    <div ref={ref} className="absolute inset-0 overflow-hidden">
+    <div ref={ref} className="absolute inset-0 overflow-hidden pointer-events-none [&>*]:pointer-events-auto">
       {windows.map((w) => (
         <AppWindow key={w.id} win={w} desktopBounds={bounds} topZ={topZ} />
       ))}
