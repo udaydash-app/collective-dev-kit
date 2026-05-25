@@ -137,6 +137,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/LiveChat')) },
   { id: 'settings', path: '/admin/settings', title: 'Settings', icon: SettingsIcon, group: 'Admin', color: 'from-gray-500 to-slate-700',
     component: L(() => import('@/pages/admin/Settings')) },
+  { id: 'calculator', path: '/admin/calculator', title: 'Calculator', icon: Calculator, group: 'Admin', color: 'from-zinc-500 to-slate-700',
+    component: L(() => import('@/pages/admin/Calculator')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
