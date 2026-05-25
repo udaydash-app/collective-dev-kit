@@ -102,6 +102,11 @@ import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSup
 export default function POS() {
   const navigate = useNavigate();
   const inDesktop = useInDesktopWindow();
+  const isPWA = typeof window !== 'undefined' && (
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+  const hideAdminMenu = inDesktop || isPWA;
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -4173,7 +4178,7 @@ export default function POS() {
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Admin Menu - Horizontal Layout */}
-        {!inDesktop && (
+        {!hideAdminMenu && (
         <div className="bg-primary/5 border-b border-primary/20 px-2 py-1">
           <div className="flex gap-1 overflow-x-auto">
             {/* Sales Section */}
