@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, LogOut, User as UserIcon,
   ShoppingCart, Package, ShoppingBag, BookOpen, BarChart3, Megaphone, UserCog,
+  Calculator as CalculatorIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -160,6 +161,19 @@ export default function Desktop() {
                     </button>
                   );
                 })}
+                {/* Standalone Calculator tile, placed right after Admin */}
+                <button
+                  onClick={() => handleOpen('calculator')}
+                  onDoubleClick={() => handleOpen('calculator')}
+                  className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-slate-100 focus-visible:bg-slate-200 focus:outline-none transition-colors w-[120px]"
+                >
+                  <div className="h-28 w-28 rounded-3xl bg-gradient-to-br from-zinc-500 to-slate-700 shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform">
+                    <CalculatorIcon className="h-14 w-14 drop-shadow" strokeWidth={2.2} />
+                  </div>
+                  <span className="text-base text-center text-slate-800 font-medium leading-tight">
+                    Calculator
+                  </span>
+                </button>
               </div>
             )}
           </div>
