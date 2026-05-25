@@ -4173,6 +4173,7 @@ export default function POS() {
       {/* Right Side - Products & Actions */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Admin Menu - Horizontal Layout */}
+        {!inDesktop && (
         <div className="bg-primary/5 border-b border-primary/20 px-2 py-1">
           <div className="flex gap-1 overflow-x-auto">
             {/* Sales Section */}
