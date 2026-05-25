@@ -129,6 +129,9 @@ export function POSChatRoom() {
   const openRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const author = useRef(getAuthor());
+  const channelNameRef = useRef(
+    `pos_chat_messages_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  );
   // Refresh author name on every render so a re-login under a different PIN
   // is reflected immediately without remounting the component.
   author.current = getAuthor();
@@ -145,7 +148,7 @@ export function POSChatRoom() {
   useEffect(() => {
     load();
     const channel = supabase
-      .channel('pos_chat_messages_changes')
+      .channel(channelNameRef.current)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_chat_messages' }, (payload) => {
         const row = payload.new as ChatMsg;
         const isLocal = localIdsRef.current.has(row.id);
