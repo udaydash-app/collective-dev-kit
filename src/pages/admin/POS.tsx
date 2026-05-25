@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useInDesktopWindow } from '@/components/desktop/DesktopWindowContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSup
 
 export default function POS() {
   const navigate = useNavigate();
+  const inDesktop = useInDesktopWindow();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const queryClient = useQueryClient();
