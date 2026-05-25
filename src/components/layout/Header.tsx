@@ -8,6 +8,7 @@ import { LanguageSelector } from "./LanguageSelector";
 import { ThemeToggle } from "./ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
+import { useInDesktopWindow } from "@/components/desktop/DesktopWindowContext";
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export const Header = () => {
+  const inDesktop = useInDesktopWindow();
   const location = useLocation();
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Select location");
@@ -48,6 +50,7 @@ export const Header = () => {
   }, []);
 
   return (
+    inDesktop ? null :
     <>
       <header className="sticky top-0 z-20 bg-card border-b border-border pointer-events-none">
         <div className="flex items-center justify-between h-14 px-4 max-w-screen-xl mx-auto gap-2 pointer-events-auto">

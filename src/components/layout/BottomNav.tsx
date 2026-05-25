@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useInDesktopWindow } from "@/components/desktop/DesktopWindowContext";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/", shortcut: ["Ctrl", "H"] },
@@ -15,9 +16,10 @@ const navItems = [
 export const BottomNav = () => {
   const location = useLocation();
   const { isAdmin, isCashier } = useAdmin();
+  const inDesktop = useInDesktopWindow();
 
-  // Hide bottom navigation on POS page or for POS users (admin/cashier)
-  if (location.pathname === '/admin/pos' || isAdmin || isCashier) {
+  // Hide bottom navigation on POS page, for POS users, or inside desktop windows
+  if (inDesktop || location.pathname === '/admin/pos' || isAdmin || isCashier) {
     return null;
   }
 

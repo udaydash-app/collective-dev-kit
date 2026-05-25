@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { findAppById } from '@/lib/appRegistry';
 import { windowActions, type WindowState } from '@/store/windowStore';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DesktopWindowContext } from './DesktopWindowContext';
 
 interface Props {
   win: WindowState;
@@ -98,7 +99,9 @@ export const AppWindow = React.memo(function AppWindow({ win, desktopBounds, top
               </div>
             }
           >
-            <Component />
+            <DesktopWindowContext.Provider value={true}>
+              <Component />
+            </DesktopWindowContext.Provider>
           </Suspense>
         </ErrorBoundary>
       </div>
