@@ -102,11 +102,7 @@ import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSup
 export default function POS() {
   const navigate = useNavigate();
   const inDesktop = useInDesktopWindow();
-  const isPWA = typeof window !== 'undefined' && (
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true
-  );
-  const hideAdminMenu = inDesktop || isPWA;
+  const hideAdminMenu = true;
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const queryClient = useQueryClient();
