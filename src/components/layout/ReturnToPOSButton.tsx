@@ -1,6 +1,7 @@
 import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useInDesktopWindow } from "@/components/desktop/DesktopWindowContext";
 
 interface ReturnToPOSButtonProps {
   inline?: boolean;
@@ -10,6 +11,11 @@ interface ReturnToPOSButtonProps {
 export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPOSButtonProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const inDesktop = useInDesktopWindow();
+
+  // Inside the desktop window manager, navigation breaks out of the window.
+  // Hide this button so users use the window's minimize/close controls instead.
+  if (inDesktop) return null;
 
   // Only show Dashboard button if logged in as admin (full_name === 'admin')
   let isAdminUser = false;
