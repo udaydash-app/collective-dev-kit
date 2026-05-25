@@ -3924,7 +3924,7 @@ export default function POS() {
   };
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-screen max-h-full bg-background flex overflow-hidden">
       {/* Left Sidebar - Cart */}
       <div 
         className={cn(
