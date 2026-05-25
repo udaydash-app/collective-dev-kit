@@ -4301,6 +4301,7 @@ export default function POS() {
             </DropdownMenu>
           </div>
         </div>
+        )}
 
         {/* Search Bar - Only show when browsing products */}
         {(selectedCategory || searchTerm) && (
