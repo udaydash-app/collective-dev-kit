@@ -138,7 +138,6 @@ export default function Desktop() {
                 {APP_GROUPS.map((g) => {
                   const meta = GROUP_META[g];
                   const Icon = meta.icon;
-                  const count = APPS.filter((a) => a.group === g).length;
                   return (
                     <button
                       key={g}
@@ -146,11 +145,8 @@ export default function Desktop() {
                       onDoubleClick={() => setOpenGroup(g)}
                       className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-white/10 focus-visible:bg-white/15 focus:outline-none transition-colors w-[120px]"
                     >
-                      <div className={`h-28 w-28 rounded-3xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform relative`}>
+                      <div className={`h-28 w-28 rounded-3xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform`}>
                         <Icon className="h-14 w-14 drop-shadow" strokeWidth={2.2} />
-                        <span className="absolute -top-2 -right-2 h-7 min-w-[1.75rem] px-2 rounded-full bg-background text-foreground text-xs font-semibold inline-flex items-center justify-center shadow">
-                          {count}
-                        </span>
                       </div>
                       <span className="text-base text-center text-white font-medium leading-tight drop-shadow">
                         {g}
