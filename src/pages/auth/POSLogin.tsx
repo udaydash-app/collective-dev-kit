@@ -238,7 +238,7 @@ export default function POSLogin() {
           
           toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
           await new Promise(resolve => setTimeout(resolve, 500));
-          navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
+          navigate('/admin/desktop');
           return;
         } catch (offlineError) {
           console.error('🔴 Offline login error:', offlineError);
@@ -300,7 +300,7 @@ export default function POSLogin() {
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
             await new Promise(resolve => setTimeout(resolve, 500));
-            navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
+            navigate('/admin/desktop');
             return;
           } catch (offlineError) {
             console.error('🔴 Offline fallback failed:', offlineError);
@@ -373,7 +373,7 @@ export default function POSLogin() {
         toast.success(`Welcome, ${fullName}!`);
         
         // Navigate immediately - sync and cache data in background
-        navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
+        navigate('/admin/desktop');
         
         // Trigger two-way sync in background (non-blocking)
         // First pull from cloud, then push local changes
@@ -435,7 +435,7 @@ export default function POSLogin() {
 
         toast.success(`Welcome, ${fullName}!`);
         queryClient.invalidateQueries({ queryKey: ['session'] });
-        navigate(fullName?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
+        navigate('/admin/desktop');
         return;
       }
       
@@ -474,7 +474,7 @@ export default function POSLogin() {
       sessionStorage.setItem('current_pos_pin', pinValue);
       
       // Navigate immediately, cache data in background
-      navigate(userData.full_name?.toLowerCase() === 'admin' ? '/admin/dashboard-modern' : '/admin/pos');
+      navigate('/admin/desktop');
       
       if (navigator.onLine) {
         (async () => {
