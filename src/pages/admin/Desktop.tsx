@@ -77,26 +77,26 @@ export default function Desktop() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[linear-gradient(135deg,hsl(220_45%_12%),hsl(260_50%_18%)_50%,hsl(200_55%_22%))]">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[linear-gradient(135deg,hsl(210_40%_96%),hsl(220_30%_92%)_50%,hsl(200_40%_94%))]">
       {/* Top bar */}
-      <header className="h-12 shrink-0 px-3 flex items-center justify-between bg-background/30 backdrop-blur-xl border-b border-white/10 text-white">
+      <header className="h-12 shrink-0 px-3 flex items-center justify-between bg-white/70 backdrop-blur-xl border-b border-slate-200 text-slate-800">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <div className="h-6 w-6 rounded bg-gradient-to-br from-emerald-400 to-cyan-500 shadow" />
           Global Market Desktop
         </div>
 
         <div className="relative w-72 max-w-[40vw]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search apps..."
-            className="pl-8 h-8 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus-visible:ring-white/40"
+            className="pl-8 h-8 bg-white border-slate-200 text-slate-800 placeholder:text-slate-400"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-sm text-white/80">
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-sm text-slate-700">
             <UserIcon className="h-4 w-4" />
             {session?.full_name ?? 'Staff'}
           </span>
@@ -104,7 +104,7 @@ export default function Desktop() {
             variant="ghost"
             size="sm"
             onClick={handleLogout}
-            className="text-white/90 hover:bg-white/15 hover:text-white"
+            className="text-slate-700 hover:bg-slate-200 hover:text-slate-900"
           >
             <LogOut className="h-4 w-4 sm:mr-1.5" />
             <span className="hidden sm:inline">Logout</span>
@@ -116,10 +116,10 @@ export default function Desktop() {
       <div className="flex-1 relative overflow-hidden">
         {/* Tile grid (sits behind windows) */}
         <div className="absolute inset-0 overflow-auto z-0 flex items-center justify-center p-6">
-          <div className="inline-block rounded-2xl border border-white/15 bg-background/20 p-8 shadow-2xl backdrop-blur-xl">
+          <div className="inline-block rounded-2xl border border-slate-200 bg-white/80 p-8 shadow-2xl backdrop-blur-xl">
             {q ? (
               <>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-white/70 mb-3 pl-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 pl-2">
                   Results
                 </h2>
                 <div className="flex flex-wrap gap-2">
@@ -127,7 +127,7 @@ export default function Desktop() {
                     <AppTile key={app.id} app={app} onOpen={handleOpen} />
                   ))}
                   {searchResults.length === 0 && (
-                    <p className="text-white/70 mt-10 w-full text-center">
+                    <p className="text-slate-500 mt-10 w-full text-center">
                       No apps match "{query}"
                     </p>
                   )}
@@ -143,12 +143,12 @@ export default function Desktop() {
                       key={g}
                       onClick={() => setOpenGroup(g)}
                       onDoubleClick={() => setOpenGroup(g)}
-                      className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-white/10 focus-visible:bg-white/15 focus:outline-none transition-colors w-[120px]"
+                      className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-slate-100 focus-visible:bg-slate-200 focus:outline-none transition-colors w-[120px]"
                     >
                       <div className={`h-28 w-28 rounded-3xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform`}>
                         <Icon className="h-14 w-14 drop-shadow" strokeWidth={2.2} />
                       </div>
-                      <span className="text-base text-center text-white font-medium leading-tight drop-shadow">
+                      <span className="text-base text-center text-slate-800 font-medium leading-tight">
                         {g}
                       </span>
                     </button>
