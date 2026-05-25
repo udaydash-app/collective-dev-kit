@@ -34,6 +34,10 @@ export default function Desktop() {
   const { windows } = useWindowStore();
   const navigate = useNavigate();
 
+  // Hide the desktop top bar when any app window is open (not minimized),
+  // so the active "page" gets full focus.
+  const hasOpenWindow = windows.some((w) => !w.minimized);
+
   const session = (() => {
     try {
       const raw = localStorage.getItem('offline_pos_session');
@@ -78,7 +82,8 @@ export default function Desktop() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[linear-gradient(135deg,hsl(210_40%_96%),hsl(220_30%_92%)_50%,hsl(200_40%_94%))]">
-      {/* Top bar */}
+      {/* Top bar — hidden when a window is open */}
+      {!hasOpenWindow && (
       <header className="h-12 shrink-0 px-3 flex items-center justify-between bg-white/70 backdrop-blur-xl border-b border-slate-200 text-slate-800">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <div className="h-6 w-6 rounded bg-gradient-to-br from-emerald-400 to-cyan-500 shadow" />
@@ -111,6 +116,7 @@ export default function Desktop() {
           </Button>
         </div>
       </header>
+      )}
 
       {/* Desktop area */}
       <div className="flex-1 relative overflow-hidden">
