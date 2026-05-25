@@ -79,19 +79,19 @@ export default function Calculator() {
     <Button
       onClick={onClick}
       variant={variant}
-      className={`h-14 text-lg font-medium ${className}`}
+      className={`h-20 text-2xl font-semibold ${className}`}
     >
       {children}
     </Button>
   );
 
   return (
-    <div className="h-full w-full flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-xs rounded-2xl border border-border bg-card shadow-xl p-4 space-y-3">
-        <div className="rounded-lg bg-muted px-4 py-5 text-right text-3xl font-mono tabular-nums truncate min-h-[72px] flex items-end justify-end">
+    <div className="h-full w-full flex items-center justify-center p-6 bg-background">
+      <div className="w-full max-w-lg rounded-3xl border border-border bg-card shadow-2xl p-6 space-y-4">
+        <div className="rounded-xl bg-muted px-6 py-8 text-right text-6xl font-mono tabular-nums truncate min-h-[120px] flex items-end justify-end">
           {display}
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-3">
           <Key onClick={clearAll} variant="secondary">AC</Key>
           <Key onClick={toggleSign} variant="secondary">±</Key>
           <Key onClick={percent} variant="secondary">%</Key>
