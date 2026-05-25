@@ -4336,9 +4336,7 @@ export default function POS() {
         {/* To-Do & Reminders or Products Grid - Flexible scrollable container */}
         <div className="flex-1 overflow-y-auto p-2 pb-0 min-h-0">
           {!selectedCategory && !searchTerm ? (
-            <div className="max-w-md mx-auto text-xs scale-95 origin-top">
-              <POSTodoList />
-            </div>
+            <POSTodoList />
           ) : (
             <>
               {/* Breadcrumb */}
