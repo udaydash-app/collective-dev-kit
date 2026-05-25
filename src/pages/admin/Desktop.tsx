@@ -115,8 +115,8 @@ export default function Desktop() {
       {/* Desktop area */}
       <div className="flex-1 relative overflow-hidden">
         {/* Tile grid (sits behind windows) */}
-        <div className="absolute inset-0 overflow-y-auto px-6 py-8 z-0 flex items-center justify-center">
-          <div className="w-full max-w-4xl min-h-[440px] rounded-2xl border border-white/15 bg-background/20 p-6 shadow-2xl backdrop-blur-xl">
+        <div className="absolute inset-0 overflow-auto z-0 flex items-center justify-center p-6">
+          <div className="inline-block rounded-2xl border border-white/15 bg-background/20 p-8 shadow-2xl backdrop-blur-xl">
             {q ? (
               <>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-white/70 mb-3 pl-2">
@@ -134,7 +134,7 @@ export default function Desktop() {
                 </div>
               </>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4 place-items-center">
+              <div className="grid grid-cols-4 gap-6 place-items-center">
                 {APP_GROUPS.map((g) => {
                   const meta = GROUP_META[g];
                   const Icon = meta.icon;
@@ -144,15 +144,15 @@ export default function Desktop() {
                       key={g}
                       onClick={() => setOpenGroup(g)}
                       onDoubleClick={() => setOpenGroup(g)}
-                      className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/10 focus-visible:bg-white/15 focus:outline-none transition-colors"
+                      className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-white/10 focus-visible:bg-white/15 focus:outline-none transition-colors w-[120px]"
                     >
-                      <div className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform relative`}>
-                        <Icon className="h-10 w-10 drop-shadow" strokeWidth={2.2} />
-                        <span className="absolute -top-1.5 -right-1.5 h-6 min-w-[1.5rem] px-1.5 rounded-full bg-background text-foreground text-[11px] font-semibold inline-flex items-center justify-center shadow">
+                      <div className={`h-28 w-28 rounded-3xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform relative`}>
+                        <Icon className="h-14 w-14 drop-shadow" strokeWidth={2.2} />
+                        <span className="absolute -top-2 -right-2 h-7 min-w-[1.75rem] px-2 rounded-full bg-background text-foreground text-xs font-semibold inline-flex items-center justify-center shadow">
                           {count}
                         </span>
                       </div>
-                      <span className="text-sm text-center text-white font-medium leading-tight drop-shadow">
+                      <span className="text-base text-center text-white font-medium leading-tight drop-shadow">
                         {g}
                       </span>
                     </button>
