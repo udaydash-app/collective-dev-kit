@@ -128,12 +128,12 @@ export default function ContactImport() {
           </div>
           <div className="flex gap-2">
             <Button 
-              onClick={() => navigate("/admin/pos")}
+              onClick={() => navigate("/admin/desktop")}
               variant="outline"
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Return to POS
+              Return to Desktop
             </Button>
             <Button 
               onClick={() => navigate("/admin/contacts")}

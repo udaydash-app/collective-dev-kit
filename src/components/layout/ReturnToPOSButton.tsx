@@ -43,12 +43,12 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
         </Button>
       )}
       <Button
-        onClick={() => navigate("/admin/pos")}
+        onClick={() => navigate("/admin/desktop")}
         variant="outline"
         size="sm"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Return to POS
+        Return to Desktop
       </Button>
     </div>
   );
