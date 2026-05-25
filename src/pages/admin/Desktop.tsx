@@ -138,7 +138,6 @@ export default function Desktop() {
                 {APP_GROUPS.map((g) => {
                   const meta = GROUP_META[g];
                   const Icon = meta.icon;
-                  const count = APPS.filter((a) => a.group === g).length;
                   return (
                     <button
                       key={g}
