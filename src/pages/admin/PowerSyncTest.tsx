@@ -157,6 +157,22 @@ export default function PowerSyncTest() {
           </ul>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Synced table row counts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid grid-cols-2 gap-x-6 text-sm">
+            {SYNCED_TABLES.map((t) => (
+              <li key={t} className="py-1 flex justify-between border-b">
+                <span className="font-mono">{t}</span>
+                <span className="text-muted-foreground">{counts[t] ?? "…"}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
