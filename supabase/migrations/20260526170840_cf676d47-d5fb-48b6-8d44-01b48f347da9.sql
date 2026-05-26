@@ -1,0 +1,1 @@
+ALTER PUBLICATION powersync ADD TABLE "public"."stock_adjustments";

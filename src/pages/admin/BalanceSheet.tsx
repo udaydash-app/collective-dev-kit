@@ -2,6 +2,7 @@ import { useState } from 'react';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAccountBalancesLocal } from '@/db/queries/accounting';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,49 +19,53 @@ export default function BalanceSheet() {
   const { data: balanceSheetData, isLoading } = useQuery({
     queryKey: ['balance-sheet', asOfDate],
     queryFn: async () => {
-      const { data: accounts, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .in('account_type', ['asset', 'liability', 'equity'])
-        .eq('is_active', true)
-        .order('account_code');
+      // Local-first read of account balances. Falls back to Supabase
+      // only if the local PowerSync mirror has no rows yet.
+      let rows: any[] = [];
+      try {
+        rows = await fetchAccountBalancesLocal({
+          endDate: asOfDate,
+          accountTypes: ['asset', 'liability', 'equity'],
+        });
+      } catch (err) {
+        console.warn('[balance-sheet] local fetch failed, falling back', err);
+      }
+      if (!rows.length) {
+        const { data: accounts, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .in('account_type', ['asset', 'liability', 'equity'])
+          .eq('is_active', true)
+          .order('account_code');
+        if (error) throw error;
+        rows = await Promise.all(
+          (accounts || []).map(async (account: any) => {
+            const { data: lines } = await supabase
+              .from('journal_entry_lines')
+              .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
+              .eq('account_id', account.id)
+              .eq('journal_entries.status', 'posted')
+              .lte('journal_entries.entry_date', asOfDate);
+            return {
+              ...account,
+              total_debit: lines?.reduce((s: number, l: any) => s + l.debit_amount, 0) || 0,
+              total_credit: lines?.reduce((s: number, l: any) => s + l.credit_amount, 0) || 0,
+            };
+          }),
+        );
+      }
 
-      if (error) throw error;
-
-      const accountsWithBalances = await Promise.all(
-        accounts.map(async (account) => {
-          const { data: lines } = await supabase
-            .from('journal_entry_lines')
-            .select(`
-              debit_amount,
-              credit_amount,
-              journal_entries!inner (
-                status,
-                entry_date
-              )
-            `)
-            .eq('account_id', account.id)
-            .eq('journal_entries.status', 'posted')
-            .lte('journal_entries.entry_date', asOfDate);
-
-          if (!lines || lines.length === 0) return null;
-
-          const totalDebit = lines.reduce((sum, line) => sum + line.debit_amount, 0);
-          const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
-
+      const activeAccounts = rows
+        .map((account: any) => {
+          const totalDebit = account.total_debit || 0;
+          const totalCredit = account.total_credit || 0;
           const balance =
             account.account_type === 'asset'
               ? totalDebit - totalCredit
               : totalCredit - totalDebit;
-
-          return {
-            ...account,
-            balance,
-          };
+          return { ...account, balance };
         })
-      );
-
-      const activeAccounts = accountsWithBalances.filter((acc) => acc !== null && acc.balance !== 0);
+        .filter((acc: any) => acc.balance !== 0);
 
       // Categorize assets - positive balance assets stay on asset side
       // Negative balance assets move to liability side
