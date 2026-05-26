@@ -48,6 +48,8 @@ class SupabaseBackendConnector implements PowerSyncBackendConnector {
 }
 
 let _db: PowerSyncDatabase | null = null;
+let _initPromise: Promise<void> | null = null;
+let _connectPromise: Promise<void> | null = null;
 
 export function getPowerSyncDB(): PowerSyncDatabase {
   if (_db) return _db;
@@ -63,10 +65,19 @@ export function getPowerSyncDB(): PowerSyncDatabase {
 
 export async function connectPowerSync(): Promise<PowerSyncDatabase> {
   const db = getPowerSyncDB();
-  console.log("[powersync] init starting");
-  await db.init();
-  console.log("[powersync] init done, connecting");
-  await db.connect(new SupabaseBackendConnector());
-  console.log("[powersync] connect returned");
+  if (!_initPromise) {
+    _initPromise = db.init().catch((error) => {
+      _initPromise = null;
+      throw error;
+    });
+  }
+  await _initPromise;
+
+  if (!_connectPromise) {
+    _connectPromise = db.connect(new SupabaseBackendConnector()).catch((error) => {
+      _connectPromise = null;
+      console.error("[powersync] background connect failed", error);
+    });
+  }
   return db;
 }

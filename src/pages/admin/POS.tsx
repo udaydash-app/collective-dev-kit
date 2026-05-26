@@ -98,6 +98,7 @@ import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
+import { findPosProductByBarcodeLocal, searchPosProductsLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -191,6 +192,12 @@ export default function POS() {
 
   // Load held tickets from localStorage only once on mount
   const loadedTicketsRef = useRef(false);
+  React.useEffect(() => {
+    warmPosProductsLocalIndex().catch((error) => {
+      console.error('Failed to warm POS product index:', error);
+    });
+  }, []);
+
   React.useEffect(() => {
     if (loadedTicketsRef.current) return;
     loadedTicketsRef.current = true;
@@ -1511,6 +1518,15 @@ export default function POS() {
   const { data: products } = useQuery({
     queryKey: ['pos-products', searchTerm, selectedCategory],
     queryFn: async () => {
+      if (searchTerm.trim() && !selectedCategory) {
+        try {
+          const localProducts = await searchPosProductsLocal(searchTerm.trim(), 50);
+          if (localProducts.length || shouldUseLocalData()) return localProducts;
+        } catch (error) {
+          console.error('Failed to search local POS products:', error);
+        }
+      }
+
       // Try online first
       if (navigator.onLine) {
         try {
@@ -1974,8 +1990,9 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
+    const normalizedBarcode = barcode.trim().toLowerCase();
     // Check cache first for instant response
-    const cached = barcodeCache.get(barcode);
+    const cached = barcodeCache.get(normalizedBarcode);
     if (cached) {
       if (cached.type === 'variant') {
         addToCartWithCustomPrice(cached.data);
@@ -1989,6 +2006,20 @@ export default function POS() {
         }
       }
       return;
+    }
+
+    try {
+      const localMatch = await findPosProductByBarcodeLocal(normalizedBarcode);
+      if (localMatch) {
+        const productToAdd = localMatch.variant
+          ? { ...localMatch.product, price: localMatch.variant.price, selectedVariant: localMatch.variant }
+          : localMatch.product;
+        barcodeCache.set(normalizedBarcode, localMatch.variant ? 'variant' : 'product', productToAdd);
+        addToCartWithCustomPrice(productToAdd);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed local barcode lookup:', error);
     }
 
     // Query variant and product barcode in PARALLEL for maximum speed
@@ -2022,7 +2053,7 @@ export default function POS() {
         selectedVariant: variantResult.data,
       };
       // Cache for future scans
-      barcodeCache.set(barcode, 'variant', productToAdd);
+      barcodeCache.set(normalizedBarcode, 'variant', productToAdd);
       addToCartWithCustomPrice(productToAdd);
       return;
     }
@@ -2030,7 +2061,7 @@ export default function POS() {
     // Then check product
     if (productResult.data) {
       // Cache for future scans
-      barcodeCache.set(barcode, 'product', productResult.data);
+      barcodeCache.set(normalizedBarcode, 'product', productResult.data);
       const availableVariants = productResult.data.product_variants?.filter((v: any) => v.is_available) || [];
       if (availableVariants.length > 0) {
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
