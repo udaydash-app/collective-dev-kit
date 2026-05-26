@@ -124,6 +124,13 @@ export default function Production() {
   const { data: productions = [], isLoading } = useQuery({
     queryKey: ['productions'],
     queryFn: async (): Promise<any> => {
+      try {
+        const { fetchProductionsLocal } = await import('@/db/queries/offersAndOps');
+        const local = await fetchProductionsLocal();
+        if (local.length > 0) return local;
+      } catch (e) {
+        console.warn('[productions] local read failed, falling back', e);
+      }
       const result: any = await supabase.from('productions').select(`*, production_outputs(*)`).order('created_at', { ascending: false });
       if (result.error) throw result.error;
       return result.data ?? [];
