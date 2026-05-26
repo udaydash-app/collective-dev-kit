@@ -20,6 +20,13 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  worker: {
+    format: "es",
+  },
+  optimizeDeps: {
+    // PowerSync ships its own workers/wasm; Vite must not pre-bundle these.
+    exclude: ["@journeyapps/wa-sqlite", "@powersync/web"],
+  },
   plugins: [
     react(),
     // mode === "development" && componentTagger(), // Disabled for local builds
