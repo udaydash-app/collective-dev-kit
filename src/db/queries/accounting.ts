@@ -208,6 +208,84 @@ export interface LocalJournalFilter {
   pageSize?: number;
 }
 
+// --- Per-account ledger helpers (local-first) -----------------------------
+
+export async function fetchAccountByIdLocal(accountId: string): Promise<any | null> {
+  if (!accountId) return null;
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT * FROM accounts WHERE id = ? LIMIT 1`,
+    [accountId],
+  );
+  const row = rowsOf(res)[0];
+  return row ? { ...row, is_active: toBool(row.is_active) } : null;
+}
+
+export async function fetchContactByLedgerAccountLocal(accountId: string): Promise<any | null> {
+  if (!accountId) return null;
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT opening_balance, supplier_opening_balance,
+            customer_ledger_account_id, supplier_ledger_account_id,
+            is_customer, is_supplier
+     FROM contacts
+     WHERE customer_ledger_account_id = ? OR supplier_ledger_account_id = ?
+     LIMIT 1`,
+    [accountId, accountId],
+  );
+  const row = rowsOf(res)[0];
+  if (!row) return null;
+  return {
+    ...row,
+    is_customer: toBool(row.is_customer),
+    is_supplier: toBool(row.is_supplier),
+  };
+}
+
+// Fetch journal entry lines for an account within an optional date range,
+// excluding "opening balance" entries and only including posted entries.
+// Joins journal_entries so the page can read entry_date/description/etc.
+export async function fetchAccountLinesLocal(
+  accountId: string,
+  opts: { startDate?: string; endDate?: string; includePrior?: boolean } = {},
+): Promise<any[]> {
+  if (!accountId) return [];
+  const db = await connectPowerSync();
+  const clauses: string[] = [
+    "l.account_id = ?",
+    "e.status = 'posted'",
+    "LOWER(COALESCE(e.description, '')) NOT LIKE '%opening balance%'",
+  ];
+  const args: any[] = [accountId];
+  if (opts.startDate && !opts.includePrior) {
+    clauses.push("e.entry_date >= ?");
+    args.push(opts.startDate);
+  }
+  if (opts.endDate) {
+    clauses.push("e.entry_date <= ?");
+    args.push(opts.endDate);
+  }
+  const res: any = await db.getAll(
+    `SELECT l.*, e.entry_number, e.entry_date, e.description AS je_description,
+            e.reference, e.notes AS je_notes, e.status
+     FROM journal_entry_lines l
+     INNER JOIN journal_entries e ON e.id = l.journal_entry_id
+     WHERE ${clauses.join(' AND ')}`,
+    args,
+  );
+  return rowsOf(res).map((r: any) => ({
+    ...r,
+    journal_entries: {
+      entry_number: r.entry_number,
+      entry_date: r.entry_date,
+      description: r.je_description,
+      reference: r.reference,
+      notes: r.je_notes,
+      status: r.status,
+    },
+  }));
+}
+
 export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
   const db = await connectPowerSync();
   const { start, end, searchQuery = "", page = 0, pageSize = 100 } = filter;
