@@ -311,11 +311,38 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
   const ph = unique.map(() => "?").join(",");
-  const res: any = await db.getAll(
-    `SELECT id, current_balance FROM accounts WHERE id IN (${ph})`,
+  // Authoritative balance: opening_balance + sum(debits - credits) from
+  // POSTED journal entry lines. accounts.current_balance is a cached
+  // value and can drift, so we never rely on it for AR/AP totals.
+  const accRes: any = await db.getAll(
+    `SELECT id, opening_balance, account_type
+     FROM accounts WHERE id IN (${ph})`,
     unique,
   );
-  for (const r of rowsOf(res)) map.set(r.id, Number(r.current_balance) || 0);
+  const linesRes: any = await db.getAll(
+    `SELECT l.account_id,
+            COALESCE(SUM(l.debit_amount), 0)  AS d,
+            COALESCE(SUM(l.credit_amount), 0) AS c
+     FROM journal_entry_lines l
+     JOIN journal_entries e ON e.id = l.journal_entry_id
+     WHERE l.account_id IN (${ph}) AND e.status = 'posted'
+     GROUP BY l.account_id`,
+    unique,
+  );
+  const movement = new Map<string, number>();
+  for (const r of rowsOf(linesRes)) {
+    movement.set(r.account_id, (Number(r.d) || 0) - (Number(r.c) || 0));
+  }
+  for (const a of rowsOf(accRes)) {
+    const opening = Number(a.opening_balance) || 0;
+    const delta = movement.get(a.id) ?? 0;
+    // For asset/expense accounts a debit balance is positive; for
+    // liability/equity/revenue a credit balance is positive. The 411x
+    // (asset) and 401x (liability) ledgers follow this convention, so
+    // we flip sign for non-debit-normal account types.
+    const debitNormal = a.account_type === 'asset' || a.account_type === 'expense';
+    map.set(a.id, debitNormal ? opening + delta : opening - delta);
+  }
   return map;
 }
 
