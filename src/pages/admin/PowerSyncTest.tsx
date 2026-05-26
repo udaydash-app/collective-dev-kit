@@ -13,12 +13,34 @@ interface ProductRow {
   stock_quantity: number | null;
 }
 
+const SYNCED_TABLES = [
+  "products",
+  "product_variants",
+  "categories",
+  "stores",
+  "orders",
+  "order_items",
+  "pos_transactions",
+  "cash_sessions",
+  "purchases",
+  "purchase_items",
+  "expenses",
+  "journal_entries",
+  "journal_entry_lines",
+  "accounts",
+  "contacts",
+  "pos_users",
+  "addresses",
+  "announcements",
+];
+
 export default function PowerSyncTest() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [hasSynced, setHasSynced] = useState(false);
   const [db, setDb] = useState<PowerSyncDatabase | null>(null);
+  const [counts, setCounts] = useState<Record<string, number | string>>({});
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -49,9 +71,27 @@ export default function PowerSyncTest() {
           },
           { signal: abort.signal },
         );
+
+        const refreshCounts = async () => {
+          const next: Record<string, number | string> = {};
+          for (const t of SYNCED_TABLES) {
+            try {
+              const r: any = await instance.get(
+                `SELECT COUNT(*) as c FROM ${t}`,
+              );
+              next[t] = Number(r?.c ?? 0);
+            } catch (err: any) {
+              next[t] = `err: ${err?.message ?? "?"}`;
+            }
+          }
+          if (!cancelled) setCounts(next);
+        };
+        refreshCounts();
+        const interval = setInterval(refreshCounts, 3000);
         const prevUnsub = unsub;
         unsub = () => {
           abort.abort();
+          clearInterval(interval);
           prevUnsub?.();
         };
       } catch (e: any) {
@@ -114,6 +154,22 @@ export default function PowerSyncTest() {
             {rows.length === 0 && (
               <li className="py-2 text-sm text-muted-foreground">No rows yet.</li>
             )}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Synced table row counts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid grid-cols-2 gap-x-6 text-sm">
+            {SYNCED_TABLES.map((t) => (
+              <li key={t} className="py-1 flex justify-between border-b">
+                <span className="font-mono">{t}</span>
+                <span className="text-muted-foreground">{counts[t] ?? "…"}</span>
+              </li>
+            ))}
           </ul>
         </CardContent>
       </Card>
