@@ -641,6 +641,7 @@ export default function POS() {
             .order('name');
           
           if (error) throw error;
+          if (data) await offlineDB.saveStores(data);
           
           console.log(`[${localMode ? 'Local' : 'Cloud'} Supabase] Stores: ${data?.length || 0}`);
           return data || [];
@@ -1472,21 +1473,21 @@ export default function POS() {
   const { data: categories } = useQuery({
     queryKey: ['pos-categories'],
     queryFn: async () => {
-      // Try online first
-      if (navigator.onLine) {
+      if (shouldQuerySupabase()) {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('categories')
             .select('id, name, image_url, icon')
             .eq('is_active', true)
             .order('display_order');
+          if (error) throw error;
+          if (data) await offlineDB.saveCategories(data);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch categories:', error);
-          return [];
+          console.error('Failed to fetch categories, falling back to IndexedDB:', error);
         }
       }
-      return [];
+      return offlineDB.getCategories();
     },
   });
 
@@ -1550,8 +1551,7 @@ export default function POS() {
         }
       }
 
-      // Try online first
-      if (navigator.onLine) {
+      if (shouldQuerySupabase()) {
         try {
           let query = supabase
             .from('products')
@@ -1578,14 +1578,24 @@ export default function POS() {
             query = query.eq('category_id', selectedCategory);
           }
 
-          const { data } = await query.limit(50);
+          const { data, error } = await query.limit(50);
+          if (error) throw error;
+          if (data) await offlineDB.saveProducts(data as any[]);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch products:', error);
-          return [];
+          console.error('Failed to fetch products, falling back to IndexedDB:', error);
         }
       }
-      return [];
+      const cachedProducts = await offlineDB.getProducts() as any[];
+      return cachedProducts
+        .filter((product: any) => {
+          if (selectedCategory && product.category_id !== selectedCategory) return false;
+          if (!searchTerm.trim()) return true;
+          const query = searchTerm.trim().toLowerCase();
+          return [product.name, product.barcode, product.description]
+            .some((value) => String(value || '').toLowerCase().includes(query));
+        })
+        .slice(0, 50);
     },
     enabled: !!selectedCategory || !!searchTerm,
   });
