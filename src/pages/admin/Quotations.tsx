@@ -119,6 +119,13 @@ export default function Quotations() {
   const { data: quotations = [], isLoading: quotationsLoading } = useQuery({
     queryKey: ['quotations'],
     queryFn: async () => {
+      try {
+        const { fetchQuotationsLocal } = await import('@/db/queries/offersAndOps');
+        const local = await fetchQuotationsLocal();
+        if (local.length > 0) return local as Quotation[];
+      } catch (e) {
+        console.warn('[quotations] local read failed, falling back', e);
+      }
       const { data, error } = await supabase
         .from('quotations')
         .select('*, contacts!quotations_contact_id_fkey(phone, email)')
