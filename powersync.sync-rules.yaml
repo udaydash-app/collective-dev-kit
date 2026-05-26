@@ -30,3 +30,9 @@ bucket_definitions:
       - SELECT * FROM supplier_payments
       - SELECT * FROM payment_methods
       - SELECT * FROM stock_adjustments
+      - SELECT * FROM productions
+      - SELECT * FROM production_outputs
+      - SELECT * FROM offers
+      - SELECT * FROM bogo_offers
+      - SELECT * FROM special_offers
+      - SELECT * FROM quotations
