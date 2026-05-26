@@ -180,12 +180,18 @@ export default function ChartOfAccounts() {
   const { data: accounts, isLoading } = useQuery({
     queryKey: ['accounts'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .order('account_code');
-      if (error) throw error;
-      return data as Account[];
+      try {
+        const { fetchAccountsLocal } = await import('@/db/queries/accounting');
+        return (await fetchAccountsLocal({ includeInactive: true })) as Account[];
+      } catch (e) {
+        console.warn('[accounts] local fetch failed, falling back to Supabase', e);
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .order('account_code');
+        if (error) throw error;
+        return data as Account[];
+      }
     },
   });
 
