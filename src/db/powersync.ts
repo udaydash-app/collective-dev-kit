@@ -66,12 +66,18 @@ export function getPowerSyncDB(): PowerSyncDatabase {
 export async function connectPowerSync(): Promise<PowerSyncDatabase> {
   const db = getPowerSyncDB();
   if (!_initPromise) {
-    _initPromise = db.init();
+    _initPromise = db.init().catch((error) => {
+      _initPromise = null;
+      throw error;
+    });
   }
   await _initPromise;
 
   if (!_connectPromise) {
-    _connectPromise = db.connect(new SupabaseBackendConnector());
+    _connectPromise = db.connect(new SupabaseBackendConnector()).catch((error) => {
+      _connectPromise = null;
+      throw error;
+    });
   }
   await _connectPromise;
   return db;
