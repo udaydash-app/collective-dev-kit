@@ -3651,18 +3651,23 @@ export default function POS() {
   const handleSelectCartItem = (itemId: string) => {
     // Don't allow selecting cart discount item
     if (itemId === 'cart-discount') return;
-    
+
+    // No-op if already selected — avoids render loops from auto-select effects.
+    if (selectedCartItemId === itemId) return;
+
     // Don't clear input when in any keypad input mode
     if (keypadMode === 'cartDiscount' || keypadMode === 'qty' || keypadMode === 'discount' || keypadMode === 'price') {
       console.log('🎯 Cart item selected in input mode, keeping input');
       setSelectedCartItemId(itemId);
       return;
     }
-    
+
     console.log('🎯 Cart item selected, clearing keypad input');
     setSelectedCartItemId(itemId);
-    keypadInputRef.current = '';
-    setKeypadRenderKey(prev => prev + 1);
+    if (keypadInputRef.current !== '') {
+      keypadInputRef.current = '';
+      setKeypadRenderKey(prev => prev + 1);
+    }
   };
 
   const handleKeypadNumber = (value: string) => {
