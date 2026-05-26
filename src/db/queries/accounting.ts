@@ -193,6 +193,117 @@ export async function fetchActiveStoresLocal(): Promise<any[]> {
   return rowsOf(res);
 }
 
+// ----- Modern Dashboard local-first read --------------------------------
+// Returns the exact shape DashboardModern.tsx expects from its RPC /
+// direct-query path: pos_transactions/orders/pos_users/purchases/expenses/
+// journal_entries/accounts + counts.products/contacts/lowStock.
+export async function fetchModernDashboardLocal(since: string) {
+  const db = await connectPowerSync();
+  const [
+    txRes,
+    ordersRes,
+    posUsersRes,
+    purchasesRes,
+    expensesRes,
+    journalsRes,
+    accountsRes,
+    prodCountRes,
+    contactCountRes,
+    lowStockRes,
+  ] = await Promise.all([
+    db.getAll(
+      `SELECT id, transaction_number, total, subtotal, discount, tax,
+              payment_method, created_at, items, cashier_id
+       FROM pos_transactions WHERE created_at >= ?
+       ORDER BY created_at DESC LIMIT 500`,
+      [since],
+    ),
+    db.getAll(
+      `SELECT id, order_number, total, status, payment_status, created_at
+       FROM orders WHERE created_at >= ?
+       ORDER BY created_at DESC LIMIT 200`,
+      [since],
+    ),
+    db.getAll(`SELECT id, full_name, is_active FROM pos_users`),
+    db.getAll(
+      `SELECT id, purchase_number, supplier_name, total_amount, created_at
+       FROM purchases WHERE created_at >= ?
+       ORDER BY created_at DESC LIMIT 50`,
+      [since],
+    ),
+    db.getAll(
+      `SELECT id, description, category, amount, expense_date, created_at
+       FROM expenses WHERE created_at >= ?
+       ORDER BY created_at DESC LIMIT 50`,
+      [since],
+    ),
+    db.getAll(
+      `SELECT id, entry_number, reference, description, entry_date, status, created_at
+       FROM journal_entries WHERE created_at >= ?
+       ORDER BY created_at DESC LIMIT 50`,
+      [since],
+    ),
+    db.getAll(
+      `SELECT id, account_code, account_name, account_type, current_balance
+       FROM accounts WHERE is_active = 1
+       ORDER BY account_code ASC LIMIT 500`,
+    ),
+    db.getAll(`SELECT COUNT(*) AS c FROM products`),
+    db.getAll(`SELECT COUNT(*) AS c FROM contacts`),
+    db.getAll(`SELECT COUNT(*) AS c FROM products WHERE stock_quantity <= 5`),
+  ]);
+
+  const parseItems = (rows: any[]) =>
+    rowsOf(rows).map((r: any) => ({
+      ...r,
+      items: typeof r.items === 'string' ? safeJson(r.items) : (r.items ?? []),
+    }));
+
+  return {
+    pos_transactions: parseItems(txRes as any),
+    orders: rowsOf(ordersRes),
+    pos_users: rowsOf(posUsersRes).map((r) => ({ ...r, is_active: toBool(r.is_active) })),
+    purchases: rowsOf(purchasesRes),
+    expenses: rowsOf(expensesRes),
+    journal_entries: rowsOf(journalsRes),
+    accounts: rowsOf(accountsRes),
+    counts: {
+      products: Number(rowsOf(prodCountRes)[0]?.c ?? 0),
+      contacts: Number(rowsOf(contactCountRes)[0]?.c ?? 0),
+      lowStock: Number(rowsOf(lowStockRes)[0]?.c ?? 0),
+    },
+  };
+}
+
+// Quick cost/price lookup by ids — used by ProfitLoss, Quotations, etc.
+export async function fetchProductPricesLocal(
+  productIds: string[],
+  fields: string[] = ['id', 'cost_price'],
+): Promise<any[]> {
+  if (productIds.length === 0) return [];
+  const db = await connectPowerSync();
+  const ph = productIds.map(() => '?').join(',');
+  const res: any = await db.getAll(
+    `SELECT ${fields.join(', ')} FROM products WHERE id IN (${ph})`,
+    productIds,
+  );
+  return rowsOf(res);
+}
+
+export async function fetchVariantPricesLocal(
+  variantIds: string[],
+  fields: string[] = ['id', 'cost_price'],
+): Promise<any[]> {
+  if (variantIds.length === 0) return [];
+  const db = await connectPowerSync();
+  const ph = variantIds.map(() => '?').join(',');
+  const res: any = await db.getAll(
+    `SELECT ${fields.join(', ')} FROM product_variants WHERE id IN (${ph})`,
+    variantIds,
+  );
+  return rowsOf(res);
+}
+
 export async function fetchSuppliersLocal(): Promise<any[]> {
   const db = await connectPowerSync();
   const res: any = await db.getAll(

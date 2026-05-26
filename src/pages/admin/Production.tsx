@@ -70,6 +70,17 @@ export default function Production() {
   const { data: productsData } = useQuery({
     queryKey: ['products-for-production'],
     queryFn: async (): Promise<any> => {
+      try {
+        const { connectPowerSync } = await import('@/db/powersync');
+        const db = await connectPowerSync();
+        const res: any = await db.getAll(
+          `SELECT id, name, stock_quantity, barcode FROM products ORDER BY name`,
+        );
+        const rows = Array.isArray(res) ? res : (res?.rows?._array ?? []);
+        if (rows.length > 0) return rows;
+      } catch (e) {
+        console.warn('[production] local products failed, falling back', e);
+      }
       const result: any = await supabase.from('products').select('id, name, stock_quantity, barcode').order('name');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -80,6 +91,26 @@ export default function Production() {
   const { data: variantsData } = useQuery({
     queryKey: ['variants-for-production'],
     queryFn: async (): Promise<any> => {
+      try {
+        const { connectPowerSync } = await import('@/db/powersync');
+        const db = await connectPowerSync();
+        const res: any = await db.getAll(
+          `SELECT v.id, v.product_id, v.label, v.unit, v.stock_quantity, v.barcode,
+                  p.name AS product_name
+           FROM product_variants v
+           LEFT JOIN products p ON p.id = v.product_id
+           ORDER BY v.unit`,
+        );
+        const rows = Array.isArray(res) ? res : (res?.rows?._array ?? []);
+        if (rows.length > 0) {
+          return rows.map((r: any) => ({
+            ...r,
+            products: r.product_name ? { name: r.product_name } : null,
+          }));
+        }
+      } catch (e) {
+        console.warn('[production] local variants failed, falling back', e);
+      }
       const result: any = await supabase.from('product_variants').select('id, product_id, label, unit, stock_quantity, barcode, products(name)').order('unit');
       if (result.error) throw result.error;
       return result.data ?? [];

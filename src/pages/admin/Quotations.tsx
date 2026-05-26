@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProductPricesLocal, fetchVariantPricesLocal } from '@/db/queries/accounting';
 import { toast } from 'sonner';
 import { formatCurrency, cn } from '@/lib/utils';
 import { 
@@ -426,14 +427,27 @@ export default function Quotations() {
       const productIds = Array.from(new Set(quotation.items.map(i => i.productId).filter(Boolean)));
       const variantIds = Array.from(new Set(quotation.items.map(i => i.variantId).filter(Boolean) as string[]));
 
-      const [{ data: prods }, { data: vars }] = await Promise.all([
-        productIds.length
-          ? supabase.from('products').select('id, price, wholesale_price').in('id', productIds)
-          : Promise.resolve({ data: [] as any[] }),
-        variantIds.length
-          ? supabase.from('product_variants').select('id, price, wholesale_price').in('id', variantIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+      // Local-first: try the PowerSync mirror, fall back to Supabase.
+      let prods: any[] = [];
+      let vars: any[] = [];
+      try {
+        [prods, vars] = await Promise.all([
+          fetchProductPricesLocal(productIds as string[], ['id', 'price', 'wholesale_price']),
+          fetchVariantPricesLocal(variantIds as string[], ['id', 'price', 'wholesale_price']),
+        ]);
+      } catch (e) {
+        console.warn('[quotations] local price lookup failed, falling back', e);
+        const [{ data: p }, { data: v }] = await Promise.all([
+          productIds.length
+            ? supabase.from('products').select('id, price, wholesale_price').in('id', productIds)
+            : Promise.resolve({ data: [] as any[] }),
+          variantIds.length
+            ? supabase.from('product_variants').select('id, price, wholesale_price').in('id', variantIds)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
+        prods = p || [];
+        vars = v || [];
+      }
 
       const prodMap = new Map((prods || []).map((p: any) => [p.id, p]));
       const varMap = new Map((vars || []).map((v: any) => [v.id, v]));
