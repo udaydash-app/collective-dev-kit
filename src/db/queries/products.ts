@@ -179,25 +179,58 @@ export async function searchPosProductsLocal(
   limit = 10,
 ): Promise<PosProduct[]> {
   const db = await connectPowerSync();
-  let prodRes: any;
+  const productRowsById = new Map<string, Row>();
   if (!term) {
-    prodRes = await db.getAll(
+    const prodRes: any = await db.getAll(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products WHERE is_available = 1 ORDER BY name LIMIT ?`,
       [limit],
     );
+    const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
+    prodRows.forEach((p) => productRowsById.set(p.id, p));
   } else {
-    const like = `%${term}%`;
-    prodRes = await db.getAll(
+    const exact = term.trim();
+    const prefix = `${exact}%`;
+    const prodRes: any = await db.getAll(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products
        WHERE is_available = 1
-         AND (name LIKE ? COLLATE NOCASE OR barcode = ? OR barcode LIKE ? COLLATE NOCASE)
+          AND (barcode = ? OR name LIKE ? COLLATE NOCASE OR barcode LIKE ? COLLATE NOCASE)
        ORDER BY name LIMIT ?`,
-      [like, term, like, limit],
+      [exact, prefix, prefix, limit],
     );
+    const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
+    prodRows.forEach((p) => productRowsById.set(p.id, p));
+
+    if (productRowsById.size < limit) {
+      const varMatchRes: any = await db.getAll(
+        `SELECT DISTINCT p.id, p.name, p.price, p.barcode, p.is_available, p.stock_quantity, p.cost_price
+         FROM product_variants v
+         JOIN products p ON p.id = v.product_id
+         WHERE v.is_available = 1 AND p.is_available = 1
+           AND (v.barcode = ? OR v.barcode LIKE ? COLLATE NOCASE)
+         ORDER BY p.name LIMIT ?`,
+        [exact, prefix, limit - productRowsById.size],
+      );
+      const varProductRows: Row[] = Array.isArray(varMatchRes) ? varMatchRes : (varMatchRes?.rows?._array ?? []);
+      varProductRows.forEach((p) => productRowsById.set(p.id, p));
+    }
+
+    if (productRowsById.size === 0) {
+      const contains = `%${exact}%`;
+      const fallbackRes: any = await db.getAll(
+        `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+         FROM products
+         WHERE is_available = 1
+           AND (name LIKE ? COLLATE NOCASE OR barcode LIKE ? COLLATE NOCASE)
+         ORDER BY name LIMIT ?`,
+        [contains, contains, limit],
+      );
+      const fallbackRows: Row[] = Array.isArray(fallbackRes) ? fallbackRes : (fallbackRes?.rows?._array ?? []);
+      fallbackRows.forEach((p) => productRowsById.set(p.id, p));
+    }
   }
-  const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
+  const prodRows = Array.from(productRowsById.values()).slice(0, limit);
   if (prodRows.length === 0) return [];
   const ids = prodRows.map((p) => p.id);
   const placeholders = ids.map(() => "?").join(",");
