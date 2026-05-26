@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addPdfHeader } from "@/lib/pdfBranding";
+import { fetchPurchaseOrdersLocal } from "@/db/queries/purchaseOrders";
 
 export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,6 +56,13 @@ export default function PurchaseOrders() {
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ["purchase-orders", searchTerm],
     queryFn: async () => {
+      // Local-first: read from the PowerSync SQLite mirror.
+      try {
+        const local = await fetchPurchaseOrdersLocal(searchTerm);
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn("[PurchaseOrders] local read failed, falling back", e);
+      }
       let query = supabase
         .from("purchase_orders")
         .select(`
