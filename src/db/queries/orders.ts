@@ -158,6 +158,7 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
     posArgs,
   );
   const posRows = rowsOf(posRes);
+  console.log('[orders.local] online rows:', onlineRows.length, 'pos rows:', posRows.length, 'where:', orderWhere, 'posWhere:', posWhere);
 
   const posMapped = posRows
     .filter(() => statusFilter === "all" || statusFilter === "completed")
