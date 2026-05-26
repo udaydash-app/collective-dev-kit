@@ -1235,8 +1235,21 @@ export const usePOSTransaction = () => {
       
       // Last resort: save offline
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        let fallbackUser = (() => {
+          try {
+            const raw = localStorage.getItem('offline_pos_session');
+            const session = raw ? JSON.parse(raw) : null;
+            return session?.pos_user_id ? { id: session.pos_user_id } : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        if (!fallbackUser) {
+          const { data: { user } } = await supabase.auth.getUser();
+          fallbackUser = user ? { id: user.id } : null;
+        }
+        if (fallbackUser) {
           const subtotal = calculateSubtotal();
           const total = calculateTotal();
           const primaryPayment = payments.reduce((prev, current) => 
@@ -1253,7 +1266,7 @@ export const usePOSTransaction = () => {
           const fallbackCreatedAt = new Date().toISOString();
           const fallbackTransaction = {
             id: fallbackTransactionId,
-            cashier_id: user.id,
+            cashier_id: fallbackUser.id,
             store_id: storeId,
             customer_id: customerId || null,
             items: itemsForOffline as any,
@@ -1270,7 +1283,7 @@ export const usePOSTransaction = () => {
           await offlineDB.addTransaction({
             id: fallbackTransactionId,
             storeId,
-            cashierId: user.id,
+            cashierId: fallbackUser.id,
             customerId,
             items: itemsForOffline as any,
             subtotal: parseFloat(subtotal.toFixed(2)),
