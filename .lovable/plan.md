@@ -1,86 +1,99 @@
+# Full offline-first migration: RxDB + PowerSync Cloud
+
 ## Goal
-After POS login, land on a "Desktop" page that shows every admin module as a tile. Clicking a tile opens that page inside a movable window. Windows can be minimized to a taskbar, restored, maximized, closed, and many can be open at once. Minimized windows keep their internal state (scroll, filters, forms) because they stay mounted.
+The app reads and writes against a **local database on the user's computer** (RxDB, persisted in IndexedDB / OPFS / SQLite-in-Electron). When internet is available, **PowerSync Cloud** streams changes both ways between the local DB and Supabase Postgres. The UI never blocks on the network.
 
-## User flow
-1. Staff signs in via /pos-login → redirected to `/admin/desktop` (instead of `/admin/pos`).
-2. Desktop shows wallpaper + grid of tiles (POS, Orders, Products, Inventory Reports, Accounting, Purchases, Contacts, Reports, Settings, etc.) plus a top bar (clock, user, logout) and bottom taskbar.
-3. Click a tile → a window opens centered, focused. Title bar shows app name + minimize / maximize / close. Body drag-resizes via a corner handle.
-4. Click another tile → second window opens on top with a higher z-index. Click any window to bring it to front.
-5. Minimize → window hides but stays mounted; a chip appears in the taskbar. Click the chip to restore at the same position/size with state intact.
-6. Maximize → fills the desktop area between top bar and taskbar; toggle to restore.
-7. Close → window is removed and unmounted (state lost only on close).
-8. Direct URLs like `/admin/orders` still work standalone for deep links and bookmarks; the desktop is an additional shell, not the only way in.
+## End-state architecture
 
-## Tiles
-Auto-generated from a central registry of admin routes (so adding a new admin page = one entry). Initial set covers every existing `/admin/*` route grouped into sections:
-- POS & Sales: POS, Orders, Quotations, Open Cash Register, Close-Day Report
-- Inventory: Products, Categories, Stock & Price, Stock Adjustment, Inventory Reports, Barcode, Production
-- Purchasing: Purchases, Purchase Orders, Supplier Payments, Accounts Payable
-- Accounting: Chart of Accounts, Journal Entries, General Ledger, Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, Trading Account, Tax Collection, Expenses, Payment Receipts, Accounts Receivable
-- Analytics: Dashboard, Analytics, COGS Analysis, Profit Margin Analysis, Profit & Loss Analysis
-- Marketing: Offers, Combo Offers, BOGO, Multi-Product BOGO, Announcements
-- Admin: Contacts, Import Contacts, Import Products, POS Users, Live Chat, Settings, Pricing
+```text
+   React UI (hooks, react-query)
+            │  (reactive queries, instant)
+            ▼
+       RxDB collections  ◄── single source of truth for the UI
+            │
+            ▼
+   @powersync/web adapter (IndexedDB / OPFS storage)
+            │  WebSocket sync protocol (when online)
+            ▼
+   PowerSync Cloud Service
+            │  logical replication
+            ▼
+   Supabase Postgres (wvdrsofehwiopbkzrqit)
+            │
+            └─► triggers still own stock + journal entries (unchanged)
+```
 
-A search field at the top of the desktop filters tiles by name.
+Key principle: **all reads and writes go through RxDB**. PowerSync handles upload/download in the background. We delete the custom `syncService`, `cloudSyncService`, `offlineDB`, and LAN-Supabase fallback once the migration is verified.
 
-## Technical design
+## Scope of changes (full migration)
 
-### New files
-- `src/lib/appRegistry.ts` — array of `{ id, path, title, icon, group, component }` describing every admin app.
-- `src/store/windowStore.ts` — zustand store: `windows: WindowState[]`, `openApp(id)`, `closeWindow(id)`, `minimize(id)`, `restore(id)`, `toggleMaximize(id)`, `focus(id)`, `move(id, pos)`, `resize(id, size)`. Persists layout to localStorage so windows survive a refresh.
-- `src/pages/admin/Desktop.tsx` — desktop shell: wallpaper, tile grid, search, top bar, taskbar, `<WindowManager />`.
-- `src/components/desktop/AppTile.tsx` — single tile (icon, label, click handler).
-- `src/components/desktop/Taskbar.tsx` — bottom bar with chips for open windows + clock.
-- `src/components/desktop/WindowManager.tsx` — renders all open windows.
-- `src/components/desktop/AppWindow.tsx` — single window: title bar (drag handle), control buttons, resizable body, hosts the app component inside its own `MemoryRouter` so internal links don't change the browser URL.
-- `src/components/desktop/DesktopRoute.tsx` — `AdminRoute` wrapper for `/admin/desktop`.
+### 1. PowerSync Cloud setup (user-side, documented in plan)
+- Create PowerSync Cloud instance, point it at the Supabase project (provide connection string + replication slot).
+- Configure a **PowerSync Sync Rules** YAML that mirrors RLS intent (per-store, per-role buckets).
+- Issue a **dev/service sync token** signed with a shared HS256 secret stored in PowerSync. Devices on LAN use this token — no Supabase JWT required, matching the existing PIN-only auth model.
 
-### Dependency
-- Add `react-rnd` for drag + resize (small, well-maintained). Alternative: hand-rolled handlers; `react-rnd` saves time and edge-case bugs.
+Secrets to add in Lovable: `POWERSYNC_URL`, `POWERSYNC_DEV_TOKEN` (publishable — embedded in client because LAN devices are trusted), plus a backend-only `POWERSYNC_JWT_SECRET` for an edge function that can mint scoped tokens later.
 
-### State preservation
-Each open window mounts its app component **once** when opened. On minimize the window's outer container gets `hidden` (CSS `display:none`) instead of unmounting — React keeps the component tree, queries, and local state alive. On close the entry is removed from the store and React unmounts it.
+### 2. Dependencies
+Add: `@powersync/web`, `@powersync/react`, `rxdb`, `rxdb-premium`-free equivalents only (`rxdb/plugins/storage-dexie` for now), `zod` (already present) for schema validation.
+Remove (after migration): `idb`-based `offlineDB`, custom `syncService`, `cloudSyncService`.
 
-### Routing isolation
-Each `AppWindow` wraps its app component in `<MemoryRouter initialEntries={[path]}>` so:
-- Internal `useNavigate` calls inside a page stay scoped to that window.
-- The browser URL stays at `/admin/desktop`, so refreshing returns to the desktop.
-- Deep links (`/admin/orders`) opened directly still hit the existing routes in `App.tsx` unchanged.
+### 3. Local schema layer (`src/db/`)
+Create:
+- `src/db/schema.ts` — RxDB JSON schemas for every synced table: `products`, `product_variants`, `categories`, `stores`, `orders`, `order_items`, `pos_transactions`, `cash_sessions`, `purchases`, `purchase_items`, `expenses`, `journal_entries`, `journal_entry_lines`, `accounts`, `contacts`, `pos_users`, `addresses`, `announcements`, etc. (full list derived from `integrations/supabase/types.ts`).
+- `src/db/powersync.ts` — PowerSync client init with `@powersync/web` + IndexedDB storage, wired to `POWERSYNC_URL` and the dev token.
+- `src/db/rxdb.ts` — RxDatabase wrapper exposing typed collections + a PowerSync replication plugin so writes go to the PowerSync upload queue.
+- `src/db/index.ts` — single `getDB()` accessor used by hooks.
 
-A small `useNavigate` interceptor inside the window catches `navigate('/admin/...')` calls and, if the target is another registered app, opens it as a new window instead of navigating in place. Non-admin paths fall through to the in-window MemoryRouter.
+### 4. Data hook rewrite
+Replace every Supabase read hook with an RxDB reactive query. Examples:
+- `useLocalData.ts` → thin shim over `useQuery` from `@powersync/react` that returns live collection results.
+- `useOfflineData.ts` → deleted; merged into the new hook.
+- Every page that currently does `supabase.from('x').select(...)` switches to `db.collections.x.find({...}).$` (RxJS observable) bridged into TanStack Query for compatibility, OR direct subscription.
 
-### Z-index / focus
-Store tracks a monotonically increasing `topZ`. `focus(id)` assigns `++topZ` to that window. Clicking anywhere in the window (mousedown capture) focuses it.
+Write paths (`insert`/`update`/`delete`) become `collection.insert(doc)` / `doc.patch(...)`. Writes are instant locally; PowerSync flushes them to Supabase when online.
 
-### Layout & sizing
-- Default window size: 1100x720, clamped to desktop area.
-- Spawn position: cascade (each new window offset by 28px from previous).
-- Min size 480x320. Maximized = full desktop area.
-- Layout persists in `localStorage` keyed per `app id`.
+### 5. Triggers & business logic stay server-side
+Stock deduction, journal entry creation, timbre tax — **unchanged**. They run in Supabase when PowerSync replicates the row in. The client optimistically shows the write; the trigger's resulting rows stream back down.
 
-### Login redirect
-`src/pages/auth/POSLogin.tsx` currently sends staff to `/admin/pos`. Change the post-login redirect to `/admin/desktop`. Keep `/admin/pos` reachable directly.
+### 6. Auth bridge
+- POS PIN login keeps producing `offline_pos_session`.
+- A small helper exchanges the PIN session for the **dev sync token** and feeds it to PowerSync's `fetchCredentials` callback.
+- Admin pages still use `useAdmin` (Supabase JWT) for the small number of operations that must hit Supabase directly (edge functions like `manage-pos-user`, `import-products-excel`). Those keep using the current Supabase client.
 
-### Route registration
-Add `<Route path="/admin/desktop" element={<AdminRoute><Desktop /></AdminRoute>} />` in `App.tsx`.
+### 7. Realtime, cache & wake-recovery cleanup
+- Remove the Supabase Realtime channel in `AdminRoute` (new-order toast) and replace with an RxDB change-stream subscription on the `orders` collection — works offline too.
+- Remove `useCloudSync`, `useOfflineSync`, `cacheEssentialData`, `recoverAfterWake` Supabase invalidation. RxDB is always fresh; PowerSync handles reconnection.
+- Keep React Query only for edge-function calls.
 
-### Known trade-offs
-- Heavy pages stay in memory while minimized — that is the requested behavior. Closing reclaims memory.
-- Keyboard shortcuts (F2-F4) currently global will be routed only to the focused window (it gets a `data-window-focused` flag we read in the existing shortcut hooks).
-- Some pages assume they sit at the full viewport. They are already responsive; we test POS, Products, Orders, Journal Entries inside an ~1100px window; if anything overflows badly we patch the affected page's outer container.
-- Page-level `useLocation().pathname` checks (e.g., `POSSessionKeeper`, `BottomNav`) currently gate on `/admin`. Since the browser URL stays at `/admin/desktop` they continue to work. Per-window components that read pathname for self-identification will read the MemoryRouter path inside the window.
+### 8. Migration & rollout steps
+1. Land PowerSync setup + RxDB scaffolding behind a `VITE_USE_RXDB=true` flag.
+2. Migrate read paths page by page: Products → POS → Orders → Accounting → Admin reports. Each page verified in preview before moving on.
+3. Migrate write paths the same way.
+4. Once all green, flip the flag default, delete `offlineDB`, `syncService`, `cloudSyncService`, LAN Supabase Docker code paths, and `scripts/local-db-setup.sql`.
+5. Update memory: remove the LAN Docker / IndexedDB-cache rules; add new RxDB+PowerSync rules.
 
-## Out of scope (can be follow-ups)
-- Per-user pinned tiles / custom desktop layout.
-- Right-click context menu on tiles.
-- Drag windows between multiple monitors / virtual desktops.
-- Snap-to-edge tiling (Windows-style).
+## What the user has to do once
+- Create a PowerSync Cloud project at journeyapps.com, connect it to Supabase, paste in:
+  - `POWERSYNC_URL`
+  - `POWERSYNC_DEV_TOKEN`
+  - `POWERSYNC_JWT_SECRET` (backend only)
+- Apply the generated sync rules YAML in the PowerSync dashboard (I will produce it).
+- Enable Postgres logical replication on the Supabase project (one-click in dashboard).
 
-## Acceptance criteria
-- Login as staff → land on `/admin/desktop` with tiles visible.
-- Click POS tile → POS opens in a window; cart works.
-- Open Orders and Journal Entries → three windows visible, each focusable.
-- Minimize POS → it disappears, chip appears in taskbar; restore → cart still intact.
-- Maximize / restore / close work.
-- Refresh page → desktop returns; windows reopen at last position (closed windows stay closed).
-- Visiting `/admin/orders` directly still renders the standalone page as today.
+## What stays the same
+- Supabase Postgres remains the canonical store and the place all triggers run.
+- All edge functions, RLS policies, accounting logic, SYSCOHADA codes, Timbre rules, receipts, kiosk printing — untouched.
+- UI, routes, navigation — untouched.
+
+## Risks & mitigations
+- **Schema drift**: RxDB schemas must match Supabase column types. Mitigation: generate them from `types.ts` via a small script.
+- **Large initial download**: First sync pulls every row the user is allowed to see. Mitigation: PowerSync sync rules bucket by `store_id` and recency (e.g., last 12 months of transactions).
+- **Conflict resolution**: Last-write-wins by default; for stock-sensitive rows the server trigger is authoritative anyway.
+- **Dev token in client**: Acceptable because the project is private/LAN. Documented in security memory.
+
+## Deliverable order (once you approve)
+1. Add deps + secrets prompts.
+2. Create `src/db/` layer + sync rules file.
+3. Migrate Products + POS pages as the first vertical slice and verify in preview.
+4. Continue module-by-module until the feature flag can be flipped on by default.
