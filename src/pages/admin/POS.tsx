@@ -2044,7 +2044,7 @@ export default function POS() {
         selectedVariant: variantResult.data,
       };
       // Cache for future scans
-      barcodeCache.set(barcode, 'variant', productToAdd);
+      barcodeCache.set(normalizedBarcode, 'variant', productToAdd);
       addToCartWithCustomPrice(productToAdd);
       return;
     }
@@ -2052,7 +2052,7 @@ export default function POS() {
     // Then check product
     if (productResult.data) {
       // Cache for future scans
-      barcodeCache.set(barcode, 'product', productResult.data);
+      barcodeCache.set(normalizedBarcode, 'product', productResult.data);
       const availableVariants = productResult.data.product_variants?.filter((v: any) => v.is_available) || [];
       if (availableVariants.length > 0) {
         const variantToAdd = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
