@@ -58,23 +58,34 @@ export default function Expenses() {
   const { data: contacts } = useQuery({
     queryKey: ['expense-contacts'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('contacts')
-        .select('id, name, is_customer, is_supplier')
-        .order('name');
-      return data || [];
+      try {
+        const { fetchContactsForLedgerLocal } = await import('@/db/queries/accounting');
+        const rows = await fetchContactsForLedgerLocal();
+        return rows.map((r: any) => ({ id: r.id, name: r.name, is_customer: r.is_customer, is_supplier: r.is_supplier }));
+      } catch {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, is_customer, is_supplier')
+          .order('name');
+        return data || [];
+      }
     },
   });
 
   const { data: accounts } = useQuery({
     queryKey: ['expense-accounts'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('accounts')
-        .select('id, account_code, account_name, account_type')
-        .eq('is_active', true)
-        .order('account_code');
-      return data || [];
+      try {
+        const { fetchAccountsLocal } = await import('@/db/queries/accounting');
+        return await fetchAccountsLocal();
+      } catch {
+        const { data } = await supabase
+          .from('accounts')
+          .select('id, account_code, account_name, account_type')
+          .eq('is_active', true)
+          .order('account_code');
+        return data || [];
+      }
     },
   });
 
@@ -82,15 +93,18 @@ export default function Expenses() {
     queryKey: ['expenses', selectedStoreId],
     queryFn: async () => {
       if (!selectedStoreId) return [];
-      
-      const { data } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('store_id', selectedStoreId)
-        .order('expense_date', { ascending: false })
-        .order('created_at', { ascending: false });
-      
-      return data || [];
+      try {
+        const { fetchExpensesLocal } = await import('@/db/queries/accounting');
+        return await fetchExpensesLocal(selectedStoreId);
+      } catch {
+        const { data } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('store_id', selectedStoreId)
+          .order('expense_date', { ascending: false })
+          .order('created_at', { ascending: false });
+        return data || [];
+      }
     },
     enabled: !!selectedStoreId,
   });
