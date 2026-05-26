@@ -167,8 +167,8 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
       metadata: safeParse<any>(t.metadata, null),
     }));
 
-  const all: any[] = [...onlineMapped, ...posMapped].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  const all: any[] = ([...onlineMapped, ...posMapped] as any[]).sort(
+    (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
   return all;
 }
