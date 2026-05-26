@@ -92,6 +92,13 @@ export default function BOGOOffers() {
 
   const fetchOffers = async () => {
     try {
+      try {
+        const { fetchBogoOffersLocal } = await import('@/db/queries/offersAndOps');
+        const local = await fetchBogoOffersLocal();
+        if (local.length > 0) { setOffers(local as any); setLoading(false); return; }
+      } catch (e) {
+        console.warn('[bogo_offers] local read failed, falling back', e);
+      }
       const { data, error } = await supabase
         .from("bogo_offers")
         .select("*")
