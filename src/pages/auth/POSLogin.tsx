@@ -224,11 +224,18 @@ export default function POSLogin() {
           userId = offlineResult.userId;
           fullName = offlineResult.fullName;
           
+          const cachedSessions = await offlineDB.getCashSessions();
+          const activeCashSession = cachedSessions
+            .filter((session: any) => session.status === 'open')
+            .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
+
           // Store offline session
           const sessionData = {
             pos_user_id: posUserId,
             user_id: userId,
             full_name: fullName,
+            cash_session_id: activeCashSession?.id,
+            store_id: activeCashSession?.store_id,
             timestamp: new Date().toISOString(),
             offline: true
           };
@@ -286,11 +293,18 @@ export default function POSLogin() {
             userId = offlineResult.userId;
             fullName = offlineResult.fullName;
             
+            const cachedSessions = await offlineDB.getCashSessions();
+            const activeCashSession = cachedSessions
+              .filter((session: any) => session.status === 'open')
+              .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
+
             // Store offline session
             const sessionData = {
               pos_user_id: posUserId,
               user_id: userId,
               full_name: fullName,
+              cash_session_id: activeCashSession?.id,
+              store_id: activeCashSession?.store_id,
               timestamp: new Date().toISOString(),
               offline: true
             };
