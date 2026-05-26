@@ -39,18 +39,16 @@ export default function PowerSyncTest() {
         unsub = sub;
 
         const abort = new AbortController();
-        instance
-          .watch(
-            "SELECT id, name, price, stock_quantity FROM products ORDER BY name LIMIT 20",
-            [],
-            {
-              onResult: (result) => {
-                setRows((result.rows?._array ?? []) as ProductRow[]);
-              },
+        instance.watch(
+          "SELECT id, name, price, stock_quantity FROM products ORDER BY name LIMIT 20",
+          [],
+          {
+            onResult: (result) => {
+              setRows((result.rows?._array ?? []) as ProductRow[]);
             },
-            { signal: abort.signal },
-          )
-          .catch(() => {});
+          },
+          { signal: abort.signal },
+        );
         const prevUnsub = unsub;
         unsub = () => {
           abort.abort();
