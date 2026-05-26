@@ -133,6 +133,14 @@ export default function DashboardModern() {
   const { data: dashboardData } = useQuery({
     queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
     queryFn: async () => {
+      // Local-first: read from the PowerSync SQLite mirror so the
+      // dashboard renders instantly and works offline.
+      try {
+        return await fetchModernDashboardLocal(since.toISOString());
+      } catch (e) {
+        console.warn('[dashboard] local read failed, falling back', e);
+      }
+
       if (offlineSession?.pos_user_id && currentPin) {
         const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
           input_pos_user_id: offlineSession.pos_user_id,
