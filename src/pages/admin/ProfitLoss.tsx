@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAccountBalancesLocal, fetchProfitLossInputsLocal } from '@/db/queries/accounting';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,21 +27,41 @@ export default function ProfitLoss() {
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],
     queryFn: async () => {
-      // Get Purchases directly from purchases table
-      const { data: purchases } = await supabase
-        .from('purchases')
-        .select('total_amount')
-        .gte('purchased_at', startDate)
-        .lte('purchased_at', endDate + 'T23:59:59');
+      // Local-first: pull all P&L raw inputs from PowerSync mirror.
+      // Falls back to Supabase if local mirror has no data.
+      let inputs: Awaited<ReturnType<typeof fetchProfitLossInputsLocal>> | null = null;
+      try {
+        inputs = await fetchProfitLossInputsLocal(startDate, endDate);
+      } catch (err) {
+        console.warn('[profit-loss] local inputs failed, falling back', err);
+      }
+      const useLocal = !!inputs && (inputs.purchases.length + inputs.sales.length + inputs.allProducts.length) > 0;
+
+      let purchases: any[] | null;
+      if (useLocal) {
+        purchases = inputs!.purchases;
+      } else {
+        const r = await supabase
+          .from('purchases')
+          .select('total_amount')
+          .gte('purchased_at', startDate)
+          .lte('purchased_at', endDate + 'T23:59:59');
+        purchases = r.data;
+      }
 
       const totalPurchases = purchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
 
-      // Get Sales directly from pos_transactions with items for COGS calculation
-      const { data: sales } = await supabase
-        .from('pos_transactions')
-        .select('subtotal, discount, items')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59');
+      let sales: any[] | null;
+      if (useLocal) {
+        sales = inputs!.sales;
+      } else {
+        const r = await supabase
+          .from('pos_transactions')
+          .select('subtotal, discount, items')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate + 'T23:59:59');
+        sales = r.data;
+      }
 
       const grossSales = sales?.reduce((sum, s) => sum + (s.subtotal || 0), 0) || 0;
       const salesReturns = 0; // Would need a returns table
@@ -64,14 +85,23 @@ export default function ProfitLoss() {
       });
 
       // Fetch cost prices for products and variants
-      const [{ data: products }, { data: variants }] = await Promise.all([
-        productIds.size > 0 
-          ? supabase.from('products').select('id, cost_price').in('id', Array.from(productIds))
-          : { data: [] },
-        variantIds.size > 0
-          ? supabase.from('product_variants').select('id, cost_price').in('id', Array.from(variantIds))
-          : { data: [] }
-      ]);
+      let products: any[] | null;
+      let variants: any[] | null;
+      if (useLocal) {
+        products = inputs!.allProducts.filter((p: any) => productIds.has(p.id));
+        variants = inputs!.allVariants.filter((v: any) => variantIds.has(v.id));
+      } else {
+        const [{ data: p }, { data: v }] = await Promise.all([
+          productIds.size > 0
+            ? supabase.from('products').select('id, cost_price').in('id', Array.from(productIds))
+            : { data: [] },
+          variantIds.size > 0
+            ? supabase.from('product_variants').select('id, cost_price').in('id', Array.from(variantIds))
+            : { data: [] },
+        ]);
+        products = p;
+        variants = v;
+      }
 
       const productCostMap = new Map((products || []).map(p => [p.id, p.cost_price || 0]));
       const variantCostMap = new Map((variants || []).map(v => [v.id, v.cost_price || 0]));
@@ -97,14 +127,19 @@ export default function ProfitLoss() {
       // Since we don't have historical snapshots, we'll calculate backwards:
       // Current Stock Value + COGS during period - Purchases during period = Opening Stock Value
       
-      // Get current total inventory value
-      const { data: allProducts } = await supabase
-        .from('products')
-        .select('id, cost_price, stock_quantity');
-      
-      const { data: allVariants } = await supabase
-        .from('product_variants')
-        .select('id, cost_price, stock_quantity, product_id');
+      let allProducts: any[] | null;
+      let allVariants: any[] | null;
+      if (useLocal) {
+        allProducts = inputs!.allProducts;
+        allVariants = inputs!.allVariants;
+      } else {
+        const [{ data: ap }, { data: av }] = await Promise.all([
+          supabase.from('products').select('id, cost_price, stock_quantity'),
+          supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id'),
+        ]);
+        allProducts = ap;
+        allVariants = av;
+      }
 
       // Calculate current inventory value
       let currentInventoryValue = 0;
@@ -122,12 +157,17 @@ export default function ProfitLoss() {
         currentInventoryValue += (v.cost_price || 0) * (v.stock_quantity || 0);
       });
 
-      // Get stock adjustments during period
-      const { data: stockAdjustments } = await supabase
-        .from('stock_adjustments')
-        .select('quantity_change, product_id, variant_id, unit_cost, total_value')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59');
+      let stockAdjustments: any[] | null;
+      if (useLocal) {
+        stockAdjustments = inputs!.stockAdjustments;
+      } else {
+        const r = await supabase
+          .from('stock_adjustments')
+          .select('quantity_change, product_id, variant_id, unit_cost, total_value')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate + 'T23:59:59');
+        stockAdjustments = r.data;
+      }
 
       // Calculate stock adjustment value (prefer stored total_value, fallback to cost prices)
       let stockWriteOffs = 0; // Negative adjustments (losses)
@@ -163,19 +203,29 @@ export default function ProfitLoss() {
         }
       });
 
-      // Get purchases AFTER end date to adjust for future purchases
-      const { data: futurePurchases } = await supabase
-        .from('purchases')
-        .select('total_amount')
-        .gt('purchased_at', endDate + 'T23:59:59');
+      let futurePurchases: any[] | null;
+      if (useLocal) {
+        futurePurchases = inputs!.futurePurchases;
+      } else {
+        const r = await supabase
+          .from('purchases')
+          .select('total_amount')
+          .gt('purchased_at', endDate + 'T23:59:59');
+        futurePurchases = r.data;
+      }
       
       const futurePurchasesTotal = futurePurchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
 
-      // Get sales AFTER end date to adjust for future COGS
-      const { data: futureSales } = await supabase
-        .from('pos_transactions')
-        .select('items')
-        .gt('created_at', endDate + 'T23:59:59');
+      let futureSales: any[] | null;
+      if (useLocal) {
+        futureSales = inputs!.futureSales;
+      } else {
+        const r = await supabase
+          .from('pos_transactions')
+          .select('items')
+          .gt('created_at', endDate + 'T23:59:59');
+        futureSales = r.data;
+      }
 
       let futureCOGS = 0;
       futureSales?.forEach((sale: any) => {
@@ -192,11 +242,16 @@ export default function ProfitLoss() {
         });
       });
 
-      // Get future stock adjustments
-      const { data: futureAdjustments } = await supabase
-        .from('stock_adjustments')
-        .select('quantity_change, product_id, variant_id')
-        .gt('created_at', endDate + 'T23:59:59');
+      let futureAdjustments: any[] | null;
+      if (useLocal) {
+        futureAdjustments = inputs!.futureAdjustments;
+      } else {
+        const r = await supabase
+          .from('stock_adjustments')
+          .select('quantity_change, product_id, variant_id')
+          .gt('created_at', endDate + 'T23:59:59');
+        futureAdjustments = r.data;
+      }
 
       let futureAdjustmentValue = 0;
       futureAdjustments?.forEach((adj: any) => {
@@ -215,32 +270,44 @@ export default function ProfitLoss() {
       // Purchase Returns (if any - from journal entries)
       const purchaseReturns = 0; // Would need purchase returns tracking
 
-      // Direct Expenses (Carriage Inward, etc.)
-      const { data: expenseAccounts } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('account_type', 'expense')
-        .eq('is_active', true)
-        .order('account_code');
-
-      // Get expense account balances
-      const expenseBalances = await Promise.all(
-        (expenseAccounts || []).map(async (account) => {
-          const { data: lines } = await supabase
-            .from('journal_entry_lines')
-            .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
-            .eq('account_id', account.id)
-            .eq('journal_entries.status', 'posted')
-            .gte('journal_entries.entry_date', startDate)
-            .lte('journal_entries.entry_date', endDate);
-
-          if (!lines || lines.length === 0) return null;
-          const balance = lines.reduce((sum, l) => sum + l.debit_amount - l.credit_amount, 0);
-          return { ...account, balance };
-        })
-      );
-
-      const activeExpenses = expenseBalances.filter((e) => e !== null && e.balance !== 0);
+      // Expense balances — local-first via fetchAccountBalancesLocal
+      let expenseRows: any[] = [];
+      try {
+        expenseRows = await fetchAccountBalancesLocal({
+          startDate,
+          endDate,
+          accountTypes: ['expense'],
+        });
+      } catch (err) {
+        console.warn('[profit-loss] local expense balances failed', err);
+      }
+      if (!expenseRows.length) {
+        const { data: expenseAccounts } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('account_type', 'expense')
+          .eq('is_active', true)
+          .order('account_code');
+        expenseRows = await Promise.all(
+          (expenseAccounts || []).map(async (account: any) => {
+            const { data: lines } = await supabase
+              .from('journal_entry_lines')
+              .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
+              .eq('account_id', account.id)
+              .eq('journal_entries.status', 'posted')
+              .gte('journal_entries.entry_date', startDate)
+              .lte('journal_entries.entry_date', endDate);
+            return {
+              ...account,
+              total_debit: lines?.reduce((s: number, l: any) => s + l.debit_amount, 0) || 0,
+              total_credit: lines?.reduce((s: number, l: any) => s + l.credit_amount, 0) || 0,
+            };
+          }),
+        );
+      }
+      const activeExpenses = expenseRows
+        .map((a: any) => ({ ...a, balance: (a.total_debit || 0) - (a.total_credit || 0) }))
+        .filter((e: any) => e.balance !== 0);
 
       // Categorize expenses
       const directExpenses = activeExpenses.filter((a) => a.account_code?.startsWith('502'));
