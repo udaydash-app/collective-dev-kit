@@ -98,7 +98,7 @@ import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
-import { findPosProductByBarcodeLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
+import { findPosProductByBarcodeLocal, searchPosProductsLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -1518,6 +1518,15 @@ export default function POS() {
   const { data: products } = useQuery({
     queryKey: ['pos-products', searchTerm, selectedCategory],
     queryFn: async () => {
+      if (searchTerm.trim() && !selectedCategory) {
+        try {
+          const localProducts = await searchPosProductsLocal(searchTerm.trim(), 50);
+          if (localProducts.length || shouldUseLocalData()) return localProducts;
+        } catch (error) {
+          console.error('Failed to search local POS products:', error);
+        }
+      }
+
       // Try online first
       if (navigator.onLine) {
         try {
