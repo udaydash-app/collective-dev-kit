@@ -1199,6 +1199,7 @@ export const usePOSTransaction = () => {
             timestamp: new Date().toISOString(),
             synced: false,
           });
+          await offlineDB.savePOSTransactions([transactionData]);
           clearCart();
           setIsProcessing(false);
           return { ...transactionData, offline: true };
@@ -1224,6 +1225,7 @@ export const usePOSTransaction = () => {
           timestamp: new Date().toISOString(),
           synced: false,
         });
+        await offlineDB.savePOSTransactions([transactionData]);
         
         clearCart();
         return { ...transactionData, offline: true };
@@ -1247,8 +1249,26 @@ export const usePOSTransaction = () => {
           
           const finalDiscountOffline = discountOverride !== undefined ? discountOverride : discount;
           
+          const fallbackTransactionId = uuidv4();
+          const fallbackCreatedAt = new Date().toISOString();
+          const fallbackTransaction = {
+            id: fallbackTransactionId,
+            cashier_id: user.id,
+            store_id: storeId,
+            customer_id: customerId || null,
+            items: itemsForOffline as any,
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            tax: 0,
+            discount: parseFloat(finalDiscountOffline.toFixed(2)),
+            total: parseFloat((subtotal - finalDiscountOffline).toFixed(2)),
+            payment_method: primaryPayment.method,
+            payment_details: payments.map(p => ({ method: p.method, amount: p.amount })),
+            notes,
+            created_at: fallbackCreatedAt,
+          };
+
           await offlineDB.addTransaction({
-            id: uuidv4(),
+            id: fallbackTransactionId,
             storeId,
             cashierId: user.id,
             customerId,
@@ -1258,9 +1278,10 @@ export const usePOSTransaction = () => {
             total: parseFloat((subtotal - finalDiscountOffline).toFixed(2)),
             paymentMethod: primaryPayment.method,
             notes,
-            timestamp: new Date().toISOString(),
+            timestamp: fallbackCreatedAt,
             synced: false,
           });
+          await offlineDB.savePOSTransactions([fallbackTransaction]);
           
           clearCart();
           return { offline: true };
