@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { fetchActiveStoresLocal, fetchSuppliersLocal } from '@/db/queries/accounting';
+import { fetchSupplierPaymentsLocal, fetchOutstandingPurchasesLocal } from '@/db/queries/payments';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +76,12 @@ export default function SupplierPayments() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
+      try {
+        const local = await fetchActiveStoresLocal();
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn('[SupplierPayments] stores local read failed', e);
+      }
       const { data, error } = await supabase
         .from('stores')
         .select('*')
@@ -87,6 +95,12 @@ export default function SupplierPayments() {
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers'],
     queryFn: async () => {
+      try {
+        const local = await fetchSuppliersLocal();
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn('[SupplierPayments] suppliers local read failed', e);
+      }
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -106,6 +120,12 @@ export default function SupplierPayments() {
       const supplier = suppliers?.find(s => s.id === formData.contact_id);
       if (!supplier) return [];
 
+      try {
+        const local = await fetchOutstandingPurchasesLocal(supplier.name);
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn('[SupplierPayments] outstanding purchases local read failed', e);
+      }
       const { data, error } = await supabase
         .from('purchases')
         .select('id, purchase_number, total_amount, amount_paid, payment_status, purchased_at')
@@ -123,6 +143,12 @@ export default function SupplierPayments() {
   const { data: payments, isLoading } = useQuery({
     queryKey: ['supplier-payments', searchTerm],
     queryFn: async () => {
+      try {
+        const local = await fetchSupplierPaymentsLocal(searchTerm);
+        if (local && local.length > 0) return local as SupplierPayment[];
+      } catch (e) {
+        console.warn('[SupplierPayments] payments local read failed', e);
+      }
       let query = supabase
         .from('supplier_payments')
         .select(`
