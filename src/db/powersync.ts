@@ -26,13 +26,13 @@ class SupabaseBackendConnector implements PowerSyncBackendConnector {
     if (!transaction) return;
     try {
       for (const op of transaction.crud) {
-        const table = supabase.from(op.table);
+        const table = (supabase as any).from(op.table);
         const record = { ...op.opData, id: op.id };
         if (op.op === "PUT") {
           const { error } = await table.upsert(record);
           if (error) throw error;
         } else if (op.op === "PATCH") {
-          const { error } = await table.update(op.opData!).eq("id", op.id);
+          const { error } = await table.update(op.opData as any).eq("id", op.id);
           if (error) throw error;
         } else if (op.op === "DELETE") {
           const { error } = await table.delete().eq("id", op.id);
