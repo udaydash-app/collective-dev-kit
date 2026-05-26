@@ -8,7 +8,7 @@ import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
-import { searchPosProductsLocal, findPosProductByBarcodeLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
+import { searchPosProductsLocal, findPosProductByBarcodeLocal, warmPosProductsLocalIndex, invalidatePosProductsLocalIndex } from '@/db/queries/products';
 
 export interface ProductSearchRef {
   focus: () => void;
@@ -103,6 +103,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         },
         () => {
           console.log('Product stock changed - invalidating queries');
+          invalidatePosProductsLocalIndex();
+          warmPosProductsLocalIndex().catch(() => undefined);
           queryClient.invalidateQueries({ 
             queryKey: ['pos-products']
           });
@@ -117,6 +119,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         },
         () => {
           console.log('Variant stock changed - invalidating queries');
+          invalidatePosProductsLocalIndex();
+          warmPosProductsLocalIndex().catch(() => undefined);
           queryClient.invalidateQueries({ 
             queryKey: ['pos-products']
           });
@@ -400,6 +404,8 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         }}
         barcode={scannedBarcode}
         onBarcodeAssigned={() => {
+          invalidatePosProductsLocalIndex();
+          warmPosProductsLocalIndex().catch(() => undefined);
           setSearchTerm('');
         }}
       />
