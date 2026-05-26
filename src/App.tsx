@@ -177,7 +177,6 @@ const POSSessionKeeper = () => {
     };
 
     const recoverAfterWake = () => {
-      if (!location.pathname.startsWith('/admin')) return;
       const now = Date.now();
       if (now - lastWakeRecoveryRef.current < 1500) return;
       lastWakeRecoveryRef.current = now;
