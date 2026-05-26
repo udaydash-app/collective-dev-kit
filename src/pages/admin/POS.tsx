@@ -3434,6 +3434,10 @@ export default function POS() {
       color: 'bg-info', 
       action: () => {
         if (!currentCashSession) {
+          toast.error('No cash register is open. Please open the register first to run End of Day.');
+          setCashInSkipped(false);
+          cashInShownRef.current = false;
+          setShowCashIn(true);
           return;
         }
         setShowCashOut(true);
