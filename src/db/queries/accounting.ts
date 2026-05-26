@@ -10,7 +10,7 @@ const rowsOf = (res: any): Row[] =>
   Array.isArray(res) ? res : (res?.rows?._array ?? []);
 const toBool = (v: any) => v === 1 || v === true;
 
-export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}) {
+export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}): Promise<any[]> {
   const db = await connectPowerSync();
   const where = opts.includeInactive ? "" : "WHERE is_active = 1";
   const res: any = await db.getAll(
@@ -19,7 +19,7 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
             created_at, updated_at
      FROM accounts ${where} ORDER BY account_code`,
   );
-  return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }));
+  return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
 export interface LocalJournalFilter {
