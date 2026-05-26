@@ -42,8 +42,12 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
     offlineDB.getStores().catch(() => []),
   ]);
 
-  const contactById = new Map<string, any>(allContacts.map((c: any) => [c.id, c]));
-  const storeById = new Map<string, any>(allStores.map((s: any) => [s.id, s]));
+  const contactById = new Map<string, any>(
+    allContacts.map((c: any) => [c.id, c] as [string, any]),
+  );
+  const storeById = new Map<string, any>(
+    allStores.map((s: any) => [s.id, s] as [string, any]),
+  );
 
   const itemsByOrder = new Map<string, any[]>();
   for (const it of allItems) {
