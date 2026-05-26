@@ -191,10 +191,11 @@ export const TransactionCart = ({
   // Auto-select the newly focused item
   useEffect(() => {
     const visibleItems = items.filter(item => item.id !== 'cart-discount');
-    if (visibleItems[focusedItemIndex]) {
-      onSelectItem?.(visibleItems[focusedItemIndex].id);
+    const target = visibleItems[focusedItemIndex];
+    if (target && target.id !== selectedItemId) {
+      onSelectItem?.(target.id);
     }
-  }, [focusedItemIndex, items, onSelectItem]);
+  }, [focusedItemIndex, items, onSelectItem, selectedItemId]);
 
   if (items.length === 0) {
     return (
