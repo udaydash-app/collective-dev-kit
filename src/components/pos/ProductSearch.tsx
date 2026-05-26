@@ -122,7 +122,25 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const { data: products, isLoading } = useQuery({
     queryKey: ['pos-products', searchTerm, isLocalMode],
     queryFn: async () => {
-      // Use IndexedDB for offline OR local mode (faster)
+      // Prefer PowerSync SQLite for POS lookups. It is indexed and avoids
+      // loading the full IndexedDB product cache on every keystroke.
+      const data = await searchPosProductsLocal(searchTerm, 10);
+      if (data.length || !isLocalMode) {
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          return data.map((product) => {
+            const matchingVariant = product.product_variants?.find((v: any) => {
+              if (!v.barcode) return false;
+              const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+              return barcodes.some((b: string) => b.includes(term));
+            });
+            return { ...product, _matchingVariant: matchingVariant };
+          });
+        }
+        return data;
+      }
+
+      // IndexedDB fallback only if PowerSync has no local data available.
       if (isLocalMode) {
         try {
           const cachedProducts = await offlineDB.getProducts();
@@ -142,24 +160,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           return [];
         }
       }
-      
-      // PowerSync local query — instant + offline-capable.
-      const data = await searchPosProductsLocal(searchTerm, 10);
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        return data.map((product) => {
-          const matchingVariant = product.product_variants?.find((v: any) => {
-            if (!v.barcode) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b.includes(term));
-          });
-          return { ...product, _matchingVariant: matchingVariant };
-        });
-      }
-      return data;
+      return [];
     },
     enabled: searchTerm.length > 0,
-    staleTime: 0, // Always fetch fresh data to show realtime stock updates
+    staleTime: 15 * 1000,
     gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
 
