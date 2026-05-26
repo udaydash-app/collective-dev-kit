@@ -55,6 +55,17 @@ export async function fetchAccountsWithParentLocal(): Promise<any[]> {
   }));
 }
 
+export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
+  if (!storeId) return [];
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT * FROM expenses WHERE store_id = ?
+     ORDER BY expense_date DESC, created_at DESC`,
+    [storeId],
+  );
+  return rowsOf(res);
+}
+
 export interface LocalJournalFilter {
   start?: Date | null;
   end?: Date | null;
