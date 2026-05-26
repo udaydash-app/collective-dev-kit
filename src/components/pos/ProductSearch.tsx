@@ -8,6 +8,7 @@ import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
+import { searchPosProductsLocal, findPosProductByBarcodeLocal } from '@/db/queries/products';
 
 export interface ProductSearchRef {
   focus: () => void;
