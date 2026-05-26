@@ -28,7 +28,7 @@ export const AppSchema = new Schema({
     nutritional_info: column.text,
     created_at: column.text,
     updated_at: column.text,
-  }),
+  }, { indexes: { name_idx: ['name'], barcode_idx: ['barcode'], store_idx: ['store_id'], category_idx: ['category_id'] } }),
   product_variants: new Table({
     product_id: column.text,
     unit: column.text,
@@ -44,7 +44,7 @@ export const AppSchema = new Schema({
     is_default: column.integer,
     created_at: column.text,
     updated_at: column.text,
-  }),
+  }, { indexes: { product_idx: ['product_id'], barcode_idx: ['barcode'] } }),
   categories: new Table({
     name: column.text,
     slug: column.text,
