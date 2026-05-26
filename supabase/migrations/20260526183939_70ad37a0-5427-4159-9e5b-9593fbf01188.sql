@@ -1,0 +1,1 @@
+ALTER PUBLICATION powersync ADD TABLE public.productions, public.production_outputs, public.offers, public.bogo_offers, public.special_offers, public.quotations;
