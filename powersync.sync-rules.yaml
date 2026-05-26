@@ -24,3 +24,8 @@ bucket_definitions:
       - SELECT * FROM pos_users
       - SELECT * FROM addresses
       - SELECT * FROM announcements
+      - SELECT * FROM purchase_orders
+      - SELECT * FROM purchase_order_items
+      - SELECT * FROM payment_receipts
+      - SELECT * FROM supplier_payments
+      - SELECT * FROM payment_methods
