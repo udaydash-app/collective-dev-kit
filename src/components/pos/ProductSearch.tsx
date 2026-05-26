@@ -8,7 +8,7 @@ import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
-import { searchPosProductsLocal, findPosProductByBarcodeLocal } from '@/db/queries/products';
+import { searchPosProductsLocal, findPosProductByBarcodeLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
 
 export interface ProductSearchRef {
   focus: () => void;
@@ -68,9 +68,15 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   }, [searchTerm]);
 
   React.useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 80);
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 20);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  React.useEffect(() => {
+    warmPosProductsLocalIndex().catch((error) => {
+      console.error('Failed to warm POS product index:', error);
+    });
+  }, []);
 
   // Scroll highlighted item into view
   React.useEffect(() => {
