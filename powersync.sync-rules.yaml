@@ -1,0 +1,26 @@
+# Paste this into the PowerSync dashboard → Sync Rules, then click Deploy.
+# This mirrors the local schema in src/db/schema.ts. All authenticated
+# devices (PIN-only LAN model) receive the same `global` bucket — RLS in
+# Supabase still applies on writes via the upload connector.
+
+bucket_definitions:
+  global:
+    data:
+      - SELECT * FROM products
+      - SELECT * FROM product_variants
+      - SELECT * FROM categories
+      - SELECT * FROM stores
+      - SELECT * FROM orders
+      - SELECT * FROM order_items
+      - SELECT * FROM pos_transactions
+      - SELECT * FROM cash_sessions
+      - SELECT * FROM purchases
+      - SELECT * FROM purchase_items
+      - SELECT * FROM expenses
+      - SELECT * FROM journal_entries
+      - SELECT * FROM journal_entry_lines
+      - SELECT * FROM accounts
+      - SELECT * FROM contacts
+      - SELECT * FROM pos_users
+      - SELECT * FROM addresses
+      - SELECT * FROM announcements
