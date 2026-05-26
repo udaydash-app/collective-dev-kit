@@ -17,6 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import PendingBillsDialog from '@/components/admin/PendingBillsDialog';
+import { fetchActiveStoresLocal } from '@/db/queries/accounting';
+import { fetchPaymentReceiptsLocal, fetchCustomersLocal } from '@/db/queries/payments';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,6 +105,12 @@ export default function PaymentReceipts() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
+      try {
+        const local = await fetchActiveStoresLocal();
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn('[PaymentReceipts] stores local read failed', e);
+      }
       const { data, error } = await supabase
         .from('stores')
         .select('*')
@@ -116,6 +124,12 @@ export default function PaymentReceipts() {
   const { data: customers } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
+      try {
+        const local = await fetchCustomersLocal();
+        if (local && local.length > 0) return local;
+      } catch (e) {
+        console.warn('[PaymentReceipts] customers local read failed', e);
+      }
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -130,6 +144,12 @@ export default function PaymentReceipts() {
   const { data: receipts, isLoading } = useQuery({
     queryKey: ['payment-receipts', searchTerm],
     queryFn: async () => {
+      try {
+        const local = await fetchPaymentReceiptsLocal(searchTerm);
+        if (local && local.length > 0) return local as PaymentReceipt[];
+      } catch (e) {
+        console.warn('[PaymentReceipts] receipts local read failed', e);
+      }
       let query = supabase
         .from('payment_receipts')
         .select(`
