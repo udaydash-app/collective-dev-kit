@@ -1000,8 +1000,17 @@ export const usePOSTransaction = () => {
 
     setIsProcessing(true);
     try {
-      // Use cached user for faster processing
-      let user = cachedUserRef.current;
+      const offlineSession = (() => {
+        try {
+          const raw = localStorage.getItem('offline_pos_session');
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      // Use cached user for faster processing, or the PIN session when offline/PWA auth is unavailable
+      let user = cachedUserRef.current || (offlineSession?.pos_user_id ? { id: offlineSession.pos_user_id } as any : null);
       if (!user) {
         const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !freshUser) {
@@ -1034,6 +1043,7 @@ export const usePOSTransaction = () => {
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
       const itemsToSave = allItems.map(serializeCartItemForTransaction);
 
+      const transactionTimestamp = new Date().toISOString();
       const transactionData = {
         id: transactionId,
         cashier_id: user.id,
@@ -1050,6 +1060,7 @@ export const usePOSTransaction = () => {
           amount: Math.round(p.amount * 100) / 100,
         })),
         notes: timbreTax.isApplicable ? `${notes || ''}${notes ? ' | ' : ''}Timbre: ${tax}` : notes,
+        created_at: transactionTimestamp,
         metadata: editingTransactionId 
           ? { edited_at: new Date().toISOString(), timbre_tax: timbreTax.isApplicable ? tax : 0 } 
           : { timbre_tax: timbreTax.isApplicable ? tax : 0 }
