@@ -40,31 +40,31 @@ export const useAdminShortcuts = () => {
       } else if (ctrl && shift && key === 'O') {
         e.preventDefault();
         navigate('/admin/orders');
-      } else if (ctrl && shift && e.key === 'I') {
+      } else if (ctrl && shift && key === 'I') {
         e.preventDefault();
         navigate('/admin/products');
-      } else if (ctrl && shift && e.key === 'U') {
+      } else if (ctrl && shift && key === 'U') {
         e.preventDefault();
         navigate('/admin/purchases');
-      } else if (ctrl && shift && e.key === 'A') {
+      } else if (ctrl && shift && key === 'A') {
         e.preventDefault();
         navigate('/admin/analytics');
-      } else if (ctrl && shift && e.key === 'S') {
+      } else if (ctrl && shift && key === 'S') {
         e.preventDefault();
         navigate('/admin/settings');
-      } else if (ctrl && shift && e.key === 'G') {
+      } else if (ctrl && shift && key === 'G') {
         e.preventDefault();
         navigate('/admin/general-ledger');
-      } else if (ctrl && shift && e.key === 'R') {
+      } else if (ctrl && shift && key === 'R') {
         e.preventDefault();
         navigate('/admin/accounts-receivable');
-      } else if (ctrl && shift && e.key === 'Y') {
+      } else if (ctrl && shift && key === 'Y') {
         e.preventDefault();
         navigate('/admin/accounts-payable');
-      } else if (ctrl && e.key === 'b') {
+      } else if (ctrl && key === 'b') {
         e.preventDefault();
         navigate('/admin/barcode');
-      } else if (alt && e.key === 'q') {
+      } else if (alt && key === 'q') {
         e.preventDefault();
         navigate('/admin/quotations');
       }
