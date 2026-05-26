@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, forwardRef, useEffect, useMemo, useDeferredValue } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,7 +27,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   // Use memoized local data check for performance
   const useLocalData = useMemo(() => shouldUseLocalData(), []);
@@ -65,6 +65,11 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   // Reset highlighted index when search term changes
   React.useEffect(() => {
     setHighlightedIndex(-1);
+  }, [searchTerm]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 80);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
 
   // Scroll highlighted item into view
@@ -121,9 +126,9 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   }, [queryClient, isLocalMode]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', deferredSearchTerm, isLocalMode],
+    queryKey: ['pos-products', debouncedSearchTerm, isLocalMode],
     queryFn: async () => {
-      const query = deferredSearchTerm.trim();
+      const query = debouncedSearchTerm.trim();
       // Prefer PowerSync SQLite for POS lookups. It is indexed and avoids
       // loading the full IndexedDB product cache on every keystroke.
       let data: any[] = [];
@@ -169,7 +174,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       }
       return [];
     },
-    enabled: deferredSearchTerm.trim().length > 0,
+    enabled: debouncedSearchTerm.trim().length > 0,
     staleTime: 15 * 1000,
     gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
