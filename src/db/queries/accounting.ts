@@ -65,6 +65,82 @@ export async function fetchAccountBalancesLocal(opts: {
   }));
 }
 
+// Raw inputs needed for the Profit & Loss report. Reads purchases,
+// pos_transactions, products, product_variants, and stock_adjustments
+// from the local PowerSync mirror so the page works offline.
+export async function fetchProfitLossInputsLocal(startDate: string, endDate: string) {
+  const db = await connectPowerSync();
+  const endTs = `${endDate}T23:59:59`;
+
+  const [
+    purchasesRes,
+    salesRes,
+    futurePurchasesRes,
+    futureSalesRes,
+    productsRes,
+    variantsRes,
+    stockAdjRes,
+    futureAdjRes,
+  ] = await Promise.all([
+    db.getAll(
+      `SELECT total_amount FROM purchases WHERE purchased_at >= ? AND purchased_at <= ?`,
+      [startDate, endTs],
+    ),
+    db.getAll(
+      `SELECT subtotal, discount, items FROM pos_transactions
+       WHERE created_at >= ? AND created_at <= ?`,
+      [startDate, endTs],
+    ),
+    db.getAll(
+      `SELECT total_amount FROM purchases WHERE purchased_at > ?`,
+      [endTs],
+    ),
+    db.getAll(
+      `SELECT items FROM pos_transactions WHERE created_at > ?`,
+      [endTs],
+    ),
+    db.getAll(`SELECT id, cost_price, stock_quantity FROM products`),
+    db.getAll(`SELECT id, cost_price, stock_quantity, product_id FROM product_variants`),
+    db.getAll(
+      `SELECT quantity_change, product_id, variant_id, unit_cost, total_value
+       FROM stock_adjustments WHERE created_at >= ? AND created_at <= ?`,
+      [startDate, endTs],
+    ),
+    db.getAll(
+      `SELECT quantity_change, product_id, variant_id FROM stock_adjustments
+       WHERE created_at > ?`,
+      [endTs],
+    ),
+  ]);
+
+  const parseItems = (rows: any[]) =>
+    rowsOf(rows).map((r: any) => ({
+      ...r,
+      items: typeof r.items === 'string' ? safeJson(r.items) : r.items,
+    }));
+
+  return {
+    purchases: rowsOf(purchasesRes),
+    sales: parseItems(salesRes as any),
+    futurePurchases: rowsOf(futurePurchasesRes),
+    futureSales: parseItems(futureSalesRes as any),
+    allProducts: rowsOf(productsRes),
+    allVariants: rowsOf(variantsRes),
+    stockAdjustments: rowsOf(stockAdjRes),
+    futureAdjustments: rowsOf(futureAdjRes),
+  };
+}
+
+function safeJson(s: any): any[] {
+  if (!s) return [];
+  try {
+    const v = JSON.parse(s);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
   const db = await connectPowerSync();
   const res: any = await db.getAll(
