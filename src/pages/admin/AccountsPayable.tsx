@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPayablesLocal } from "@/db/queries/accounting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,11 @@ export default function AccountsPayable() {
   const { data: payables, isLoading } = useQuery({
     queryKey: ['accounts-payable'],
     queryFn: async () => {
+      try {
+        return await fetchPayablesLocal();
+      } catch (e) {
+        console.warn('[payables] local failed, falling back to supabase', e);
+      }
       const { data: contacts, error } = await supabase
         .from('contacts')
         .select(`
