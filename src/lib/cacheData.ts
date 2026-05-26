@@ -76,8 +76,8 @@ export async function cacheEssentialData(showProgress = false) {
     if (showProgress) toast.loading('Caching customers...');
     const customersQuery = supabase
       .from('contacts')
-      .select('id, name, email, phone, type, credit_limit, outstanding_balance')
-      .eq('type', 'customer');
+      .select('*')
+      .eq('is_customer', true);
     
     const customersResult: any = await customersQuery;
     const customers = customersResult.data;
@@ -116,18 +116,17 @@ export async function cacheEssentialData(showProgress = false) {
       await offlineDB.saveComboOffers(comboOffers);
       console.log(`Cached ${comboOffers.length} combo offers`);
       
-      // Cache combo offer items for each offer
-      for (const offer of comboOffers) {
-        const itemsQuery = supabase
+      // Cache combo offer items for all active offers
+      const offerIds = comboOffers.map((offer: any) => offer.id).filter(Boolean);
+      if (offerIds.length > 0) {
+        const itemsResult: any = await supabase
           .from('combo_offer_items')
           .select('*')
-          .eq('combo_offer_id', offer.id);
-        
-        const itemsResult: any = await itemsQuery;
+          .in('combo_offer_id', offerIds);
         const items = itemsResult.data;
-        
+
         if (items && Array.isArray(items)) {
-          await offlineDB.saveComboOfferItems(offer.id, items);
+          await offlineDB.saveComboOfferItems(items);
         }
       }
     }

@@ -1000,8 +1000,17 @@ export const usePOSTransaction = () => {
 
     setIsProcessing(true);
     try {
-      // Use cached user for faster processing
-      let user = cachedUserRef.current;
+      const offlineSession = (() => {
+        try {
+          const raw = localStorage.getItem('offline_pos_session');
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      // Use cached user for faster processing, or the PIN session when offline/PWA auth is unavailable
+      let user = cachedUserRef.current || (offlineSession?.pos_user_id ? { id: offlineSession.pos_user_id } : null);
       if (!user) {
         const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !freshUser) {
@@ -1034,6 +1043,7 @@ export const usePOSTransaction = () => {
       const allItems = additionalItems ? [...cart, ...additionalItems] : cart;
       const itemsToSave = allItems.map(serializeCartItemForTransaction);
 
+      const transactionTimestamp = new Date().toISOString();
       const transactionData = {
         id: transactionId,
         cashier_id: user.id,
@@ -1050,6 +1060,7 @@ export const usePOSTransaction = () => {
           amount: Math.round(p.amount * 100) / 100,
         })),
         notes: timbreTax.isApplicable ? `${notes || ''}${notes ? ' | ' : ''}Timbre: ${tax}` : notes,
+        created_at: transactionTimestamp,
         metadata: editingTransactionId 
           ? { edited_at: new Date().toISOString(), timbre_tax: timbreTax.isApplicable ? tax : 0 } 
           : { timbre_tax: timbreTax.isApplicable ? tax : 0 }
@@ -1185,9 +1196,10 @@ export const usePOSTransaction = () => {
             total: transactionData.total,
             paymentMethod: transactionData.payment_method,
             notes: transactionData.notes,
-            timestamp: new Date().toISOString(),
+            timestamp: transactionTimestamp,
             synced: false,
           });
+          await offlineDB.savePOSTransactions([transactionData]);
           clearCart();
           setIsProcessing(false);
           return { ...transactionData, offline: true };
@@ -1210,9 +1222,10 @@ export const usePOSTransaction = () => {
           total: transactionData.total,
           paymentMethod: transactionData.payment_method,
           notes: transactionData.notes,
-          timestamp: new Date().toISOString(),
+          timestamp: transactionTimestamp,
           synced: false,
         });
+        await offlineDB.savePOSTransactions([transactionData]);
         
         clearCart();
         return { ...transactionData, offline: true };
@@ -1222,8 +1235,21 @@ export const usePOSTransaction = () => {
       
       // Last resort: save offline
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        let fallbackUser = (() => {
+          try {
+            const raw = localStorage.getItem('offline_pos_session');
+            const session = raw ? JSON.parse(raw) : null;
+            return session?.pos_user_id ? { id: session.pos_user_id } : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        if (!fallbackUser) {
+          const { data: { user } } = await supabase.auth.getUser();
+          fallbackUser = user ? { id: user.id } : null;
+        }
+        if (fallbackUser) {
           const subtotal = calculateSubtotal();
           const total = calculateTotal();
           const primaryPayment = payments.reduce((prev, current) => 
@@ -1236,10 +1262,28 @@ export const usePOSTransaction = () => {
           
           const finalDiscountOffline = discountOverride !== undefined ? discountOverride : discount;
           
+          const fallbackTransactionId = uuidv4();
+          const fallbackCreatedAt = new Date().toISOString();
+          const fallbackTransaction = {
+            id: fallbackTransactionId,
+            cashier_id: fallbackUser.id,
+            store_id: storeId,
+            customer_id: customerId || null,
+            items: itemsForOffline as any,
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            tax: 0,
+            discount: parseFloat(finalDiscountOffline.toFixed(2)),
+            total: parseFloat((subtotal - finalDiscountOffline).toFixed(2)),
+            payment_method: primaryPayment.method,
+            payment_details: payments.map(p => ({ method: p.method, amount: p.amount })),
+            notes,
+            created_at: fallbackCreatedAt,
+          };
+
           await offlineDB.addTransaction({
-            id: uuidv4(),
+            id: fallbackTransactionId,
             storeId,
-            cashierId: user.id,
+            cashierId: fallbackUser.id,
             customerId,
             items: itemsForOffline as any,
             subtotal: parseFloat(subtotal.toFixed(2)),
@@ -1247,9 +1291,10 @@ export const usePOSTransaction = () => {
             total: parseFloat((subtotal - finalDiscountOffline).toFixed(2)),
             paymentMethod: primaryPayment.method,
             notes,
-            timestamp: new Date().toISOString(),
+            timestamp: fallbackCreatedAt,
             synced: false,
           });
+          await offlineDB.savePOSTransactions([fallbackTransaction]);
           
           clearCart();
           return { offline: true };

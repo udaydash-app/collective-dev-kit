@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { Search, Loader2, Receipt, User, Calendar, CreditCard, DollarSign, Smartphone, FileText } from 'lucide-react';
 import { OrderViewDialog } from './OrderViewDialog';
+import { offlineDB } from '@/lib/offlineDB';
+import { shouldQuerySupabase } from '@/lib/localModeHelper';
 
 interface SearchAllSalesDialogProps {
   open: boolean;
@@ -47,35 +49,57 @@ export function SearchAllSalesDialog({ open, onOpenChange }: SearchAllSalesDialo
     setHasSearched(true);
     
     try {
-      // Search by transaction number (case insensitive, partial match)
-      const { data, error } = await supabase
-        .from('pos_transactions')
-        .select(`
-          id,
-          transaction_number,
-          total,
-          payment_method,
-          payment_details,
-          created_at,
-          customer_id,
-          items,
-          subtotal,
-          tax,
-          discount,
-          notes,
-          contacts:customer_id(name, phone)
-        `)
-        .ilike('transaction_number', `%${searchQuery.trim()}%`)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const query = searchQuery.trim().toLowerCase();
+      let formattedResults: TransactionResult[] = [];
 
-      if (error) throw error;
+      if (shouldQuerySupabase()) {
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .select(`
+            id,
+            transaction_number,
+            total,
+            payment_method,
+            payment_details,
+            created_at,
+            customer_id,
+            items,
+            subtotal,
+            tax,
+            discount,
+            notes,
+            contacts:customer_id(name, phone)
+          `)
+          .ilike('transaction_number', `%${searchQuery.trim()}%`)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      const formattedResults = (data || []).map(t => ({
-        ...t,
-        customer_name: t.contacts?.name || null,
-        customer_phone: t.contacts?.phone || null
-      }));
+        if (error) throw error;
+        if (data) await offlineDB.savePOSTransactions(data as any[]);
+
+        formattedResults = (data || []).map(t => ({
+          ...t,
+          customer_name: t.contacts?.name || null,
+          customer_phone: t.contacts?.phone || null
+        }));
+      } else {
+        const [transactions, contacts] = await Promise.all([
+          offlineDB.getPOSTransactions(),
+          offlineDB.getContacts(),
+        ]);
+        formattedResults = transactions
+          .filter((t: any) => String(t.transaction_number || '').toLowerCase().includes(query))
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 50)
+          .map((t: any) => {
+            const contact = contacts.find((c: any) => c.id === t.customer_id);
+            return {
+              ...t,
+              customer_name: contact?.name || t.customer_name || null,
+              customer_phone: contact?.phone || t.customer_phone || null,
+            };
+          });
+      }
 
       setResults(formattedResults);
     } catch (error) {

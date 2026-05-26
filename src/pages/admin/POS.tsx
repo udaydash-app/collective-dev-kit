@@ -99,6 +99,7 @@ import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import { findPosProductByBarcodeLocal, searchPosProductsLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
+import { offlineDB } from '@/lib/offlineDB';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -183,6 +184,44 @@ export default function POS() {
     return saved ? JSON.parse(saved) : null;
   });
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const getCachedStoresWithFallback = useCallback(async () => {
+    const cachedStores = await offlineDB.getStores();
+    if (cachedStores.length > 0) return cachedStores;
+
+    const offlineSession = localStorage.getItem('offline_pos_session');
+    if (offlineSession) {
+      const sessionData = JSON.parse(offlineSession);
+      if (sessionData.store_id) return [{ id: sessionData.store_id, name: 'Global Market' }];
+    }
+
+    const cachedProducts = await offlineDB.getProducts() as any[];
+    const firstStoreId = cachedProducts.find((product: any) => product.store_id)?.store_id;
+    return firstStoreId ? [{ id: firstStoreId, name: 'Global Market' }] : [];
+  }, []);
+
+  const getCachedOpenCashSession = useCallback(async (storeId: string) => {
+    const sessions = await offlineDB.getCashSessions();
+    console.log('[POS] All IndexedDB cash sessions:', sessions.map((s: any) => ({ id: s.id, status: s.status, store_id: s.store_id })));
+
+    const activeSession = sessions.find((s: any) => s.store_id === storeId && s.status === 'open');
+    if (activeSession) return activeSession;
+
+    const offlineSession = localStorage.getItem('offline_pos_session');
+    if (offlineSession) {
+      const sessionData = JSON.parse(offlineSession);
+      return {
+        id: sessionData.cash_session_id || 'offline-session',
+        store_id: sessionData.store_id || storeId,
+        cashier_id: sessionData.pos_user_id,
+        status: 'open',
+        opening_cash: 0,
+        opened_at: sessionData.timestamp,
+      };
+    }
+
+    return null;
+  }, []);
   
   // Track processed customer IDs to prevent re-selecting
   const processedCustomerIdRef = useRef<string | null>(null);
@@ -602,6 +641,7 @@ export default function POS() {
             .order('name');
           
           if (error) throw error;
+          if (data) await offlineDB.saveStores(data);
           
           console.log(`[${localMode ? 'Local' : 'Cloud'} Supabase] Stores: ${data?.length || 0}`);
           return data || [];
@@ -612,8 +652,7 @@ export default function POS() {
       
       // Fallback to IndexedDB
       try {
-        const { offlineDB } = await import('@/lib/offlineDB');
-        const offlineStores = await offlineDB.getStores();
+        const offlineStores = await getCachedStoresWithFallback();
         console.log('[POS] IndexedDB stores:', offlineStores.length);
         return offlineStores;
       } catch (e) {
@@ -679,35 +718,13 @@ export default function POS() {
       // If in local/offline mode, check IndexedDB first for cash sessions
       if (isOffline) {
         try {
-          const { offlineDB } = await import('@/lib/offlineDB');
-          const sessions = await offlineDB.getCashSessions();
-          
-          console.log('[POS] All IndexedDB cash sessions:', sessions.map(s => ({ id: s.id, status: s.status, store_id: s.store_id })));
-          
-          // Find any open session for this store (shared across all cashiers)
-          const activeSession = sessions.find(s => 
-            s.store_id === selectedStoreId && 
-            s.status === 'open'
-          );
-          
+          const activeSession = await getCachedOpenCashSession(selectedStoreId);
+
           if (activeSession) {
             console.log('[POS] Found active cash session in IndexedDB:', activeSession);
             return activeSession;
           }
-          
-          // If no session found in IndexedDB, check localStorage for fallback
-          const offlineSession = localStorage.getItem('offline_pos_session');
-          if (offlineSession) {
-            const sessionData = JSON.parse(offlineSession);
-            return {
-              id: sessionData.cash_session_id || 'offline-session',
-              store_id: selectedStoreId,
-              cashier_id: sessionData.pos_user_id,
-              status: 'open',
-              opening_cash: 0,
-              opened_at: sessionData.timestamp,
-            };
-          }
+
           console.log('[POS] No active cash session found in IndexedDB');
           return null;
         } catch (e) {
@@ -717,7 +734,8 @@ export default function POS() {
       }
 
       // Online mode: Find any open session for this store (shared across all cashiers)
-      const { data } = await supabase
+      try {
+        const { data, error } = await supabase
         .from('cash_sessions')
         .select('*')
         .eq('store_id', selectedStoreId)
@@ -726,7 +744,13 @@ export default function POS() {
         .limit(1)
         .maybeSingle();
 
-      return data;
+        if (error) throw error;
+        if (data) await offlineDB.saveCashSessions([data]);
+        return data;
+      } catch (error) {
+        console.error('[POS] Supabase cash session error, falling back to IndexedDB:', error);
+        return getCachedOpenCashSession(selectedStoreId);
+      }
     },
     enabled: !!selectedStoreId,
     staleTime: 0, // Always refetch to get latest session status
@@ -1449,21 +1473,21 @@ export default function POS() {
   const { data: categories } = useQuery({
     queryKey: ['pos-categories'],
     queryFn: async () => {
-      // Try online first
-      if (navigator.onLine) {
+      if (shouldQuerySupabase()) {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('categories')
             .select('id, name, image_url, icon')
             .eq('is_active', true)
             .order('display_order');
+          if (error) throw error;
+          if (data) await offlineDB.saveCategories(data);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch categories:', error);
-          return [];
+          console.error('Failed to fetch categories, falling back to IndexedDB:', error);
         }
       }
-      return [];
+      return offlineDB.getCategories();
     },
   });
 
@@ -1505,11 +1529,14 @@ export default function POS() {
           query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
         }
         
-        const { data } = await query.limit(50);
+        const { data, error } = await query.limit(50);
+        if (error) throw error;
+        if (data) await offlineDB.saveContacts(data);
         return data || [];
       } catch (error) {
-        console.error('Failed to fetch customers:', error);
-        return [];
+        console.error('Failed to fetch customers, falling back to IndexedDB:', error);
+        const contacts = await offlineDB.getContacts();
+        return contacts.filter((contact: any) => contact.is_customer).slice(0, 50);
       }
     },
     staleTime: isOffline ? Infinity : 30 * 1000,
@@ -1527,8 +1554,7 @@ export default function POS() {
         }
       }
 
-      // Try online first
-      if (navigator.onLine) {
+      if (shouldQuerySupabase()) {
         try {
           let query = supabase
             .from('products')
@@ -1555,14 +1581,24 @@ export default function POS() {
             query = query.eq('category_id', selectedCategory);
           }
 
-          const { data } = await query.limit(50);
+          const { data, error } = await query.limit(50);
+          if (error) throw error;
+          if (data) await offlineDB.saveProducts(data as any[]);
           return data || [];
         } catch (error) {
-          console.error('Failed to fetch products:', error);
-          return [];
+          console.error('Failed to fetch products, falling back to IndexedDB:', error);
         }
       }
-      return [];
+      const cachedProducts = await offlineDB.getProducts() as any[];
+      return cachedProducts
+        .filter((product: any) => {
+          if (selectedCategory && product.category_id !== selectedCategory) return false;
+          if (!searchTerm.trim()) return true;
+          const query = searchTerm.trim().toLowerCase();
+          return [product.name, product.barcode, product.description]
+            .some((value) => String(value || '').toLowerCase().includes(query));
+        })
+        .slice(0, 50);
     },
     enabled: !!selectedCategory || !!searchTerm,
   });
