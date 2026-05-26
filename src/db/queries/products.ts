@@ -272,6 +272,39 @@ export async function searchPosProductsLocal(
   term: string,
   limit = 10,
 ): Promise<PosProduct[]> {
+  const cachedIndex = getWarmPosProductsIndex();
+  if (cachedIndex) {
+    const query = term.trim().toLowerCase();
+    if (!query) return cachedIndex.products.slice(0, limit);
+
+    const exactBarcodeMatch = cachedIndex.barcodeMap.get(query);
+    if (exactBarcodeMatch) {
+      return [{
+        ...exactBarcodeMatch.product,
+        _matchingVariant: exactBarcodeMatch.variant ?? undefined,
+      } as PosProduct];
+    }
+
+    const results: PosProduct[] = [];
+    const seen = new Set<string>();
+    for (const entry of cachedIndex.entries) {
+      if (results.length >= limit) break;
+      const matchingVariant = entry.variantBarcodes.find(({ barcode }) => barcode.startsWith(query))?.variant;
+      const matches = entry.name.startsWith(query)
+        || entry.name.includes(query)
+        || entry.productBarcodes.some((barcode) => barcode.startsWith(query) || barcode.includes(query))
+        || Boolean(matchingVariant);
+      if (matches && !seen.has(entry.product.id)) {
+        seen.add(entry.product.id);
+        results.push({
+          ...entry.product,
+          _matchingVariant: matchingVariant,
+        } as PosProduct);
+      }
+    }
+    return results;
+  }
+
   const db = await connectPowerSync();
   const productRowsById = new Map<string, Row>();
   if (!term) {
