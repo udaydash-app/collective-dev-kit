@@ -22,6 +22,39 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
   return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
+export async function fetchContactsForLedgerLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT id, name, is_customer, is_supplier,
+            customer_ledger_account_id, supplier_ledger_account_id,
+            opening_balance, supplier_opening_balance
+     FROM contacts ORDER BY name`,
+  );
+  return rowsOf(res).map((r) => ({
+    ...r,
+    is_customer: toBool(r.is_customer),
+    is_supplier: toBool(r.is_supplier),
+  }));
+}
+
+export async function fetchAccountsWithParentLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT a.*, p.account_name AS parent_account_name, p.account_code AS parent_account_code
+     FROM accounts a
+     LEFT JOIN accounts p ON p.id = a.parent_account_id
+     WHERE a.is_active = 1
+     ORDER BY a.account_code`,
+  );
+  return rowsOf(res).map((r: any) => ({
+    ...r,
+    is_active: toBool(r.is_active),
+    parent: r.parent_account_name
+      ? { account_name: r.parent_account_name, account_code: r.parent_account_code }
+      : null,
+  }));
+}
+
 export interface LocalJournalFilter {
   start?: Date | null;
   end?: Date | null;
