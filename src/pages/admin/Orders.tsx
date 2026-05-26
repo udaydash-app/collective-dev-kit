@@ -200,11 +200,14 @@ export default function AdminOrders() {
     queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim()],
     queryFn: async () => {
       const dateRange = getDateRange();
+      const isSearchingTop = searchQuery.trim().length > 0;
       try {
         return await fetchAdminOrdersLocal({
           statusFilter,
-          start: dateRange?.start ?? null,
-          end: dateRange?.end ?? null,
+          // When searching, ignore the date filter so results span all history
+          // (matches the "Search orders (all time)" placeholder intent).
+          start: isSearchingTop ? null : (dateRange?.start ?? null),
+          end: isSearchingTop ? null : (dateRange?.end ?? null),
           searchQuery: searchQuery.trim(),
         });
       } catch (e) {
