@@ -123,6 +123,15 @@ export default function Contacts() {
   const { data: contacts, isLoading } = useQuery({
     queryKey: ['contacts'],
     queryFn: async () => {
+      // Local-first read from the PowerSync mirror. Falls back to
+      // Supabase only when the local mirror is empty (initial sync).
+      try {
+        const { fetchContactsLocal } = await import('@/db/queries/contacts');
+        const local = await fetchContactsLocal();
+        if (local.length) return local as Contact[];
+      } catch (err) {
+        console.warn('[contacts] local fetch failed, falling back', err);
+      }
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
