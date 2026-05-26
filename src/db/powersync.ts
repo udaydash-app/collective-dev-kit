@@ -63,7 +63,10 @@ export function getPowerSyncDB(): PowerSyncDatabase {
 
 export async function connectPowerSync(): Promise<PowerSyncDatabase> {
   const db = getPowerSyncDB();
+  console.log("[powersync] init starting");
   await db.init();
+  console.log("[powersync] init done, connecting");
   await db.connect(new SupabaseBackendConnector());
+  console.log("[powersync] connect returned");
   return db;
 }
