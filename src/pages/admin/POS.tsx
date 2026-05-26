@@ -1529,11 +1529,14 @@ export default function POS() {
           query = query.or(`name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`);
         }
         
-        const { data } = await query.limit(50);
+        const { data, error } = await query.limit(50);
+        if (error) throw error;
+        if (data) await offlineDB.saveContacts(data);
         return data || [];
       } catch (error) {
-        console.error('Failed to fetch customers:', error);
-        return [];
+        console.error('Failed to fetch customers, falling back to IndexedDB:', error);
+        const contacts = await offlineDB.getContacts();
+        return contacts.filter((contact: any) => contact.is_customer).slice(0, 50);
       }
     },
     staleTime: isOffline ? Infinity : 30 * 1000,
