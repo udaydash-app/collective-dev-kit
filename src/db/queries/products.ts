@@ -28,7 +28,7 @@ function parseVariants(json: string | null): any[] {
 
 export async function fetchProductsLocal() {
   const db = await connectPowerSync();
-  const sql = `
+  const productsSql = `
     SELECT
       p.id, p.name, p.description, p.price, p.cost_price, p.local_charges,
       p.wholesale_price, p.vip_price, p.unit, p.image_url, p.images, p.tags,
@@ -37,33 +37,35 @@ export async function fetchProductsLocal() {
       p.nutritional_info, p.created_at, p.updated_at,
       c.name AS category_name,
       s.name AS store_name,
-      sup.name AS supplier_name,
-      (
-        SELECT json_group_array(json_object(
-          'id', v.id,
-          'product_id', v.product_id,
-          'unit', v.unit,
-          'label', v.label,
-          'quantity', v.quantity,
-          'price', v.price,
-          'cost_price', v.cost_price,
-          'wholesale_price', v.wholesale_price,
-          'vip_price', v.vip_price,
-          'barcode', v.barcode,
-          'stock_quantity', v.stock_quantity,
-          'is_available', v.is_available,
-          'is_default', v.is_default
-        ))
-        FROM product_variants v WHERE v.product_id = p.id
-      ) AS variants_json
+      sup.name AS supplier_name
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN stores s ON s.id = p.store_id
     LEFT JOIN contacts sup ON sup.id = p.supplier_id
     ORDER BY p.created_at DESC
   `;
-  const result: any = await db.getAll(sql);
-  const rows: Row[] = Array.isArray(result) ? result : (result?.rows?._array ?? []);
+  const variantsSql = `
+    SELECT id, product_id, unit, label, quantity, price, cost_price,
+           wholesale_price, vip_price, barcode, stock_quantity,
+           is_available, is_default
+    FROM product_variants
+  `;
+  const [prodRes, varRes]: any = await Promise.all([
+    db.getAll(productsSql),
+    db.getAll(variantsSql),
+  ]);
+  const rows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
+  const vRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
+  const variantsByProduct = new Map<string, any[]>();
+  for (const v of vRows) {
+    const list = variantsByProduct.get(v.product_id) ?? [];
+    list.push({
+      ...v,
+      is_available: toBool(v.is_available),
+      is_default: toBool(v.is_default),
+    });
+    variantsByProduct.set(v.product_id, list);
+  }
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -86,7 +88,7 @@ export async function fetchProductsLocal() {
     categories: r.category_name ? { name: r.category_name } : undefined,
     stores: r.store_name ? { name: r.store_name } : undefined,
     contacts: r.supplier_name ? { name: r.supplier_name } : undefined,
-    product_variants: parseVariants(r.variants_json),
+    product_variants: variantsByProduct.get(r.id) ?? [],
   }));
 }
 
