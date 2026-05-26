@@ -98,6 +98,7 @@ import { QuickPaymentDialog } from '@/components/pos/QuickPaymentDialog';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
+import { findPosProductByBarcodeLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -1974,8 +1975,9 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (barcode: string) => {
+    const normalizedBarcode = barcode.trim().toLowerCase();
     // Check cache first for instant response
-    const cached = barcodeCache.get(barcode);
+    const cached = barcodeCache.get(normalizedBarcode);
     if (cached) {
       if (cached.type === 'variant') {
         addToCartWithCustomPrice(cached.data);
@@ -1989,6 +1991,20 @@ export default function POS() {
         }
       }
       return;
+    }
+
+    try {
+      const localMatch = await findPosProductByBarcodeLocal(normalizedBarcode);
+      if (localMatch) {
+        const productToAdd = localMatch.variant
+          ? { ...localMatch.product, price: localMatch.variant.price, selectedVariant: localMatch.variant }
+          : localMatch.product;
+        barcodeCache.set(normalizedBarcode, localMatch.variant ? 'variant' : 'product', productToAdd);
+        addToCartWithCustomPrice(productToAdd);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed local barcode lookup:', error);
     }
 
     // Query variant and product barcode in PARALLEL for maximum speed
