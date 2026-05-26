@@ -19,7 +19,8 @@ export const useAdminShortcuts = () => {
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       
       // Allow F-keys to work even when focus is on input fields (POS shortcuts)
-      const isFunctionKey = e.key.startsWith('F') && e.key.length >= 2 && e.key.length <= 3;
+      const key = e.key ?? '';
+      const isFunctionKey = key.startsWith('F') && key.length >= 2 && key.length <= 3;
       
       if (isInput && !e.ctrlKey && !e.metaKey && !isFunctionKey) {
         return;
@@ -30,40 +31,40 @@ export const useAdminShortcuts = () => {
       const alt = e.altKey;
 
       // Global admin shortcuts
-      if (ctrl && shift && e.key === 'D') {
+      if (ctrl && shift && key === 'D') {
         e.preventDefault();
         navigate('/admin/dashboard');
-      } else if (ctrl && shift && e.key === 'P') {
+      } else if (ctrl && shift && key === 'P') {
         e.preventDefault();
         navigate('/admin/pos');
-      } else if (ctrl && shift && e.key === 'O') {
+      } else if (ctrl && shift && key === 'O') {
         e.preventDefault();
         navigate('/admin/orders');
-      } else if (ctrl && shift && e.key === 'I') {
+      } else if (ctrl && shift && key === 'I') {
         e.preventDefault();
         navigate('/admin/products');
-      } else if (ctrl && shift && e.key === 'U') {
+      } else if (ctrl && shift && key === 'U') {
         e.preventDefault();
         navigate('/admin/purchases');
-      } else if (ctrl && shift && e.key === 'A') {
+      } else if (ctrl && shift && key === 'A') {
         e.preventDefault();
         navigate('/admin/analytics');
-      } else if (ctrl && shift && e.key === 'S') {
+      } else if (ctrl && shift && key === 'S') {
         e.preventDefault();
         navigate('/admin/settings');
-      } else if (ctrl && shift && e.key === 'G') {
+      } else if (ctrl && shift && key === 'G') {
         e.preventDefault();
         navigate('/admin/general-ledger');
-      } else if (ctrl && shift && e.key === 'R') {
+      } else if (ctrl && shift && key === 'R') {
         e.preventDefault();
         navigate('/admin/accounts-receivable');
-      } else if (ctrl && shift && e.key === 'Y') {
+      } else if (ctrl && shift && key === 'Y') {
         e.preventDefault();
         navigate('/admin/accounts-payable');
-      } else if (ctrl && e.key === 'b') {
+      } else if (ctrl && key === 'b') {
         e.preventDefault();
         navigate('/admin/barcode');
-      } else if (alt && e.key === 'q') {
+      } else if (alt && key === 'q') {
         e.preventDefault();
         navigate('/admin/quotations');
       }
