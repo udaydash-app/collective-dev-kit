@@ -66,27 +66,37 @@ export default function GeneralLedger() {
   const { data: contacts } = useQuery({
     queryKey: ['contacts-for-ledger'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id, opening_balance, supplier_opening_balance');
-      if (error) throw error;
-      return data;
+      try {
+        const { fetchContactsForLedgerLocal } = await import('@/db/queries/accounting');
+        return await fetchContactsForLedgerLocal();
+      } catch {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id, opening_balance, supplier_opening_balance');
+        if (error) throw error;
+        return data;
+      }
     },
   });
 
   const { data: rawAccounts } = useQuery({
     queryKey: ['accounts-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select(`
-          *,
-          parent:parent_account_id(account_name, account_code)
-        `)
-        .eq('is_active', true)
-        .order('account_code');
-      if (error) throw error;
-      return data;
+      try {
+        const { fetchAccountsWithParentLocal } = await import('@/db/queries/accounting');
+        return await fetchAccountsWithParentLocal();
+      } catch {
+        const { data, error } = await supabase
+          .from('accounts')
+          .select(`
+            *,
+            parent:parent_account_id(account_name, account_code)
+          `)
+          .eq('is_active', true)
+          .order('account_code');
+        if (error) throw error;
+        return data;
+      }
     },
   });
 
