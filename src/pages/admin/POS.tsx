@@ -99,6 +99,7 @@ import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
 import { shouldUseLocalData, isLocalSupabase, shouldQuerySupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import { findPosProductByBarcodeLocal, searchPosProductsLocal, warmPosProductsLocalIndex } from '@/db/queries/products';
+import { offlineDB } from '@/lib/offlineDB';
 
 export default function POS() {
   const navigate = useNavigate();
@@ -183,6 +184,44 @@ export default function POS() {
     return saved ? JSON.parse(saved) : null;
   });
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const getCachedStoresWithFallback = useCallback(async () => {
+    const cachedStores = await offlineDB.getStores();
+    if (cachedStores.length > 0) return cachedStores;
+
+    const offlineSession = localStorage.getItem('offline_pos_session');
+    if (offlineSession) {
+      const sessionData = JSON.parse(offlineSession);
+      if (sessionData.store_id) return [{ id: sessionData.store_id, name: 'Global Market' }];
+    }
+
+    const cachedProducts = await offlineDB.getProducts();
+    const firstStoreId = cachedProducts.find((product: any) => product.store_id)?.store_id;
+    return firstStoreId ? [{ id: firstStoreId, name: 'Global Market' }] : [];
+  }, []);
+
+  const getCachedOpenCashSession = useCallback(async (storeId: string) => {
+    const sessions = await offlineDB.getCashSessions();
+    console.log('[POS] All IndexedDB cash sessions:', sessions.map((s: any) => ({ id: s.id, status: s.status, store_id: s.store_id })));
+
+    const activeSession = sessions.find((s: any) => s.store_id === storeId && s.status === 'open');
+    if (activeSession) return activeSession;
+
+    const offlineSession = localStorage.getItem('offline_pos_session');
+    if (offlineSession) {
+      const sessionData = JSON.parse(offlineSession);
+      return {
+        id: sessionData.cash_session_id || 'offline-session',
+        store_id: sessionData.store_id || storeId,
+        cashier_id: sessionData.pos_user_id,
+        status: 'open',
+        opening_cash: 0,
+        opened_at: sessionData.timestamp,
+      };
+    }
+
+    return null;
+  }, []);
   
   // Track processed customer IDs to prevent re-selecting
   const processedCustomerIdRef = useRef<string | null>(null);
