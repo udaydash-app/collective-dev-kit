@@ -11,6 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  fetchProductsLocal,
+  fetchCategoriesLocal,
+  fetchStoresLocal,
+  fetchSuppliersLocal,
+} from "@/db/queries/products";
 import { Pencil, Trash2, Plus, Sparkles, Upload, X, Search, Package, Grid3x3, List, Grid, Merge, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
@@ -142,37 +148,9 @@ export default function Products() {
 
   const fetchProducts = async () => {
     try {
-      let allProducts: Product[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("products")
-          .select(`
-            *,
-            categories(name),
-            stores(name),
-            contacts!products_supplier_id_fkey(name),
-            product_variants(*)
-          `)
-          .order("created_at", { ascending: false })
-          .range(from, from + batchSize - 1);
-
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          allProducts = [...allProducts, ...data];
-          from += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      console.log('Admin: Fetched products count:', allProducts.length);
-      setProducts(allProducts);
+      const allProducts = await fetchProductsLocal();
+      console.log('Admin: Fetched products count (powersync):', allProducts.length);
+      setProducts(allProducts as unknown as Product[]);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to load products");
@@ -183,14 +161,8 @@ export default function Products() {
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) throw error;
-      setCategories(data || []);
+      const data = await fetchCategoriesLocal();
+      setCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
@@ -198,14 +170,8 @@ export default function Products() {
 
   const fetchStores = async () => {
     try {
-      const { data, error } = await supabase
-        .from("stores")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) throw error;
-      setStores(data || []);
+      const data = await fetchStoresLocal();
+      setStores(data);
     } catch (error) {
       console.error("Error fetching stores:", error);
     }
@@ -213,14 +179,8 @@ export default function Products() {
 
   const fetchSuppliers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("id, name")
-        .eq("is_supplier", true)
-        .order("name");
-
-      if (error) throw error;
-      setSuppliers(data || []);
+      const data = await fetchSuppliersLocal();
+      setSuppliers(data);
     } catch (error) {
       console.error("Error fetching suppliers:", error);
     }
