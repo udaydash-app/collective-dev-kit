@@ -8,6 +8,7 @@ import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
+import { searchPosProductsLocal, findPosProductByBarcodeLocal } from '@/db/queries/products';
 
 export interface ProductSearchRef {
   focus: () => void;
@@ -142,56 +143,19 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         }
       }
       
-      // Online query
-      let query = supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          barcode,
-          is_available,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode,
-            stock_quantity
-          )
-        `)
-        .eq('is_available', true)
-        .order('name');
-
+      // PowerSync local query — instant + offline-capable.
+      const data = await searchPosProductsLocal(searchTerm, 10);
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,barcode.eq.${searchTerm}`);
-      }
-
-      const { data, error } = await query.limit(10);
-      if (error) throw error;
-      
-      // If search term looks like a barcode, check variant barcodes (supporting comma-separated barcodes)
-      if (searchTerm && data) {
-        const enhancedData = data.map(product => {
+        const term = searchTerm.toLowerCase();
+        return data.map((product) => {
           const matchingVariant = product.product_variants?.find((v: any) => {
             if (!v.barcode) return false;
-            // Split barcode by comma and check if any matches
             const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b.includes(searchTerm.toLowerCase()));
+            return barcodes.some((b: string) => b.includes(term));
           });
-          return {
-            ...product,
-            _matchingVariant: matchingVariant
-          };
+          return { ...product, _matchingVariant: matchingVariant };
         });
-        return enhancedData;
       }
-      
       return data;
     },
     enabled: searchTerm.length > 0,
@@ -306,126 +270,21 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       }
     }
     
-    // Online mode - Single optimized query with exact barcode match
-    const { data: exactProducts, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        price,
-        barcode,
-        stock_quantity,
-        cost_price,
-        product_variants (
-          id,
-          label,
-          quantity,
-          unit,
-          price,
-          is_available,
-          is_default,
-          barcode,
-          stock_quantity
-        )
-      `)
-      .eq('is_available', true)
-      .or(`barcode.eq.${barcode},barcode.ilike.%${barcode}%`);
-    
-    if (error) throw error;
-    
-    // Quick barcode matching with early exit
-    if (exactProducts && exactProducts.length > 0) {
-      // Check variants first (most common case)
-      for (const product of exactProducts) {
-        const matchingVariant = product.product_variants?.find((v: any) => {
-          if (!v.barcode || !v.is_available) return false;
-          const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-          return barcodes.some((b: string) => b === barcode);
+    // PowerSync local barcode lookup — instant and works offline.
+    const match = await findPosProductByBarcodeLocal(barcode);
+    if (match) {
+      const { product, variant } = match;
+      if (variant) {
+        onProductSelect({
+          ...product,
+          price: variant.price,
+          selectedVariant: variant,
         });
-        
-        if (matchingVariant) {
-          onProductSelect({
-            ...product,
-            price: matchingVariant.price,
-            selectedVariant: matchingVariant,
-          });
-          setSearchTerm('');
-          return;
-        }
+      } else {
+        onProductSelect(product);
       }
-      
-      // Check product-level barcodes
-      const matchedProduct = exactProducts.find((p: any) => {
-        if (!p.barcode) return false;
-        const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-        return productBarcodes.some((b: string) => b === barcode);
-      });
-      
-      if (matchedProduct) {
-        const availableVariants = matchedProduct.product_variants?.filter((v: any) => v.is_available) || [];
-        if (availableVariants.length > 0) {
-          const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-          onProductSelect({
-            ...matchedProduct,
-            price: defaultVariant.price,
-            selectedVariant: defaultVariant,
-          });
-        } else {
-          onProductSelect(matchedProduct);
-        }
-        setSearchTerm('');
-        return;
-      }
-    }
-
-    // If no product-level match, check if barcode exists in any variant
-    const { data: variantProducts, error: variantError } = await supabase
-      .from('product_variants')
-      .select(`
-        id,
-        barcode,
-        label,
-        quantity,
-        unit,
-        price,
-        is_available,
-        product_id,
-        products (
-          id,
-          name,
-          price,
-          barcode,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            stock_quantity
-          )
-        )
-      `)
-      .eq('is_available', true)
-      .not('barcode', 'is', null);
-
-    if (variantError) throw variantError;
-
-    if (variantProducts && variantProducts.length > 0) {
-      for (const variant of variantProducts) {
-        const barcodes = variant.barcode!.split(',').map((b: string) => b.trim().toLowerCase());
-        if (barcodes.some((b: string) => b === barcode)) {
-          const product = variant.products as any;
-          onProductSelect({
-            ...product,
-            price: variant.price,
-            selectedVariant: variant,
-          });
-          setSearchTerm('');
-          return;
-        }
-      }
+      setSearchTerm('');
+      return;
     }
 
     setScannedBarcode(barcode);
