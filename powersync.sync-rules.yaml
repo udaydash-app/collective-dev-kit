@@ -29,3 +29,4 @@ bucket_definitions:
       - SELECT * FROM payment_receipts
       - SELECT * FROM supplier_payments
       - SELECT * FROM payment_methods
+      - SELECT * FROM stock_adjustments

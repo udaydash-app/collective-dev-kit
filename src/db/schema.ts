@@ -344,6 +344,22 @@ export const AppSchema = new Schema({
     created_at: column.text,
     updated_at: column.text,
   }),
+  stock_adjustments: new Table({
+    product_id: column.text,
+    variant_id: column.text,
+    store_id: column.text,
+    adjustment_type: column.text,
+    reason: column.text,
+    adjusted_by: column.text,
+    inventory_layer_id: column.text,
+    cost_source: column.text,
+    journal_entry_id: column.text,
+    quantity_change: column.real,
+    unit_cost: column.real,
+    total_value: column.real,
+    cogs_amount: column.real,
+    created_at: column.text,
+  }, { indexes: { product_idx: ['product_id'], variant_idx: ['variant_id'], store_idx: ['store_id'] } }),
 });
 
 export type Database = (typeof AppSchema)["types"];
