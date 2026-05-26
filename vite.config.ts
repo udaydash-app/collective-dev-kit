@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     // mode === "development" && componentTagger(), // Disabled for local builds
     VitePWA({
-      injectRegister: false,
-      selfDestroying: true,
+      registerType: "autoUpdate",
+      injectRegister: "auto",
       includeAssets: ["favicon.ico", "icon-192x192.png", "icon-512x512.png"],
       manifest: {
         name: "Global Market POS",
@@ -63,7 +63,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,jpg,jpeg}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-        navigateFallback: null,
+        navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/auth\/v1/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
