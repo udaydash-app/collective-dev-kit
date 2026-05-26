@@ -143,56 +143,19 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
         }
       }
       
-      // Online query
-      let query = supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          barcode,
-          is_available,
-          stock_quantity,
-          cost_price,
-          product_variants (
-            id,
-            label,
-            quantity,
-            unit,
-            price,
-            is_available,
-            is_default,
-            barcode,
-            stock_quantity
-          )
-        `)
-        .eq('is_available', true)
-        .order('name');
-
+      // PowerSync local query — instant + offline-capable.
+      const data = await searchPosProductsLocal(searchTerm, 10);
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,barcode.eq.${searchTerm}`);
-      }
-
-      const { data, error } = await query.limit(10);
-      if (error) throw error;
-      
-      // If search term looks like a barcode, check variant barcodes (supporting comma-separated barcodes)
-      if (searchTerm && data) {
-        const enhancedData = data.map(product => {
+        const term = searchTerm.toLowerCase();
+        return data.map((product) => {
           const matchingVariant = product.product_variants?.find((v: any) => {
             if (!v.barcode) return false;
-            // Split barcode by comma and check if any matches
             const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b.includes(searchTerm.toLowerCase()));
+            return barcodes.some((b: string) => b.includes(term));
           });
-          return {
-            ...product,
-            _matchingVariant: matchingVariant
-          };
+          return { ...product, _matchingVariant: matchingVariant };
         });
-        return enhancedData;
       }
-      
       return data;
     },
     enabled: searchTerm.length > 0,
