@@ -76,9 +76,8 @@ export async function connectPowerSync(): Promise<PowerSyncDatabase> {
   if (!_connectPromise) {
     _connectPromise = db.connect(new SupabaseBackendConnector()).catch((error) => {
       _connectPromise = null;
-      throw error;
+      console.error("[powersync] background connect failed", error);
     });
   }
-  await _connectPromise;
   return db;
 }
