@@ -19,7 +19,8 @@ export const useAdminShortcuts = () => {
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       
       // Allow F-keys to work even when focus is on input fields (POS shortcuts)
-      const isFunctionKey = e.key.startsWith('F') && e.key.length >= 2 && e.key.length <= 3;
+      const key = e.key ?? '';
+      const isFunctionKey = key.startsWith('F') && key.length >= 2 && key.length <= 3;
       
       if (isInput && !e.ctrlKey && !e.metaKey && !isFunctionKey) {
         return;
@@ -30,13 +31,13 @@ export const useAdminShortcuts = () => {
       const alt = e.altKey;
 
       // Global admin shortcuts
-      if (ctrl && shift && e.key === 'D') {
+      if (ctrl && shift && key === 'D') {
         e.preventDefault();
         navigate('/admin/dashboard');
-      } else if (ctrl && shift && e.key === 'P') {
+      } else if (ctrl && shift && key === 'P') {
         e.preventDefault();
         navigate('/admin/pos');
-      } else if (ctrl && shift && e.key === 'O') {
+      } else if (ctrl && shift && key === 'O') {
         e.preventDefault();
         navigate('/admin/orders');
       } else if (ctrl && shift && e.key === 'I') {
