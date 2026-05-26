@@ -356,5 +356,30 @@ export async function findPosProductByBarcodeLocal(
     return { product, variant };
   }
 
+  const legacyProdRes: any = await db.getAll(
+    `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+     FROM products
+     WHERE is_available = 1 AND barcode LIKE ? COLLATE NOCASE
+     LIMIT 20`,
+    [contains],
+  );
+  const legacyProdRows: Row[] = Array.isArray(legacyProdRes) ? legacyProdRes : (legacyProdRes?.rows?._array ?? []);
+  const legacyProd = legacyProdRows.find((p) =>
+    p.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
+  );
+  if (legacyProd) {
+    const allVarsRes: any = await db.getAll(
+      `SELECT id, product_id, label, quantity, unit, price, is_available,
+              is_default, barcode, stock_quantity
+       FROM product_variants WHERE product_id = ?`,
+      [legacyProd.id],
+    );
+    const allVarRows: Row[] = Array.isArray(allVarsRes) ? allVarsRes : (allVarsRes?.rows?._array ?? []);
+    const [product] = mapPosProducts([legacyProd], allVarRows);
+    const availableVariants = product.product_variants.filter((v) => v.is_available);
+    const variant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
+    return { product, variant };
+  }
+
   return null;
 }
