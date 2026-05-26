@@ -193,6 +193,12 @@ export default function POS() {
   // Load held tickets from localStorage only once on mount
   const loadedTicketsRef = useRef(false);
   React.useEffect(() => {
+    warmPosProductsLocalIndex().catch((error) => {
+      console.error('Failed to warm POS product index:', error);
+    });
+  }, []);
+
+  React.useEffect(() => {
     if (loadedTicketsRef.current) return;
     loadedTicketsRef.current = true;
     
