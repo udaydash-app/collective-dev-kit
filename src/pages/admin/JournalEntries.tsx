@@ -96,13 +96,18 @@ export default function JournalEntries() {
   const { data: accounts } = useQuery({
     queryKey: ['accounts-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('is_active', true)
-        .order('account_code');
-      if (error) throw error;
-      return data;
+      try {
+        const { fetchAccountsLocal } = await import('@/db/queries/accounting');
+        return await fetchAccountsLocal();
+      } catch {
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('is_active', true)
+          .order('account_code');
+        if (error) throw error;
+        return data;
+      }
     },
   });
 
@@ -112,6 +117,18 @@ export default function JournalEntries() {
   const { data: journalResult, isLoading } = useQuery({
     queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery, page],
     queryFn: async () => {
+      try {
+        const { fetchJournalEntriesLocal } = await import('@/db/queries/accounting');
+        return await fetchJournalEntriesLocal({
+          start: startDate ?? null,
+          end: endDate ?? null,
+          searchQuery,
+          page,
+          pageSize,
+        });
+      } catch (e) {
+        console.warn('[journal-entries] local fetch failed, falling back to Supabase', e);
+      }
       const isSearching = !!(searchQuery.trim() || startDate || endDate);
 
       let query = supabase
