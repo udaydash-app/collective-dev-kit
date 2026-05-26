@@ -69,6 +69,7 @@ import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
@@ -198,10 +199,19 @@ export default function AdminOrders() {
   const { data: allOrders, isLoading, error: queryError } = useQuery({
     queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim()],
     queryFn: async () => {
-      // Search respects the selected period. To search across all-time orders,
-      // pick the "All time" period filter.
-      const isSearching = searchQuery.trim().length > 0;
       const dateRange = getDateRange();
+      try {
+        return await fetchAdminOrdersLocal({
+          statusFilter,
+          start: dateRange?.start ?? null,
+          end: dateRange?.end ?? null,
+          searchQuery: searchQuery.trim(),
+        });
+      } catch (e) {
+        console.warn('[orders] local query failed, falling back to Supabase', e);
+      }
+      // ---- Supabase fallback (legacy path) ----
+      const isSearching = searchQuery.trim().length > 0;
 
       // When searching, pre-resolve contact IDs whose name/phone match the query
       // so we can push the search down to the database (covers ALL historical orders).
