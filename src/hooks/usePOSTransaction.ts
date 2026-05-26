@@ -1010,7 +1010,7 @@ export const usePOSTransaction = () => {
       })();
 
       // Use cached user for faster processing, or the PIN session when offline/PWA auth is unavailable
-      let user = cachedUserRef.current || (offlineSession?.pos_user_id ? { id: offlineSession.pos_user_id } as any : null);
+      let user = cachedUserRef.current || (offlineSession?.pos_user_id ? { id: offlineSession.pos_user_id } : null);
       if (!user) {
         const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !freshUser) {
@@ -1196,7 +1196,7 @@ export const usePOSTransaction = () => {
             total: transactionData.total,
             paymentMethod: transactionData.payment_method,
             notes: transactionData.notes,
-            timestamp: new Date().toISOString(),
+            timestamp: transactionTimestamp,
             synced: false,
           });
           await offlineDB.savePOSTransactions([transactionData]);
@@ -1222,7 +1222,7 @@ export const usePOSTransaction = () => {
           total: transactionData.total,
           paymentMethod: transactionData.payment_method,
           notes: transactionData.notes,
-          timestamp: new Date().toISOString(),
+          timestamp: transactionTimestamp,
           synced: false,
         });
         await offlineDB.savePOSTransactions([transactionData]);
