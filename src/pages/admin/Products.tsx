@@ -1247,8 +1247,12 @@ export default function Products() {
 
     const matchesCategory = filterCategory === "all" || product.category_id === filterCategory;
     const matchesStore = filterStore === "all" || product.store_id === filterStore;
-    const matchesAvailability = 
-      filterAvailability === "unavailable" ? !product.is_available : product.is_available;
+    const matchesAvailability =
+      filterAvailability === "all"
+        ? true
+        : filterAvailability === "unavailable"
+          ? !product.is_available
+          : product.is_available;
     const matchesFeatured =
       filterFeatured === "all" ||
       (filterFeatured === "featured" && product.is_featured) ||
