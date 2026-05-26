@@ -141,6 +141,100 @@ interface PosProduct {
   }>;
 }
 
+type BarcodeMatch = {
+  product: PosProduct;
+  variant: PosProduct["product_variants"][0] | null;
+};
+
+type PosProductSearchEntry = {
+  product: PosProduct;
+  name: string;
+  productBarcodes: string[];
+  variantBarcodes: Array<{ barcode: string; variant: PosProduct["product_variants"][0] }>;
+};
+
+type PosProductsIndex = {
+  products: PosProduct[];
+  entries: PosProductSearchEntry[];
+  barcodeMap: Map<string, BarcodeMatch>;
+};
+
+let posProductsIndexPromise: Promise<PosProductsIndex> | null = null;
+let posProductsIndex: PosProductsIndex | null = null;
+
+const splitBarcodes = (value?: string | null) =>
+  (value ?? "")
+    .split(",")
+    .map((b) => b.trim().toLowerCase())
+    .filter(Boolean);
+
+function buildPosProductsIndex(products: PosProduct[]): PosProductsIndex {
+  const barcodeMap = new Map<string, BarcodeMatch>();
+  const entries = products.map((product) => {
+    const availableVariants = product.product_variants.filter((v) => v.is_available);
+    const defaultVariant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
+    const productBarcodes = splitBarcodes(product.barcode);
+    const variantBarcodes = availableVariants.flatMap((variant) =>
+      splitBarcodes(variant.barcode).map((barcode) => ({ barcode, variant })),
+    );
+
+    for (const { barcode, variant } of variantBarcodes) {
+      if (!barcodeMap.has(barcode)) barcodeMap.set(barcode, { product, variant });
+    }
+    for (const barcode of productBarcodes) {
+      if (!barcodeMap.has(barcode)) barcodeMap.set(barcode, { product, variant: defaultVariant });
+    }
+
+    return {
+      product,
+      name: product.name.toLowerCase(),
+      productBarcodes,
+      variantBarcodes,
+    };
+  });
+
+  return { products, entries, barcodeMap };
+}
+
+async function loadPosProductsIndex(): Promise<PosProductsIndex> {
+  const db = await connectPowerSync();
+  const [prodRes, varRes]: any = await Promise.all([
+    db.getAll(
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+       FROM products WHERE is_available = 1 ORDER BY name`,
+    ),
+    db.getAll(
+      `SELECT id, product_id, label, quantity, unit, price, is_available,
+              is_default, barcode, stock_quantity
+       FROM product_variants`,
+    ),
+  ]);
+  const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
+  const varRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
+  const index = buildPosProductsIndex(mapPosProducts(prodRows, varRows));
+  posProductsIndex = index;
+  return index;
+}
+
+export function invalidatePosProductsLocalIndex() {
+  posProductsIndex = null;
+  posProductsIndexPromise = null;
+}
+
+export function warmPosProductsLocalIndex() {
+  if (!posProductsIndexPromise) {
+    posProductsIndexPromise = loadPosProductsIndex().catch((error) => {
+      posProductsIndexPromise = null;
+      throw error;
+    });
+  }
+  return posProductsIndexPromise;
+}
+
+function getWarmPosProductsIndex(): PosProductsIndex | null {
+  return posProductsIndex;
+}
+
 function mapPosProducts(prodRows: Row[], varRows: Row[]): PosProduct[] {
   const variantsByProduct = new Map<string, any[]>();
   for (const v of varRows) {
