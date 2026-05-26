@@ -22,6 +22,49 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
   return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
+// Compute debit/credit totals per account from posted journal entry lines
+// up to (and optionally from) a given date. Returns one row per active
+// account. Used by Trial Balance, Balance Sheet, and P&L expense sections.
+export async function fetchAccountBalancesLocal(opts: {
+  startDate?: string;
+  endDate?: string;
+  accountTypes?: string[];
+} = {}): Promise<any[]> {
+  const db = await connectPowerSync();
+  const typeFilter = opts.accountTypes && opts.accountTypes.length
+    ? `AND a.account_type IN (${opts.accountTypes.map(() => '?').join(',')})`
+    : '';
+  const args: any[] = [];
+  if (opts.accountTypes?.length) args.push(...opts.accountTypes);
+
+  const lineDateClauses: string[] = ["e.status = 'posted'"];
+  if (opts.startDate) lineDateClauses.push("e.entry_date >= ?");
+  if (opts.endDate) lineDateClauses.push("e.entry_date <= ?");
+  const lineArgs: any[] = [];
+  if (opts.startDate) lineArgs.push(opts.startDate);
+  if (opts.endDate) lineArgs.push(opts.endDate);
+
+  const sql = `
+    SELECT a.*, 
+           COALESCE(SUM(l.debit_amount), 0)  AS total_debit,
+           COALESCE(SUM(l.credit_amount), 0) AS total_credit
+    FROM accounts a
+    LEFT JOIN journal_entry_lines l ON l.account_id = a.id
+    LEFT JOIN journal_entries e ON e.id = l.journal_entry_id
+      AND ${lineDateClauses.join(' AND ')}
+    WHERE a.is_active = 1 ${typeFilter}
+    GROUP BY a.id
+    ORDER BY a.account_code
+  `;
+  const res: any = await db.getAll(sql, [...lineArgs, ...args]);
+  return rowsOf(res).map((r: any) => ({
+    ...r,
+    is_active: toBool(r.is_active),
+    total_debit: Number(r.total_debit) || 0,
+    total_credit: Number(r.total_credit) || 0,
+  }));
+}
+
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
   const db = await connectPowerSync();
   const res: any = await db.getAll(
