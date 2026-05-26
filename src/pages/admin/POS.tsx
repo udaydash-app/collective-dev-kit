@@ -651,8 +651,7 @@ export default function POS() {
       
       // Fallback to IndexedDB
       try {
-        const { offlineDB } = await import('@/lib/offlineDB');
-        const offlineStores = await offlineDB.getStores();
+        const offlineStores = await getCachedStoresWithFallback();
         console.log('[POS] IndexedDB stores:', offlineStores.length);
         return offlineStores;
       } catch (e) {
@@ -718,35 +717,13 @@ export default function POS() {
       // If in local/offline mode, check IndexedDB first for cash sessions
       if (isOffline) {
         try {
-          const { offlineDB } = await import('@/lib/offlineDB');
-          const sessions = await offlineDB.getCashSessions();
-          
-          console.log('[POS] All IndexedDB cash sessions:', sessions.map(s => ({ id: s.id, status: s.status, store_id: s.store_id })));
-          
-          // Find any open session for this store (shared across all cashiers)
-          const activeSession = sessions.find(s => 
-            s.store_id === selectedStoreId && 
-            s.status === 'open'
-          );
-          
+          const activeSession = await getCachedOpenCashSession(selectedStoreId);
+
           if (activeSession) {
             console.log('[POS] Found active cash session in IndexedDB:', activeSession);
             return activeSession;
           }
-          
-          // If no session found in IndexedDB, check localStorage for fallback
-          const offlineSession = localStorage.getItem('offline_pos_session');
-          if (offlineSession) {
-            const sessionData = JSON.parse(offlineSession);
-            return {
-              id: sessionData.cash_session_id || 'offline-session',
-              store_id: selectedStoreId,
-              cashier_id: sessionData.pos_user_id,
-              status: 'open',
-              opening_cash: 0,
-              opened_at: sessionData.timestamp,
-            };
-          }
+
           console.log('[POS] No active cash session found in IndexedDB');
           return null;
         } catch (e) {
@@ -756,7 +733,8 @@ export default function POS() {
       }
 
       // Online mode: Find any open session for this store (shared across all cashiers)
-      const { data } = await supabase
+      try {
+        const { data, error } = await supabase
         .from('cash_sessions')
         .select('*')
         .eq('store_id', selectedStoreId)
@@ -765,7 +743,13 @@ export default function POS() {
         .limit(1)
         .maybeSingle();
 
-      return data;
+        if (error) throw error;
+        if (data) await offlineDB.saveCashSessions([data]);
+        return data;
+      } catch (error) {
+        console.error('[POS] Supabase cash session error, falling back to IndexedDB:', error);
+        return getCachedOpenCashSession(selectedStoreId);
+      }
     },
     enabled: !!selectedStoreId,
     staleTime: 0, // Always refetch to get latest session status
