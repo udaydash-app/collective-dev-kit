@@ -201,17 +201,20 @@ export default function AdminOrders() {
     queryFn: async () => {
       const dateRange = getDateRange();
       const isSearchingTop = searchQuery.trim().length > 0;
-      try {
-        return await fetchAdminOrdersLocal({
-          statusFilter,
-          // When searching, ignore the date filter so results span all history
-          // (matches the "Search orders (all time)" placeholder intent).
-          start: isSearchingTop ? null : (dateRange?.start ?? null),
-          end: isSearchingTop ? null : (dateRange?.end ?? null),
-          searchQuery: searchQuery.trim(),
-        });
-      } catch (e) {
-        console.warn('[orders] local query failed, falling back to Supabase', e);
+      // Online: go straight to Supabase for the freshest data (cache is a
+      // periodic snapshot and lags behind new POS sales / order edits).
+      // Offline: fall back to the IndexedDB-backed local query.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        try {
+          return await fetchAdminOrdersLocal({
+            statusFilter,
+            start: isSearchingTop ? null : (dateRange?.start ?? null),
+            end: isSearchingTop ? null : (dateRange?.end ?? null),
+            searchQuery: searchQuery.trim(),
+          });
+        } catch (e) {
+          console.warn('[orders] offline local query failed', e);
+        }
       }
       // ---- Supabase fallback (legacy path) ----
       const isSearching = searchQuery.trim().length > 0;
