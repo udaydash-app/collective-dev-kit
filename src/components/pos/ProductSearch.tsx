@@ -27,6 +27,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   // Use memoized local data check for performance
   const useLocalData = useMemo(() => shouldUseLocalData(), []);
@@ -64,6 +65,11 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   // Reset highlighted index when search term changes
   React.useEffect(() => {
     setHighlightedIndex(-1);
+  }, [searchTerm]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 80);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
 
   // Scroll highlighted item into view
@@ -120,17 +126,41 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   }, [queryClient, isLocalMode]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', searchTerm, isLocalMode],
+    queryKey: ['pos-products', debouncedSearchTerm, isLocalMode],
     queryFn: async () => {
-      // Use IndexedDB for offline OR local mode (faster)
+      const query = debouncedSearchTerm.trim();
+      // Prefer PowerSync SQLite for POS lookups. It is indexed and avoids
+      // loading the full IndexedDB product cache on every keystroke.
+      let data: any[] = [];
+      try {
+        data = await searchPosProductsLocal(query, 10);
+      } catch (e) {
+        console.error('Failed to search PowerSync products:', e);
+      }
+      if (data.length || !isLocalMode) {
+        if (query) {
+          const term = query.toLowerCase();
+          return data.map((product) => {
+            const matchingVariant = product.product_variants?.find((v: any) => {
+              if (!v.barcode) return false;
+              const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
+              return barcodes.some((b: string) => b.includes(term));
+            });
+            return { ...product, _matchingVariant: matchingVariant };
+          });
+        }
+        return data;
+      }
+
+      // IndexedDB fallback only if PowerSync has no local data available.
       if (isLocalMode) {
         try {
           const cachedProducts = await offlineDB.getProducts();
           console.log('Using local products:', cachedProducts.length);
           
-          if (!searchTerm) return cachedProducts.slice(0, 10);
+          if (!query) return cachedProducts.slice(0, 10);
           
-          const term = searchTerm.toLowerCase();
+          const term = query.toLowerCase();
           const filtered = cachedProducts.filter((p: any) => 
             p.name?.toLowerCase().includes(term) || 
             p.barcode?.toLowerCase() === term ||
@@ -142,24 +172,10 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           return [];
         }
       }
-      
-      // PowerSync local query — instant + offline-capable.
-      const data = await searchPosProductsLocal(searchTerm, 10);
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        return data.map((product) => {
-          const matchingVariant = product.product_variants?.find((v: any) => {
-            if (!v.barcode) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b.includes(term));
-          });
-          return { ...product, _matchingVariant: matchingVariant };
-        });
-      }
-      return data;
+      return [];
     },
-    enabled: searchTerm.length > 0,
-    staleTime: 0, // Always fetch fresh data to show realtime stock updates
+    enabled: debouncedSearchTerm.trim().length > 0,
+    staleTime: 15 * 1000,
     gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
 
@@ -212,64 +228,6 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
     }
     scannerBufferRef.current = '';
 
-    // Use IndexedDB for local mode
-    if (isLocalMode) {
-      try {
-        const cachedProducts = await offlineDB.getProducts();
-        
-        // Find product by barcode
-        const matchedProduct = cachedProducts.find((p: any) => {
-          if (!p.barcode) return false;
-          const productBarcodes = p.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-          return productBarcodes.some((b: string) => b === barcode);
-        });
-        
-        if (matchedProduct) {
-          const availableVariants = matchedProduct.product_variants?.filter((v: any) => v.is_available) || [];
-          if (availableVariants.length > 0) {
-            const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-            onProductSelect({
-              ...matchedProduct,
-              price: defaultVariant.price,
-              selectedVariant: defaultVariant,
-            });
-          } else {
-            onProductSelect(matchedProduct);
-          }
-          setSearchTerm('');
-          return;
-        }
-        
-        // Check variant barcodes
-        for (const product of cachedProducts) {
-          const matchingVariant = product.product_variants?.find((v: any) => {
-            if (!v.barcode || !v.is_available) return false;
-            const barcodes = v.barcode.split(',').map((b: string) => b.trim().toLowerCase());
-            return barcodes.some((b: string) => b === barcode);
-          });
-          
-          if (matchingVariant) {
-            onProductSelect({
-              ...product,
-              price: matchingVariant.price,
-              selectedVariant: matchingVariant,
-            });
-            setSearchTerm('');
-            return;
-          }
-        }
-        
-        // Barcode not found
-        setScannedBarcode(barcode);
-        setAssignBarcodeOpen(true);
-        setSearchTerm('');
-        return;
-      } catch (e) {
-        console.error('Failed to search local products:', e);
-        return;
-      }
-    }
-    
     // PowerSync local barcode lookup — instant and works offline.
     const match = await findPosProductByBarcodeLocal(barcode);
     if (match) {
@@ -285,6 +243,25 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       }
       setSearchTerm('');
       return;
+    }
+
+    if (isLocalMode) {
+      try {
+        const cachedProduct = await offlineDB.getProductByBarcode(barcode);
+        if (cachedProduct) {
+          const availableVariants = cachedProduct.product_variants?.filter((v: any) => v.is_available) || [];
+          const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
+          onProductSelect(defaultVariant ? {
+            ...cachedProduct,
+            price: defaultVariant.price,
+            selectedVariant: defaultVariant,
+          } : cachedProduct);
+          setSearchTerm('');
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to search fallback products:', e);
+      }
     }
 
     setScannedBarcode(barcode);
