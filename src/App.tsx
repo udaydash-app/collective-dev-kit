@@ -21,6 +21,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminOrders from "./pages/admin/Orders";
 import Analytics from "./pages/admin/Analytics";
 import Products from "./pages/admin/Products";
+import PowerSyncTest from "./pages/admin/PowerSyncTest";
 import AdminSettings from "./pages/admin/Settings";
 import AdminCategories from "./pages/admin/Categories";
 import AdminOffers from "./pages/admin/Offers";
