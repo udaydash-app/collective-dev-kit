@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, forwardRef, useEffect, useMemo } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useEffect, useMemo, useDeferredValue } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   
   // Use memoized local data check for performance
   const useLocalData = useMemo(() => shouldUseLocalData(), []);
@@ -120,14 +121,20 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
   }, [queryClient, isLocalMode]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['pos-products', searchTerm, isLocalMode],
+    queryKey: ['pos-products', deferredSearchTerm, isLocalMode],
     queryFn: async () => {
+      const query = deferredSearchTerm.trim();
       // Prefer PowerSync SQLite for POS lookups. It is indexed and avoids
       // loading the full IndexedDB product cache on every keystroke.
-      const data = await searchPosProductsLocal(searchTerm, 10);
+      let data: any[] = [];
+      try {
+        data = await searchPosProductsLocal(query, 10);
+      } catch (e) {
+        console.error('Failed to search PowerSync products:', e);
+      }
       if (data.length || !isLocalMode) {
-        if (searchTerm) {
-          const term = searchTerm.toLowerCase();
+        if (query) {
+          const term = query.toLowerCase();
           return data.map((product) => {
             const matchingVariant = product.product_variants?.find((v: any) => {
               if (!v.barcode) return false;
@@ -146,9 +153,9 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
           const cachedProducts = await offlineDB.getProducts();
           console.log('Using local products:', cachedProducts.length);
           
-          if (!searchTerm) return cachedProducts.slice(0, 10);
+          if (!query) return cachedProducts.slice(0, 10);
           
-          const term = searchTerm.toLowerCase();
+          const term = query.toLowerCase();
           const filtered = cachedProducts.filter((p: any) => 
             p.name?.toLowerCase().includes(term) || 
             p.barcode?.toLowerCase() === term ||
@@ -162,7 +169,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
       }
       return [];
     },
-    enabled: searchTerm.length > 0,
+    enabled: deferredSearchTerm.trim().length > 0,
     staleTime: 15 * 1000,
     gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
   });
