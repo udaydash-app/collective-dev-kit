@@ -95,6 +95,13 @@ export default function AdminOffers() {
 
   const fetchOffers = async () => {
     try {
+      try {
+        const { fetchOffersLocal } = await import('@/db/queries/offersAndOps');
+        const local = await fetchOffersLocal();
+        if (local.length > 0) { setOffers(local); setLoading(false); return; }
+      } catch (e) {
+        console.warn('[offers] local read failed, falling back', e);
+      }
       const { data, error } = await supabase
         .from("offers")
         .select("*")
@@ -114,6 +121,13 @@ export default function AdminOffers() {
   };
 
   const fetchSpecialOffers = async () => {
+    try {
+      const { fetchSpecialOffersLocal } = await import('@/db/queries/offersAndOps');
+      const local = await fetchSpecialOffersLocal();
+      if (local.length > 0) { setSpecialOffers(local as any); return; }
+    } catch (e) {
+      console.warn('[special_offers] local read failed, falling back', e);
+    }
     const { data, error } = await supabase
       .from('special_offers')
       .select('*')
