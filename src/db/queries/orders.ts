@@ -53,6 +53,15 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
     );
     orderArgs.push(startIso, endIso, startIso, endIso);
   }
+  // Push search predicate down so historical orders match even
+  // beyond the recent-row cap.
+  if (q) {
+    const like = `%${q}%`;
+    orderClauses.push(
+      "(LOWER(o.order_number) LIKE ? OR LOWER(o.delivery_instructions) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.phone) LIKE ? OR LOWER(c.email) LIKE ?)",
+    );
+    orderArgs.push(like, like, like, like, like);
+  }
   const orderWhere = orderClauses.length ? `WHERE ${orderClauses.join(" AND ")}` : "";
 
   const onlineRes: any = await db.getAll(
@@ -124,15 +133,25 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
     posClauses.push("t.created_at >= ? AND t.created_at <= ?");
     posArgs.push(startIso, endIso);
   }
+  if (q) {
+    const like = `%${q}%`;
+    posClauses.push(
+      "(LOWER(t.transaction_number) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.phone) LIKE ?)",
+    );
+    posArgs.push(like, like, like);
+  }
   const posWhere = posClauses.length ? `WHERE ${posClauses.join(" AND ")}` : "";
   const posLimit = startIso && endIso ? 5000 : (q ? 5000 : 500);
 
   const posRes: any = await db.getAll(
     `SELECT t.*, s.name AS store_name,
-            c.name AS contact_name, c.phone AS contact_phone
+            c.name AS contact_name, c.phone AS contact_phone,
+            COALESCE(pu1.full_name, pu2.full_name) AS cashier_full_name
      FROM pos_transactions t
      LEFT JOIN stores s ON s.id = t.store_id
      LEFT JOIN contacts c ON c.id = t.customer_id
+     LEFT JOIN pos_users pu1 ON pu1.id = t.cashier_id
+     LEFT JOIN pos_users pu2 ON pu2.user_id = t.cashier_id
      ${posWhere}
      ORDER BY t.created_at DESC
      LIMIT ${posLimit}`,
@@ -161,7 +180,7 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
       status: "completed",
       payment_method: t.payment_method,
       payment_details: safeParse<any>(t.payment_details, null),
-      cashier_name: "Unknown",
+      cashier_name: t.cashier_full_name || "Unknown",
       cashier_id: t.cashier_id,
       addresses: null,
       metadata: safeParse<any>(t.metadata, null),
