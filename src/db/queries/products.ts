@@ -377,9 +377,14 @@ export async function searchPosProductsLocal(
  */
 export async function findPosProductByBarcodeLocal(
   barcode: string,
-): Promise<{ product: PosProduct; variant: PosProduct["product_variants"][0] | null } | null> {
-  const db = await connectPowerSync();
+): Promise<BarcodeMatch | null> {
   const bc = barcode.trim().toLowerCase();
+  const cachedIndex = getWarmPosProductsIndex();
+  if (cachedIndex) {
+    return cachedIndex.barcodeMap.get(bc) ?? null;
+  }
+
+  const db = await connectPowerSync();
   const exact = barcode.trim();
   const prefix = `${exact}%`;
   // Pull only index-friendly barcode candidates first. Comma-separated legacy
