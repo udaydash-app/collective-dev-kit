@@ -4,6 +4,20 @@ type Row = Record<string, any>;
 const rowsOf = (res: any): Row[] =>
   Array.isArray(res) ? res : (res?.rows?._array ?? []);
 
+const toBool = (v: any) => v === 1 || v === true;
+
+export async function fetchCustomersLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT * FROM contacts WHERE is_customer = 1 ORDER BY name`,
+  );
+  return rowsOf(res).map((r) => ({
+    ...r,
+    is_customer: toBool(r.is_customer),
+    is_supplier: toBool(r.is_supplier),
+  }));
+}
+
 export async function fetchPaymentReceiptsLocal(searchTerm?: string): Promise<any[]> {
   const db = await connectPowerSync();
   const params: any[] = [];
