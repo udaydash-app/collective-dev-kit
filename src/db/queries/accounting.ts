@@ -10,13 +10,14 @@ const rowsOf = (res: any): Row[] =>
   Array.isArray(res) ? res : (res?.rows?._array ?? []);
 const toBool = (v: any) => v === 1 || v === true;
 
-export async function fetchAccountsLocal() {
+export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}) {
   const db = await connectPowerSync();
+  const where = opts.includeInactive ? "" : "WHERE is_active = 1";
   const res: any = await db.getAll(
     `SELECT id, account_code, account_name, account_type, description,
             parent_account_id, opening_balance, current_balance, is_active,
             created_at, updated_at
-     FROM accounts WHERE is_active = 1 ORDER BY account_code`,
+     FROM accounts ${where} ORDER BY account_code`,
   );
   return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }));
 }
