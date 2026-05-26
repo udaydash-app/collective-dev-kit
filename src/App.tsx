@@ -92,6 +92,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useCloudSync } from "./hooks/useCloudSync";
+import { useOfflineSync } from "./hooks/useOfflineSync";
 
 const queryClient = new QueryClient();
 
@@ -239,6 +240,9 @@ const AppContent = () => {
   
   // Enable cloud sync when using local Supabase
   useCloudSync();
+
+  // Enable global offline transaction queue auto-sync + cache refresh on reconnect
+  useOfflineSync();
   
   // Use HashRouter for Electron, BrowserRouter for web
   const isElectron = React.useMemo(() => 
