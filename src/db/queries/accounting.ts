@@ -66,6 +66,140 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
   return rowsOf(res);
 }
 
+export async function fetchActiveStoresLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name`,
+  );
+  return rowsOf(res);
+}
+
+export async function fetchSuppliersLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const res: any = await db.getAll(
+    `SELECT id, name, phone, email FROM contacts
+     WHERE is_supplier = 1 ORDER BY name`,
+  );
+  return rowsOf(res);
+}
+
+export async function fetchPurchasesLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const pRes: any = await db.getAll(
+    `SELECT p.*, s.name AS store_name
+     FROM purchases p LEFT JOIN stores s ON s.id = p.store_id
+     ORDER BY p.created_at DESC`,
+  );
+  const purchases = rowsOf(pRes);
+  if (purchases.length === 0) return [];
+
+  const ids = purchases.map((p) => p.id);
+  const ph = ids.map(() => "?").join(",");
+  const iRes: any = await db.getAll(
+    `SELECT pi.*, pr.name AS product_name,
+            v.label AS variant_label, v.quantity AS variant_quantity, v.unit AS variant_unit
+     FROM purchase_items pi
+     LEFT JOIN products pr ON pr.id = pi.product_id
+     LEFT JOIN product_variants v ON v.id = pi.variant_id
+     WHERE pi.purchase_id IN (${ph})`,
+    ids,
+  );
+  const byPurchase = new Map<string, any[]>();
+  for (const it of rowsOf(iRes)) {
+    const list = byPurchase.get(it.purchase_id) ?? [];
+    list.push({
+      ...it,
+      products: it.product_name ? { id: it.product_id, name: it.product_name } : null,
+      product_variants: it.variant_label
+        ? { id: it.variant_id, label: it.variant_label, quantity: it.variant_quantity, unit: it.variant_unit }
+        : null,
+    });
+    byPurchase.set(it.purchase_id, list);
+  }
+  return purchases.map((p) => ({
+    ...p,
+    stores: p.store_name ? { name: p.store_name } : null,
+    purchase_items: byPurchase.get(p.id) ?? [],
+  }));
+}
+
+// Build unified receivables/payables list from local contacts + accounts.
+// Matches existing logic in AccountsReceivable/Payable pages (uses
+// accounts.current_balance as the source of truth).
+export async function fetchReceivablesLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const cRes: any = await db.getAll(
+    `SELECT id, name, phone, email, credit_limit, is_customer, is_supplier,
+            customer_ledger_account_id, supplier_ledger_account_id
+     FROM contacts WHERE is_customer = 1 ORDER BY name`,
+  );
+  const contacts = rowsOf(cRes);
+  const ids = contacts
+    .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
+    .filter(Boolean);
+  const balances = await loadBalancesLocal(db, ids);
+  return contacts
+    .map((c) => {
+      let bal = balances.get(c.customer_ledger_account_id) ?? 0;
+      if (toBool(c.is_supplier) && c.supplier_ledger_account_id) {
+        bal -= balances.get(c.supplier_ledger_account_id) ?? 0;
+      }
+      return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        credit_limit: c.credit_limit || 0,
+        balance: bal,
+        isUnified: toBool(c.is_supplier),
+      };
+    })
+    .filter((c) => c.balance !== 0);
+}
+
+export async function fetchPayablesLocal(): Promise<any[]> {
+  const db = await connectPowerSync();
+  const cRes: any = await db.getAll(
+    `SELECT id, name, phone, email, is_customer, is_supplier,
+            customer_ledger_account_id, supplier_ledger_account_id
+     FROM contacts WHERE is_supplier = 1 ORDER BY name`,
+  );
+  const contacts = rowsOf(cRes);
+  const ids = contacts
+    .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
+    .filter(Boolean);
+  const balances = await loadBalancesLocal(db, ids);
+  return contacts
+    .map((c) => {
+      let bal = balances.get(c.supplier_ledger_account_id) ?? 0;
+      if (toBool(c.is_customer) && c.customer_ledger_account_id) {
+        bal -= balances.get(c.customer_ledger_account_id) ?? 0;
+      }
+      return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        balance: bal,
+        isUnified: toBool(c.is_customer),
+      };
+    })
+    .filter((c) => c.balance > 0);
+}
+
+async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (ids.length === 0) return map;
+  const unique = Array.from(new Set(ids));
+  const ph = unique.map(() => "?").join(",");
+  const res: any = await db.getAll(
+    `SELECT id, current_balance FROM accounts WHERE id IN (${ph})`,
+    unique,
+  );
+  for (const r of rowsOf(res)) map.set(r.id, Number(r.current_balance) || 0);
+  return map;
+}
+
 export interface LocalJournalFilter {
   start?: Date | null;
   end?: Date | null;
