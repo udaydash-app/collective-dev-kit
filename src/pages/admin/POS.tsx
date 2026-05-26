@@ -195,7 +195,7 @@ export default function POS() {
       if (sessionData.store_id) return [{ id: sessionData.store_id, name: 'Global Market' }];
     }
 
-    const cachedProducts = await offlineDB.getProducts();
+    const cachedProducts = await offlineDB.getProducts() as any[];
     const firstStoreId = cachedProducts.find((product: any) => product.store_id)?.store_id;
     return firstStoreId ? [{ id: firstStoreId, name: 'Global Market' }] : [];
   }, []);
