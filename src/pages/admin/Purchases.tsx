@@ -10,6 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  fetchActiveStoresLocal,
+  fetchSuppliersLocal,
+  fetchPurchasesLocal,
+} from '@/db/queries/accounting';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -134,6 +139,12 @@ export default function Purchases() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
+      try {
+        const local = await fetchActiveStoresLocal();
+        if (local.length) return local;
+      } catch (e) {
+        console.warn('[purchases] local stores failed', e);
+      }
       const { data } = await supabase
         .from('stores')
         .select('id, name')
@@ -146,6 +157,12 @@ export default function Purchases() {
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers'],
     queryFn: async () => {
+      try {
+        const local = await fetchSuppliersLocal();
+        if (local.length) return local;
+      } catch (e) {
+        console.warn('[purchases] local suppliers failed', e);
+      }
       const { data } = await supabase
         .from('contacts')
         .select('id, name, phone, email')
@@ -158,6 +175,12 @@ export default function Purchases() {
   const { data: purchases, isLoading: purchasesLoading } = useQuery({
     queryKey: ['purchases'],
     queryFn: async () => {
+      try {
+        const local = await fetchPurchasesLocal();
+        if (local.length) return local;
+      } catch (e) {
+        console.warn('[purchases] local purchases failed', e);
+      }
       const { data } = await supabase
         .from('purchases')
         .select(`
