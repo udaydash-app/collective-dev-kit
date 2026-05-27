@@ -12,3 +12,10 @@ contextBridge.exposeInMainWorld('electron', {
   print: (html) => ipcRenderer.invoke('print:receipt', html),
   isElectron: true,
 });
+
+// Embedded Postgres (PGlite) bridge — exposed to renderer as window.localDb.
+contextBridge.exposeInMainWorld('localDb', {
+  query: (sql, params) => ipcRenderer.invoke('localdb:query', sql, params),
+  exec: (sql) => ipcRenderer.invoke('localdb:exec', sql),
+  transaction: (statements) => ipcRenderer.invoke('localdb:transaction', statements),
+});

@@ -3,7 +3,8 @@
   "productName": "Global Market POS",
   "asarUnpack": [
     "node_modules/@huggingface/**/*",
-    "node_modules/@emnapi/**/*"
+    "node_modules/@emnapi/**/*",
+    "node_modules/@electric-sql/**/*"
   ],
   "directories": {
     "output": "release",
@@ -14,6 +15,13 @@
     "electron/**/*",
     "public/icon-*.png",
     "public/favicon.png"
+  ],
+  "extraResources": [
+    {
+      "from": "data",
+      "to": "data",
+      "filter": ["**/*"]
+    }
   ],
   "win": {
     "target": [
