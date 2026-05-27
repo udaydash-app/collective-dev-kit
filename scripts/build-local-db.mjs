@@ -77,7 +77,8 @@ let schema = readFileSync(SCHEMA_SQL, 'utf-8');
 schema = schema.replace(/^\\(?:un)?restrict\b.*$/gim, '');
 // Drop standalone FK constraints to auth.users entirely — stripping only the
 // REFERENCES clause leaves invalid `FOREIGN KEY (...)` statements behind.
-schema = schema.replace(/^ALTER TABLE ONLY [\s\S]*?ADD CONSTRAINT [^;]+ FOREIGN KEY \([^)]+\) REFERENCES auth\.users\([^)]+\)[^;]*;\s*$/gim, '');
+// IMPORTANT: bound with [^;] so the match cannot span across other statements.
+schema = schema.replace(/^ALTER TABLE ONLY [^;]*?ADD CONSTRAINT [^;]*? FOREIGN KEY \([^)]+\) REFERENCES auth\.users\s*\([^)]+\)[^;]*;\s*$/gim, '');
 // Drop FK references to auth.users — they don't exist locally.
 schema = schema.replace(/\s*REFERENCES auth\.users\s*\([^)]*\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+\w+(?:\s+\w+)?)*/gi, '');
 
