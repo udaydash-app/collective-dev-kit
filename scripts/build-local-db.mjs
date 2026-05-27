@@ -75,6 +75,9 @@ let schema = readFileSync(SCHEMA_SQL, 'utf-8');
 
 // pg_dump 17+ may emit psql-only \restrict / \unrestrict guard lines.
 schema = schema.replace(/^\\(?:un)?restrict\b.*$/gim, '');
+// Drop standalone FK constraints to auth.users entirely — stripping only the
+// REFERENCES clause leaves invalid `FOREIGN KEY (...)` statements behind.
+schema = schema.replace(/^ALTER TABLE ONLY [\s\S]*?ADD CONSTRAINT [^;]+ FOREIGN KEY \([^)]+\) REFERENCES auth\.users\([^)]+\)[^;]*;\s*$/gim, '');
 // Drop FK references to auth.users — they don't exist locally.
 schema = schema.replace(/\s*REFERENCES auth\.users\s*\([^)]*\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+\w+(?:\s+\w+)?)*/gi, '');
 
@@ -169,7 +172,7 @@ async function applySqlPiecewise(label, sql) {
   const stmts = splitSqlStatements(sql);
   // Strip leading SQL comments/whitespace so skip-pattern detection works.
   const stripLeading = (s) => s.replace(/^(?:\s|--[^\n]*\n|\/\*[\s\S]*?\*\/)+/, '');
-  const SKIP_RE = /^(GRANT|REVOKE|CREATE\s+POLICY|ALTER\s+POLICY|DROP\s+POLICY|ALTER\s+(TABLE|SCHEMA|FUNCTION|DEFAULT\s+PRIVILEGES)[\s\S]*ENABLE\s+ROW\s+LEVEL\s+SECURITY|ALTER\s+PUBLICATION|CREATE\s+PUBLICATION|CREATE\s+SUBSCRIPTION|ALTER\s+SUBSCRIPTION|COMMENT\s+ON|SET\s+|SELECT\s+pg_catalog\.|CREATE\s+EVENT\s+TRIGGER|CREATE\s+SCHEMA\s+public\b)/i;
+  const SKIP_RE = /^(GRANT|REVOKE|CREATE\s+POLICY|ALTER\s+POLICY|DROP\s+POLICY|ALTER\s+(TABLE|SCHEMA|FUNCTION|DEFAULT\s+PRIVILEGES)[\s\S]*ENABLE\s+ROW\s+LEVEL\s+SECURITY|ALTER\s+PUBLICATION|CREATE\s+PUBLICATION|CREATE\s+SUBSCRIPTION|ALTER\s+SUBSCRIPTION|COMMENT\s+ON|SET\s+|SELECT\s+pg_catalog\.|CREATE\s+EVENT\s+TRIGGER|CREATE\s+SCHEMA\s+(public|extensions|auth)\b)/i;
 
   // Multi-pass: dependencies (e.g. function created before table it references)
   // may fail on first pass and succeed later. Retry until no progress.
@@ -209,6 +212,8 @@ async function applySqlPiecewise(label, sql) {
 //  - user_roles + app_role enum (real definitions come from the dump too,
 //    but the dump creates functions referencing them out of order)
 const BOOTSTRAP_SQL = `
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
