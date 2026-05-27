@@ -1,4 +1,5 @@
 import { connectPowerSync } from "@/db/powersync";
+import { supabase } from "@/integrations/supabase/client";
 
 // Reactive-ish helpers that read products/categories/stores/suppliers
 // from the local PowerSync SQLite database. JOINs are executed locally,
@@ -56,6 +57,25 @@ export async function fetchProductsLocal() {
   ]);
   const rows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
   const vRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
+  // Fallback: if local PowerSync mirror is empty (e.g. Electron app where
+  // sync never populated), fetch directly from cloud Supabase.
+  if (rows.length === 0 && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          categories(name),
+          stores(name),
+          contacts:supplier_id(name),
+          product_variants(*)
+        `)
+        .order("created_at", { ascending: false });
+      if (!error && data) return data as any[];
+    } catch (e) {
+      console.warn("[products] Supabase fallback failed", e);
+    }
+  }
   const variantsByProduct = new Map<string, any[]>();
   for (const v of vRows) {
     const list = variantsByProduct.get(v.product_id) ?? [];
@@ -211,6 +231,28 @@ async function loadPosProductsIndex(): Promise<PosProductsIndex> {
   ]);
   const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
   const varRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
+  // Cloud fallback when local mirror is empty (Electron / first launch).
+  if (prodRows.length === 0 && navigator.onLine) {
+    try {
+      const [{ data: pData }, { data: vData }] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+          .eq("is_available", true)
+          .order("name"),
+        supabase
+          .from("product_variants")
+          .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity"),
+      ]);
+      if (pData && pData.length) {
+        const index = buildPosProductsIndex(mapPosProducts(pData as any, (vData ?? []) as any));
+        posProductsIndex = index;
+        return index;
+      }
+    } catch (e) {
+      console.warn("[pos products] Supabase fallback failed", e);
+    }
+  }
   const index = buildPosProductsIndex(mapPosProducts(prodRows, varRows));
   posProductsIndex = index;
   return index;

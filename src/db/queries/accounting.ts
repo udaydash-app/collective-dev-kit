@@ -1,4 +1,5 @@
 import { connectPowerSync } from "@/db/powersync";
+import { supabase } from "@/integrations/supabase/client";
 
 // Local-first reads for the Accounting module. Reads journal entries +
 // lines + accounts from the local PowerSync SQLite mirror so the pages
@@ -19,7 +20,18 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
             created_at, updated_at
      FROM accounts ${where} ORDER BY account_code`,
   );
-  return rowsOf(res).map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
+  const local = rowsOf(res);
+  if (local.length === 0 && navigator.onLine) {
+    try {
+      let q = supabase.from("accounts").select("*").order("account_code");
+      if (!opts.includeInactive) q = q.eq("is_active", true);
+      const { data, error } = await q;
+      if (!error && data) return data as any[];
+    } catch (e) {
+      console.warn("[accounts] Supabase fallback failed", e);
+    }
+  }
+  return local.map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
 // Compute debit/credit totals per account from posted journal entry lines
