@@ -3099,6 +3099,7 @@ export type Database = {
       }
       recalculate_products_stock: { Args: never; Returns: number }
       recalculate_variants_stock: { Args: never; Returns: number }
+      resolve_auth_user_id: { Args: { p_id: string }; Returns: string }
       reverse_transaction_journal_entries: {
         Args: { p_reference: string }
         Returns: undefined
