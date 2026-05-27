@@ -677,15 +677,15 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
   const entries = entriesData ?? [];
   if (entries.length === 0) return { entries: [], totalCount: count ?? 0 };
 
-  const ids = entries.map((e: any) => e.id);
+  const ids = entries.map((entry: Row) => entry.id);
   const { data: linesData, error: linesError } = await supabase
     .from('journal_entry_lines')
     .select('*')
     .in('journal_entry_id', ids);
   if (linesError) throw linesError;
 
-  const accountIds = Array.from(new Set((linesData ?? []).map((l: any) => l.account_id).filter(Boolean)));
-  const accountsById = new Map<string, any>();
+  const accountIds = Array.from(new Set((linesData ?? []).map((line: Row) => line.account_id).filter(Boolean)));
+  const accountsById = new Map<string, Row>();
   if (accountIds.length > 0) {
     const { data: accountsData, error: accountsError } = await supabase
       .from('accounts')
@@ -695,7 +695,7 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
     for (const account of accountsData ?? []) accountsById.set(account.id, account);
   }
 
-  const linesByEntry = new Map<string, any[]>();
+  const linesByEntry = new Map<string, Row[]>();
   for (const line of linesData ?? []) {
     const account = line.account_id ? accountsById.get(line.account_id) : null;
     const list = linesByEntry.get(line.journal_entry_id) ?? [];
@@ -709,7 +709,7 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
   }
 
   return {
-    entries: entries.map((entry: any) => ({
+    entries: entries.map((entry: Row) => ({
       ...entry,
       journal_entry_lines: linesByEntry.get(entry.id) ?? [],
     })),
