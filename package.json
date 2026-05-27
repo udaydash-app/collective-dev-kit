@@ -15,7 +15,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "electron:dev": "cross-env ELECTRON_DEV=true electron electron/main.cjs",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder",
+    "db:bundle": "node scripts/build-local-db.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.4.6",
