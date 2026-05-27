@@ -80,8 +80,8 @@ export default function StockAndPrice() {
           offlineDB.getCategories().catch(() => []),
           offlineDB.getStores().catch(() => []),
         ]);
-        const categoriesById = new Map(cachedCategories.map((c: any) => [c.id, c]));
-        const storesById = new Map(cachedStores.map((s: any) => [s.id, s]));
+        const categoriesById = new Map<string, any>(cachedCategories.map((c: any) => [c.id, c] as [string, any]));
+        const storesById = new Map<string, any>(cachedStores.map((s: any) => [s.id, s] as [string, any]));
         const variantsByProduct = new Map<string, any[]>();
         cachedVariants.forEach((variant: any) => {
           const list = variantsByProduct.get(variant.product_id) || [];
