@@ -49,7 +49,14 @@ export default function BarcodeManagement() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
-      if (shouldUseLocalData()) return offlineDB.getStores();
+      const cachedStoresWithFallback = async () => {
+        const cachedStores = await offlineDB.getStores().catch(() => []);
+        if (cachedStores.length > 0) return cachedStores;
+        const cachedProducts = await offlineDB.getProducts().catch(() => []);
+        const storeIds = [...new Set(cachedProducts.map((p: any) => p.store_id).filter(Boolean))];
+        return storeIds.map((id) => ({ id, name: 'Cached Store' }));
+      };
+      if (shouldUseLocalData()) return cachedStoresWithFallback();
       try {
       const { data } = await supabase
         .from('stores')
@@ -60,7 +67,7 @@ export default function BarcodeManagement() {
       return data || [];
       } catch (error) {
         console.warn('[barcode] online stores failed, using cached stores', error);
-        return offlineDB.getStores();
+        return cachedStoresWithFallback();
       }
     },
   });
@@ -83,7 +90,7 @@ export default function BarcodeManagement() {
         });
         const search = searchTerm.trim().toLowerCase();
         return cachedProducts
-          .filter((product: any) => product.store_id === selectedStoreId)
+          .filter((product: any) => selectedStoreId === '__all__' || product.store_id === selectedStoreId)
           .filter((product: any) => product.is_available === true || product.is_available === 1)
           .filter((product: any) => !search || product.name?.toLowerCase().includes(search))
           .map((product: any) => ({
@@ -112,9 +119,12 @@ export default function BarcodeManagement() {
             is_available
           )
         `)
-        .eq('store_id', selectedStoreId)
         .eq('is_available', true)
         .order('name');
+
+      if (selectedStoreId !== '__all__') {
+        query = query.eq('store_id', selectedStoreId);
+      }
 
       if (searchTerm) {
         query = query.ilike('name', `%${searchTerm}%`);
@@ -259,6 +269,7 @@ export default function BarcodeManagement() {
                     <SelectValue placeholder="Select store" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All cached stores</SelectItem>
                     {stores?.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
