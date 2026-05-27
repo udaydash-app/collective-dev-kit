@@ -32,6 +32,8 @@ import { Search, Grid, List, Pencil, Save, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { toast } from 'sonner';
+import { offlineDB } from '@/lib/offlineDB';
+import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 type EditedPrices = {
   [key: string]: {
@@ -71,13 +73,52 @@ export default function StockAndPrice() {
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ['products-stock-price'],
     queryFn: async () => {
+      const loadCachedProducts = async () => {
+        const [cachedProducts, cachedVariants, cachedCategories, cachedStores] = await Promise.all([
+          offlineDB.getProducts().catch(() => []),
+          offlineDB.getProductVariants().catch(() => []),
+          offlineDB.getCategories().catch(() => []),
+          offlineDB.getStores().catch(() => []),
+        ]);
+        const categoriesById = new Map(cachedCategories.map((c: any) => [c.id, c]));
+        const storesById = new Map(cachedStores.map((s: any) => [s.id, s]));
+        const variantsByProduct = new Map<string, any[]>();
+        cachedVariants.forEach((variant: any) => {
+          const list = variantsByProduct.get(variant.product_id) || [];
+          list.push({ ...variant, is_available: variant.is_available === true || variant.is_available === 1 });
+          variantsByProduct.set(variant.product_id, list);
+        });
+        return cachedProducts
+          .filter((product: any) => product.is_available === true || product.is_available === 1)
+          .map((product: any) => ({
+            ...product,
+            categories: categoriesById.get(product.category_id) ? { name: categoriesById.get(product.category_id).name } : null,
+            stores: storesById.get(product.store_id) ? { name: storesById.get(product.store_id).name } : null,
+            product_variants: variantsByProduct.get(product.id) || product.product_variants || [],
+          }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name));
+      };
+
+      if (shouldUseLocalData()) return loadCachedProducts();
+
+      try {
       const { data, error } = await supabase
         .from('products')
         .select('*, categories(name), stores(name), product_variants(*)')
         .eq('is_available', true)
         .order('name');
       if (error) throw error;
+      if (data) {
+        await Promise.all([
+          offlineDB.saveProducts(data as any),
+          offlineDB.saveProductVariants(data.flatMap((product: any) => product.product_variants || [])),
+        ]).catch(() => undefined);
+      }
       return data;
+      } catch (error) {
+        console.warn('[stock-price] online products failed, using cached data', error);
+        return loadCachedProducts();
+      }
     },
   });
 
@@ -85,13 +126,20 @@ export default function StockAndPrice() {
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
+      if (shouldUseLocalData()) return offlineDB.getCategories();
+      try {
       const { data, error } = await supabase
         .from('categories')
         .select('id, name')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
+      if (data) await offlineDB.saveCategories(data);
       return data;
+      } catch (error) {
+        console.warn('[stock-price] online categories failed, using cached data', error);
+        return offlineDB.getCategories();
+      }
     },
   });
 
