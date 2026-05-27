@@ -194,7 +194,21 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
      ORDER BY expense_date DESC, created_at DESC`,
     [storeId],
   );
-  return rowsOf(res);
+  const local = rowsOf(res);
+  if (local.length === 0 && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('expense_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (!error && data) return data as any[];
+    } catch (e) {
+      console.warn('[expenses] Supabase fallback failed', e);
+    }
+  }
+  return local;
 }
 
 export async function fetchActiveStoresLocal(): Promise<any[]> {
