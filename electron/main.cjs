@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const { registerIpc: registerPgliteIpc } = require('./pglite-bridge.cjs');
+registerPgliteIpc();
 
 const isDev = process.env.ELECTRON_DEV || false;
 
