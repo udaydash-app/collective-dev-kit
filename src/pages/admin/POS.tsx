@@ -3139,7 +3139,37 @@ export default function POS() {
         }
       } catch (error) {
         console.error('Error applying wholesale prices:', error);
-        toast.error('Failed to apply wholesale prices');
+        try {
+          const [cachedProducts, cachedVariants] = await Promise.all([
+            offlineDB.getProducts().catch(() => []),
+            offlineDB.getProductVariants().catch(() => []),
+          ]);
+          const wholesalePriceMap = new Map<string, number>();
+          cachedProducts.forEach((p: any) => {
+            if (productIds.includes(p.id) && p.wholesale_price && p.wholesale_price > 0) wholesalePriceMap.set(p.id, p.wholesale_price);
+          });
+          cachedVariants.forEach((v: any) => {
+            if (v.wholesale_price && v.wholesale_price > 0) wholesalePriceMap.set(v.id, v.wholesale_price);
+          });
+          const newOriginalPrices = new Map<string, number>();
+          let appliedCount = 0;
+          const updatedCart = cart.map(item => {
+            if (item.isCombo || item.isBogo || item.id === 'cart-discount') return item;
+            newOriginalPrices.set(item.id, item.customPrice ?? item.price);
+            const wholesalePrice = wholesalePriceMap.get(item.id) || wholesalePriceMap.get(item.productId);
+            if (wholesalePrice && wholesalePrice > 0) {
+              appliedCount++;
+              return { ...item, customPrice: wholesalePrice };
+            }
+            return item;
+          });
+          loadCart(updatedCart);
+          setOriginalRetailPrices(newOriginalPrices);
+          setIsWholesaleMode(true);
+          appliedCount > 0 ? toast.success(`Wholesale prices applied to ${appliedCount} item(s)`) : toast.info('No wholesale prices available for cart items');
+        } catch {
+          toast.error('Failed to fetch wholesale prices');
+        }
       }
     }
   };
