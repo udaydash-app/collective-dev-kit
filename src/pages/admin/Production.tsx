@@ -19,6 +19,8 @@ import { Plus, Trash2, Factory, Edit, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { offlineDB } from "@/lib/offlineDB";
+import { shouldUseLocalData } from "@/lib/localModeHelper";
 
 interface ProductOption {
   id: string;
@@ -81,6 +83,7 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local products failed, falling back', e);
       }
+      if (shouldUseLocalData()) return offlineDB.getProducts();
       const result: any = await supabase.from('products').select('id, name, stock_quantity, barcode').order('name');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -111,6 +114,17 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local variants failed, falling back', e);
       }
+      if (shouldUseLocalData()) {
+        const [cachedVariants, cachedProducts] = await Promise.all([
+          offlineDB.getProductVariants().catch(() => []),
+          offlineDB.getProducts().catch(() => []),
+        ]);
+        const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
+        return cachedVariants.map((variant: any) => ({
+          ...variant,
+          products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
+        }));
+      }
       const result: any = await supabase.from('product_variants').select('id, product_id, label, unit, stock_quantity, barcode, products(name)').order('unit');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -130,6 +144,18 @@ export default function Production() {
         if (local.length > 0) return local;
       } catch (e) {
         console.warn('[productions] local read failed, falling back', e);
+      }
+      if (shouldUseLocalData()) {
+        const [cachedProductions, cachedOutputs] = await Promise.all([
+          offlineDB.getProductions().catch(() => []),
+          offlineDB.getProductionOutputs().catch(() => []),
+        ]);
+        return cachedProductions
+          .map((production: any) => ({
+            ...production,
+            production_outputs: cachedOutputs.filter((output: any) => output.production_id === production.id),
+          }))
+          .sort((a: any, b: any) => new Date(b.created_at || b.production_date).getTime() - new Date(a.created_at || a.production_date).getTime());
       }
       const result: any = await supabase.from('productions').select(`*, production_outputs(*)`).order('created_at', { ascending: false });
       if (result.error) throw result.error;
