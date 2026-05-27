@@ -82,14 +82,14 @@ export const useAdmin = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
-        .maybeSingle();
+        .limit(1);
 
       if (error) {
         console.error('Error checking role:', error);
         return null;
       }
 
-      return data;
+      return data?.[0] ?? null;
     },
     enabled: !!session?.user?.id && !isOffline,
     retry: isOffline ? false : 3,
