@@ -19,6 +19,8 @@ import { Plus, Trash2, Factory, Edit, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { offlineDB } from "@/lib/offlineDB";
+import { shouldUseLocalData } from "@/lib/localModeHelper";
 
 interface ProductOption {
   id: string;
@@ -81,6 +83,7 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local products failed, falling back', e);
       }
+      if (shouldUseLocalData()) return offlineDB.getProducts();
       const result: any = await supabase.from('products').select('id, name, stock_quantity, barcode').order('name');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -111,6 +114,17 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local variants failed, falling back', e);
       }
+      if (shouldUseLocalData()) {
+        const [cachedVariants, cachedProducts] = await Promise.all([
+          offlineDB.getProductVariants().catch(() => []),
+          offlineDB.getProducts().catch(() => []),
+        ]);
+        const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
+        return cachedVariants.map((variant: any) => ({
+          ...variant,
+          products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
+        }));
+      }
       const result: any = await supabase.from('product_variants').select('id, product_id, label, unit, stock_quantity, barcode, products(name)').order('unit');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -130,6 +144,18 @@ export default function Production() {
         if (local.length > 0) return local;
       } catch (e) {
         console.warn('[productions] local read failed, falling back', e);
+      }
+      if (shouldUseLocalData()) {
+        const [cachedProductions, cachedOutputs] = await Promise.all([
+          offlineDB.getProductions().catch(() => []),
+          offlineDB.getProductionOutputs().catch(() => []),
+        ]);
+        return cachedProductions
+          .map((production: any) => ({
+            ...production,
+            production_outputs: cachedOutputs.filter((output: any) => output.production_id === production.id),
+          }))
+          .sort((a: any, b: any) => new Date(b.created_at || b.production_date).getTime() - new Date(a.created_at || a.production_date).getTime());
       }
       const result: any = await supabase.from('productions').select(`*, production_outputs(*)`).order('created_at', { ascending: false });
       if (result.error) throw result.error;
@@ -151,14 +177,68 @@ export default function Production() {
 
   const createProductionMutation = useMutation({
     mutationFn: async () => {
+      const sourceItem = sourceType === 'product' ? products.find(p => p.id === sourceId) : variants.find(v => v.id === sourceId);
+      if (!sourceItem) throw new Error("Source item not found");
+      if (sourceItem.stock_quantity < parseFloat(sourceQuantity)) throw new Error(`Insufficient stock. Available: ${sourceItem.stock_quantity}`);
+
+      if (shouldUseLocalData()) {
+        const now = new Date().toISOString();
+        const production = {
+          id: crypto.randomUUID(),
+          production_number: `PROD-${Date.now()}`,
+          source_product_id: sourceType === 'product' ? sourceId : null,
+          source_variant_id: sourceType === 'variant' ? sourceId : null,
+          source_quantity: parseFloat(sourceQuantity),
+          production_date: productionDate,
+          notes: notes || null,
+          status: 'completed',
+          created_by: null,
+          created_at: now,
+          updated_at: now,
+        };
+        const productionOutputs = outputs.map(o => ({
+          id: crypto.randomUUID(),
+          production_id: production.id,
+          product_id: o.type === 'product' ? o.id : null,
+          variant_id: o.type === 'variant' ? o.id : null,
+          quantity: o.quantity,
+          created_at: now,
+        }));
+
+        const [cachedProducts, cachedVariants] = await Promise.all([
+          offlineDB.getProducts().catch(() => []),
+          offlineDB.getProductVariants().catch(() => []),
+        ]);
+        const updatedProducts = cachedProducts.map((product: any) => {
+          let stock = product.stock_quantity ?? 0;
+          if (sourceType === 'product' && product.id === sourceId) stock -= parseFloat(sourceQuantity);
+          outputs.forEach((output) => {
+            if (output.type === 'product' && output.id === product.id) stock += output.quantity;
+          });
+          return { ...product, stock_quantity: stock, updated_at: now };
+        });
+        const updatedVariants = cachedVariants.map((variant: any) => {
+          let stock = variant.stock_quantity ?? 0;
+          if (sourceType === 'variant' && variant.id === sourceId) stock -= parseFloat(sourceQuantity);
+          outputs.forEach((output) => {
+            if (output.type === 'variant' && output.id === variant.id) stock += output.quantity;
+          });
+          return { ...variant, stock_quantity: stock, updated_at: now };
+        });
+
+        await Promise.all([
+          offlineDB.saveProductions([production]),
+          offlineDB.saveProductionOutputs(productionOutputs),
+          offlineDB.saveProducts(updatedProducts),
+          offlineDB.saveProductVariants(updatedVariants),
+        ]);
+        return { ...production, production_outputs: productionOutputs };
+      }
+
       let userId: string | null = null;
       const { data: { user } } = await supabase.auth.getUser();
       userId = user?.id ?? null;
       // For offline/POS sessions, created_by can be null (no FK violation)
-
-      const sourceItem = sourceType === 'product' ? products.find(p => p.id === sourceId) : variants.find(v => v.id === sourceId);
-      if (!sourceItem) throw new Error("Source item not found");
-      if (sourceItem.stock_quantity < parseFloat(sourceQuantity)) throw new Error(`Insufficient stock. Available: ${sourceItem.stock_quantity}`);
 
       const { data: production, error: prodError } = await supabase.from('productions').insert({
         source_product_id: sourceType === 'product' ? sourceId : null,

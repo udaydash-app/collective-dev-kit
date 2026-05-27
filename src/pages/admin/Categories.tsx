@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { offlineDB } from "@/lib/offlineDB";
+import { shouldUseLocalData } from "@/lib/localModeHelper";
 
 interface Category {
   id: string;
@@ -36,6 +38,12 @@ export default function AdminCategories() {
 
   const fetchCategories = async () => {
     try {
+      if (shouldUseLocalData()) {
+        const cached = await offlineDB.getCategories();
+        setCategories((cached || []).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+        return;
+      }
+
       const { data, error } = await supabase
         .from("categories")
         .select("*")
@@ -43,9 +51,12 @@ export default function AdminCategories() {
 
       if (error) throw error;
       setCategories(data || []);
+      if (data) await offlineDB.saveCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Failed to load categories");
+      const cached = await offlineDB.getCategories().catch(() => []);
+      setCategories((cached || []).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      if (!cached.length) toast.error("Failed to load categories");
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,8 @@ import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useReactToPrint } from 'react-to-print';
 import { formatCurrency } from '@/lib/utils';
+import { offlineDB } from '@/lib/offlineDB';
+import { shouldUseLocalData } from '@/lib/localModeHelper';
 
 interface SelectedItem {
   id: string;
@@ -47,12 +49,26 @@ export default function BarcodeManagement() {
   const { data: stores } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
+      const cachedStoresWithFallback = async () => {
+        const cachedStores = await offlineDB.getStores().catch(() => []);
+        if (cachedStores.length > 0) return cachedStores;
+        const cachedProducts = await offlineDB.getProducts().catch(() => []);
+        const storeIds = [...new Set(cachedProducts.map((p: any) => p.store_id).filter(Boolean))];
+        return storeIds.map((id) => ({ id, name: 'Cached Store' }));
+      };
+      if (shouldUseLocalData()) return cachedStoresWithFallback();
+      try {
       const { data } = await supabase
         .from('stores')
         .select('id, name')
         .eq('is_active', true)
         .order('name');
+      if (data) await offlineDB.saveStores(data);
       return data || [];
+      } catch (error) {
+        console.warn('[barcode] online stores failed, using cached stores', error);
+        return cachedStoresWithFallback();
+      }
     },
   });
 
@@ -61,6 +77,33 @@ export default function BarcodeManagement() {
     queryFn: async () => {
       if (!selectedStoreId) return null;
 
+      const loadCachedProducts = async () => {
+        const [cachedProducts, cachedVariants] = await Promise.all([
+          offlineDB.getProducts().catch(() => []),
+          offlineDB.getProductVariants().catch(() => []),
+        ]);
+        const variantsByProduct = new Map<string, any[]>();
+        cachedVariants.forEach((variant: any) => {
+          const list = variantsByProduct.get(variant.product_id) || [];
+          list.push({ ...variant, is_available: variant.is_available === true || variant.is_available === 1 });
+          variantsByProduct.set(variant.product_id, list);
+        });
+        const search = searchTerm.trim().toLowerCase();
+        return cachedProducts
+          .filter((product: any) => selectedStoreId === '__all__' || product.store_id === selectedStoreId)
+          .filter((product: any) => product.is_available === true || product.is_available === 1)
+          .filter((product: any) => !search || product.name?.toLowerCase().includes(search))
+          .map((product: any) => ({
+            ...product,
+            product_variants: variantsByProduct.get(product.id) || product.product_variants || [],
+          }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name))
+          .slice(0, 50);
+      };
+
+      if (shouldUseLocalData()) return loadCachedProducts();
+
+      try {
       let query = supabase
         .from('products')
         .select(`
@@ -76,16 +119,29 @@ export default function BarcodeManagement() {
             is_available
           )
         `)
-        .eq('store_id', selectedStoreId)
         .eq('is_available', true)
         .order('name');
+
+      if (selectedStoreId !== '__all__') {
+        query = query.eq('store_id', selectedStoreId);
+      }
 
       if (searchTerm) {
         query = query.ilike('name', `%${searchTerm}%`);
       }
 
       const { data } = await query.limit(50);
+      if (data) {
+        await Promise.all([
+          offlineDB.saveProducts(data as any),
+          offlineDB.saveProductVariants(data.flatMap((product: any) => product.product_variants || [])),
+        ]).catch(() => undefined);
+      }
       return data || [];
+      } catch (error) {
+        console.warn('[barcode] online products failed, using cached products', error);
+        return loadCachedProducts();
+      }
     },
     enabled: !!selectedStoreId,
   });
@@ -213,6 +269,7 @@ export default function BarcodeManagement() {
                     <SelectValue placeholder="Select store" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All cached stores</SelectItem>
                     {stores?.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}

@@ -70,6 +70,7 @@ import { kioskPrintService } from "@/lib/kioskPrint";
 import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
+import { shouldUseLocalData } from "@/lib/localModeHelper";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
@@ -118,6 +119,10 @@ export default function AdminOrders() {
       // Fetch fresh items when expanding to reflect edits
       const order = orders?.find((o: any) => o.id === orderId);
       if (order) {
+        if (shouldUseLocalData()) {
+          setExpandedOrders(newExpanded);
+          return;
+        }
         if (order.type === 'pos') {
           const { data: freshTx } = await supabase
             .from('pos_transactions')
@@ -204,7 +209,7 @@ export default function AdminOrders() {
       // Online: go straight to Supabase for the freshest data (cache is a
       // periodic snapshot and lags behind new POS sales / order edits).
       // Offline: fall back to the IndexedDB-backed local query.
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (shouldUseLocalData()) {
         try {
           return await fetchAdminOrdersLocal({
             statusFilter,
@@ -217,6 +222,7 @@ export default function AdminOrders() {
         }
       }
       // ---- Supabase fallback (legacy path) ----
+      try {
       const isSearching = searchQuery.trim().length > 0;
 
       // When searching, pre-resolve contact IDs whose name/phone match the query
@@ -446,6 +452,15 @@ export default function AdminOrders() {
       allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
       return allOrders;
+      } catch (error) {
+        console.warn('[orders] online query failed, using cached local orders', error);
+        return await fetchAdminOrdersLocal({
+          statusFilter,
+          start: isSearchingTop ? null : (dateRange?.start ?? null),
+          end: isSearchingTop ? null : (dateRange?.end ?? null),
+          searchQuery: searchQuery.trim(),
+        });
+      }
     }
   });
 
