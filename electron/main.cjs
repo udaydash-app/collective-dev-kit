@@ -70,7 +70,7 @@ function createWindow() {
   // Load the app
   if (process.env.ELECTRON_DEV) {
     // Development mode - connect to Vite dev server
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:8080');
     mainWindow.webContents.openDevTools();
   } else {
     // Production mode - load built files, Index.tsx handles redirect to /pos-login
