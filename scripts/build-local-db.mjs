@@ -179,6 +179,8 @@ async function applySqlPiecewise(label, sql) {
   let pending = stmts
     .map((s) => ({ raw: s, head: stripLeading(s) }))
     .filter((s) => s.head && !SKIP_RE.test(s.head));
+  const skipped = stmts.length - pending.length;
+  console.log(`[build-local-db] ${label}: ${stmts.length} total statements, ${skipped} skipped, ${pending.length} to apply`);
   let ok = 0;
   let lastFail = -1;
   let passes = 0;
