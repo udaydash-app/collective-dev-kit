@@ -231,6 +231,28 @@ async function loadPosProductsIndex(): Promise<PosProductsIndex> {
   ]);
   const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
   const varRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
+  // Cloud fallback when local mirror is empty (Electron / first launch).
+  if (prodRows.length === 0 && navigator.onLine) {
+    try {
+      const [{ data: pData }, { data: vData }] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+          .eq("is_available", true)
+          .order("name"),
+        supabase
+          .from("product_variants")
+          .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity"),
+      ]);
+      if (pData && pData.length) {
+        const index = buildPosProductsIndex(mapPosProducts(pData as any, (vData ?? []) as any));
+        posProductsIndex = index;
+        return index;
+      }
+    } catch (e) {
+      console.warn("[pos products] Supabase fallback failed", e);
+    }
+  }
   const index = buildPosProductsIndex(mapPosProducts(prodRows, varRows));
   posProductsIndex = index;
   return index;
