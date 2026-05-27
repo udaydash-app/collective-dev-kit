@@ -195,6 +195,7 @@ async function applySqlPiecewise(label, sql) {
       try {
         await db.exec(s.raw);
         ok++;
+        if (ok % 100 === 0) console.log(`[build-local-db] ${label}: ${ok} ok so far...`);
       } catch (e) {
         next.push(s);
         if (errors.length < 10) errors.push(`${e.message}\n  -> ${s.head.slice(0, 160).replace(/\s+/g, ' ')}`);
@@ -234,7 +235,21 @@ for (const stmt of splitSqlStatements(BOOTSTRAP_SQL)) {
 }
 
 await applySqlPiecewise('Schema', schemaSql);
+
+// Disable user triggers during seed so historical inserts don't re-fire
+// stock/journal triggers (which would double-post and often panic PGlite).
+try {
+  await db.exec(`SET session_replication_role = 'replica';`);
+  console.log('[build-local-db] Triggers disabled for seed load');
+} catch (e) {
+  console.warn('[build-local-db] Could not disable triggers:', e.message);
+}
+
 await applySqlPiecewise('Seed', seedSql);
+
+try {
+  await db.exec(`SET session_replication_role = 'origin';`);
+} catch {}
 
 await db.close();
 console.log('[build-local-db] Done. Snapshot at', PGLITE_DIR);
