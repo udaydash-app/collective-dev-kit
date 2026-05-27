@@ -8,8 +8,8 @@
 //
 // The installer then ships everything inside `data/` as extraResources.
 
-import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, openSync, closeSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(process.cwd());
@@ -24,20 +24,49 @@ if (!url) {
   console.error('Get it from Supabase → Project Settings → Database → Connection string (URI).');
   process.exit(1);
 }
+if (url.includes('YOUR_PASSWORD')) {
+  console.error('ERROR: DATABASE_URL still contains the placeholder "YOUR_PASSWORD".');
+  console.error('Replace it with your real Supabase DB password (Project Settings → Database → Connection string).');
+  process.exit(1);
+}
 
 mkdirSync(DATA_DIR, { recursive: true });
 
+function runPgDump(args, outFile) {
+  const fd = openSync(outFile, 'w');
+  const res = spawnSync('pg_dump', args, {
+    stdio: ['ignore', fd, 'inherit'],
+    shell: false,
+  });
+  closeSync(fd);
+  if (res.error) {
+    if (res.error.code === 'ENOENT') {
+      console.error('\nERROR: `pg_dump` was not found in PATH.');
+      console.error('Install PostgreSQL client tools:');
+      console.error('  Windows: https://www.postgresql.org/download/windows/ (then add C:\\Program Files\\PostgreSQL\\<ver>\\bin to PATH)');
+      console.error('  macOS:   brew install libpq && brew link --force libpq');
+      console.error('  Linux:   sudo apt-get install postgresql-client');
+      process.exit(1);
+    }
+    throw res.error;
+  }
+  if (res.status !== 0) {
+    console.error(`pg_dump exited with code ${res.status}`);
+    process.exit(res.status ?? 1);
+  }
+}
+
 console.log('[build-local-db] Dumping schema...');
-execSync(
-  `pg_dump --schema-only --no-owner --no-privileges --schema=public --schema=extensions "${url}" > "${SCHEMA_SQL}"`,
-  { stdio: 'inherit', shell: '/bin/bash' },
+runPgDump(
+  ['--schema-only', '--no-owner', '--no-privileges', '--schema=public', '--schema=extensions', url],
+  SCHEMA_SQL,
 );
 
 console.log('[build-local-db] Dumping data...');
 // Skip auth/storage tables — those are Supabase-managed and don't exist in PGlite.
-execSync(
-  `pg_dump --data-only --no-owner --no-privileges --schema=public --disable-triggers "${url}" > "${SEED_SQL}"`,
-  { stdio: 'inherit', shell: '/bin/bash' },
+runPgDump(
+  ['--data-only', '--no-owner', '--no-privileges', '--schema=public', '--disable-triggers', url],
+  SEED_SQL,
 );
 
 // --- Post-process the schema to make it PGlite-friendly ---
@@ -52,7 +81,7 @@ schema = schema.replace(/^CREATE POLICY [^;]+;/gim, '-- (policy stripped)');
 schema = schema.replace(/^GRANT [^;]+;/gim, '-- (grant stripped)');
 schema = schema.replace(/^REVOKE [^;]+;/gim, '-- (revoke stripped)');
 
-import('node:fs').then(({ writeFileSync }) => writeFileSync(SCHEMA_SQL, schema));
+writeFileSync(SCHEMA_SQL, schema);
 
 // --- Pre-seed a PGlite snapshot so installer ships a ready DB ---
 console.log('[build-local-db] Building PGlite snapshot...');
