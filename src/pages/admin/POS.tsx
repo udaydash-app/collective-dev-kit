@@ -2226,12 +2226,17 @@ export default function POS() {
 
       // Fetch custom prices for the new customer
       try {
-        const { data, error } = await supabase
-          .from('customer_product_prices')
-          .select('product_id, price')
-          .eq('customer_id', selectedCustomer.id);
-
-        if (error) throw error;
+        let data: any[] = [];
+        if (shouldUseLocalData()) {
+          data = (await offlineDB.getCustomerProductPrices()).filter((item: any) => item.customer_id === selectedCustomer.id);
+        } else {
+          const result = await supabase
+            .from('customer_product_prices')
+            .select('product_id, price')
+            .eq('customer_id', selectedCustomer.id);
+          if (result.error) throw result.error;
+          data = result.data || [];
+        }
 
         // Convert to map for easy lookup
         const pricesMap: Record<string, number> = {};
