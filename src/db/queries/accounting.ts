@@ -188,6 +188,21 @@ export async function fetchAccountsWithParentLocal(): Promise<any[]> {
 
 export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
   if (!storeId) return [];
+  // Prefer Supabase when online so newly-created expenses appear
+  // immediately (PowerSync replication may not be active in PWA mode).
+  if (navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('expense_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (!error && data) return data as any[];
+    } catch (e) {
+      console.warn('[expenses] Supabase fetch failed, using local', e);
+    }
+  }
   const db = await connectPowerSync();
   const res: any = await db.getAll(
     `SELECT * FROM expenses WHERE store_id = ?
