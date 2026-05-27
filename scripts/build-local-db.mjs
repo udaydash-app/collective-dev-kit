@@ -76,12 +76,7 @@ let schema = readFileSync(SCHEMA_SQL, 'utf-8');
 // pg_dump 17+ may emit psql-only \restrict / \unrestrict guard lines.
 schema = schema.replace(/^\\(?:un)?restrict\b.*$/gim, '');
 // Drop FK references to auth.users — they don't exist locally.
-schema = schema.replace(/REFERENCES auth\.users\([^)]*\)[^,;]*/gi, '');
-// Strip RLS / policy / GRANT clutter — single-user local DB.
-schema = schema.replace(/^(ALTER TABLE [^;]*ENABLE ROW LEVEL SECURITY;)$/gim, '-- $1');
-schema = schema.replace(/^CREATE POLICY [^;]+;/gim, '-- (policy stripped)');
-schema = schema.replace(/^GRANT [^;]+;/gim, '-- (grant stripped)');
-schema = schema.replace(/^REVOKE [^;]+;/gim, '-- (revoke stripped)');
+schema = schema.replace(/\s*REFERENCES auth\.users\s*\([^)]*\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+\w+(?:\s+\w+)?)*/gi, '');
 
 writeFileSync(SCHEMA_SQL, schema);
 
@@ -107,18 +102,95 @@ const db = await PGlite.create({
 const schemaSql = readFileSync(SCHEMA_SQL, 'utf-8');
 const seedSql = readFileSync(SEED_SQL, 'utf-8');
 
-try {
-  await db.exec(schemaSql);
-  console.log('[build-local-db] Schema applied');
-} catch (e) {
-  console.warn('[build-local-db] Schema apply had errors (continuing):', e.message);
+// Split a SQL script into top-level statements, respecting dollar-quoted bodies
+// (e.g. function definitions) and line/block comments. Required so a single bad
+// statement doesn't abort the whole batch the way db.exec() would.
+function splitSqlStatements(sql) {
+  const out = [];
+  let buf = '';
+  let i = 0;
+  let inSingle = false;
+  let inDollar = null; // current dollar tag like "$$" or "$func$"
+  let inLineComment = false;
+  let inBlockComment = false;
+  while (i < sql.length) {
+    const ch = sql[i];
+    const next2 = sql.slice(i, i + 2);
+    if (inLineComment) {
+      buf += ch;
+      if (ch === '\n') inLineComment = false;
+      i++; continue;
+    }
+    if (inBlockComment) {
+      buf += ch;
+      if (next2 === '*/') { buf += '/'; i += 2; inBlockComment = false; continue; }
+      i++; continue;
+    }
+    if (inDollar) {
+      buf += ch;
+      if (sql.startsWith(inDollar, i)) {
+        buf += inDollar.slice(1);
+        i += inDollar.length;
+        inDollar = null;
+        continue;
+      }
+      i++; continue;
+    }
+    if (inSingle) {
+      buf += ch;
+      if (ch === "'") {
+        if (sql[i + 1] === "'") { buf += "'"; i += 2; continue; }
+        inSingle = false;
+      }
+      i++; continue;
+    }
+    if (next2 === '--') { inLineComment = true; buf += ch; i++; continue; }
+    if (next2 === '/*') { inBlockComment = true; buf += ch; i++; continue; }
+    if (ch === "'") { inSingle = true; buf += ch; i++; continue; }
+    if (ch === '$') {
+      const m = sql.slice(i).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+      if (m) { inDollar = m[0]; buf += m[0]; i += m[0].length; continue; }
+    }
+    if (ch === ';') {
+      const stmt = buf.trim();
+      if (stmt) out.push(stmt);
+      buf = '';
+      i++; continue;
+    }
+    buf += ch;
+    i++;
+  }
+  const tail = buf.trim();
+  if (tail) out.push(tail);
+  return out;
 }
-try {
-  await db.exec(seedSql);
-  console.log('[build-local-db] Seed applied');
-} catch (e) {
-  console.warn('[build-local-db] Seed apply had errors (continuing):', e.message);
+
+async function applySqlPiecewise(label, sql) {
+  const stmts = splitSqlStatements(sql);
+  let ok = 0, fail = 0;
+  const errors = [];
+  for (const stmt of stmts) {
+    // Skip statements we know PGlite can't handle.
+    if (/^(GRANT|REVOKE|CREATE\s+POLICY|ALTER\s+POLICY|DROP\s+POLICY|ALTER\s+(TABLE|SCHEMA|FUNCTION|DEFAULT\s+PRIVILEGES)[\s\S]*ENABLE\s+ROW\s+LEVEL\s+SECURITY|ALTER\s+PUBLICATION|CREATE\s+PUBLICATION|CREATE\s+SUBSCRIPTION|ALTER\s+SUBSCRIPTION|COMMENT\s+ON|SET\s+|SELECT\s+pg_catalog\.|CREATE\s+EVENT\s+TRIGGER)/i.test(stmt)) {
+      continue;
+    }
+    try {
+      await db.exec(stmt);
+      ok++;
+    } catch (e) {
+      fail++;
+      if (errors.length < 10) errors.push(`${e.message}\n  -> ${stmt.slice(0, 160).replace(/\s+/g, ' ')}`);
+    }
+  }
+  console.log(`[build-local-db] ${label}: ${ok} ok, ${fail} failed`);
+  if (errors.length) {
+    console.warn(`[build-local-db] First ${errors.length} ${label} errors:`);
+    for (const e of errors) console.warn('  -', e);
+  }
 }
+
+await applySqlPiecewise('Schema', schemaSql);
+await applySqlPiecewise('Seed', seedSql);
 
 await db.close();
 console.log('[build-local-db] Done. Snapshot at', PGLITE_DIR);
