@@ -6,7 +6,9 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: '/', // Use absolute paths for proper routing
+  // Use relative paths so the built app works under file:// (Electron).
+  // Web/PWA still works fine with './' for asset loading.
+  base: './',
   server: {
     host: "::",
     port: 8080,
