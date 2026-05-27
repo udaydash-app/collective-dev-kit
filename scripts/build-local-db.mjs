@@ -167,26 +167,62 @@ function splitSqlStatements(sql) {
 
 async function applySqlPiecewise(label, sql) {
   const stmts = splitSqlStatements(sql);
-  let ok = 0, fail = 0;
-  const errors = [];
-  for (const stmt of stmts) {
-    // Skip statements we know PGlite can't handle.
-    if (/^(GRANT|REVOKE|CREATE\s+POLICY|ALTER\s+POLICY|DROP\s+POLICY|ALTER\s+(TABLE|SCHEMA|FUNCTION|DEFAULT\s+PRIVILEGES)[\s\S]*ENABLE\s+ROW\s+LEVEL\s+SECURITY|ALTER\s+PUBLICATION|CREATE\s+PUBLICATION|CREATE\s+SUBSCRIPTION|ALTER\s+SUBSCRIPTION|COMMENT\s+ON|SET\s+|SELECT\s+pg_catalog\.|CREATE\s+EVENT\s+TRIGGER)/i.test(stmt)) {
-      continue;
+  // Strip leading SQL comments/whitespace so skip-pattern detection works.
+  const stripLeading = (s) => s.replace(/^(?:\s|--[^\n]*\n|\/\*[\s\S]*?\*\/)+/, '');
+  const SKIP_RE = /^(GRANT|REVOKE|CREATE\s+POLICY|ALTER\s+POLICY|DROP\s+POLICY|ALTER\s+(TABLE|SCHEMA|FUNCTION|DEFAULT\s+PRIVILEGES)[\s\S]*ENABLE\s+ROW\s+LEVEL\s+SECURITY|ALTER\s+PUBLICATION|CREATE\s+PUBLICATION|CREATE\s+SUBSCRIPTION|ALTER\s+SUBSCRIPTION|COMMENT\s+ON|SET\s+|SELECT\s+pg_catalog\.|CREATE\s+EVENT\s+TRIGGER|CREATE\s+SCHEMA\s+public\b)/i;
+
+  // Multi-pass: dependencies (e.g. function created before table it references)
+  // may fail on first pass and succeed later. Retry until no progress.
+  let pending = stmts
+    .map((s) => ({ raw: s, head: stripLeading(s) }))
+    .filter((s) => s.head && !SKIP_RE.test(s.head));
+  let ok = 0;
+  let lastFail = -1;
+  let passes = 0;
+  let errors = [];
+  while (pending.length && pending.length !== lastFail && passes < 5) {
+    lastFail = pending.length;
+    passes++;
+    const next = [];
+    errors = [];
+    for (const s of pending) {
+      try {
+        await db.exec(s.raw);
+        ok++;
+      } catch (e) {
+        next.push(s);
+        if (errors.length < 10) errors.push(`${e.message}\n  -> ${s.head.slice(0, 160).replace(/\s+/g, ' ')}`);
+      }
     }
-    try {
-      await db.exec(stmt);
-      ok++;
-    } catch (e) {
-      fail++;
-      if (errors.length < 10) errors.push(`${e.message}\n  -> ${stmt.slice(0, 160).replace(/\s+/g, ' ')}`);
-    }
+    pending = next;
   }
-  console.log(`[build-local-db] ${label}: ${ok} ok, ${fail} failed`);
+  console.log(`[build-local-db] ${label}: ${ok} ok, ${pending.length} failed (${passes} passes)`);
   if (errors.length) {
     console.warn(`[build-local-db] First ${errors.length} ${label} errors:`);
     for (const e of errors) console.warn('  -', e);
   }
+}
+
+// Bootstrap shims PGlite needs before applying the dump:
+//  - auth schema + minimal auth.users so FK references resolve
+//  - extensions.gen_random_bytes alias to pgcrypto's function
+//  - user_roles + app_role enum (real definitions come from the dump too,
+//    but the dump creates functions referencing them out of order)
+const BOOTSTRAP_SQL = `
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE TABLE IF NOT EXISTS auth.users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text,
+  created_at timestamptz DEFAULT now()
+);
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE OR REPLACE FUNCTION extensions.gen_random_bytes(integer)
+  RETURNS bytea LANGUAGE sql AS $$ SELECT public.gen_random_bytes($1) $$;
+CREATE OR REPLACE FUNCTION extensions.gen_random_uuid()
+  RETURNS uuid LANGUAGE sql AS $$ SELECT public.gen_random_uuid() $$;
+`;
+for (const stmt of splitSqlStatements(BOOTSTRAP_SQL)) {
+  try { await db.exec(stmt); } catch (e) { console.warn('[build-local-db] bootstrap warn:', e.message); }
 }
 
 await applySqlPiecewise('Schema', schemaSql);
