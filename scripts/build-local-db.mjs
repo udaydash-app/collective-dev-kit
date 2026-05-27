@@ -65,7 +65,7 @@ runPgDump(
 console.log('[build-local-db] Dumping data...');
 // Skip auth/storage tables — those are Supabase-managed and don't exist in PGlite.
 runPgDump(
-  ['--data-only', '--no-owner', '--no-privileges', '--schema=public', '--disable-triggers', url],
+  ['--data-only', '--no-owner', '--no-privileges', '--schema=public', '--inserts', '--rows-per-insert=100', url],
   SEED_SQL,
 );
 
@@ -73,6 +73,8 @@ runPgDump(
 console.log('[build-local-db] Post-processing schema for PGlite...');
 let schema = readFileSync(SCHEMA_SQL, 'utf-8');
 
+// pg_dump 17+ may emit psql-only \restrict / \unrestrict guard lines.
+schema = schema.replace(/^\\(?:un)?restrict\b.*$/gim, '');
 // Drop FK references to auth.users — they don't exist locally.
 schema = schema.replace(/REFERENCES auth\.users\([^)]*\)[^,;]*/gi, '');
 // Strip RLS / policy / GRANT clutter — single-user local DB.
@@ -82,6 +84,12 @@ schema = schema.replace(/^GRANT [^;]+;/gim, '-- (grant stripped)');
 schema = schema.replace(/^REVOKE [^;]+;/gim, '-- (revoke stripped)');
 
 writeFileSync(SCHEMA_SQL, schema);
+
+let seed = readFileSync(SEED_SQL, 'utf-8');
+// Keep seed SQL executable through PGlite's SQL API, not psql.
+seed = seed.replace(/^\\(?:un)?restrict\b.*$/gim, '');
+seed = seed.replace(/^ALTER TABLE [^;]+ (?:DISABLE|ENABLE) TRIGGER ALL;$/gim, '-- (trigger toggle stripped)');
+writeFileSync(SEED_SQL, seed);
 
 // --- Pre-seed a PGlite snapshot so installer ships a ready DB ---
 console.log('[build-local-db] Building PGlite snapshot...');
