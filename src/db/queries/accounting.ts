@@ -576,6 +576,17 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
   const q = searchQuery.trim().toLowerCase();
   const isSearching = !!(q || start || end);
 
+  // Prefer Supabase when online so newly-created journals appear immediately
+  // even if the local PowerSync mirror has not populated in PWA/Electron mode.
+  if (navigator.onLine) {
+    try {
+      const remote = await fetchJournalEntriesFromSupabase(filter);
+      if (remote.entries.length > 0 || remote.totalCount > 0) return remote;
+    } catch (e) {
+      console.warn('[journal_entries] Supabase fetch failed, using local', e);
+    }
+  }
+
   const clauses: string[] = [];
   const args: any[] = [];
   if (start) {
@@ -637,4 +648,71 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     journal_entry_lines: linesByEntry.get(e.id) ?? [],
   }));
   return { entries: merged, totalCount };
+}
+
+async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
+  const { start, end, searchQuery = "", page = 0, pageSize = 100 } = filter;
+  const q = searchQuery.trim();
+  const isSearching = !!(q || start || end);
+  const from = isSearching ? 0 : page * pageSize;
+  const to = isSearching ? 9999 : from + pageSize - 1;
+
+  let query = supabase
+    .from('journal_entries')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (start) query = query.gte('entry_date', start.toISOString().split('T')[0]);
+  if (end) query = query.lte('entry_date', end.toISOString().split('T')[0]);
+  if (q) {
+    const term = q.replace(/[%]/g, '');
+    query = query.or(
+      `entry_number.ilike.%${term}%,description.ilike.%${term}%,reference.ilike.%${term}%,notes.ilike.%${term}%`,
+    );
+  }
+
+  const { data: entriesData, error, count } = await query;
+  if (error) throw error;
+  const entries = entriesData ?? [];
+  if (entries.length === 0) return { entries: [], totalCount: count ?? 0 };
+
+  const ids = entries.map((e: any) => e.id);
+  const { data: linesData, error: linesError } = await supabase
+    .from('journal_entry_lines')
+    .select('*')
+    .in('journal_entry_id', ids);
+  if (linesError) throw linesError;
+
+  const accountIds = Array.from(new Set((linesData ?? []).map((l: any) => l.account_id).filter(Boolean)));
+  const accountsById = new Map<string, any>();
+  if (accountIds.length > 0) {
+    const { data: accountsData, error: accountsError } = await supabase
+      .from('accounts')
+      .select('id, account_code, account_name')
+      .in('id', accountIds);
+    if (accountsError) throw accountsError;
+    for (const account of accountsData ?? []) accountsById.set(account.id, account);
+  }
+
+  const linesByEntry = new Map<string, any[]>();
+  for (const line of linesData ?? []) {
+    const account = line.account_id ? accountsById.get(line.account_id) : null;
+    const list = linesByEntry.get(line.journal_entry_id) ?? [];
+    list.push({
+      ...line,
+      accounts: account
+        ? { account_code: account.account_code, account_name: account.account_name }
+        : null,
+    });
+    linesByEntry.set(line.journal_entry_id, list);
+  }
+
+  return {
+    entries: entries.map((entry: any) => ({
+      ...entry,
+      journal_entry_lines: linesByEntry.get(entry.id) ?? [],
+    })),
+    totalCount: count ?? entries.length,
+  };
 }
