@@ -569,14 +569,13 @@ export async function fetchAccountLinesLocal(
 }
 
 export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
-  const db = await connectPowerSync();
   const { start, end, searchQuery = "", page = 0, pageSize = 100 } = filter;
   const q = searchQuery.trim().toLowerCase();
   const isSearching = !!(q || start || end);
 
   // Prefer Supabase when online so newly-created journals appear immediately
   // even if the local PowerSync mirror has not populated in PWA/Electron mode.
-  if (navigator.onLine) {
+  if (!isElectronLocalDb() && navigator.onLine) {
     try {
       const remote = await fetchJournalEntriesFromSupabase(filter);
       if (remote.entries.length > 0 || remote.totalCount > 0) return remote;
@@ -604,25 +603,24 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-  const countRes: any = await db.getAll(
+  const countRows = await queryRows(
     `SELECT COUNT(*) AS c FROM journal_entries ${where}`,
     args,
   );
-  const totalCount = Number(rowsOf(countRes)[0]?.c ?? 0);
+  const totalCount = Number(countRows[0]?.c ?? 0);
 
   const limit = isSearching ? 10000 : pageSize;
   const offset = isSearching ? 0 : page * pageSize;
-  const entryRes: any = await db.getAll(
+  const entries = await queryRows(
     `SELECT * FROM journal_entries ${where}
      ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [...args, limit, offset],
   );
-  const entries = rowsOf(entryRes);
   if (entries.length === 0) return { entries: [], totalCount };
 
   const ids = entries.map((e) => e.id);
   const ph = ids.map(() => "?").join(",");
-  const linesRes: any = await db.getAll(
+  const lines = await queryRows(
     `SELECT l.*, a.account_code, a.account_name
      FROM journal_entry_lines l
      LEFT JOIN accounts a ON a.id = l.account_id
@@ -630,7 +628,7 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     ids,
   );
   const linesByEntry = new Map<string, any[]>();
-  for (const l of rowsOf(linesRes)) {
+  for (const l of lines) {
     const list = linesByEntry.get(l.journal_entry_id) ?? [];
     list.push({
       ...l,
