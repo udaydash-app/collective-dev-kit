@@ -153,8 +153,7 @@ if (autoUpdater) {
           }
         });
 
-        downloadProgressWindow.loadURL(`data:text/html;charset=utf-8,
-          <!DOCTYPE html>
+        const progressHtml = `<!DOCTYPE html>
           <html>
             <head>
               <style>
@@ -263,7 +262,8 @@ if (autoUpdater) {
               </div>
             </body>
           </html>
-        `);
+        `;
+        downloadProgressWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(progressHtml));
 
         // Start download immediately and update UI when ready
         console.log('[AUTO-UPDATE] Starting download immediately...');
