@@ -1,5 +1,6 @@
 import { connectPowerSync } from "@/db/powersync";
 import { supabase } from "@/integrations/supabase/client";
+import { isElectronLocalDb, localRows } from "@/integrations/db/localSql";
 
 // Reactive-ish helpers that read products/categories/stores/suppliers
 // from the local PowerSync SQLite database. JOINs are executed locally,
@@ -9,6 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 type Row = Record<string, any>;
 
 const toBool = (v: any) => v === 1 || v === true;
+
+async function queryRows(sql: string, params: unknown[] = []): Promise<Row[]> {
+  if (isElectronLocalDb()) return localRows<Row>(sql, params);
+  const db = await connectPowerSync();
+  const result: any = await db.getAll(sql, params);
+  return Array.isArray(result) ? result : (result?.rows?._array ?? []);
+}
 
 function parseVariants(json: string | null): any[] {
   if (!json) return [];
@@ -28,7 +36,6 @@ function parseVariants(json: string | null): any[] {
 }
 
 export async function fetchProductsLocal() {
-  const db = await connectPowerSync();
   const productsSql = `
     SELECT
       p.id, p.name, p.description, p.price, p.cost_price, p.local_charges,
@@ -51,15 +58,13 @@ export async function fetchProductsLocal() {
            is_available, is_default
     FROM product_variants
   `;
-  const [prodRes, varRes]: any = await Promise.all([
-    db.getAll(productsSql),
-    db.getAll(variantsSql),
+  const [rows, vRows] = await Promise.all([
+    queryRows(productsSql),
+    queryRows(variantsSql),
   ]);
-  const rows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
-  const vRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
   // Fallback: if local PowerSync mirror is empty (e.g. Electron app where
   // sync never populated), fetch directly from cloud Supabase.
-  if (rows.length === 0 && navigator.onLine) {
+  if (!isElectronLocalDb() && rows.length === 0 && navigator.onLine) {
     try {
       const { data, error } = await supabase
         .from("products")
@@ -113,29 +118,23 @@ export async function fetchProductsLocal() {
 }
 
 export async function fetchCategoriesLocal() {
-  const db = await connectPowerSync();
-  const result: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name`,
   );
-  const rows: Row[] = Array.isArray(result) ? result : (result?.rows?._array ?? []);
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function fetchStoresLocal() {
-  const db = await connectPowerSync();
-  const result: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name`,
   );
-  const rows: Row[] = Array.isArray(result) ? result : (result?.rows?._array ?? []);
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function fetchSuppliersLocal() {
-  const db = await connectPowerSync();
-  const result: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT id, name FROM contacts WHERE is_supplier = 1 ORDER BY name`,
   );
-  const rows: Row[] = Array.isArray(result) ? result : (result?.rows?._array ?? []);
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
