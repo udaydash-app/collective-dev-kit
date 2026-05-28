@@ -20,7 +20,7 @@ export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(shouldUseLocalData());
-  const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
+  const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number; users: number} | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showServerConfig, setShowServerConfig] = useState(false);
@@ -123,17 +123,20 @@ export default function POSLogin() {
         const products = await offlineDB.getProducts();
         const stores = await offlineDB.getStores();
         const categories = await offlineDB.getCategories();
-        
+        const users = await offlineDB.getAllPOSUsers();
+
         console.log('Cache status:', {
           products: products.length,
           stores: stores.length,
-          categories: categories.length
+          categories: categories.length,
+          users: users.length,
         });
-        
+
         setCacheStatus({
           products: products.length,
           stores: stores.length,
-          categories: categories.length
+          categories: categories.length,
+          users: users.length,
         });
       } catch (error) {
         console.error('Error checking cache:', error);
@@ -274,7 +277,13 @@ export default function POSLogin() {
         console.log('🔴 OFFLINE MODE DETECTED: Attempting offline login');
         console.log('🔴 Standalone mode:', isStandalone);
         console.log('🔴 DB Initialized:', dbInitialized);
-        
+
+        if (!dbInitialized) {
+          toast.error('Offline storage is still initializing. Please wait a moment and try again.');
+          setIsLoading(false);
+          return;
+        }
+
         try {
           const offlineResult = await attemptOfflineLogin();
           posUserId = offlineResult.posUserId;
