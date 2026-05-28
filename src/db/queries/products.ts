@@ -134,6 +134,18 @@ export async function fetchCategoriesLocal() {
   const rows = await queryRows(
     `SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name`,
   );
+  if (rows.length === 0 && navigator.onLine) {
+    try {
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+      if (data) return data as any[];
+    } catch (e) {
+      console.warn("[categories] Supabase fallback failed", e);
+    }
+  }
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
@@ -141,6 +153,18 @@ export async function fetchStoresLocal() {
   const rows = await queryRows(
     `SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name`,
   );
+  if (rows.length === 0 && navigator.onLine) {
+    try {
+      const { data } = await supabase
+        .from("stores")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+      if (data) return data as any[];
+    } catch (e) {
+      console.warn("[stores] Supabase fallback failed", e);
+    }
+  }
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
@@ -148,6 +172,18 @@ export async function fetchSuppliersLocal() {
   const rows = await queryRows(
     `SELECT id, name FROM contacts WHERE is_supplier = 1 ORDER BY name`,
   );
+  if (rows.length === 0 && navigator.onLine) {
+    try {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id, name")
+        .eq("is_supplier", true)
+        .order("name");
+      if (data) return data as any[];
+    } catch (e) {
+      console.warn("[suppliers] Supabase fallback failed", e);
+    }
+  }
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
