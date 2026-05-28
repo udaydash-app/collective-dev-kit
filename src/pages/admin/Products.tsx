@@ -198,8 +198,21 @@ export default function Products() {
     setIsDialogOpen(true);
   };
 
-  const handleAdd = () => {
-    if (stores.length === 0) {
+  const handleAdd = async () => {
+    let availableStores = stores;
+    if (availableStores.length === 0) {
+      // Retry fetching before failing — stores may not have loaded yet
+      try {
+        const fresh = await fetchStoresLocal();
+        if (fresh.length > 0) {
+          setStores(fresh);
+          availableStores = fresh;
+        }
+      } catch (e) {
+        console.error("Retry fetchStores failed", e);
+      }
+    }
+    if (availableStores.length === 0) {
       toast.error("Please add at least one store first");
       return;
     }
@@ -212,7 +225,7 @@ export default function Products() {
       unit: 'pcs',
       image_url: null,
       category_id: null,
-      store_id: stores[0].id,
+      store_id: availableStores[0].id,
       is_available: true,
       is_featured: false,
       stock_quantity: 0,
