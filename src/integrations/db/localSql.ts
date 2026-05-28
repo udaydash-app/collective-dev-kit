@@ -1,14 +1,3 @@
-type LocalDbBridge = {
-  query: (sql: string, params?: unknown[]) => Promise<{ ok: boolean; rows?: any[]; error?: { message: string } }>;
-};
-
-declare global {
-  interface Window {
-    localDb?: LocalDbBridge;
-    electron?: { isElectron?: boolean };
-  }
-}
-
 export const isElectronLocalDb = () =>
   typeof window !== 'undefined' && Boolean(window.electron?.isElectron && window.localDb);
 
