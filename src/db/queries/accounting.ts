@@ -48,7 +48,6 @@ export async function fetchAccountBalancesLocal(opts: {
   endDate?: string;
   accountTypes?: string[];
 } = {}): Promise<any[]> {
-  const db = await connectPowerSync();
   const typeFilter = opts.accountTypes && opts.accountTypes.length
     ? `AND a.account_type IN (${opts.accountTypes.map(() => '?').join(',')})`
     : '';
@@ -74,8 +73,8 @@ export async function fetchAccountBalancesLocal(opts: {
     GROUP BY a.id
     ORDER BY a.account_code
   `;
-  const res: any = await db.getAll(sql, [...lineArgs, ...args]);
-  return rowsOf(res).map((r: any) => ({
+  const rows = await queryRows(sql, [...lineArgs, ...args]);
+  return rows.map((r: any) => ({
     ...r,
     is_active: toBool(r.is_active),
     total_debit: Number(r.total_debit) || 0,
@@ -160,14 +159,13 @@ function safeJson(s: any): any[] {
 }
 
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT id, name, is_customer, is_supplier,
             customer_ledger_account_id, supplier_ledger_account_id,
             opening_balance, supplier_opening_balance
      FROM contacts ORDER BY name`,
   );
-  return rowsOf(res).map((r) => ({
+  return rows.map((r) => ({
     ...r,
     is_customer: toBool(r.is_customer),
     is_supplier: toBool(r.is_supplier),
@@ -175,15 +173,14 @@ export async function fetchContactsForLedgerLocal(): Promise<any[]> {
 }
 
 export async function fetchAccountsWithParentLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT a.*, p.account_name AS parent_account_name, p.account_code AS parent_account_code
      FROM accounts a
      LEFT JOIN accounts p ON p.id = a.parent_account_id
      WHERE a.is_active = 1
      ORDER BY a.account_code`,
   );
-  return rowsOf(res).map((r: any) => ({
+  return rows.map((r: any) => ({
     ...r,
     is_active: toBool(r.is_active),
     parent: r.parent_account_name
