@@ -216,22 +216,19 @@ function buildPosProductsIndex(products: PosProduct[]): PosProductsIndex {
 }
 
 async function loadPosProductsIndex(): Promise<PosProductsIndex> {
-  const db = await connectPowerSync();
-  const [prodRes, varRes]: any = await Promise.all([
-    db.getAll(
+  const [prodRows, varRows] = await Promise.all([
+    queryRows(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products WHERE is_available = 1 ORDER BY name`,
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, product_id, label, quantity, unit, price, is_available,
               is_default, barcode, stock_quantity
        FROM product_variants`,
     ),
   ]);
-  const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
-  const varRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
   // Cloud fallback when local mirror is empty (Electron / first launch).
-  if (prodRows.length === 0 && navigator.onLine) {
+  if (!isElectronLocalDb() && prodRows.length === 0 && navigator.onLine) {
     try {
       const [{ data: pData }, { data: vData }] = await Promise.all([
         supabase
