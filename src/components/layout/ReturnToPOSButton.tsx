@@ -1,6 +1,8 @@
 import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useDesktopWindowId } from "@/components/desktop/DesktopWindowContext";
+import { windowActions } from "@/store/windowStore";
 
 interface ReturnToPOSButtonProps {
   inline?: boolean;
@@ -10,6 +12,7 @@ interface ReturnToPOSButtonProps {
 export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPOSButtonProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const desktopWindowId = useDesktopWindowId();
 
   // Only show Dashboard button if logged in as admin (full_name === 'admin')
   let isAdminUser = false;
@@ -43,7 +46,13 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
         </Button>
       )}
       <Button
-        onClick={() => navigate("/admin/desktop")}
+        onClick={() => {
+          if (desktopWindowId) {
+            windowActions.close(desktopWindowId);
+          } else {
+            navigate("/admin/desktop");
+          }
+        }}
         variant="outline"
         size="sm"
       >
