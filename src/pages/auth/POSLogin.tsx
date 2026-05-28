@@ -11,6 +11,7 @@ import { offlineDB } from '@/lib/offlineDB';
 import { cacheEssentialData } from '@/lib/cacheData';
 import { shouldUseLocalData, isLocalMode, isLocalSupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey } from '@/lib/cloudSyncService';
+import { isElectronLocalDb, localRows } from '@/integrations/db/localSql';
 import logo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -175,6 +176,30 @@ export default function POSLogin() {
     setIsLoading(true);
 
     try {
+      if (isElectronLocalDb()) {
+        const [localUser] = await localRows<VerifyPinResult & { id: string }>(
+          `SELECT id AS pos_user_id, user_id, full_name FROM pos_users WHERE pin_hash = ? AND is_active = 1 LIMIT 1`,
+          [pinValue],
+        );
+        if (!localUser) {
+          toast.error('Invalid PIN. Please try again.');
+          setPin('');
+          return;
+        }
+        localStorage.setItem('offline_pos_session', JSON.stringify({
+          pos_user_id: localUser.pos_user_id,
+          user_id: localUser.user_id,
+          full_name: localUser.full_name,
+          timestamp: new Date().toISOString(),
+          electron: true,
+          local: true,
+        }));
+        sessionStorage.setItem('current_pos_pin', pinValue);
+        toast.success(`Welcome, ${localUser.full_name}!`);
+        navigate('/admin/desktop');
+        return;
+      }
+
       let posUserId: string | null = null;
       let userId: string | null = null;
       let fullName: string = '';
