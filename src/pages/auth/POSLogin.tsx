@@ -20,7 +20,7 @@ export default function POSLogin() {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(shouldUseLocalData());
-  const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number} | null>(null);
+  const [cacheStatus, setCacheStatus] = useState<{products: number; stores: number; categories: number; users: number} | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showServerConfig, setShowServerConfig] = useState(false);
@@ -123,17 +123,20 @@ export default function POSLogin() {
         const products = await offlineDB.getProducts();
         const stores = await offlineDB.getStores();
         const categories = await offlineDB.getCategories();
-        
+        const users = await offlineDB.getAllPOSUsers();
+
         console.log('Cache status:', {
           products: products.length,
           stores: stores.length,
-          categories: categories.length
+          categories: categories.length,
+          users: users.length,
         });
-        
+
         setCacheStatus({
           products: products.length,
           stores: stores.length,
-          categories: categories.length
+          categories: categories.length,
+          users: users.length,
         });
       } catch (error) {
         console.error('Error checking cache:', error);
@@ -274,7 +277,13 @@ export default function POSLogin() {
         console.log('🔴 OFFLINE MODE DETECTED: Attempting offline login');
         console.log('🔴 Standalone mode:', isStandalone);
         console.log('🔴 DB Initialized:', dbInitialized);
-        
+
+        if (!dbInitialized) {
+          toast.error('Offline storage is still initializing. Please wait a moment and try again.');
+          setIsLoading(false);
+          return;
+        }
+
         try {
           const offlineResult = await attemptOfflineLogin();
           posUserId = offlineResult.posUserId;
@@ -639,26 +648,32 @@ export default function POSLogin() {
           {/* Cache Status Indicators - Only show when offline */}
           {cacheStatus && isOffline && (
             <div className="mt-4 pt-4 border-t space-y-2">
-              {cacheStatus.products > 0 && cacheStatus.stores > 0 && cacheStatus.categories > 0 ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                  <Database className="h-4 w-4" />
-                  <span>Offline: {cacheStatus.products} products available</span>
-                </div>
+              {cacheStatus.users > 0 ? (
+                <>
+                  <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                    <Database className="h-4 w-4" />
+                    <span>
+                      Offline ready: {cacheStatus.users} cached user{cacheStatus.users === 1 ? '' : 's'}, {cacheStatus.products} products
+                    </span>
+                  </div>
+                </>
               ) : (
                 <div className="flex items-center justify-center gap-2 text-sm text-amber-600">
                   <WifiOff className="h-4 w-4" />
-                  <span>No offline data - Login online first to enable offline mode</span>
+                  <span>No cached PIN - login online once to enable offline mode</span>
                 </div>
               )}
             </div>
           )}
-          
+
           {/* Show online status when online */}
-          {!isOffline && cacheStatus && cacheStatus.products > 0 && (
+          {!isOffline && cacheStatus && (cacheStatus.products > 0 || cacheStatus.users > 0) && (
             <div className="mt-4 pt-4 border-t">
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Database className="h-4 w-4" />
-                <span>{cacheStatus.products} products cached for offline use</span>
+                <span>
+                  Offline cache: {cacheStatus.users} user{cacheStatus.users === 1 ? '' : 's'}, {cacheStatus.products} products
+                </span>
               </div>
             </div>
           )}
