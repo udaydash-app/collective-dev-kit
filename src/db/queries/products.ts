@@ -62,9 +62,9 @@ export async function fetchProductsLocal() {
     queryRows(productsSql),
     queryRows(variantsSql),
   ]);
-  // Fallback: if local PowerSync mirror is empty (e.g. Electron app where
-  // sync never populated), fetch directly from cloud Supabase.
-  if (!isElectronLocalDb() && rows.length === 0 && navigator.onLine) {
+  // Fallback: if the local mirror is empty (PowerSync not yet synced, or the
+  // Electron PGlite snapshot was never seeded), fetch from cloud Supabase.
+  if (rows.length === 0 && navigator.onLine) {
     try {
       const { data, error } = await supabase
         .from("products")
@@ -228,7 +228,7 @@ async function loadPosProductsIndex(): Promise<PosProductsIndex> {
     ),
   ]);
   // Cloud fallback when local mirror is empty (Electron / first launch).
-  if (!isElectronLocalDb() && prodRows.length === 0 && navigator.onLine) {
+  if (prodRows.length === 0 && navigator.onLine) {
     try {
       const [{ data: pData }, { data: vData }] = await Promise.all([
         supabase
