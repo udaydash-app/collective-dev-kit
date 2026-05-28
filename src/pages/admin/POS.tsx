@@ -367,7 +367,7 @@ export default function POS() {
       setIsLoadingTransaction(true);
       
       // Fetch the order with its items
-      const { data: order, error: orderError } = await supabase
+      const { data: order, error: orderError } = await dataClient
         .from('orders')
         .select(`
           *,
@@ -384,7 +384,7 @@ export default function POS() {
       }
 
       // Fetch order items with product details
-      const { data: items, error: itemsError } = await supabase
+      const { data: items, error: itemsError } = await dataClient
         .from('order_items')
         .select(`
           *,
@@ -421,7 +421,7 @@ export default function POS() {
         loadCart(cartItems);
         
         // Update order status to processing when loaded to POS
-        const { error: updateError } = await supabase
+        const { error: updateError } = await dataClient
           .from('orders')
           .update({ status: 'processing' })
           .eq('id', orderId);
@@ -531,7 +531,7 @@ export default function POS() {
         // Set customer if available
         if (orderData.customerId) {
           console.log(`🔧 Loading customer: ${orderData.customerId}`);
-          const { data: customer, error: customerError } = await supabase
+          const { data: customer, error: customerError } = await dataClient
             .from('contacts')
             .select('*')
             .eq('id', orderData.customerId)
@@ -635,7 +635,7 @@ export default function POS() {
       // Always try Supabase first (local or cloud) unless truly offline
       if (!isOffline) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await dataClient
             .from('stores')
             .select('id, name')
             .eq('is_active', true)
@@ -672,7 +672,7 @@ export default function POS() {
     queryKey: ['company-settings'],
     queryFn: async () => {
       if (isOffline) return null;
-      const { data } = await supabase
+      const { data } = await dataClient
         .from('settings')
         .select('logo_url, company_phone, company_name')
         .single();
@@ -686,7 +686,7 @@ export default function POS() {
     queryKey: ['special-offers'],
     queryFn: async () => {
       if (isOffline) return [];
-      const { data, error } = await supabase
+      const { data, error } = await dataClient
         .from('special_offers')
         .select('id, name, threshold_amount, discount_percentage, match_mode, is_active, store_id')
         .eq('is_active', true);
@@ -736,7 +736,7 @@ export default function POS() {
 
       // Online mode: Find any open session for this store (shared across all cashiers)
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dataClient
         .from('cash_sessions')
         .select('*')
         .eq('store_id', selectedStoreId)
@@ -764,7 +764,7 @@ export default function POS() {
     queryKey: ['pending-orders-count'],
     queryFn: async () => {
       if (isOffline) return 0;
-      const { count, error } = await supabase
+      const { count, error } = await dataClient
         .from('orders')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
@@ -817,7 +817,7 @@ export default function POS() {
     queryFn: async () => {
       if (!selectedStoreId || !currentCashSession || isOffline) return [];
       
-      const { data } = await supabase
+      const { data } = await dataClient
         .from('cash_sessions')
         .select('opening_cash')
         .eq('store_id', selectedStoreId)
@@ -907,7 +907,7 @@ export default function POS() {
         }
       }
 
-      const { data } = await supabase
+      const { data } = await dataClient
         .from('pos_transactions')
         .select('id, total, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
         .eq('store_id', currentCashSession.store_id)
@@ -944,7 +944,7 @@ export default function POS() {
         }
       }
 
-      const { data } = await supabase
+      const { data } = await dataClient
         .from('purchases')
         .select(`
           id, 
@@ -985,7 +985,7 @@ export default function POS() {
         }
       }
 
-      const { data } = await supabase
+      const { data } = await dataClient
         .from('expenses')
         .select('id, amount, payment_method, description, category, created_at')
         .eq('store_id', currentCashSession.store_id)
@@ -1028,7 +1028,7 @@ export default function POS() {
       if (error) {
         // Fallback to direct query if RPC function doesn't exist (local Supabase)
         if (error.code === 'PGRST202') {
-          const { data: contacts, error: contactsError } = await supabase
+          const { data: contacts, error: contactsError } = await dataClient
             .from('contacts')
             .select('id, name, email, phone, opening_balance, credit_limit, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
             .eq('is_customer', true)
@@ -1108,7 +1108,7 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await dataClient
         .from('payment_receipts')
         .select('id, amount, payment_method, created_at, contact_id')
         .eq('store_id', currentCashSession.store_id)
@@ -1121,7 +1121,7 @@ export default function POS() {
       const receiptsWithContacts = await Promise.all(
         (data || []).map(async (r) => {
           if (r.contact_id) {
-            const { data: contact } = await supabase
+            const { data: contact } = await dataClient
               .from('contacts')
               .select('name')
               .eq('id', r.contact_id)
@@ -1143,7 +1143,7 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await dataClient
         .from('supplier_payments')
         .select(`
           id,
@@ -1203,7 +1203,7 @@ export default function POS() {
       }
       
       // Get cash account ID - SYSCOHADA code 571 (Caisse)
-      const { data: cashAccounts, error: accountError } = await supabase
+      const { data: cashAccounts, error: accountError } = await dataClient
         .from('accounts')
         .select('id')
         .eq('account_code', '571')
@@ -1227,7 +1227,7 @@ export default function POS() {
 
       // Get journal entry lines for cash account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
-      const { data, error: queryError } = await supabase
+      const { data, error: queryError } = await dataClient
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -1278,7 +1278,7 @@ export default function POS() {
 
       // Get ONLY manual journal entries (exclude automated entries from POS, expenses, purchases, payment receipts, cash register)
       // Automated entries are already represented in their respective sections (sales, expenses, purchases)
-      const { data, error: queryError } = await supabase
+      const { data, error: queryError } = await dataClient
         .from('journal_entries')
         .select(`
           id,
@@ -1332,7 +1332,7 @@ export default function POS() {
       }
       
       // Get mobile money account ID - SYSCOHADA code 521 (Banque Mobile Money)
-      const { data: mobileMoneyAccounts, error: accountError } = await supabase
+      const { data: mobileMoneyAccounts, error: accountError } = await dataClient
         .from('accounts')
         .select('id')
         .eq('account_code', '521')
@@ -1356,7 +1356,7 @@ export default function POS() {
       
       // Get journal entry lines for mobile money account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
-      const { data, error: queryError } = await supabase
+      const { data, error: queryError } = await dataClient
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -1476,7 +1476,7 @@ export default function POS() {
     queryFn: async () => {
       if (shouldQuerySupabase()) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await dataClient
             .from('categories')
             .select('id, name, image_url, icon')
             .eq('is_active', true)
@@ -1520,7 +1520,7 @@ export default function POS() {
       
       // Online mode
       try {
-        let query = supabase
+        let query = dataClient
           .from('contacts')
           .select('*')
           .eq('is_customer', true)
@@ -1557,7 +1557,7 @@ export default function POS() {
 
       if (shouldQuerySupabase()) {
         try {
-          let query = supabase
+          let query = dataClient
             .from('products')
             .select(`
               *,
@@ -1636,7 +1636,7 @@ export default function POS() {
       const { start, end } = getDateRange();
       
       // Get transactions for the period
-      const { data: transactions } = await supabase
+      const { data: transactions } = await dataClient
         .from('pos_transactions')
         .select('*, items')
         .eq('store_id', selectedStoreId)
@@ -1743,7 +1743,7 @@ export default function POS() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !selectedStoreId) return;
 
-      const { error } = await supabase
+      const { error } = await dataClient
         .from('cash_sessions')
         .insert({
           store_id: selectedStoreId,
@@ -1883,7 +1883,7 @@ export default function POS() {
       }
 
       // Online mode - Calculate expected cash from cash transactions
-      const { data: transactions } = await supabase
+      const { data: transactions } = await dataClient
         .from('pos_transactions')
         .select('total, payment_method')
         .eq('store_id', currentCashSession.store_id)
@@ -1898,7 +1898,7 @@ export default function POS() {
         .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
 
       // Fetch purchases for this session
-      const { data: purchases } = await supabase
+      const { data: purchases } = await dataClient
         .from('purchases')
         .select('total_amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
@@ -1913,7 +1913,7 @@ export default function POS() {
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
       // Fetch expenses for this session
-      const { data: expenses } = await supabase
+      const { data: expenses } = await dataClient
         .from('expenses')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
@@ -1928,7 +1928,7 @@ export default function POS() {
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
       // Fetch payment receipts for this session
-      const { data: paymentReceiptsData } = await supabase
+      const { data: paymentReceiptsData } = await dataClient
         .from('payment_receipts')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
@@ -1943,7 +1943,7 @@ export default function POS() {
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       // Fetch supplier payments for this session
-      const { data: supplierPaymentsData } = await supabase
+      const { data: supplierPaymentsData } = await dataClient
         .from('supplier_payments')
         .select('amount, payment_method')
         .eq('store_id', currentCashSession.store_id)
@@ -1974,7 +1974,7 @@ export default function POS() {
         mobileMoneyExpenses -
         mobileMoneySupplierPaymentsAmount;
 
-      const { error } = await supabase
+      const { error } = await dataClient
         .from('cash_sessions')
         .update({
           closing_cash: closingCash,
@@ -2061,7 +2061,7 @@ export default function POS() {
 
     // Query variant and product barcode in PARALLEL for maximum speed
     const [variantResult, productResult] = await Promise.all([
-      supabase
+      dataClient
         .from('product_variants')
         .select(`
           id, label, quantity, unit, price, is_available, is_default, barcode, product_id,
@@ -2071,7 +2071,7 @@ export default function POS() {
         .eq('is_available', true)
         .limit(1)
         .single(),
-      supabase
+      dataClient
         .from('products')
         .select(`
           *, product_variants (id, label, quantity, unit, price, is_available, is_default, barcode)
@@ -2231,7 +2231,7 @@ export default function POS() {
         if (shouldUseLocalData()) {
           data = (await offlineDB.getCustomerProductPrices()).filter((item: any) => item.customer_id === selectedCustomer.id);
         } else {
-          const result = await supabase
+          const result = await dataClient
             .from('customer_product_prices')
             .select('product_id, price')
             .eq('customer_id', selectedCustomer.id);
@@ -2308,7 +2308,7 @@ export default function POS() {
       // Fetch the new customer details
       const fetchNewCustomer = async () => {
         try {
-          const { data: customer, error } = await supabase
+          const { data: customer, error } = await dataClient
             .from('contacts')
             .select('*')
             .eq('id', newCustomerId)
@@ -2339,7 +2339,7 @@ export default function POS() {
       // Fetch and add the new product to cart
       const fetchAndAddProduct = async () => {
         try {
-          const { data: product, error } = await supabase
+          const { data: product, error } = await dataClient
             .from('products')
             .select(`
               id,
@@ -2753,7 +2753,7 @@ export default function POS() {
           }))
         );
       } else {
-        const { error } = await supabase
+        const { error } = await dataClient
           .from('customer_product_prices')
           .upsert(pricesToUpsert, {
             onConflict: 'customer_id,product_id'
@@ -2890,12 +2890,12 @@ export default function POS() {
         // Parallel fetch for dual-role customers
         if (isUnifiedBalance && selectedCustomer.supplier_ledger_account_id) {
           const [customerResult, supplierResult] = await Promise.all([
-            supabase
+            dataClient
               .from('accounts')
               .select('current_balance')
               .eq('id', selectedCustomer.customer_ledger_account_id)
               .single(),
-            supabase
+            dataClient
               .from('accounts')
               .select('current_balance')
               .eq('id', selectedCustomer.supplier_ledger_account_id)
@@ -2908,7 +2908,7 @@ export default function POS() {
           }
         } else {
           // Single account fetch
-          const { data: customerAccount } = await supabase
+          const { data: customerAccount } = await dataClient
             .from('accounts')
             .select('current_balance')
             .eq('id', selectedCustomer.customer_ledger_account_id)
@@ -3067,7 +3067,7 @@ export default function POS() {
         }
 
         // Fetch wholesale prices for products
-        const { data: products, error: productsError } = await supabase
+        const { data: products, error: productsError } = await dataClient
           .from('products')
           .select('id, wholesale_price, price')
           .in('id', productIds);
@@ -3079,7 +3079,7 @@ export default function POS() {
 
         let variants: any[] = [];
         if (variantIds.length > 0) {
-          const { data: variantData } = await supabase
+          const { data: variantData } = await dataClient
             .from('product_variants')
             .select('id, wholesale_price, price')
             .in('id', variantIds);
@@ -3193,7 +3193,7 @@ export default function POS() {
       }
 
       // Fetch the most recent transaction for this cashier
-      const { data: transaction, error } = await supabase
+      const { data: transaction, error } = await dataClient
         .from('pos_transactions')
         .select('*')
         .eq('cashier_id', user.id)
@@ -3214,7 +3214,7 @@ export default function POS() {
       console.log('📄 [LAST RECEIPT] Customer ID:', transaction.customer_id);
       
       if (transaction.customer_id) {
-        const { data: contact, error: contactError } = await supabase
+        const { data: contact, error: contactError } = await dataClient
           .from('contacts')
           .select('name, customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
           .eq('id', transaction.customer_id)
@@ -3233,7 +3233,7 @@ export default function POS() {
           if (contact.is_customer && contact.customer_ledger_account_id) {
             console.log('📄 [LAST RECEIPT] Fetching balance from account:', contact.customer_ledger_account_id);
             
-            const { data: customerAccount, error: accountError } = await supabase
+            const { data: customerAccount, error: accountError } = await dataClient
               .from('accounts')
               .select('current_balance, account_name')
               .eq('id', contact.customer_ledger_account_id)
