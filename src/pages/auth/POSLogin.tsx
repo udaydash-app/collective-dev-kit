@@ -179,6 +179,7 @@ export default function POSLogin() {
       if (isElectronLocalDb()) {
         // pin_hash is bcrypt-hashed via pgcrypto's crypt(); compare with crypt(input, pin_hash).
         let localUser: (VerifyPinResult & { id?: string }) | undefined;
+        let localDbUsable = true;
         try {
           const rows = await localRows<VerifyPinResult>(
             `SELECT id AS pos_user_id, user_id, full_name
@@ -190,32 +191,45 @@ export default function POSLogin() {
           localUser = rows[0];
         } catch (e) {
           // Fallback if pgcrypto isn't in `extensions` schema
-          const rows = await localRows<VerifyPinResult>(
-            `SELECT id AS pos_user_id, user_id, full_name
-             FROM pos_users
-             WHERE pin_hash = crypt(?, pin_hash) AND is_active = TRUE
-             LIMIT 1`,
-            [pinValue],
-          );
-          localUser = rows[0];
+          try {
+            const rows = await localRows<VerifyPinResult>(
+              `SELECT id AS pos_user_id, user_id, full_name
+               FROM pos_users
+               WHERE pin_hash = crypt(?, pin_hash) AND is_active = TRUE
+               LIMIT 1`,
+              [pinValue],
+            );
+            localUser = rows[0];
+          } catch (e2) {
+            // Local DB has no pos_users table (empty/unseeded). Fall back to cloud.
+            console.warn('[POSLogin] Local DB unusable, falling back to cloud RPC:', (e2 as Error)?.message);
+            localDbUsable = false;
+          }
         }
-        if (!localUser) {
+        if (localDbUsable && !localUser) {
           toast.error('Invalid PIN. Please try again.');
           setPin('');
           return;
         }
-        localStorage.setItem('offline_pos_session', JSON.stringify({
+        if (localDbUsable && localUser) {
+          localStorage.setItem('offline_pos_session', JSON.stringify({
           pos_user_id: localUser.pos_user_id,
           user_id: localUser.user_id,
           full_name: localUser.full_name,
           timestamp: new Date().toISOString(),
           electron: true,
           local: true,
-        }));
-        sessionStorage.setItem('current_pos_pin', pinValue);
-        toast.success(`Welcome, ${localUser.full_name}!`);
-        navigate('/admin/desktop');
-        return;
+          }));
+          sessionStorage.setItem('current_pos_pin', pinValue);
+          toast.success(`Welcome, ${localUser.full_name}!`);
+          // Background: pull latest from cloud so the local DB gets populated.
+          (async () => {
+            try { await cloudSyncService.syncFromCloud(); } catch (err) { console.warn('Background sync failed:', err); }
+          })();
+          navigate('/admin/desktop');
+          return;
+        }
+        // localDbUsable === false → fall through to cloud RPC path below.
       }
 
       let posUserId: string | null = null;
