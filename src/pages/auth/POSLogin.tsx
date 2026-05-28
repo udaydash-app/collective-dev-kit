@@ -177,10 +177,28 @@ export default function POSLogin() {
 
     try {
       if (isElectronLocalDb()) {
-        const [localUser] = await localRows<VerifyPinResult & { id: string }>(
-          `SELECT id AS pos_user_id, user_id, full_name FROM pos_users WHERE pin_hash = ? AND is_active = 1 LIMIT 1`,
-          [pinValue],
-        );
+        // pin_hash is bcrypt-hashed via pgcrypto's crypt(); compare with crypt(input, pin_hash).
+        let localUser: (VerifyPinResult & { id?: string }) | undefined;
+        try {
+          const rows = await localRows<VerifyPinResult>(
+            `SELECT id AS pos_user_id, user_id, full_name
+             FROM pos_users
+             WHERE pin_hash = extensions.crypt(?, pin_hash) AND is_active = TRUE
+             LIMIT 1`,
+            [pinValue],
+          );
+          localUser = rows[0];
+        } catch (e) {
+          // Fallback if pgcrypto isn't in `extensions` schema
+          const rows = await localRows<VerifyPinResult>(
+            `SELECT id AS pos_user_id, user_id, full_name
+             FROM pos_users
+             WHERE pin_hash = crypt(?, pin_hash) AND is_active = TRUE
+             LIMIT 1`,
+            [pinValue],
+          );
+          localUser = rows[0];
+        }
         if (!localUser) {
           toast.error('Invalid PIN. Please try again.');
           setPin('');
