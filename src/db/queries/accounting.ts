@@ -193,7 +193,7 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
   if (!storeId) return [];
   // Prefer Supabase when online so newly-created expenses appear
   // immediately (PowerSync replication may not be active in PWA mode).
-  if (navigator.onLine) {
+  if (!isElectronLocalDb() && navigator.onLine) {
     try {
       const { data, error } = await supabase
         .from('expenses')
@@ -206,21 +206,17 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
       console.warn('[expenses] Supabase fetch failed, using local', e);
     }
   }
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  return queryRows(
     `SELECT * FROM expenses WHERE store_id = ?
      ORDER BY expense_date DESC, created_at DESC`,
     [storeId],
   );
-  return rowsOf(res);
 }
 
 export async function fetchActiveStoresLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  return queryRows(
     `SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name`,
   );
-  return rowsOf(res);
 }
 
 // ----- Modern Dashboard local-first read --------------------------------
