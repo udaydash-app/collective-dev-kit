@@ -648,26 +648,32 @@ export default function POSLogin() {
           {/* Cache Status Indicators - Only show when offline */}
           {cacheStatus && isOffline && (
             <div className="mt-4 pt-4 border-t space-y-2">
-              {cacheStatus.products > 0 && cacheStatus.stores > 0 && cacheStatus.categories > 0 ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                  <Database className="h-4 w-4" />
-                  <span>Offline: {cacheStatus.products} products available</span>
-                </div>
+              {cacheStatus.users > 0 ? (
+                <>
+                  <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                    <Database className="h-4 w-4" />
+                    <span>
+                      Offline ready: {cacheStatus.users} cached user{cacheStatus.users === 1 ? '' : 's'}, {cacheStatus.products} products
+                    </span>
+                  </div>
+                </>
               ) : (
                 <div className="flex items-center justify-center gap-2 text-sm text-amber-600">
                   <WifiOff className="h-4 w-4" />
-                  <span>No offline data - Login online first to enable offline mode</span>
+                  <span>No cached PIN - login online once to enable offline mode</span>
                 </div>
               )}
             </div>
           )}
-          
+
           {/* Show online status when online */}
-          {!isOffline && cacheStatus && cacheStatus.products > 0 && (
+          {!isOffline && cacheStatus && (cacheStatus.products > 0 || cacheStatus.users > 0) && (
             <div className="mt-4 pt-4 border-t">
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Database className="h-4 w-4" />
-                <span>{cacheStatus.products} products cached for offline use</span>
+                <span>
+                  Offline cache: {cacheStatus.users} user{cacheStatus.users === 1 ? '' : 's'}, {cacheStatus.products} products
+                </span>
               </div>
             </div>
           )}
