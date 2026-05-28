@@ -1,5 +1,6 @@
 import { connectPowerSync } from "@/db/powersync";
 import { supabase } from "@/integrations/supabase/client";
+import { isElectronLocalDb, localRows } from "@/integrations/db/localSql";
 
 // Local-first reads for the Accounting module. Reads journal entries +
 // lines + accounts from the local PowerSync SQLite mirror so the pages
@@ -11,17 +12,22 @@ const rowsOf = (res: any): Row[] =>
   Array.isArray(res) ? res : (res?.rows?._array ?? []);
 const toBool = (v: any) => v === 1 || v === true;
 
-export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}): Promise<any[]> {
+async function queryRows(sql: string, params: unknown[] = []): Promise<Row[]> {
+  if (isElectronLocalDb()) return localRows<Row>(sql, params);
   const db = await connectPowerSync();
+  const result: any = await db.getAll(sql, params);
+  return rowsOf(result);
+}
+
+export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}): Promise<any[]> {
   const where = opts.includeInactive ? "" : "WHERE is_active = 1";
-  const res: any = await db.getAll(
+  const local = await queryRows(
     `SELECT id, account_code, account_name, account_type, description,
             parent_account_id, opening_balance, current_balance, is_active,
             created_at, updated_at
      FROM accounts ${where} ORDER BY account_code`,
   );
-  const local = rowsOf(res);
-  if (local.length === 0 && navigator.onLine) {
+  if (!isElectronLocalDb() && local.length === 0 && navigator.onLine) {
     try {
       let q = supabase.from("accounts").select("*").order("account_code");
       if (!opts.includeInactive) q = q.eq("is_active", true);
