@@ -51,6 +51,7 @@ import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, en
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { db as dataClient } from '@/integrations/db/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
@@ -327,7 +328,7 @@ export default function POS() {
     let cancelled = false;
     const ping = async () => {
       try {
-        await supabase.from('product_variants').select('id').limit(1);
+        await dataClient.from('product_variants').select('id').limit(1);
       } catch {
         // ignore - just keeping connection warm
       }
