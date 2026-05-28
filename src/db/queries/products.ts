@@ -416,12 +416,11 @@ export async function findPosProductByBarcodeLocal(
     return cachedIndex.barcodeMap.get(bc) ?? null;
   }
 
-  const db = await connectPowerSync();
   const exact = barcode.trim();
   const prefix = `${exact}%`;
   // Pull only index-friendly barcode candidates first. Comma-separated legacy
   // barcodes still work when the scanned value is the first listed barcode.
-  const varRes: any = await db.getAll(
+  const candidateVarRows = await queryRows(
     `SELECT id, product_id, label, quantity, unit, price,
             is_available, is_default, barcode, stock_quantity
      FROM product_variants
@@ -429,7 +428,6 @@ export async function findPosProductByBarcodeLocal(
      LIMIT 20`,
     [exact, prefix],
   );
-  const candidateVarRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
 
   // Prefer exact variant match.
   const matchVar = candidateVarRows.find((v) => {
@@ -438,33 +436,30 @@ export async function findPosProductByBarcodeLocal(
   });
   if (matchVar) {
     // Load the parent product (with all variants).
-    const parentRes: any = await db.getAll(
+    const parentRows = await queryRows(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products WHERE id = ?`,
       [matchVar.product_id],
     );
-    const parentRows: Row[] = Array.isArray(parentRes) ? parentRes : (parentRes?.rows?._array ?? []);
     if (!parentRows[0]) return null;
-    const allVarsRes: any = await db.getAll(
+    const allVarRows = await queryRows(
       `SELECT id, product_id, label, quantity, unit, price, is_available,
               is_default, barcode, stock_quantity
        FROM product_variants WHERE product_id = ?`,
       [matchVar.product_id],
     );
-    const allVarRows: Row[] = Array.isArray(allVarsRes) ? allVarsRes : (allVarsRes?.rows?._array ?? []);
     const [product] = mapPosProducts(parentRows, allVarRows);
     const variant = product.product_variants.find((v) => v.id === matchVar.id) ?? null;
     return { product, variant };
   }
 
-  const prodRes: any = await db.getAll(
+  const candidateProdRows = await queryRows(
     `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
      FROM products
      WHERE is_available = 1 AND (barcode = ? OR barcode LIKE ? COLLATE NOCASE)
      LIMIT 20`,
     [exact, prefix],
   );
-  const candidateProdRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
 
   // Otherwise an exact product-level barcode match.
   const matchProd = candidateProdRows.find((p) => {
@@ -472,13 +467,12 @@ export async function findPosProductByBarcodeLocal(
     return p.barcode.split(",").some((b: string) => b.trim().toLowerCase() === bc);
   });
   if (matchProd) {
-    const allVarsRes: any = await db.getAll(
+    const allVarRows = await queryRows(
       `SELECT id, product_id, label, quantity, unit, price, is_available,
               is_default, barcode, stock_quantity
        FROM product_variants WHERE product_id = ?`,
       [matchProd.id],
     );
-    const allVarRows: Row[] = Array.isArray(allVarsRes) ? allVarsRes : (allVarsRes?.rows?._array ?? []);
     const [product] = mapPosProducts([matchProd], allVarRows);
     const availableVariants = product.product_variants.filter((v) => v.is_available);
     const variant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
@@ -488,7 +482,7 @@ export async function findPosProductByBarcodeLocal(
   // Last-resort fallback for legacy comma-separated barcode strings where the
   // scanned value appears after the first comma. This only runs on no match.
   const contains = `%${exact}%`;
-  const legacyRes: any = await db.getAll(
+  const legacyRows = await queryRows(
     `SELECT id, product_id, label, quantity, unit, price,
             is_available, is_default, barcode, stock_quantity
      FROM product_variants
@@ -496,49 +490,44 @@ export async function findPosProductByBarcodeLocal(
      LIMIT 20`,
     [contains],
   );
-  const legacyRows: Row[] = Array.isArray(legacyRes) ? legacyRes : (legacyRes?.rows?._array ?? []);
   const legacyVar = legacyRows.find((v) =>
     v.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
   );
   if (legacyVar) {
-    const parentRes: any = await db.getAll(
+    const parentRows = await queryRows(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products WHERE id = ?`,
       [legacyVar.product_id],
     );
-    const parentRows: Row[] = Array.isArray(parentRes) ? parentRes : (parentRes?.rows?._array ?? []);
     if (!parentRows[0]) return null;
-    const allVarsRes: any = await db.getAll(
+    const allVarRows = await queryRows(
       `SELECT id, product_id, label, quantity, unit, price, is_available,
               is_default, barcode, stock_quantity
        FROM product_variants WHERE product_id = ?`,
       [legacyVar.product_id],
     );
-    const allVarRows: Row[] = Array.isArray(allVarsRes) ? allVarsRes : (allVarsRes?.rows?._array ?? []);
     const [product] = mapPosProducts(parentRows, allVarRows);
     const variant = product.product_variants.find((v) => v.id === legacyVar.id) ?? null;
     return { product, variant };
   }
 
-  const legacyProdRes: any = await db.getAll(
+  const legacyProdRows = await queryRows(
     `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
      FROM products
      WHERE is_available = 1 AND barcode LIKE ? COLLATE NOCASE
      LIMIT 20`,
     [contains],
   );
-  const legacyProdRows: Row[] = Array.isArray(legacyProdRes) ? legacyProdRes : (legacyProdRes?.rows?._array ?? []);
   const legacyProd = legacyProdRows.find((p) =>
     p.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
   );
   if (legacyProd) {
-    const allVarsRes: any = await db.getAll(
+    const allVarRows = await queryRows(
       `SELECT id, product_id, label, quantity, unit, price, is_available,
               is_default, barcode, stock_quantity
        FROM product_variants WHERE product_id = ?`,
       [legacyProd.id],
     );
-    const allVarRows: Row[] = Array.isArray(allVarsRes) ? allVarsRes : (allVarsRes?.rows?._array ?? []);
     const [product] = mapPosProducts([legacyProd], allVarRows);
     const availableVariants = product.product_variants.filter((v) => v.is_available);
     const variant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
