@@ -12,10 +12,23 @@ type Row = Record<string, any>;
 const toBool = (v: any) => v === 1 || v === true;
 
 async function queryRows(sql: string, params: unknown[] = []): Promise<Row[]> {
-  if (isElectronLocalDb()) return localRows<Row>(sql, params);
-  const db = await connectPowerSync();
-  const result: any = await db.getAll(sql, params);
-  return Array.isArray(result) ? result : (result?.rows?._array ?? []);
+  if (isElectronLocalDb()) {
+    try {
+      return await localRows<Row>(sql, params);
+    } catch (e) {
+      // Local PGlite table missing or empty — return [] so callers fall back to cloud.
+      console.warn('[products] Local PGlite query failed, will try cloud:', (e as Error)?.message);
+      return [];
+    }
+  }
+  try {
+    const db = await connectPowerSync();
+    const result: any = await db.getAll(sql, params);
+    return Array.isArray(result) ? result : (result?.rows?._array ?? []);
+  } catch (e) {
+    console.warn('[products] PowerSync query failed, will try cloud:', (e as Error)?.message);
+    return [];
+  }
 }
 
 function parseVariants(json: string | null): any[] {
