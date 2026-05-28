@@ -343,20 +343,18 @@ export async function searchPosProductsLocal(
     return results;
   }
 
-  const db = await connectPowerSync();
   const productRowsById = new Map<string, Row>();
   if (!term) {
-    const prodRes: any = await db.getAll(
+    const prodRows = await queryRows(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products WHERE is_available = 1 ORDER BY name LIMIT ?`,
       [limit],
     );
-    const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
     prodRows.forEach((p) => productRowsById.set(p.id, p));
   } else {
     const exact = term.trim();
     const prefix = `${exact}%`;
-    const prodRes: any = await db.getAll(
+    const prodRows = await queryRows(
       `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
        FROM products
        WHERE is_available = 1
@@ -364,11 +362,10 @@ export async function searchPosProductsLocal(
        ORDER BY name LIMIT ?`,
       [exact, prefix, prefix, limit],
     );
-    const prodRows: Row[] = Array.isArray(prodRes) ? prodRes : (prodRes?.rows?._array ?? []);
     prodRows.forEach((p) => productRowsById.set(p.id, p));
 
     if (productRowsById.size < limit) {
-      const varMatchRes: any = await db.getAll(
+      const varProductRows = await queryRows(
         `SELECT DISTINCT p.id, p.name, p.price, p.barcode, p.is_available, p.stock_quantity, p.cost_price
          FROM product_variants v
          JOIN products p ON p.id = v.product_id
@@ -377,13 +374,12 @@ export async function searchPosProductsLocal(
          ORDER BY p.name LIMIT ?`,
         [exact, prefix, limit - productRowsById.size],
       );
-      const varProductRows: Row[] = Array.isArray(varMatchRes) ? varMatchRes : (varMatchRes?.rows?._array ?? []);
       varProductRows.forEach((p) => productRowsById.set(p.id, p));
     }
 
     if (productRowsById.size === 0) {
       const contains = `%${exact}%`;
-      const fallbackRes: any = await db.getAll(
+      const fallbackRows = await queryRows(
         `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
          FROM products
          WHERE is_available = 1
@@ -391,7 +387,6 @@ export async function searchPosProductsLocal(
          ORDER BY name LIMIT ?`,
         [contains, contains, limit],
       );
-      const fallbackRows: Row[] = Array.isArray(fallbackRes) ? fallbackRes : (fallbackRes?.rows?._array ?? []);
       fallbackRows.forEach((p) => productRowsById.set(p.id, p));
     }
   }
@@ -399,13 +394,12 @@ export async function searchPosProductsLocal(
   if (prodRows.length === 0) return [];
   const ids = prodRows.map((p) => p.id);
   const placeholders = ids.map(() => "?").join(",");
-  const varRes: any = await db.getAll(
+  const varRows = await queryRows(
     `SELECT id, product_id, label, quantity, unit, price, is_available,
             is_default, barcode, stock_quantity
      FROM product_variants WHERE product_id IN (${placeholders})`,
     ids,
   );
-  const varRows: Row[] = Array.isArray(varRes) ? varRes : (varRes?.rows?._array ?? []);
   return mapPosProducts(prodRows, varRows);
 }
 
