@@ -1,6 +1,7 @@
 import { connectPowerSync } from "@/db/powersync";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronLocalDb, localRows } from "@/integrations/db/localSql";
+import { offlineDB } from "@/lib/offlineDB";
 
 // Reactive-ish helpers that read products/categories/stores/suppliers
 // from the local PowerSync SQLite database. JOINs are executed locally,
@@ -141,9 +142,21 @@ export async function fetchCategoriesLocal() {
         .select("id, name")
         .eq("is_active", true)
         .order("name");
-      if (data) return data as any[];
+      if (data && data.length > 0) return data as any[];
     } catch (e) {
       console.warn("[categories] Supabase fallback failed", e);
+    }
+  }
+  if (rows.length === 0) {
+    try {
+      const cached = await offlineDB.getCategories?.();
+      if (cached && cached.length > 0) {
+        return cached
+          .filter((c: any) => c.is_active !== false)
+          .map((c: any) => ({ id: c.id, name: c.name }));
+      }
+    } catch (e) {
+      console.warn("[categories] IndexedDB fallback failed", e);
     }
   }
   return rows.map((r) => ({ id: r.id, name: r.name }));
@@ -160,9 +173,21 @@ export async function fetchStoresLocal() {
         .select("id, name")
         .eq("is_active", true)
         .order("name");
-      if (data) return data as any[];
+      if (data && data.length > 0) return data as any[];
     } catch (e) {
       console.warn("[stores] Supabase fallback failed", e);
+    }
+  }
+  if (rows.length === 0) {
+    try {
+      const cached = await offlineDB.getStores();
+      if (cached && cached.length > 0) {
+        return cached
+          .filter((s: any) => s.is_active !== false)
+          .map((s: any) => ({ id: s.id, name: s.name }));
+      }
+    } catch (e) {
+      console.warn("[stores] IndexedDB fallback failed", e);
     }
   }
   return rows.map((r) => ({ id: r.id, name: r.name }));
@@ -179,7 +204,7 @@ export async function fetchSuppliersLocal() {
         .select("id, name")
         .eq("is_supplier", true)
         .order("name");
-      if (data) return data as any[];
+      if (data && data.length > 0) return data as any[];
     } catch (e) {
       console.warn("[suppliers] Supabase fallback failed", e);
     }
