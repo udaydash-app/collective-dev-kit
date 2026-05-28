@@ -224,7 +224,6 @@ export async function fetchActiveStoresLocal(): Promise<any[]> {
 // direct-query path: pos_transactions/orders/pos_users/purchases/expenses/
 // journal_entries/accounts + counts.products/contacts/lowStock.
 export async function fetchModernDashboardLocal(since: string) {
-  const db = await connectPowerSync();
   const [
     txRes,
     ordersRes,
@@ -237,46 +236,46 @@ export async function fetchModernDashboardLocal(since: string) {
     contactCountRes,
     lowStockRes,
   ] = await Promise.all([
-    db.getAll(
+    queryRows(
       `SELECT id, transaction_number, total, subtotal, discount, tax,
               payment_method, created_at, items, cashier_id
        FROM pos_transactions WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 500`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, order_number, total, status, payment_status, created_at
        FROM orders WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 200`,
       [since],
     ),
-    db.getAll(`SELECT id, full_name, is_active FROM pos_users`),
-    db.getAll(
+    queryRows(`SELECT id, full_name, is_active FROM pos_users`),
+    queryRows(
       `SELECT id, purchase_number, supplier_name, total_amount, created_at
        FROM purchases WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, description, category, amount, expense_date, created_at
        FROM expenses WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, entry_number, reference, description, entry_date, status, created_at
        FROM journal_entries WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, account_code, account_name, account_type, current_balance
        FROM accounts WHERE is_active = 1
        ORDER BY account_code ASC LIMIT 500`,
     ),
-    db.getAll(`SELECT COUNT(*) AS c FROM products`),
-    db.getAll(`SELECT COUNT(*) AS c FROM contacts`),
-    db.getAll(`SELECT COUNT(*) AS c FROM products WHERE stock_quantity <= 5`),
+    queryRows(`SELECT COUNT(*) AS c FROM products`),
+    queryRows(`SELECT COUNT(*) AS c FROM contacts`),
+    queryRows(`SELECT COUNT(*) AS c FROM products WHERE stock_quantity <= 5`),
   ]);
 
   const parseItems = (rows: any[]) =>
