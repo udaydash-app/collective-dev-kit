@@ -99,7 +99,7 @@ export const AppWindow = React.memo(function AppWindow({ win, desktopBounds, top
               </div>
             }
           >
-            <DesktopWindowContext.Provider value={true}>
+            <DesktopWindowContext.Provider value={win.id}>
               <Component />
             </DesktopWindowContext.Provider>
           </Suspense>
