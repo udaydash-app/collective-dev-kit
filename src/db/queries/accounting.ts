@@ -494,19 +494,17 @@ export interface LocalJournalFilter {
 
 export async function fetchAccountByIdLocal(accountId: string): Promise<any | null> {
   if (!accountId) return null;
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT * FROM accounts WHERE id = ? LIMIT 1`,
     [accountId],
   );
-  const row = rowsOf(res)[0];
+  const row = rows[0];
   return row ? { ...row, is_active: toBool(row.is_active) } : null;
 }
 
 export async function fetchContactByLedgerAccountLocal(accountId: string): Promise<any | null> {
   if (!accountId) return null;
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT opening_balance, supplier_opening_balance,
             customer_ledger_account_id, supplier_ledger_account_id,
             is_customer, is_supplier
@@ -515,7 +513,7 @@ export async function fetchContactByLedgerAccountLocal(accountId: string): Promi
      LIMIT 1`,
     [accountId, accountId],
   );
-  const row = rowsOf(res)[0];
+  const row = rows[0];
   if (!row) return null;
   return {
     ...row,
@@ -532,7 +530,6 @@ export async function fetchAccountLinesLocal(
   opts: { startDate?: string; endDate?: string; includePrior?: boolean } = {},
 ): Promise<any[]> {
   if (!accountId) return [];
-  const db = await connectPowerSync();
   const clauses: string[] = [
     "l.account_id = ?",
     "e.status = 'posted'",
@@ -547,7 +544,7 @@ export async function fetchAccountLinesLocal(
     clauses.push("e.entry_date <= ?");
     args.push(opts.endDate);
   }
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT l.*, e.entry_number, e.entry_date, e.description AS je_description,
             e.reference, e.notes AS je_notes, e.status
      FROM journal_entry_lines l
@@ -555,7 +552,7 @@ export async function fetchAccountLinesLocal(
      WHERE ${clauses.join(' AND ')}`,
     args,
   );
-  return rowsOf(res).map((r: any) => ({
+  return rows.map((r: any) => ({
     ...r,
     journal_entries: {
       entry_number: r.entry_number,
