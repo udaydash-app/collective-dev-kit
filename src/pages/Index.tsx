@@ -5,6 +5,17 @@ export default function Index() {
   const [destination, setDestination] = useState<string | null>(null);
 
   useEffect(() => {
+    // Windows desktop app must always start at PIN login; a previous POS
+    // session should not auto-open /admin/pos on app launch.
+    const isElectron = !!(window as any).electron;
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                  (window.navigator as any).standalone === true;
+
+    if (isElectron || isPWA) {
+      setDestination("/pos-login");
+      return;
+    }
+
     // If a POS PIN session exists, always return to the POS app
     try {
       const sessRaw = localStorage.getItem("offline_pos_session");
@@ -16,20 +27,7 @@ export default function Index() {
       }
     } catch {}
 
-    // Check if running as Electron desktop app
-    const isElectron = !!(window as any).electron;
-    
-    // Check if running as installed PWA (standalone mode)
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                  (window.navigator as any).standalone === true;
-    
-    // Only redirect to POS login for actual PWA/Electron apps
-    // Regular website visitors ALWAYS go to home page
-    if (isElectron || isPWA) {
-      setDestination("/pos-login");
-    } else {
-      setDestination("/home");
-    }
+    setDestination("/home");
   }, []);
 
   // Wait for detection - default to home if taking too long
