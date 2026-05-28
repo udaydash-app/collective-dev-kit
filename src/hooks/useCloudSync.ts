@@ -5,19 +5,20 @@
 import { useEffect, useState } from 'react';
 import { cloudSyncService } from '@/lib/cloudSyncService';
 import { isLocalSupabase } from '@/lib/localModeHelper';
+import { isElectronLocalDb } from '@/integrations/db/localSql';
 
 export const useCloudSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only start cloud sync if we're using local Supabase
-    if (!isLocalSupabase()) {
-      console.log('[CloudSync] Not using local Supabase, skipping cloud sync setup');
+    // Start cloud sync for LAN local Supabase and Windows embedded local DB.
+    if (!isLocalSupabase() && !isElectronLocalDb()) {
+      console.log('[CloudSync] No local database mode detected, skipping cloud sync setup');
       return;
     }
 
-    console.log('[CloudSync] Local Supabase detected, cloud sync will run when internet is available');
+    console.log('[CloudSync] Local database detected, cloud sync will run when internet is available');
     
     // Start auto-sync every 5 minutes (service checks internet availability internally)
     cloudSyncService.startAutoSync(300000);

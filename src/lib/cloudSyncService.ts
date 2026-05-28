@@ -12,6 +12,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isElectronLocalDb, localRows, localUpsertRows } from '@/integrations/db/localSql';
 
 // Cloud Supabase configuration (the original cloud instance)
 const CLOUD_SUPABASE_URL = 'https://wvdrsofehwiopbkzrqit.supabase.co';
@@ -195,6 +196,14 @@ class CloudSyncService {
     try {
       // Get records updated since last sync from local
       // Use any to bypass strict typing since we're dynamically accessing tables
+      if (isElectronLocalDb()) {
+        const localData = await localRows(`SELECT * FROM ${tableName}`);
+        if (!localData.length) return { synced: 0 };
+        const { error: cloudError } = await (this.cloudClient.from as any)(tableName)
+          .upsert(localData, { onConflict: 'id', ignoreDuplicates: false });
+        return cloudError ? { synced: 0, error: cloudError.message } : { synced: localData.length };
+      }
+
       const baseQuery = (supabase.from as any)(tableName).select('*');
       
       let query = baseQuery;
@@ -380,6 +389,11 @@ class CloudSyncService {
       console.log(`[CloudSync] Pulling ${cloudData.length} records from cloud ${tableName}`);
 
       // Upsert to local (use id as the conflict resolution key)
+      if (isElectronLocalDb()) {
+        await localUpsertRows(tableName, cloudData, 'id');
+        return { synced: cloudData.length };
+      }
+
       const { error: localError } = await (supabase.from as any)(tableName)
         .upsert(cloudData, { 
           onConflict: 'id',

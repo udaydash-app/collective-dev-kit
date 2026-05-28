@@ -1,5 +1,6 @@
 import { connectPowerSync } from "@/db/powersync";
 import { supabase } from "@/integrations/supabase/client";
+import { isElectronLocalDb, localRows } from "@/integrations/db/localSql";
 
 // Local-first reads for the Accounting module. Reads journal entries +
 // lines + accounts from the local PowerSync SQLite mirror so the pages
@@ -11,17 +12,22 @@ const rowsOf = (res: any): Row[] =>
   Array.isArray(res) ? res : (res?.rows?._array ?? []);
 const toBool = (v: any) => v === 1 || v === true;
 
-export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}): Promise<any[]> {
+async function queryRows(sql: string, params: unknown[] = []): Promise<Row[]> {
+  if (isElectronLocalDb()) return localRows<Row>(sql, params);
   const db = await connectPowerSync();
+  const result: any = await db.getAll(sql, params);
+  return rowsOf(result);
+}
+
+export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {}): Promise<any[]> {
   const where = opts.includeInactive ? "" : "WHERE is_active = 1";
-  const res: any = await db.getAll(
+  const local = await queryRows(
     `SELECT id, account_code, account_name, account_type, description,
             parent_account_id, opening_balance, current_balance, is_active,
             created_at, updated_at
      FROM accounts ${where} ORDER BY account_code`,
   );
-  const local = rowsOf(res);
-  if (local.length === 0 && navigator.onLine) {
+  if (!isElectronLocalDb() && local.length === 0 && navigator.onLine) {
     try {
       let q = supabase.from("accounts").select("*").order("account_code");
       if (!opts.includeInactive) q = q.eq("is_active", true);
@@ -42,7 +48,6 @@ export async function fetchAccountBalancesLocal(opts: {
   endDate?: string;
   accountTypes?: string[];
 } = {}): Promise<any[]> {
-  const db = await connectPowerSync();
   const typeFilter = opts.accountTypes && opts.accountTypes.length
     ? `AND a.account_type IN (${opts.accountTypes.map(() => '?').join(',')})`
     : '';
@@ -68,8 +73,8 @@ export async function fetchAccountBalancesLocal(opts: {
     GROUP BY a.id
     ORDER BY a.account_code
   `;
-  const res: any = await db.getAll(sql, [...lineArgs, ...args]);
-  return rowsOf(res).map((r: any) => ({
+  const rows = await queryRows(sql, [...lineArgs, ...args]);
+  return rows.map((r: any) => ({
     ...r,
     is_active: toBool(r.is_active),
     total_debit: Number(r.total_debit) || 0,
@@ -154,14 +159,13 @@ function safeJson(s: any): any[] {
 }
 
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT id, name, is_customer, is_supplier,
             customer_ledger_account_id, supplier_ledger_account_id,
             opening_balance, supplier_opening_balance
      FROM contacts ORDER BY name`,
   );
-  return rowsOf(res).map((r) => ({
+  return rows.map((r) => ({
     ...r,
     is_customer: toBool(r.is_customer),
     is_supplier: toBool(r.is_supplier),
@@ -169,15 +173,14 @@ export async function fetchContactsForLedgerLocal(): Promise<any[]> {
 }
 
 export async function fetchAccountsWithParentLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT a.*, p.account_name AS parent_account_name, p.account_code AS parent_account_code
      FROM accounts a
      LEFT JOIN accounts p ON p.id = a.parent_account_id
      WHERE a.is_active = 1
      ORDER BY a.account_code`,
   );
-  return rowsOf(res).map((r: any) => ({
+  return rows.map((r: any) => ({
     ...r,
     is_active: toBool(r.is_active),
     parent: r.parent_account_name
@@ -190,7 +193,7 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
   if (!storeId) return [];
   // Prefer Supabase when online so newly-created expenses appear
   // immediately (PowerSync replication may not be active in PWA mode).
-  if (navigator.onLine) {
+  if (!isElectronLocalDb() && navigator.onLine) {
     try {
       const { data, error } = await supabase
         .from('expenses')
@@ -203,21 +206,17 @@ export async function fetchExpensesLocal(storeId: string): Promise<any[]> {
       console.warn('[expenses] Supabase fetch failed, using local', e);
     }
   }
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  return queryRows(
     `SELECT * FROM expenses WHERE store_id = ?
      ORDER BY expense_date DESC, created_at DESC`,
     [storeId],
   );
-  return rowsOf(res);
 }
 
 export async function fetchActiveStoresLocal(): Promise<any[]> {
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  return queryRows(
     `SELECT id, name FROM stores WHERE is_active = 1 ORDER BY name`,
   );
-  return rowsOf(res);
 }
 
 // ----- Modern Dashboard local-first read --------------------------------
@@ -225,7 +224,6 @@ export async function fetchActiveStoresLocal(): Promise<any[]> {
 // direct-query path: pos_transactions/orders/pos_users/purchases/expenses/
 // journal_entries/accounts + counts.products/contacts/lowStock.
 export async function fetchModernDashboardLocal(since: string) {
-  const db = await connectPowerSync();
   const [
     txRes,
     ordersRes,
@@ -238,46 +236,46 @@ export async function fetchModernDashboardLocal(since: string) {
     contactCountRes,
     lowStockRes,
   ] = await Promise.all([
-    db.getAll(
+    queryRows(
       `SELECT id, transaction_number, total, subtotal, discount, tax,
               payment_method, created_at, items, cashier_id
        FROM pos_transactions WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 500`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, order_number, total, status, payment_status, created_at
        FROM orders WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 200`,
       [since],
     ),
-    db.getAll(`SELECT id, full_name, is_active FROM pos_users`),
-    db.getAll(
+    queryRows(`SELECT id, full_name, is_active FROM pos_users`),
+    queryRows(
       `SELECT id, purchase_number, supplier_name, total_amount, created_at
        FROM purchases WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, description, category, amount, expense_date, created_at
        FROM expenses WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, entry_number, reference, description, entry_date, status, created_at
        FROM journal_entries WHERE created_at >= ?
        ORDER BY created_at DESC LIMIT 50`,
       [since],
     ),
-    db.getAll(
+    queryRows(
       `SELECT id, account_code, account_name, account_type, current_balance
        FROM accounts WHERE is_active = 1
        ORDER BY account_code ASC LIMIT 500`,
     ),
-    db.getAll(`SELECT COUNT(*) AS c FROM products`),
-    db.getAll(`SELECT COUNT(*) AS c FROM contacts`),
-    db.getAll(`SELECT COUNT(*) AS c FROM products WHERE stock_quantity <= 5`),
+    queryRows(`SELECT COUNT(*) AS c FROM products`),
+    queryRows(`SELECT COUNT(*) AS c FROM contacts`),
+    queryRows(`SELECT COUNT(*) AS c FROM products WHERE stock_quantity <= 5`),
   ]);
 
   const parseItems = (rows: any[]) =>
@@ -496,19 +494,17 @@ export interface LocalJournalFilter {
 
 export async function fetchAccountByIdLocal(accountId: string): Promise<any | null> {
   if (!accountId) return null;
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT * FROM accounts WHERE id = ? LIMIT 1`,
     [accountId],
   );
-  const row = rowsOf(res)[0];
+  const row = rows[0];
   return row ? { ...row, is_active: toBool(row.is_active) } : null;
 }
 
 export async function fetchContactByLedgerAccountLocal(accountId: string): Promise<any | null> {
   if (!accountId) return null;
-  const db = await connectPowerSync();
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT opening_balance, supplier_opening_balance,
             customer_ledger_account_id, supplier_ledger_account_id,
             is_customer, is_supplier
@@ -517,7 +513,7 @@ export async function fetchContactByLedgerAccountLocal(accountId: string): Promi
      LIMIT 1`,
     [accountId, accountId],
   );
-  const row = rowsOf(res)[0];
+  const row = rows[0];
   if (!row) return null;
   return {
     ...row,
@@ -534,7 +530,6 @@ export async function fetchAccountLinesLocal(
   opts: { startDate?: string; endDate?: string; includePrior?: boolean } = {},
 ): Promise<any[]> {
   if (!accountId) return [];
-  const db = await connectPowerSync();
   const clauses: string[] = [
     "l.account_id = ?",
     "e.status = 'posted'",
@@ -549,7 +544,7 @@ export async function fetchAccountLinesLocal(
     clauses.push("e.entry_date <= ?");
     args.push(opts.endDate);
   }
-  const res: any = await db.getAll(
+  const rows = await queryRows(
     `SELECT l.*, e.entry_number, e.entry_date, e.description AS je_description,
             e.reference, e.notes AS je_notes, e.status
      FROM journal_entry_lines l
@@ -557,7 +552,7 @@ export async function fetchAccountLinesLocal(
      WHERE ${clauses.join(' AND ')}`,
     args,
   );
-  return rowsOf(res).map((r: any) => ({
+  return rows.map((r: any) => ({
     ...r,
     journal_entries: {
       entry_number: r.entry_number,
@@ -571,14 +566,13 @@ export async function fetchAccountLinesLocal(
 }
 
 export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
-  const db = await connectPowerSync();
   const { start, end, searchQuery = "", page = 0, pageSize = 100 } = filter;
   const q = searchQuery.trim().toLowerCase();
   const isSearching = !!(q || start || end);
 
   // Prefer Supabase when online so newly-created journals appear immediately
   // even if the local PowerSync mirror has not populated in PWA/Electron mode.
-  if (navigator.onLine) {
+  if (!isElectronLocalDb() && navigator.onLine) {
     try {
       const remote = await fetchJournalEntriesFromSupabase(filter);
       if (remote.entries.length > 0 || remote.totalCount > 0) return remote;
@@ -606,25 +600,24 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-  const countRes: any = await db.getAll(
+  const countRows = await queryRows(
     `SELECT COUNT(*) AS c FROM journal_entries ${where}`,
     args,
   );
-  const totalCount = Number(rowsOf(countRes)[0]?.c ?? 0);
+  const totalCount = Number(countRows[0]?.c ?? 0);
 
   const limit = isSearching ? 10000 : pageSize;
   const offset = isSearching ? 0 : page * pageSize;
-  const entryRes: any = await db.getAll(
+  const entries = await queryRows(
     `SELECT * FROM journal_entries ${where}
      ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [...args, limit, offset],
   );
-  const entries = rowsOf(entryRes);
   if (entries.length === 0) return { entries: [], totalCount };
 
   const ids = entries.map((e) => e.id);
   const ph = ids.map(() => "?").join(",");
-  const linesRes: any = await db.getAll(
+  const lines = await queryRows(
     `SELECT l.*, a.account_code, a.account_name
      FROM journal_entry_lines l
      LEFT JOIN accounts a ON a.id = l.account_id
@@ -632,7 +625,7 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     ids,
   );
   const linesByEntry = new Map<string, any[]>();
-  for (const l of rowsOf(linesRes)) {
+  for (const l of lines) {
     const list = linesByEntry.get(l.journal_entry_id) ?? [];
     list.push({
       ...l,
