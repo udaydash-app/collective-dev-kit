@@ -485,15 +485,7 @@ export default function POSLogin() {
         console.error('Auth error (falling back to PIN-only session):', authError);
         // PIN was verified by DB — auth password is just out of sync.
         // Use offline_pos_session so the user can still work.
-        const sessionData = {
-          pos_user_id: posUserId,
-          user_id: userId,
-          full_name: fullName,
-          timestamp: new Date().toISOString(),
-          auth_fallback: true
-        };
-        localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        sessionStorage.setItem('current_pos_pin', pinValue);
+        await storePOSSession('auth_fallback', { posUserId, userId, fullName }, pinValue);
 
         // Try to refresh the auth password in background via manage-pos-user edge function
         const { data: { session: adminSession } } = await supabase.auth.getSession();
@@ -533,15 +525,7 @@ export default function POSLogin() {
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
-      const sessionData = {
-        pos_user_id: posUserId,
-        user_id: userId,
-        full_name: fullName,
-        timestamp: new Date().toISOString(),
-        cloud: true
-      };
-      localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-      sessionStorage.setItem('current_pos_pin', pinValue);
+      await storePOSSession('cloud', { posUserId, userId, fullName }, pinValue);
       
       // Navigate immediately, cache data in background
       navigate('/admin/desktop');
@@ -580,9 +564,9 @@ export default function POSLogin() {
     // If local server config provided, save and reload
     // SECURITY: Only anon key is accepted - service role keys should never be stored client-side
     if (serverUrl.trim()) {
-      const keyToUse = serverKey.trim();
+      const keyToUse = serviceRoleKey.trim() || serverKey.trim();
       if (!keyToUse) {
-        toast.error('Please enter the Anon Key for local server');
+        toast.error('Please enter the Service Role Key or Anon Key for local server');
         return;
       }
       setLocalSupabaseConfig(serverUrl.trim(), keyToUse);
