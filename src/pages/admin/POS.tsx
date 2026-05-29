@@ -889,6 +889,25 @@ export default function POS() {
   const { data: sessionTransactions } = useQuery({
     queryKey: ['today-all-transactions', selectedStoreId, currentCashSession?.opened_at, isOffline ? 'local' : 'online'],
     queryFn: async () => {
+      // Offline fallback: if no active cash session is known (e.g. fresh
+      // offline login where the cash session cache was never seeded), still
+      // show TODAY's transactions from IndexedDB so the recent-sales list
+      // is not blank.
+      if (isOffline && !currentCashSession) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const transactions = await offlineDB.getPOSTransactions();
+          const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+          const startMs = startOfDay.getTime();
+          return transactions
+            .filter(t => (!selectedStoreId || t.store_id === selectedStoreId) && new Date(t.created_at).getTime() >= startMs)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        } catch (e) {
+          console.error('[POS] Error fetching offline transactions (no session):', e);
+          return [];
+        }
+      }
+
       if (!currentCashSession) return [];
 
       // Use IndexedDB in local mode
@@ -918,7 +937,7 @@ export default function POS() {
         customer_name: t.contacts?.name || null
       }));
     },
-    enabled: !!currentCashSession,
+    enabled: !!currentCashSession || isOffline,
     staleTime: isOffline ? Infinity : 30 * 1000,
   });
 
