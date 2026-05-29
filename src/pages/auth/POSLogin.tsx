@@ -343,7 +343,26 @@ export default function POSLogin() {
           
           await storePOSSession('offline', { posUserId, userId, fullName }, pinValue);
           console.log('✅ Stored offline session');
-          
+
+          // Warm the PowerSync products index so the POS product search
+          // works immediately offline (instead of returning an empty list
+          // on the first query after a fresh offline login).
+          try {
+            const { warmPosProductsLocalIndex } = await import('@/db/queries/products');
+            warmPosProductsLocalIndex().catch(() => {});
+          } catch (e) {
+            console.warn('[POSLogin] Could not warm products index:', e);
+          }
+
+          // If we have ZERO cached data, warn the user — most POS features
+          // will appear empty until they connect online at least once.
+          if (cacheStatus && cacheStatus.products === 0) {
+            toast.warning(
+              'No product data cached for offline use. Connect to internet once to sync, then offline mode will work fully.',
+              { duration: 6000 }
+            );
+          }
+
           toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
           await new Promise(resolve => setTimeout(resolve, 500));
           navigate('/admin/desktop');
