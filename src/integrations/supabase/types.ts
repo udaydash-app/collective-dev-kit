@@ -1819,6 +1819,7 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean
+          offline_pin_hash: string | null
           pin_hash: string
           updated_at: string
           user_id: string | null
@@ -1828,6 +1829,7 @@ export type Database = {
           full_name: string
           id?: string
           is_active?: boolean
+          offline_pin_hash?: string | null
           pin_hash: string
           updated_at?: string
           user_id?: string | null
@@ -1837,6 +1839,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          offline_pin_hash?: string | null
           pin_hash?: string
           updated_at?: string
           user_id?: string | null

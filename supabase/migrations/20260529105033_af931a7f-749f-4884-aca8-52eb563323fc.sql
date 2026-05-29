@@ -1,0 +1,2 @@
+ALTER TABLE public.pos_users ADD COLUMN IF NOT EXISTS offline_pin_hash text;
+COMMENT ON COLUMN public.pos_users.offline_pin_hash IS 'SHA-256 of "global-market-pos:" || pos_users.id || ":" || pin, used for offline PIN verification on installed/offline clients. Set whenever pin_hash is set.';
