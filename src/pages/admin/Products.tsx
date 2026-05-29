@@ -1531,9 +1531,10 @@ export default function Products() {
                         {group.map((product, productIndex) => (
                           <TableRow 
                             key={product.id} 
-                            className={`group ${productIndex === 0 ? 'border-t-2 border-primary/20' : ''}`}
+                            className={`group cursor-pointer ${productIndex === 0 ? 'border-t-2 border-primary/20' : ''}`}
+                            onClick={() => handleEdit(product)}
                           >
-                            <TableCell className="py-2">
+                            <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
                               <Checkbox
                                 checked={selectedProducts.has(product.id)}
                                 onCheckedChange={() => toggleProductSelection(product.id)}
@@ -1639,7 +1640,7 @@ export default function Products() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right py-2">
+                            <TableCell className="text-right py-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
                                   variant="ghost"
@@ -1672,8 +1673,12 @@ export default function Products() {
                   ) : (
                     // Regular product list
                     filteredProducts.map((product) => (
-                      <TableRow key={product.id} className="group">
-                        <TableCell className="py-2">
+                      <TableRow
+                        key={product.id}
+                        className="group cursor-pointer"
+                        onClick={() => handleEdit(product)}
+                      >
+                        <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={selectedProducts.has(product.id)}
                             onCheckedChange={() => toggleProductSelection(product.id)}
@@ -1774,7 +1779,7 @@ export default function Products() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right py-2">
+                      <TableCell className="text-right py-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             size="sm"
