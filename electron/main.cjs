@@ -520,7 +520,8 @@ ipcMain.handle('print:receipt', async (event, html) => {
 
           printWindow.webContents.print(
             {
-              silent: false,
+              // Silent print to OS default printer — no Windows print dialog.
+              silent: true,
               printBackground: true,
               margins: { marginType: 'none' }
             },
