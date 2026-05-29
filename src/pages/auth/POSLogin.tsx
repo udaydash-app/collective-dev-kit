@@ -165,7 +165,7 @@ export default function POSLogin() {
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
   };
 
-  const withLoginTimeout = async <T,>(promise: Promise<T>, timeoutMs = 4500): Promise<T> => {
+  const withLoginTimeout = async <T,>(promise: PromiseLike<T>, timeoutMs = 4500): Promise<T> => {
     let timeoutId: number | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timeoutId = window.setTimeout(() => reject(new Error('Network request timed out')), timeoutMs);
@@ -364,7 +364,7 @@ export default function POSLogin() {
       
       try {
         const result = await withLoginTimeout(
-          supabase.rpc('verify_pin', { input_pin: pinValue }) as Promise<{ data: VerifyPinResult[] | null; error: any }>
+          supabase.rpc('verify_pin', { input_pin: pinValue }) as PromiseLike<{ data: VerifyPinResult[] | null; error: any }>
         );
         
         if (result.error) {
