@@ -61,9 +61,9 @@ export default function ProfitLossAnalysis() {
       if (productIds.size > 0) {
         const { data: products } = await supabase
           .from('products')
-          .select('id, cost_price')
+          .select('id, cost_price, local_charges')
           .in('id', Array.from(productIds));
-        for (const p of products || []) costMap[p.id] = Number(p.cost_price) || 0;
+        for (const p of products || []) costMap[p.id] = (Number(p.cost_price) || 0) + (Number((p as any).local_charges) || 0);
       }
 
       const nameMap: Record<string, string> = {};
