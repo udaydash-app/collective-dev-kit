@@ -25,6 +25,18 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Install PostgreSQL client (pg_dump)
+        shell: pwsh
+        run: |
+          choco install postgresql17 --no-progress --params '/Password:ci' -y
+          echo "C:\Program Files\PostgreSQL\17\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Pre-seed local PGlite database snapshot
+        if: ${{ env.DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/build-local-db.mjs
+
       - name: Build app
         run: npm run build
 
@@ -56,6 +68,15 @@ jobs:
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+
+      - name: Install PostgreSQL client (pg_dump)
+        run: brew install libpq && echo "$(brew --prefix libpq)/bin" >> $GITHUB_PATH
+
+      - name: Pre-seed local PGlite database snapshot
+        if: ${{ env.DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/build-local-db.mjs
 
       - name: Build app
         run: npm run build
