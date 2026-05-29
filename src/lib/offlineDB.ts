@@ -44,7 +44,7 @@ export interface OfflineStore {
 
 export interface OfflinePOSUser {
   id: string;
-  user_id: string;
+  user_id: string | null;
   full_name: string;
   pin_hash: string;
   offline_pin_hash?: string;
