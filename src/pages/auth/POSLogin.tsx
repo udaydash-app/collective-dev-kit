@@ -243,15 +243,11 @@ export default function POSLogin() {
           return;
         }
         if (localDbUsable && localUser) {
-          localStorage.setItem('offline_pos_session', JSON.stringify({
-          pos_user_id: localUser.pos_user_id,
-          user_id: localUser.user_id,
-          full_name: localUser.full_name,
-          timestamp: new Date().toISOString(),
-          electron: true,
-          local: true,
-          }));
-          sessionStorage.setItem('current_pos_pin', pinValue);
+          await storePOSSession('electron', {
+            posUserId: localUser.pos_user_id,
+            userId: localUser.user_id,
+            fullName: localUser.full_name,
+          }, pinValue);
           toast.success(`Welcome, ${localUser.full_name}!`);
           // Background: pull latest from cloud so the local DB gets populated.
           (async () => {
@@ -324,24 +320,8 @@ export default function POSLogin() {
           userId = offlineResult.userId;
           fullName = offlineResult.fullName;
           
-          const cachedSessions = await offlineDB.getCashSessions();
-          const activeCashSession = cachedSessions
-            .filter((session: any) => session.status === 'open')
-            .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
-
-          // Store offline session
-          const sessionData = {
-            pos_user_id: posUserId,
-            user_id: userId,
-            full_name: fullName,
-            cash_session_id: activeCashSession?.id,
-            store_id: activeCashSession?.store_id,
-            timestamp: new Date().toISOString(),
-            offline: true
-          };
-          localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-          sessionStorage.setItem('current_pos_pin', pinValue);
-          console.log('✅ Stored offline session:', sessionData);
+          await storePOSSession('offline', { posUserId, userId, fullName }, pinValue);
+          console.log('✅ Stored offline session');
           
           toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -393,24 +373,8 @@ export default function POSLogin() {
             userId = offlineResult.userId;
             fullName = offlineResult.fullName;
             
-            const cachedSessions = await offlineDB.getCashSessions();
-            const activeCashSession = cachedSessions
-              .filter((session: any) => session.status === 'open')
-              .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
-
-            // Store offline session
-            const sessionData = {
-              pos_user_id: posUserId,
-              user_id: userId,
-              full_name: fullName,
-              cash_session_id: activeCashSession?.id,
-              store_id: activeCashSession?.store_id,
-              timestamp: new Date().toISOString(),
-              offline: true
-            };
-            localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-            sessionStorage.setItem('current_pos_pin', pinValue);
-            console.log('✅ Offline fallback successful, stored session:', sessionData);
+            await storePOSSession('offline', { posUserId, userId, fullName }, pinValue);
+            console.log('✅ Offline fallback successful, stored session');
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
             await new Promise(resolve => setTimeout(resolve, 500));
