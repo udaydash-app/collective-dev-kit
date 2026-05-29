@@ -536,6 +536,17 @@ export default function BarcodeManagement() {
                     onChange={(e) => setExpirySize(Number(e.target.value))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="custom-price">Price</Label>
+                  <Input
+                    id="custom-price"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={customPrice}
+                    onChange={(e) => setCustomPrice(Number(e.target.value))}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
