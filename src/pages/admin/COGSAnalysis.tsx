@@ -48,6 +48,7 @@ export default function COGSAnalysis() {
           id,
           name,
           cost_price,
+          local_charges,
           price,
           store_id,
           category_id,
@@ -91,7 +92,8 @@ export default function COGSAnalysis() {
 
           const quantity = Math.abs(item.quantity || 0);
           const revenue = (item.price || 0) * quantity;
-          const cogs = (product.cost_price || 0) * quantity;
+          const unitCost = (Number(product.cost_price) || 0) + (Number((product as any).local_charges) || 0);
+          const cogs = unitCost * quantity;
 
           if (!productStats[productId]) {
             productStats[productId] = {
