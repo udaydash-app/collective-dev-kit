@@ -47,6 +47,7 @@ export default function BarcodeManagement() {
     priceSize: 96,
     detailsSize: 36,
     expirySize: 84,
+    customPrice: 0,
   };
   const loadedPrefs = (() => {
     try {
@@ -63,6 +64,7 @@ export default function BarcodeManagement() {
   const [priceSize, setPriceSize] = useState(loadedPrefs.priceSize);
   const [detailsSize, setDetailsSize] = useState(loadedPrefs.detailsSize);
   const [expirySize, setExpirySize] = useState(loadedPrefs.expirySize);
+  const [customPrice, setCustomPrice] = useState<number>(loadedPrefs.customPrice ?? 0);
 
   useEffect(() => {
     try {
@@ -76,12 +78,13 @@ export default function BarcodeManagement() {
           priceSize,
           detailsSize,
           expirySize,
+          customPrice,
         })
       );
     } catch {
       /* ignore quota errors */
     }
-  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize]);
+  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -533,6 +536,17 @@ export default function BarcodeManagement() {
                     onChange={(e) => setExpirySize(Number(e.target.value))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="custom-price">Price</Label>
+                  <Input
+                    id="custom-price"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={customPrice}
+                    onChange={(e) => setCustomPrice(Number(e.target.value))}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -655,7 +669,7 @@ export default function BarcodeManagement() {
                           />
                         </div>
                       ))}
-                      <p className="price-text text-8xl font-bold">{formatCurrency(item.price)}</p>
+                      <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
                       {details && (
                         <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
                           {details.batchNumber && (
