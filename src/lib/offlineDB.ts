@@ -47,6 +47,7 @@ export interface OfflinePOSUser {
   user_id: string;
   full_name: string;
   pin_hash: string;
+  offline_pin_hash?: string;
   is_active: boolean;
   lastUpdated: string;
 }
@@ -556,7 +557,17 @@ class OfflineDB {
       const store = tx.objectStore('pos_users');
       
       users.forEach(user => {
-        store.put({ ...user, lastUpdated: new Date().toISOString() });
+        const existingRequest = store.get(user.id);
+        existingRequest.onsuccess = () => {
+          const existing = existingRequest.result as OfflinePOSUser | undefined;
+          store.put({
+            ...existing,
+            ...user,
+            pin_hash: user.pin_hash || existing?.pin_hash || '',
+            offline_pin_hash: user.offline_pin_hash || existing?.offline_pin_hash,
+            lastUpdated: new Date().toISOString()
+          });
+        };
       });
       
       tx.oncomplete = () => resolve();
