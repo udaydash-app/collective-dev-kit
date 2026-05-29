@@ -382,6 +382,32 @@ export async function fetchPurchasesLocal(): Promise<any[]> {
 // Matches existing logic in AccountsReceivable/Payable pages (uses
 // accounts.current_balance as the source of truth).
 export async function fetchReceivablesLocal(): Promise<any[]> {
+  if (typeof navigator !== "undefined" && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          name,
+          phone,
+          email,
+          credit_limit,
+          is_customer,
+          is_supplier,
+          customer_ledger_account_id,
+          supplier_ledger_account_id
+        `)
+        .eq('is_customer', true)
+        .order('name');
+      if (error) throw error;
+      return buildReceivables(data ?? [], await loadBalancesCloud(
+        (data ?? []).flatMap((c: any) => [c.customer_ledger_account_id, c.supplier_ledger_account_id]).filter(Boolean),
+      ));
+    } catch (e) {
+      console.warn('[receivables] cloud fetch failed, using local mirror', e);
+    }
+  }
+
   const db = await connectPowerSync();
   const cRes: any = await db.getAll(
     `SELECT id, name, phone, email, credit_limit, is_customer, is_supplier,
@@ -393,26 +419,35 @@ export async function fetchReceivablesLocal(): Promise<any[]> {
     .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
     .filter(Boolean);
   const balances = await loadBalancesLocal(db, ids);
-  return contacts
-    .map((c) => {
-      let bal = balances.get(c.customer_ledger_account_id) ?? 0;
-      if (toBool(c.is_supplier) && c.supplier_ledger_account_id) {
-        bal -= balances.get(c.supplier_ledger_account_id) ?? 0;
-      }
-      return {
-        id: c.id,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        credit_limit: c.credit_limit || 0,
-        balance: bal,
-        isUnified: toBool(c.is_supplier),
-      };
-    })
-    .filter((c) => c.balance !== 0);
+  return buildReceivables(contacts, balances);
 }
 
 export async function fetchPayablesLocal(): Promise<any[]> {
+  if (typeof navigator !== "undefined" && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          name,
+          phone,
+          email,
+          is_customer,
+          is_supplier,
+          customer_ledger_account_id,
+          supplier_ledger_account_id
+        `)
+        .eq('is_supplier', true)
+        .order('name');
+      if (error) throw error;
+      return buildPayables(data ?? [], await loadBalancesCloud(
+        (data ?? []).flatMap((c: any) => [c.customer_ledger_account_id, c.supplier_ledger_account_id]).filter(Boolean),
+      ));
+    } catch (e) {
+      console.warn('[payables] cloud fetch failed, using local mirror', e);
+    }
+  }
+
   const db = await connectPowerSync();
   const cRes: any = await db.getAll(
     `SELECT id, name, phone, email, is_customer, is_supplier,
@@ -424,22 +459,7 @@ export async function fetchPayablesLocal(): Promise<any[]> {
     .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
     .filter(Boolean);
   const balances = await loadBalancesLocal(db, ids);
-  return contacts
-    .map((c) => {
-      let bal = balances.get(c.supplier_ledger_account_id) ?? 0;
-      if (toBool(c.is_customer) && c.customer_ledger_account_id) {
-        bal -= balances.get(c.customer_ledger_account_id) ?? 0;
-      }
-      return {
-        id: c.id,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        balance: bal,
-        isUnified: toBool(c.is_customer),
-      };
-    })
-    .filter((c) => c.balance > 0);
+  return buildPayables(contacts, balances);
 }
 
 async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, number>> {
