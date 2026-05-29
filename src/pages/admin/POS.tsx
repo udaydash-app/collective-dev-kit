@@ -2570,6 +2570,14 @@ export default function POS() {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
+      // Block re-entry while a payment is being processed / printed.
+      // Without this, pressing F2/F3/F4 a second time before the cart
+      // state has cleared re-triggers handlePaymentConfirm, which opens
+      // another print dialog (or printer-selection window).
+      if (paymentInFlightRef.current) {
+        return;
+      }
+
       if (event.key === 'F2') {
         // Direct cash payment + print, skip confirm dialog
         if (cart.length === 0) {
@@ -2579,8 +2587,15 @@ export default function POS() {
         setQuickPaymentMethod('cash');
         // handlePaymentConfirm already prints via kioskPrintService; do not double-print
         (async () => {
+          paymentInFlightRef.current = true;
           const payment = { id: '1', method: 'cash', amount: total };
-          await handlePaymentConfirmRef.current?.([payment], total);
+          try {
+            await handlePaymentConfirmRef.current?.([payment], total);
+          } finally {
+            // Short cooldown so a fast double-tap of F2/F3/F4 doesn't
+            // immediately re-arm before cart state clears.
+            setTimeout(() => { paymentInFlightRef.current = false; }, 800);
+          }
         })();
         return;
       }
