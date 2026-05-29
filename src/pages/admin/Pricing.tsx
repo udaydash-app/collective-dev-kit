@@ -650,7 +650,7 @@ export default function Pricing() {
                         {product.categories?.name || '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                        {(product.cost_price || product.local_charges) ? formatCurrency((Number(product.cost_price) || 0) + (Number(product.local_charges) || 0)) : '-'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {product.price ? formatCurrency(product.price) : '-'}
@@ -662,9 +662,9 @@ export default function Pricing() {
                         {product.vip_price ? formatCurrency(product.vip_price) : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {product.price && product.cost_price ? (
+                        {product.price && (product.cost_price || product.local_charges) ? (
                           <Badge variant="outline">
-                            {calculateMargin(product.price, product.cost_price)}%
+                            {calculateMargin(product.price, (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0))}%
                           </Badge>
                         ) : '-'}
                       </TableCell>

@@ -91,7 +91,7 @@ export default function TradingAccount() {
 
       const { data: products, error: productsError } = await supabase
         .from('products')
-        .select('id, cost_price')
+        .select('id, cost_price, local_charges')
         .in('id', validProductIds);
 
       if (productsError) throw productsError;
@@ -99,7 +99,7 @@ export default function TradingAccount() {
       // Create a map of product id to cost price
       const costPriceMap: Record<string, number> = {};
       for (const product of products || []) {
-        costPriceMap[product.id] = product.cost_price || 0;
+        costPriceMap[product.id] = (Number(product.cost_price) || 0) + (Number((product as any).local_charges) || 0);
       }
 
       // Convert to array and calculate profit/loss

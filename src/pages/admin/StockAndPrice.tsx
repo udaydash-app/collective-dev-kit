@@ -524,10 +524,12 @@ export default function StockAndPrice() {
                                 { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
                               )}
                             />
-                          ) : (
-                            variant.cost_price ? formatCurrency(variant.cost_price) : 
-                            product.cost_price ? formatCurrency(product.cost_price) : '-'
-                          )}
+                          ) : (() => {
+                            const base = variant.cost_price ?? product.cost_price ?? 0;
+                            const lc = Number(product.local_charges) || 0;
+                            const total = (Number(base) || 0) + lc;
+                            return total ? formatCurrency(total) : '-';
+                          })()}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {bulkEditMode ? (
@@ -592,7 +594,8 @@ export default function StockAndPrice() {
                         <TableCell className="text-right">
                           {(() => {
                             const price = variant.price || product.price;
-                            const cost = variant.cost_price || product.cost_price;
+                            const baseCost = variant.cost_price || product.cost_price || 0;
+                            const cost = Number(baseCost) + (Number(product.local_charges) || 0);
                             return price && cost ? (
                               <Badge variant="outline">
                                 {calculateMargin(price, cost)}%
@@ -677,9 +680,10 @@ export default function StockAndPrice() {
                                 { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
                               )}
                             />
-                          ) : (
-                            product.cost_price ? formatCurrency(product.cost_price) : '-'
-                          )}
+                          ) : (() => {
+                            const total = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
+                            return total ? formatCurrency(total) : '-';
+                          })()}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {bulkEditMode ? (
@@ -739,11 +743,14 @@ export default function StockAndPrice() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {product.price && product.cost_price ? (
-                            <Badge variant="outline">
-                              {calculateMargin(product.price, product.cost_price)}%
-                            </Badge>
-                          ) : '-'}
+                          {(() => {
+                            const cost = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
+                            return product.price && cost ? (
+                              <Badge variant="outline">
+                                {calculateMargin(product.price, cost)}%
+                              </Badge>
+                            ) : '-';
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Badge variant={product.is_available ? 'default' : 'secondary'}>
@@ -818,7 +825,10 @@ export default function StockAndPrice() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Cost:</span>
-                    <span>{product.cost_price ? formatCurrency(product.cost_price) : '-'}</span>
+                    <span>{(() => {
+                      const total = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
+                      return total ? formatCurrency(total) : '-';
+                    })()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Retail:</span>
@@ -838,14 +848,17 @@ export default function StockAndPrice() {
                       {product.vip_price ? formatCurrency(product.vip_price) : '-'}
                     </span>
                   </div>
-                  {product.price && product.cost_price && (
+                  {(() => {
+                    const cost = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
+                    return product.price && cost ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Margin:</span>
                       <Badge variant="outline">
-                        {calculateMargin(product.price, product.cost_price)}%
+                        {calculateMargin(product.price, cost)}%
                       </Badge>
                     </div>
-                  )}
+                    ) : null;
+                  })()}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Status:</span>
                     <Badge variant={product.is_available ? 'default' : 'secondary'}>

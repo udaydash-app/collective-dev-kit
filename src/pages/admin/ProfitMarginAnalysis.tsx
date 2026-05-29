@@ -75,7 +75,7 @@ export default function ProfitMarginAnalysis() {
       // Get all products with cost_price for margin calculation
       let productsQuery = supabase
         .from("products")
-        .select("id, name, cost_price, price, category:categories(id, name)");
+        .select("id, name, cost_price, local_charges, price, category:categories(id, name)");
       
       if (selectedCategory !== "all") {
         productsQuery = productsQuery.eq("category_id", selectedCategory);
@@ -98,8 +98,9 @@ export default function ProfitMarginAnalysis() {
 
           const quantity = Math.abs(item.quantity || 0);
           const revenue = (item.price || 0) * quantity;
-          // Use simple cost_price for COGS calculation (no FIFO)
-          const cogs = (product.cost_price || 0) * quantity;
+          // Landed cost = CIF cost_price + local_charges
+          const unitCost = (Number(product.cost_price) || 0) + (Number((product as any).local_charges) || 0);
+          const cogs = unitCost * quantity;
 
           if (profitMap.has(productId)) {
             const existing = profitMap.get(productId)!;
