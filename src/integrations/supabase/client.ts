@@ -79,9 +79,9 @@ type AppSupabaseClient = SupabaseClient<Database> & { auth: any };
 export const supabase = createSupabaseClient() as AppSupabaseClient;
 
 // Helper to update local Supabase config (call this from Settings)
-export const setLocalSupabaseConfig = (url: string, anonKey: string) => {
+export const setLocalSupabaseConfig = (url: string, anonKey: string, serviceRoleKey?: string) => {
   console.log('[Supabase] Setting local config:', url);
-  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey }));
+  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey, serviceRoleKey }));
   // Reload to apply new config
   window.location.reload();
 };
