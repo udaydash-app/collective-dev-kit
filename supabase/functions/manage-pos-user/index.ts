@@ -163,6 +163,7 @@ serve(async (req) => {
 
         if (hashError) throw hashError
         updateData.pin_hash = hashedPin
+        updateData.offline_pin_hash = await computeOfflinePinHash(user_id, String(pin))
       }
 
       const { data: posUser, error } = await supabaseClient
