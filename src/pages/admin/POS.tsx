@@ -4892,6 +4892,24 @@ export default function POS() {
         paymentMethod={quickPaymentMethod}
       />
 
+      <QuickPaymentDialog
+        isOpen={showReceiptPrintPrompt}
+        onClose={() => {
+          setShowReceiptPrintPrompt(false);
+          setPendingReceiptPrintData(null);
+        }}
+        onConfirm={(shouldPrint) => {
+          if (shouldPrint && pendingReceiptPrintData) {
+            printTransactionReceipt(pendingReceiptPrintData);
+          }
+          setShowReceiptPrintPrompt(false);
+          setPendingReceiptPrintData(null);
+        }}
+        paymentMethod="receipt"
+        title="Print Receipt?"
+        description="Would you like to print the receipt directly?"
+      />
+
       <VariantSelector
         isOpen={variantSelectorOpen}
         onClose={() => setVariantSelectorOpen(false)}
