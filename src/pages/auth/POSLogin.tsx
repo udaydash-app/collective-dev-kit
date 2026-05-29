@@ -158,6 +158,34 @@ export default function POSLogin() {
     full_name: string;
   }
 
+  const hashOfflinePin = async (pinToHash: string, userId: string) => {
+    const data = new TextEncoder().encode(`global-market-pos:${userId}:${pinToHash}`);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  };
+
+  const storePOSSession = async (
+    sessionType: 'offline' | 'local' | 'cloud' | 'electron' | 'auth_fallback',
+    data: { posUserId: string | null; userId: string | null; fullName: string },
+    pinValue: string
+  ) => {
+    const cachedSessions = await offlineDB.getCashSessions().catch(() => []);
+    const activeCashSession = cachedSessions
+      .filter((session: any) => session.status === 'open')
+      .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
+
+    localStorage.setItem('offline_pos_session', JSON.stringify({
+      pos_user_id: data.posUserId,
+      user_id: data.userId,
+      full_name: data.fullName,
+      cash_session_id: activeCashSession?.id,
+      store_id: activeCashSession?.store_id,
+      timestamp: new Date().toISOString(),
+      [sessionType]: true,
+    }));
+    sessionStorage.setItem('current_pos_pin', pinValue);
+  };
+
   const handlePinInput = (value: string) => {
     // Only allow digits and max 6 characters
     if (/^\d*$/.test(value) && value.length <= 6) {
@@ -257,10 +285,16 @@ export default function POSLogin() {
           throw new Error('No cached login data found. Please connect to internet and login once to enable offline mode.');
         }
         
-        const matchedUser = cachedUsers.find(u => {
-          const pinMatches = u.pin_hash === pinValue;
-          return pinMatches && u.is_active;
-        });
+        let matchedUser = null;
+        for (const user of cachedUsers) {
+          if (!user.is_active) continue;
+          const legacyPlainPinMatches = user.pin_hash === pinValue;
+          const offlinePinHashMatches = user.offline_pin_hash && user.offline_pin_hash === await hashOfflinePin(pinValue, user.id);
+          if (legacyPlainPinMatches || offlinePinHashMatches) {
+            matchedUser = user;
+            break;
+          }
+        }
         
         if (!matchedUser) {
           throw new Error('Invalid PIN. Please check your PIN and try again.');
