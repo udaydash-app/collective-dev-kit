@@ -72,6 +72,17 @@ serve(async (req) => {
 
     console.log('Managing POS user:', action, full_name, 'role:', role);
 
+    // SHA-256 of "global-market-pos:<pos_user_id>:<pin>" — matches the
+    // client's hashOfflinePin() so installed/offline apps can verify the PIN
+    // without contacting the server.
+    const computeOfflinePinHash = async (posUserId: string, pinValue: string) => {
+      const data = new TextEncoder().encode(`global-market-pos:${posUserId}:${pinValue}`);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    };
+
     if (action === 'create') {
       // Hash the PIN using pgcrypto
       const { data: hashedPin, error: hashError } = await supabaseClient
@@ -89,6 +100,18 @@ serve(async (req) => {
         .single()
 
       if (error) throw error
+
+      // Persist offline PIN hash so this user can sign in on offline/installed clients
+      // immediately, without needing to log in online first on each device.
+      try {
+        const offlinePinHash = await computeOfflinePinHash(newUser.id, String(pin));
+        await supabaseClient
+          .from('pos_users')
+          .update({ offline_pin_hash: offlinePinHash })
+          .eq('id', newUser.id);
+      } catch (e) {
+        console.error('Failed to set offline_pin_hash on create:', e);
+      }
 
       // Create auth user and assign role
       const authEmail = `pos-${newUser.id}@pos.globalmarket.app`
