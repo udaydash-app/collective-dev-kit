@@ -46,3 +46,23 @@ export function formatDateTimeFull(date: Date | string | null | undefined): stri
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return format(dateObj, 'dd/MM/yyyy HH:mm:ss');
 }
+
+// Effective unit cost = CIF cost_price + local_charges.
+// Reports, P&L, Trading account, COGS and pricing screens should use this so
+// landed cost (CIF + local charges) is reflected wherever cost is shown.
+export function getEffectiveCost(
+  item: { cost_price?: number | null; local_charges?: number | null } | null | undefined
+): number {
+  if (!item) return 0;
+  return (Number(item.cost_price) || 0) + (Number(item.local_charges) || 0);
+}
+
+// For variants: variant has its own cost_price but inherits local_charges from parent product.
+export function getVariantEffectiveCost(
+  variant: { cost_price?: number | null } | null | undefined,
+  product: { cost_price?: number | null; local_charges?: number | null } | null | undefined
+): number {
+  const base = Number(variant?.cost_price) || Number(product?.cost_price) || 0;
+  const charges = Number(product?.local_charges) || 0;
+  return base + charges;
+}
