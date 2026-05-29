@@ -669,7 +669,7 @@ export default function BarcodeManagement() {
                           />
                         </div>
                       ))}
-                      <p className="price-text text-8xl font-bold">{formatCurrency(item.price)}</p>
+                      <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
                       {details && (
                         <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
                           {details.batchNumber && (
