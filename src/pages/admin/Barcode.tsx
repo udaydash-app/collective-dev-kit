@@ -47,6 +47,7 @@ export default function BarcodeManagement() {
     priceSize: 96,
     detailsSize: 36,
     expirySize: 84,
+    customPrice: 0,
   };
   const loadedPrefs = (() => {
     try {
@@ -63,6 +64,7 @@ export default function BarcodeManagement() {
   const [priceSize, setPriceSize] = useState(loadedPrefs.priceSize);
   const [detailsSize, setDetailsSize] = useState(loadedPrefs.detailsSize);
   const [expirySize, setExpirySize] = useState(loadedPrefs.expirySize);
+  const [customPrice, setCustomPrice] = useState<number>(loadedPrefs.customPrice ?? 0);
 
   useEffect(() => {
     try {
@@ -76,12 +78,13 @@ export default function BarcodeManagement() {
           priceSize,
           detailsSize,
           expirySize,
+          customPrice,
         })
       );
     } catch {
       /* ignore quota errors */
     }
-  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize]);
+  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
