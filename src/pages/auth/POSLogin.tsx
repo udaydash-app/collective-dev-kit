@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getSupabaseConfig, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export default function POSLogin() {
   const [serviceRoleKey, setServiceRoleKey] = useState('');
   const [cloudServiceRoleKey, setCloudServiceRoleKeyState] = useState('');
   const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string; serviceRoleKey?: string} | null>(null);
+  const autoLoginTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -192,8 +193,11 @@ export default function POSLogin() {
       setPin(value);
       
       // Auto-submit when PIN is 4-6 digits
+      if (autoLoginTimerRef.current) {
+        window.clearTimeout(autoLoginTimerRef.current);
+      }
       if (value.length >= 4 && value.length <= 6) {
-        handleLogin(value);
+        autoLoginTimerRef.current = window.setTimeout(() => handleLogin(value), 300);
       }
     }
   };
