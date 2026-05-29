@@ -2814,7 +2814,43 @@ export default function POS() {
     setShowPayment(true);
   };
 
-  const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number) => {
+  const printTransactionReceipt = (completeTransactionData: any) => {
+    return kioskPrintService.printReceipt({
+      storeName: completeTransactionData.storeName,
+      transactionNumber: completeTransactionData.transactionNumber,
+      date: completeTransactionData.date,
+      items: completeTransactionData.items.map((item: any) => ({
+        name: item.name,
+        displayName: item.displayName,
+        quantity: item.quantity,
+        price: item.price,
+        originalPrice: item.originalPrice,
+        customPrice: item.customPrice,
+        itemDiscount: item.itemDiscount,
+        comboItems: item.comboItems,
+      })),
+      subtotal: completeTransactionData.subtotal,
+      discount: completeTransactionData.discount,
+      tax: completeTransactionData.tax,
+      total: completeTransactionData.total,
+      paymentMethod: completeTransactionData.paymentMethod,
+      cashierName: completeTransactionData.cashierName,
+      customerName: completeTransactionData.customerName,
+      customerPhone: completeTransactionData.customerPhone,
+      customerBalance: completeTransactionData.customerBalance,
+      logoUrl: completeTransactionData.logoUrl,
+      supportPhone: completeTransactionData.supportPhone,
+      isUnifiedBalance: completeTransactionData.isUnifiedBalance,
+      specialOfferNote: completeTransactionData.specialOfferNote,
+    })
+      .then(() => console.log('✅ Receipt printed successfully'))
+      .catch((error: any) => {
+        console.error('❌ Print error:', error);
+        console.error('Error message:', error?.message);
+      });
+  };
+
+  const handlePaymentConfirm = async (payments: Array<{ id: string; method: string; amount: number }>, totalPaid: number, shouldPrint?: boolean) => {
     // Prepare transaction data BEFORE processing (because processTransaction clears the cart)
     const allItems = cartDiscountItem ? [...cart, cartDiscountItem] : cart;
     const receiptSettings = settings ?? await fetchCompanySettings();
@@ -2960,42 +2996,12 @@ export default function POS() {
       
       setLastTransactionData(completeTransactionData);
 
-      // Optimized printing - no canvas generation, direct to browser print
-      kioskPrintService.printReceipt({
-        storeName: completeTransactionData.storeName,
-        transactionNumber: completeTransactionData.transactionNumber,
-        date: completeTransactionData.date,
-        items: completeTransactionData.items.map(item => ({
-          name: item.name,
-          displayName: item.displayName,
-          quantity: item.quantity,
-          price: item.price,
-          originalPrice: item.originalPrice,
-          customPrice: item.customPrice,
-          itemDiscount: item.itemDiscount,
-          comboItems: item.comboItems,
-        })),
-        subtotal: completeTransactionData.subtotal,
-        discount: completeTransactionData.discount,
-        tax: completeTransactionData.tax,
-        total: completeTransactionData.total,
-        paymentMethod: completeTransactionData.paymentMethod,
-        cashierName: completeTransactionData.cashierName,
-        customerName: completeTransactionData.customerName,
-        customerPhone: completeTransactionData.customerPhone,
-        customerBalance: completeTransactionData.customerBalance,
-        logoUrl: completeTransactionData.logoUrl,
-        supportPhone: completeTransactionData.supportPhone,
-        isUnifiedBalance: completeTransactionData.isUnifiedBalance,
-        specialOfferNote: completeTransactionData.specialOfferNote,
-      })
-        .then(() => {
-          console.log('✅ Receipt printed successfully');
-        })
-        .catch((error: any) => {
-          console.error('❌ Print error:', error);
-          console.error('Error message:', error?.message);
-        });
+      if (shouldPrint === true) {
+        printTransactionReceipt(completeTransactionData);
+      } else if (shouldPrint === undefined) {
+        setPendingReceiptPrintData(completeTransactionData);
+        setShowReceiptPrintPrompt(true);
+      }
       
       const displayNumber = 'transaction_number' in result ? result.transaction_number : transactionId.slice(0, 8);
       console.log(`Transaction ${displayNumber} processed successfully`);
