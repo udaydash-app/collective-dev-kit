@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -37,14 +37,51 @@ export default function BarcodeManagement() {
   const [itemDetails, setItemDetails] = useState<Map<string, { manufacturingDate: string; expiryDate: string; batchNumber: string }>>(new Map());
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Customization settings
-  const [barcodeWidth, setBarcodeWidth] = useState(6);
-  const [barcodeHeight, setBarcodeHeight] = useState(200);
-  const [productNameSize, setProductNameSize] = useState(72);
-  const [variantLabelSize, setVariantLabelSize] = useState(48);
-  const [priceSize, setPriceSize] = useState(96);
-  const [detailsSize, setDetailsSize] = useState(36);
-  const [expirySize, setExpirySize] = useState(84);
+  // Customization settings — persisted to localStorage so last-used values are the default
+  const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
+  const defaultPrefs = {
+    barcodeWidth: 6,
+    barcodeHeight: 200,
+    productNameSize: 72,
+    variantLabelSize: 48,
+    priceSize: 96,
+    detailsSize: 36,
+    expirySize: 84,
+  };
+  const loadedPrefs = (() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(BARCODE_PREFS_KEY) : null;
+      return raw ? { ...defaultPrefs, ...JSON.parse(raw) } : defaultPrefs;
+    } catch {
+      return defaultPrefs;
+    }
+  })();
+  const [barcodeWidth, setBarcodeWidth] = useState(loadedPrefs.barcodeWidth);
+  const [barcodeHeight, setBarcodeHeight] = useState(loadedPrefs.barcodeHeight);
+  const [productNameSize, setProductNameSize] = useState(loadedPrefs.productNameSize);
+  const [variantLabelSize, setVariantLabelSize] = useState(loadedPrefs.variantLabelSize);
+  const [priceSize, setPriceSize] = useState(loadedPrefs.priceSize);
+  const [detailsSize, setDetailsSize] = useState(loadedPrefs.detailsSize);
+  const [expirySize, setExpirySize] = useState(loadedPrefs.expirySize);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        BARCODE_PREFS_KEY,
+        JSON.stringify({
+          barcodeWidth,
+          barcodeHeight,
+          productNameSize,
+          variantLabelSize,
+          priceSize,
+          detailsSize,
+          expirySize,
+        })
+      );
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
