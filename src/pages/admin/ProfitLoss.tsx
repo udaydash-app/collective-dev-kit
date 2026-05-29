@@ -93,18 +93,26 @@ export default function ProfitLoss() {
       } else {
         const [{ data: p }, { data: v }] = await Promise.all([
           productIds.size > 0
-            ? supabase.from('products').select('id, cost_price').in('id', Array.from(productIds))
+            ? supabase.from('products').select('id, cost_price, local_charges').in('id', Array.from(productIds))
             : { data: [] },
           variantIds.size > 0
-            ? supabase.from('product_variants').select('id, cost_price').in('id', Array.from(variantIds))
+            ? supabase.from('product_variants').select('id, cost_price, product_id').in('id', Array.from(variantIds))
             : { data: [] },
         ]);
         products = p;
         variants = v;
       }
 
-      const productCostMap = new Map((products || []).map(p => [p.id, p.cost_price || 0]));
-      const variantCostMap = new Map((variants || []).map(v => [v.id, v.cost_price || 0]));
+      // Effective unit cost = CIF cost_price + local_charges (landed cost).
+      const productCostMap = new Map(
+        (products || []).map(p => [p.id, (Number(p.cost_price) || 0) + (Number((p as any).local_charges) || 0)])
+      );
+      const variantCostMap = new Map(
+        (variants || []).map(v => {
+          const parent: any = (products || []).find((p: any) => p.id === v.product_id);
+          return [v.id, (Number(v.cost_price) || 0) + (Number(parent?.local_charges) || 0)];
+        })
+      );
 
       // Calculate total COGS
       let totalCOGS = 0;
@@ -134,7 +142,7 @@ export default function ProfitLoss() {
         allVariants = inputs!.allVariants;
       } else {
         const [{ data: ap }, { data: av }] = await Promise.all([
-          supabase.from('products').select('id, cost_price, stock_quantity'),
+          supabase.from('products').select('id, cost_price, local_charges, stock_quantity'),
           supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id'),
         ]);
         allProducts = ap;
@@ -148,13 +156,15 @@ export default function ProfitLoss() {
       const productsWithVariants = new Set((allVariants || []).map(v => v.product_id));
       (allProducts || []).forEach(p => {
         if (!productsWithVariants.has(p.id)) {
-          currentInventoryValue += (p.cost_price || 0) * (p.stock_quantity || 0);
+          currentInventoryValue += ((p.cost_price || 0) + (p.local_charges || 0)) * (p.stock_quantity || 0);
         }
       });
       
       // Add variant inventory values
+      const productLocalChargesMap = new Map((allProducts || []).map(p => [p.id, Number(p.local_charges) || 0]));
       (allVariants || []).forEach(v => {
-        currentInventoryValue += (v.cost_price || 0) * (v.stock_quantity || 0);
+        const lc = productLocalChargesMap.get(v.product_id) || 0;
+        currentInventoryValue += ((v.cost_price || 0) + lc) * (v.stock_quantity || 0);
       });
 
       let stockAdjustments: any[] | null;
@@ -191,7 +201,9 @@ export default function ProfitLoss() {
           } else {
             const product = (allProducts || []).find(p => p.id === adj.product_id);
             const variant = (allVariants || []).find(v => v.id === adj.variant_id);
-            costPrice = variant?.cost_price || product?.cost_price || 0;
+          const baseCost = variant?.cost_price || product?.cost_price || 0;
+          const lc = product?.local_charges || productLocalChargesMap.get(variant?.product_id) || 0;
+          costPrice = baseCost + lc;
           }
           adjustmentValue = Math.abs(adj.quantity_change) * costPrice;
         }
@@ -257,7 +269,9 @@ export default function ProfitLoss() {
       futureAdjustments?.forEach((adj: any) => {
         const product = (allProducts || []).find(p => p.id === adj.product_id);
         const variant = (allVariants || []).find(v => v.id === adj.variant_id);
-        const costPrice = variant?.cost_price || product?.cost_price || 0;
+        const baseCost = variant?.cost_price || product?.cost_price || 0;
+        const lc = product?.local_charges || productLocalChargesMap.get(variant?.product_id) || 0;
+        const costPrice = baseCost + lc;
         futureAdjustmentValue += adj.quantity_change * costPrice;
       });
 
