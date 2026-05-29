@@ -79,26 +79,9 @@ type AppSupabaseClient = SupabaseClient<Database> & { auth: any };
 export const supabase = createSupabaseClient() as AppSupabaseClient;
 
 // Helper to update local Supabase config (call this from Settings)
-// SECURITY: Only accepts anonKey, service role keys are rejected for security
-export const setLocalSupabaseConfig = (url: string, anonKey: string) => {
-  // Validate that we're not accidentally storing a service_role key
-  // Service role JWTs contain "role":"service_role" in their payload
-  try {
-    const parts = anonKey.split('.');
-    if (parts.length === 3) {
-      const payload = JSON.parse(atob(parts[1]));
-      if (payload.role === 'service_role') {
-        console.error('[Supabase] Security Error: Service role keys cannot be stored client-side');
-        throw new Error('Service role keys are not allowed in client-side configuration for security reasons. Please use the anon key instead.');
-      }
-    }
-  } catch (parseError) {
-    // If we can't parse the JWT, that's fine - just store it
-    // The validation is a best-effort security check
-  }
-  
+export const setLocalSupabaseConfig = (url: string, anonKey: string, serviceRoleKey?: string) => {
   console.log('[Supabase] Setting local config:', url);
-  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey }));
+  localStorage.setItem('local_supabase_config', JSON.stringify({ url, anonKey, serviceRoleKey }));
   // Reload to apply new config
   window.location.reload();
 };

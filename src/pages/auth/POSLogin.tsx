@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getSupabaseConfig, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export default function POSLogin() {
   const [serviceRoleKey, setServiceRoleKey] = useState('');
   const [cloudServiceRoleKey, setCloudServiceRoleKeyState] = useState('');
   const [currentConfig, setCurrentConfig] = useState<{url: string; anonKey: string; serviceRoleKey?: string} | null>(null);
+  const autoLoginTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -158,19 +159,67 @@ export default function POSLogin() {
     full_name: string;
   }
 
+  const hashOfflinePin = async (pinToHash: string, userId: string) => {
+    const data = new TextEncoder().encode(`global-market-pos:${userId}:${pinToHash}`);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  };
+
+  const withLoginTimeout = async <T,>(promise: PromiseLike<T>, timeoutMs = 4500): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('Network request timed out')), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  };
+
+  const storePOSSession = async (
+    sessionType: 'offline' | 'local' | 'cloud' | 'electron' | 'auth_fallback',
+    data: { posUserId: string | null; userId: string | null; fullName: string },
+    pinValue: string
+  ) => {
+    const cachedSessions = await offlineDB.getCashSessions().catch(() => []);
+    const activeCashSession = cachedSessions
+      .filter((session: any) => session.status === 'open')
+      .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
+
+    localStorage.setItem('offline_pos_session', JSON.stringify({
+      pos_user_id: data.posUserId,
+      user_id: data.userId,
+      full_name: data.fullName,
+      cash_session_id: activeCashSession?.id,
+      store_id: activeCashSession?.store_id,
+      timestamp: new Date().toISOString(),
+      [sessionType]: true,
+    }));
+    sessionStorage.setItem('current_pos_pin', pinValue);
+  };
+
   const handlePinInput = (value: string) => {
     // Only allow digits and max 6 characters
     if (/^\d*$/.test(value) && value.length <= 6) {
       setPin(value);
       
       // Auto-submit when PIN is 4-6 digits
+      if (autoLoginTimerRef.current) {
+        window.clearTimeout(autoLoginTimerRef.current);
+      }
       if (value.length >= 4 && value.length <= 6) {
-        handleLogin(value);
+        autoLoginTimerRef.current = window.setTimeout(() => handleLogin(value), 300);
       }
     }
   };
 
   const handleLogin = async (pinValue: string = pin) => {
+    if (isLoading) return;
+    if (autoLoginTimerRef.current) {
+      window.clearTimeout(autoLoginTimerRef.current);
+      autoLoginTimerRef.current = null;
+    }
     if (pinValue.length < 4) {
       toast.error('Please enter a valid PIN (4-6 digits)');
       return;
@@ -215,15 +264,11 @@ export default function POSLogin() {
           return;
         }
         if (localDbUsable && localUser) {
-          localStorage.setItem('offline_pos_session', JSON.stringify({
-          pos_user_id: localUser.pos_user_id,
-          user_id: localUser.user_id,
-          full_name: localUser.full_name,
-          timestamp: new Date().toISOString(),
-          electron: true,
-          local: true,
-          }));
-          sessionStorage.setItem('current_pos_pin', pinValue);
+          await storePOSSession('electron', {
+            posUserId: localUser.pos_user_id,
+            userId: localUser.user_id,
+            fullName: localUser.full_name,
+          }, pinValue);
           toast.success(`Welcome, ${localUser.full_name}!`);
           // Background: pull latest from cloud so the local DB gets populated.
           (async () => {
@@ -257,10 +302,16 @@ export default function POSLogin() {
           throw new Error('No cached login data found. Please connect to internet and login once to enable offline mode.');
         }
         
-        const matchedUser = cachedUsers.find(u => {
-          const pinMatches = u.pin_hash === pinValue;
-          return pinMatches && u.is_active;
-        });
+        let matchedUser = null;
+        for (const user of cachedUsers) {
+          if (!user.is_active) continue;
+          const legacyPlainPinMatches = user.pin_hash === pinValue;
+          const offlinePinHashMatches = user.offline_pin_hash && user.offline_pin_hash === await hashOfflinePin(pinValue, user.id);
+          if (legacyPlainPinMatches || offlinePinHashMatches) {
+            matchedUser = user;
+            break;
+          }
+        }
         
         if (!matchedUser) {
           throw new Error('Invalid PIN. Please check your PIN and try again.');
@@ -290,24 +341,8 @@ export default function POSLogin() {
           userId = offlineResult.userId;
           fullName = offlineResult.fullName;
           
-          const cachedSessions = await offlineDB.getCashSessions();
-          const activeCashSession = cachedSessions
-            .filter((session: any) => session.status === 'open')
-            .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
-
-          // Store offline session
-          const sessionData = {
-            pos_user_id: posUserId,
-            user_id: userId,
-            full_name: fullName,
-            cash_session_id: activeCashSession?.id,
-            store_id: activeCashSession?.store_id,
-            timestamp: new Date().toISOString(),
-            offline: true
-          };
-          localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-          sessionStorage.setItem('current_pos_pin', pinValue);
-          console.log('✅ Stored offline session:', sessionData);
+          await storePOSSession('offline', { posUserId, userId, fullName }, pinValue);
+          console.log('✅ Stored offline session');
           
           toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -328,8 +363,9 @@ export default function POSLogin() {
       let data: VerifyPinResult[] | null = null;
       
       try {
-        const result = await supabase
-          .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
+        const result = await withLoginTimeout(
+          supabase.rpc('verify_pin', { input_pin: pinValue }) as PromiseLike<{ data: VerifyPinResult[] | null; error: any }>
+        );
         
         if (result.error) {
           throw result.error;
@@ -347,6 +383,7 @@ export default function POSLogin() {
           networkError?.message?.includes('INTERNET_DISCONNECTED') ||
           networkError?.message?.includes('NetworkError') ||
           networkError?.message?.includes('Network request failed') ||
+          networkError?.message?.includes('timed out') ||
           networkError?.name === 'TypeError';
         
         if (isNetworkError) {
@@ -359,24 +396,8 @@ export default function POSLogin() {
             userId = offlineResult.userId;
             fullName = offlineResult.fullName;
             
-            const cachedSessions = await offlineDB.getCashSessions();
-            const activeCashSession = cachedSessions
-              .filter((session: any) => session.status === 'open')
-              .sort((a: any, b: any) => new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime())[0];
-
-            // Store offline session
-            const sessionData = {
-              pos_user_id: posUserId,
-              user_id: userId,
-              full_name: fullName,
-              cash_session_id: activeCashSession?.id,
-              store_id: activeCashSession?.store_id,
-              timestamp: new Date().toISOString(),
-              offline: true
-            };
-            localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-            sessionStorage.setItem('current_pos_pin', pinValue);
-            console.log('✅ Offline fallback successful, stored session:', sessionData);
+            await storePOSSession('offline', { posUserId, userId, fullName }, pinValue);
+            console.log('✅ Offline fallback successful, stored session');
             
             toast.success(`Welcome back, ${fullName}! (Offline Mode)`);
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -410,11 +431,13 @@ export default function POSLogin() {
       if (dbInitialized) {
         try {
           console.log('Caching user credentials for offline use...');
+          const offlinePinHash = await hashOfflinePin(pinValue, posUserId);
           await offlineDB.savePOSUsers([{
             id: posUserId,
             user_id: userId,
             full_name: fullName,
-            pin_hash: pinValue,
+            pin_hash: '',
+            offline_pin_hash: offlinePinHash,
             is_active: true,
             lastUpdated: new Date().toISOString()
           }]);
@@ -437,18 +460,8 @@ export default function POSLogin() {
       
       if (usingLocalSupabase) {
         console.log('🟡 Local Supabase detected - skipping Supabase Auth, using PIN-only auth');
-        
-        // Store session for local mode
-        const sessionData = {
-          pos_user_id: posUserId,
-          user_id: userId,
-          full_name: fullName,
-          timestamp: new Date().toISOString(),
-          local: true
-        };
-        localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        sessionStorage.setItem('current_pos_pin', pinValue);
-        console.log('✅ Stored local session:', sessionData);
+        await storePOSSession('local', { posUserId, userId, fullName }, pinValue);
+        console.log('✅ Stored local session');
         
         toast.success(`Welcome, ${fullName}!`);
         
@@ -495,15 +508,7 @@ export default function POSLogin() {
         console.error('Auth error (falling back to PIN-only session):', authError);
         // PIN was verified by DB — auth password is just out of sync.
         // Use offline_pos_session so the user can still work.
-        const sessionData = {
-          pos_user_id: posUserId,
-          user_id: userId,
-          full_name: fullName,
-          timestamp: new Date().toISOString(),
-          auth_fallback: true
-        };
-        localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        sessionStorage.setItem('current_pos_pin', pinValue);
+        await storePOSSession('auth_fallback', { posUserId, userId, fullName }, pinValue);
 
         // Try to refresh the auth password in background via manage-pos-user edge function
         const { data: { session: adminSession } } = await supabase.auth.getSession();
@@ -543,15 +548,7 @@ export default function POSLogin() {
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
-      const sessionData = {
-        pos_user_id: posUserId,
-        user_id: userId,
-        full_name: fullName,
-        timestamp: new Date().toISOString(),
-        cloud: true
-      };
-      localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-      sessionStorage.setItem('current_pos_pin', pinValue);
+      await storePOSSession('cloud', { posUserId, userId, fullName }, pinValue);
       
       // Navigate immediately, cache data in background
       navigate('/admin/desktop');
@@ -590,12 +587,12 @@ export default function POSLogin() {
     // If local server config provided, save and reload
     // SECURITY: Only anon key is accepted - service role keys should never be stored client-side
     if (serverUrl.trim()) {
-      const keyToUse = serverKey.trim();
+      const keyToUse = serviceRoleKey.trim() || serverKey.trim();
       if (!keyToUse) {
-        toast.error('Please enter the Anon Key for local server');
+        toast.error('Please enter the Service Role Key or Anon Key for local server');
         return;
       }
-      setLocalSupabaseConfig(serverUrl.trim(), keyToUse);
+      setLocalSupabaseConfig(serverUrl.trim(), keyToUse, serviceRoleKey.trim() || undefined);
       // Page will reload automatically
     } else if (cloudServiceRoleKey.trim()) {
       // Only cloud key was updated, close dialog
