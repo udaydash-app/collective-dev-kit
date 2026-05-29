@@ -3027,8 +3027,7 @@ export default function POS() {
       amount: total
     };
 
-    // handlePaymentConfirm already prints via kioskPrintService; avoid double print
-    await handlePaymentConfirm([payment], total);
+    await handlePaymentConfirm([payment], total, shouldPrint);
     setShowQuickPayment(false);
   };
 
