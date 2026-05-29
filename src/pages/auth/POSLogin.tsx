@@ -203,6 +203,11 @@ export default function POSLogin() {
   };
 
   const handleLogin = async (pinValue: string = pin) => {
+    if (isLoading) return;
+    if (autoLoginTimerRef.current) {
+      window.clearTimeout(autoLoginTimerRef.current);
+      autoLoginTimerRef.current = null;
+    }
     if (pinValue.length < 4) {
       toast.error('Please enter a valid PIN (4-6 digits)');
       return;
