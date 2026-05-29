@@ -39,6 +39,23 @@ serve(async (req) => {
       });
     }
 
+    // Backfill offline_pin_hash so installed/offline clients (which ship a
+    // snapshot of pos_users) can verify this PIN without a prior online login
+    // on that device. Safe to overwrite — value is deterministic per (id, pin).
+    try {
+      const encoded = new TextEncoder().encode(`global-market-pos:${posUser.pos_user_id}:${String(pin)}`);
+      const digest = await crypto.subtle.digest('SHA-256', encoded);
+      const offlinePinHash = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      await supabaseAdmin
+        .from('pos_users')
+        .update({ offline_pin_hash: offlinePinHash })
+        .eq('id', posUser.pos_user_id);
+    } catch (e) {
+      console.error('Failed to backfill offline_pin_hash:', e);
+    }
+
     const fullName = posUser.full_name || 'POS User';
     const isAdminUser = fullName.trim().toLowerCase() === 'admin';
     const fallbackEmail = isAdminUser ? 'uday.dash@gmail.com' : `pos-${posUser.pos_user_id}@pos.globalmarket.app`;
