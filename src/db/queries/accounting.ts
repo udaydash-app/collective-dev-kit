@@ -462,6 +462,87 @@ export async function fetchPayablesLocal(): Promise<any[]> {
   return buildPayables(contacts, balances);
 }
 
+function buildReceivables(contacts: Row[], balances: Map<string, number>): any[] {
+  return contacts
+    .map((c) => {
+      let bal = balances.get(c.customer_ledger_account_id) ?? 0;
+      if (toBool(c.is_supplier) && c.supplier_ledger_account_id) {
+        bal -= balances.get(c.supplier_ledger_account_id) ?? 0;
+      }
+      return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        credit_limit: c.credit_limit || 0,
+        balance: bal,
+        isUnified: toBool(c.is_supplier),
+      };
+    })
+    .filter((c) => c.balance !== 0);
+}
+
+function buildPayables(contacts: Row[], balances: Map<string, number>): any[] {
+  return contacts
+    .map((c) => {
+      let bal = balances.get(c.supplier_ledger_account_id) ?? 0;
+      if (toBool(c.is_customer) && c.customer_ledger_account_id) {
+        bal -= balances.get(c.customer_ledger_account_id) ?? 0;
+      }
+      return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        balance: bal,
+        isUnified: toBool(c.is_customer),
+      };
+    })
+    .filter((c) => c.balance > 0);
+}
+
+async function loadBalancesCloud(ids: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (ids.length === 0) return map;
+  const unique = Array.from(new Set(ids));
+
+  const { data: accounts, error: accountError } = await supabase
+    .from('accounts')
+    .select('id, opening_balance, account_type')
+    .in('id', unique);
+  if (accountError) throw accountError;
+
+  const lines: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('journal_entry_lines')
+      .select('account_id, debit_amount, credit_amount, journal_entries!inner(status)')
+      .in('account_id', unique)
+      .eq('journal_entries.status', 'posted')
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    lines.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  const movement = new Map<string, number>();
+  for (const line of lines) {
+    movement.set(
+      line.account_id,
+      (movement.get(line.account_id) ?? 0) + (Number(line.debit_amount) || 0) - (Number(line.credit_amount) || 0),
+    );
+  }
+  for (const account of accounts ?? []) {
+    const opening = Number(account.opening_balance) || 0;
+    const delta = movement.get(account.id) ?? 0;
+    const debitNormal = account.account_type === 'asset' || account.account_type === 'expense';
+    map.set(account.id, debitNormal ? opening + delta : opening - delta);
+  }
+  return map;
+}
+
 async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (ids.length === 0) return map;
