@@ -408,11 +408,13 @@ export default function POSLogin() {
       if (dbInitialized) {
         try {
           console.log('Caching user credentials for offline use...');
+          const offlinePinHash = await hashOfflinePin(pinValue, posUserId);
           await offlineDB.savePOSUsers([{
             id: posUserId,
             user_id: userId,
             full_name: fullName,
-            pin_hash: pinValue,
+            pin_hash: userData.pin_hash || '',
+            offline_pin_hash: offlinePinHash,
             is_active: true,
             lastUpdated: new Date().toISOString()
           }]);
@@ -435,18 +437,8 @@ export default function POSLogin() {
       
       if (usingLocalSupabase) {
         console.log('🟡 Local Supabase detected - skipping Supabase Auth, using PIN-only auth');
-        
-        // Store session for local mode
-        const sessionData = {
-          pos_user_id: posUserId,
-          user_id: userId,
-          full_name: fullName,
-          timestamp: new Date().toISOString(),
-          local: true
-        };
-        localStorage.setItem('offline_pos_session', JSON.stringify(sessionData));
-        sessionStorage.setItem('current_pos_pin', pinValue);
-        console.log('✅ Stored local session:', sessionData);
+        await storePOSSession('local', { posUserId, userId, fullName }, pinValue);
+        console.log('✅ Stored local session');
         
         toast.success(`Welcome, ${fullName}!`);
         
