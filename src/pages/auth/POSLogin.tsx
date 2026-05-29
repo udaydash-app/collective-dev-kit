@@ -413,7 +413,7 @@ export default function POSLogin() {
             id: posUserId,
             user_id: userId,
             full_name: fullName,
-            pin_hash: userData.pin_hash || '',
+            pin_hash: '',
             offline_pin_hash: offlinePinHash,
             is_active: true,
             lastUpdated: new Date().toISOString()
