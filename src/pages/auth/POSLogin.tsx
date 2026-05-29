@@ -578,7 +578,7 @@ export default function POSLogin() {
         toast.error('Please enter the Service Role Key or Anon Key for local server');
         return;
       }
-      setLocalSupabaseConfig(serverUrl.trim(), keyToUse);
+      setLocalSupabaseConfig(serverUrl.trim(), keyToUse, serviceRoleKey.trim() || undefined);
       // Page will reload automatically
     } else if (cloudServiceRoleKey.trim()) {
       // Only cloud key was updated, close dialog
