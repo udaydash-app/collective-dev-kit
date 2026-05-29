@@ -2579,24 +2579,8 @@ export default function POS() {
       }
 
       if (event.key === 'F2') {
-        // Direct cash payment + print, skip confirm dialog
-        if (cart.length === 0) {
-          toast.error('Cart is empty');
-          return;
-        }
-        setQuickPaymentMethod('cash');
-        // handlePaymentConfirm already prints via kioskPrintService; do not double-print
-        (async () => {
-          paymentInFlightRef.current = true;
-          const payment = { id: '1', method: 'cash', amount: total };
-          try {
-            await handlePaymentConfirmRef.current?.([payment], total);
-          } finally {
-            // Short cooldown so a fast double-tap of F2/F3/F4 doesn't
-            // immediately re-arm before cart state clears.
-            setTimeout(() => { paymentInFlightRef.current = false; }, 800);
-          }
-        })();
+        // Open the quick payment confirmation dialog (same UX as F3/F4)
+        openQuickPaymentDialog('cash');
         return;
       }
       if (event.key === 'F3') openQuickPaymentDialog('mobile_money');
