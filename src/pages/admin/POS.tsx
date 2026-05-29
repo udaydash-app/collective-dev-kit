@@ -1519,7 +1519,19 @@ export default function POS() {
           const { offlineDB } = await import('@/lib/offlineDB');
           const contacts = await offlineDB.getContacts();
           let result = contacts.filter(c => c.is_customer);
-          
+
+          // Fallback to PowerSync SQLite when IndexedDB has no customers
+          // (covers fresh-offline-login + dual-role contacts that weren't
+          // hydrated via the customer endpoint).
+          if (result.length === 0) {
+            try {
+              const { fetchContactsLocal } = await import('@/db/queries/contacts');
+              result = await fetchContactsLocal({ isCustomer: true });
+            } catch (psErr) {
+              console.warn('[POS] PowerSync customers fallback failed:', psErr);
+            }
+          }
+
           if (customerSearch && customerSearch.length >= 2) {
             const search = customerSearch.toLowerCase();
             result = result.filter(c => 
