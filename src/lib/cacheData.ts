@@ -91,7 +91,7 @@ export async function cacheEssentialData(showProgress = false) {
     if (showProgress) toast.loading('Caching POS users...');
     const posUsersQuery = supabase
       .from('pos_users')
-      .select('id, full_name, pin_hash, is_active')
+      .select('id, user_id, full_name, pin_hash, offline_pin_hash, is_active')
       .eq('is_active', true);
     
     const posUsersResult: any = await posUsersQuery;
