@@ -475,17 +475,6 @@ export default function BarcodeManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price-size">Price Size (px)</Label>
-                  <Input
-                    id="price-size"
-                    type="number"
-                    min="36"
-                    max="150"
-                    value={priceSize}
-                    onChange={(e) => setPriceSize(Number(e.target.value))}
-                  />
-                </div>
-                <div>
                   <Label htmlFor="details-size">Details Text Size (px)</Label>
                   <Input
                     id="details-size"
