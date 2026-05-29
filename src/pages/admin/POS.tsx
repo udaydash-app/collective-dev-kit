@@ -3229,6 +3229,10 @@ export default function POS() {
   const handlePrintLastReceiptRef = useRef<typeof handlePrintLastReceipt | null>(null);
   handlePaymentConfirmRef.current = handlePaymentConfirm;
   handlePrintLastReceiptRef.current = handlePrintLastReceipt;
+  // Guard so a fast double-tap of F2/F3/F4 (or a press right after a sale
+  // completes) does not re-trigger handlePaymentConfirm and open a second
+  // print dialog. Reset on a short cooldown after each invocation.
+  const paymentInFlightRef = useRef(false);
 
   const handleLastReceiptClick = async () => {
     try {
