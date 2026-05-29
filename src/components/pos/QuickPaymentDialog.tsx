@@ -8,9 +8,11 @@ interface QuickPaymentDialogProps {
   onClose: () => void;
   onConfirm: (shouldPrint: boolean) => void;
   paymentMethod: string;
+  title?: string;
+  description?: string;
 }
 
-export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod }: QuickPaymentDialogProps) => {
+export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod, title, description }: QuickPaymentDialogProps) => {
   const yesButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -36,9 +38,9 @@ export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod }
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Complete {getPaymentMethodLabel()} Payment</DialogTitle>
+          <DialogTitle>{title ?? `Complete ${getPaymentMethodLabel()} Payment`}</DialogTitle>
           <DialogDescription>
-            Would you like to print the receipt directly?
+            {description ?? 'Would you like to print the receipt directly?'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2">

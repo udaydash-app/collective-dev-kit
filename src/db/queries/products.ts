@@ -32,6 +32,29 @@ async function queryRows(sql: string, params: unknown[] = []): Promise<Row[]> {
   }
 }
 
+async function fetchProductsCloudAll(): Promise<any[]> {
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`
+        *,
+        categories(name),
+        stores(name),
+        contacts:supplier_id(name),
+        product_variants(*)
+      `)
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return all;
+}
+
 function parseVariants(json: string | null): any[] {
   if (!json) return [];
   try {
@@ -50,6 +73,15 @@ function parseVariants(json: string | null): any[] {
 }
 
 export async function fetchProductsLocal() {
+  if (typeof navigator !== "undefined" && navigator.onLine) {
+    try {
+      const cloudProducts = await fetchProductsCloudAll();
+      if (cloudProducts.length > 0) return cloudProducts;
+    } catch (e) {
+      console.warn("[products] Supabase current fetch failed, using local mirror", e);
+    }
+  }
+
   const productsSql = `
     SELECT
       p.id, p.name, p.description, p.price, p.cost_price, p.local_charges,
@@ -80,17 +112,8 @@ export async function fetchProductsLocal() {
   // Electron PGlite snapshot was never seeded), fetch from cloud Supabase.
   if (rows.length === 0 && navigator.onLine) {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select(`
-          *,
-          categories(name),
-          stores(name),
-          contacts:supplier_id(name),
-          product_variants(*)
-        `)
-        .order("created_at", { ascending: false });
-      if (!error && data) return data as any[];
+      const data = await fetchProductsCloudAll();
+      if (data.length > 0) return data as any[];
     } catch (e) {
       console.warn("[products] Supabase fallback failed", e);
     }

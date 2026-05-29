@@ -1212,11 +1212,21 @@ export default function Products() {
   }
 
   const filteredProducts = (showDuplicates ? duplicateGroups.flat() : products).filter(product => {
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
+    const searchableText = [
+      product.name,
+      product.description,
+      product.categories?.name,
+      product.stores?.name,
+      product.contacts?.name,
+      product.barcode,
+      ...(product.product_variants || []).map((variant) => `${variant.label || ''} ${variant.barcode || ''}`),
+    ].filter(Boolean).join(' ').toLowerCase();
+    const queryTokens = query.split(/\s+/).filter(Boolean);
     const matchesSearch = 
-      product.name.toLowerCase().includes(query) ||
-      (product.description?.toLowerCase() || '').includes(query) ||
-      (product.categories?.name?.toLowerCase() || '').includes(query);
+      queryTokens.length === 0 ||
+      searchableText.includes(query) ||
+      queryTokens.every((token) => searchableText.includes(token));
 
     const matchesCategory = filterCategory === "all" || product.category_id === filterCategory;
     const matchesStore = filterStore === "all" || product.store_id === filterStore;
