@@ -165,6 +165,18 @@ export default function POSLogin() {
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
   };
 
+  const withLoginTimeout = async <T,>(promise: Promise<T>, timeoutMs = 4500): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('Network request timed out')), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  };
+
   const storePOSSession = async (
     sessionType: 'offline' | 'local' | 'cloud' | 'electron' | 'auth_fallback',
     data: { posUserId: string | null; userId: string | null; fullName: string },
@@ -351,8 +363,9 @@ export default function POSLogin() {
       let data: VerifyPinResult[] | null = null;
       
       try {
-        const result = await supabase
-          .rpc('verify_pin', { input_pin: pinValue }) as { data: VerifyPinResult[] | null; error: any };
+        const result = await withLoginTimeout(
+          supabase.rpc('verify_pin', { input_pin: pinValue }) as Promise<{ data: VerifyPinResult[] | null; error: any }>
+        );
         
         if (result.error) {
           throw result.error;
@@ -370,6 +383,7 @@ export default function POSLogin() {
           networkError?.message?.includes('INTERNET_DISCONNECTED') ||
           networkError?.message?.includes('NetworkError') ||
           networkError?.message?.includes('Network request failed') ||
+          networkError?.message?.includes('timed out') ||
           networkError?.name === 'TypeError';
         
         if (isNetworkError) {
