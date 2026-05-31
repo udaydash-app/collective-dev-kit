@@ -42,7 +42,7 @@ export default function RestaurantTables() {
       toast.error(`Cannot clear: ${count} active order(s) on this table.`);
       return;
     }
-    const { error } = await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
+    const { error } = await sb.from('restaurant_tables').update({ status: 'free' }).eq('id', t.id);
     if (error) toast.error(error.message);
     else { toast.success(`Table ${t.name} cleared`); reload(); }
   }
@@ -76,7 +76,7 @@ export default function RestaurantTables() {
               </div>
               <div className="flex items-center justify-between mt-2">
                 <div className="text-xs capitalize text-muted-foreground">Status: {t.status}</div>
-                {t.status !== 'available' && (
+                {t.status !== 'free' && (
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => clearTable(t)}>
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
                   </Button>
