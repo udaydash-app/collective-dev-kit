@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import {
   UtensilsCrossed, Users, Receipt, TrendingUp, Flame, Clock,
   ShoppingBag, Bike, Settings as SettingsIcon, ChefHat, Menu as MenuIcon,
@@ -100,6 +101,7 @@ export default function RestaurantDashboard() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <RestaurantNavButtons />
           <Link to="/admin/restaurant/pos"><Button className="rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white border-0"><Receipt className="h-4 w-4 mr-1.5" /> Open POS</Button></Link>
           <Link to="/admin/restaurant/menu"><Button variant="outline" size="sm" className="rounded-full"><MenuIcon className="h-4 w-4 mr-1.5" /> Menu</Button></Link>
           <Link to="/admin/restaurant/tables"><Button variant="outline" size="sm" className="rounded-full"><Users className="h-4 w-4 mr-1.5" /> Tables</Button></Link>
