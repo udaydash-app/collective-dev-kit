@@ -93,7 +93,7 @@ export default function RestaurantRecipes() {
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 grid grid-cols-12 gap-4 h-[calc(100vh-100px)]">
+    <div className="p-4 grid grid-cols-12 gap-4 h-screen">
       <Card className="col-span-4 p-3 overflow-auto flex flex-col">
         <h2 className="font-semibold mb-2">Menu Items</h2>
         <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="mb-2" />

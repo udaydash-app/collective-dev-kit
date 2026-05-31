@@ -45,7 +45,7 @@ export default function RestaurantIngredients() {
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ingredients</h1>
         <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
