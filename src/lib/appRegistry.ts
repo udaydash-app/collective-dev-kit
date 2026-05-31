@@ -143,7 +143,9 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/Calculator')) },
 
   // Restaurant
-  { id: 'restaurant-pos', path: '/admin/restaurant', title: 'Restaurant POS', icon: UtensilsCrossed, group: 'Restaurant', color: 'from-orange-500 to-red-600',
+  { id: 'restaurant', path: '/admin/restaurant', title: 'Restaurant', icon: UtensilsCrossed, group: 'Restaurant', color: 'from-orange-500 to-red-600',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantDashboard')) },
+  { id: 'restaurant-pos', path: '/admin/restaurant/pos', title: 'Restaurant POS', icon: Receipt, group: 'Restaurant', color: 'from-orange-600 to-red-700',
     component: L(() => import('@/pages/admin/restaurant/RestaurantPOS')) },
   { id: 'restaurant-menu', path: '/admin/restaurant/menu', title: 'Menu', icon: ChefHat, group: 'Restaurant', color: 'from-amber-500 to-orange-600',
     component: L(() => import('@/pages/admin/restaurant/RestaurantMenu')) },
