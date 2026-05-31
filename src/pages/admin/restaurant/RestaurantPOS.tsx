@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 
 async function printHtml(html: string) {
@@ -185,105 +185,198 @@ export default function RestaurantPOS() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Order-type tabs */}
-      <div className="p-3 border-b flex items-center gap-2 flex-wrap">
-        <Tabs value={orderType} onValueChange={(v) => { setOrderType(v as any); if (order && order.type !== v) clearOrder(); }}>
-          <TabsList>
-            <TabsTrigger value="dine_in"><Users className="h-4 w-4 mr-1" /> Dine-in</TabsTrigger>
-            <TabsTrigger value="takeaway"><ShoppingBag className="h-4 w-4 mr-1" /> Takeaway</TabsTrigger>
-            <TabsTrigger value="delivery"><Bike className="h-4 w-4 mr-1" /> Delivery</TabsTrigger>
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
+      {/* Top bar */}
+      <div className="px-4 py-3 border-b bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl flex items-center gap-3 flex-wrap shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+            <UtensilsCrossed className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <div className="font-bold text-sm leading-tight">Restaurant POS</div>
+            <div className="text-[10px] text-muted-foreground">Live service</div>
+          </div>
+        </div>
+
+        <Tabs value={orderType} onValueChange={(v) => { setOrderType(v as any); if (order && order.type !== v) clearOrder(); }} className="ml-2">
+          <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 rounded-full p-1 h-10">
+            <TabsTrigger value="dine_in" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow data-[state=active]:text-orange-600"><Users className="h-4 w-4 mr-1.5" /> Dine-in</TabsTrigger>
+            <TabsTrigger value="takeaway" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow data-[state=active]:text-orange-600"><ShoppingBag className="h-4 w-4 mr-1.5" /> Takeaway</TabsTrigger>
+            <TabsTrigger value="delivery" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow data-[state=active]:text-orange-600"><Bike className="h-4 w-4 mr-1.5" /> Delivery</TabsTrigger>
           </TabsList>
         </Tabs>
+
         {order && (
-          <Badge variant="secondary" className="ml-2">Order {order.order_no}</Badge>
+          <Badge className="ml-1 bg-gradient-to-r from-orange-500 to-red-600 text-white border-0 shadow">#{order.order_no}</Badge>
         )}
         {(orderType === 'takeaway' || orderType === 'delivery') && !order && (
-          <Button size="sm" onClick={() => setCustomerOpen(true)}>+ New {orderType}</Button>
+          <Button size="sm" className="bg-gradient-to-r from-orange-500 to-red-600 hover:opacity-90 text-white border-0 rounded-full" onClick={() => setCustomerOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> New {orderType}
+          </Button>
         )}
+
         <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm" onClick={sendKOT} disabled={!order}><ChefHat className="h-4 w-4 mr-1" /> KOT (F2)</Button>
-          <Button variant="outline" size="sm" onClick={printBill} disabled={!order}><Printer className="h-4 w-4 mr-1" /> Bill (F3)</Button>
-          <Button size="sm" onClick={() => setPayOpen(true)} disabled={!order || !orderItems.length}><CreditCard className="h-4 w-4 mr-1" /> Pay (F4)</Button>
+          <Button variant="outline" size="sm" onClick={sendKOT} disabled={!order} className="rounded-full border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300">
+            <ChefHat className="h-4 w-4 mr-1" /> KOT <kbd className="ml-1.5 text-[10px] opacity-60">F2</kbd>
+          </Button>
+          <Button variant="outline" size="sm" onClick={printBill} disabled={!order} className="rounded-full">
+            <Printer className="h-4 w-4 mr-1" /> Bill <kbd className="ml-1.5 text-[10px] opacity-60">F3</kbd>
+          </Button>
+          <Button size="sm" onClick={() => setPayOpen(true)} disabled={!order || !orderItems.length} className="rounded-full bg-gradient-to-r from-emerald-500 to-green-600 hover:opacity-90 text-white border-0 shadow-lg shadow-emerald-500/30">
+            <CreditCard className="h-4 w-4 mr-1" /> Pay <kbd className="ml-1.5 text-[10px] opacity-70">F4</kbd>
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+      <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
         {/* Tables / floor plan */}
         {orderType === 'dine_in' && (
-          <div className="col-span-3 border rounded-lg p-2 overflow-auto">
-            <h3 className="font-semibold mb-2">Tables</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {tables.map(t => (
-                <button key={t.id}
-                  onClick={() => openOrder(t.id, 'dine_in')}
-                  className={`p-3 rounded-lg border text-center text-sm font-medium transition ${
-                    order?.table_id === t.id ? 'bg-primary text-primary-foreground border-primary' :
-                    t.status === 'occupied' ? 'bg-orange-100 border-orange-300 text-orange-900 dark:bg-orange-900/30' :
-                    'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-900/20'
-                  }`}>
-                  <div>{t.name}</div>
-                  <div className="text-xs opacity-70">{t.seats} seats</div>
-                </button>
-              ))}
-              {tables.length === 0 && <div className="col-span-2 text-xs text-muted-foreground p-4">No tables. Add in Restaurant Tables.</div>}
+          <div className="col-span-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 p-3 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="font-bold text-sm flex items-center gap-1.5"><Users className="h-4 w-4 text-orange-500" /> Floor Plan</h3>
+              <div className="flex gap-1 text-[10px]">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Free</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />Busy</span>
+              </div>
             </div>
+            <ScrollArea className="flex-1">
+              <div className="grid grid-cols-2 gap-2.5 pr-1">
+                {tables.map(t => {
+                  const isActive = order?.table_id === t.id;
+                  const isOccupied = t.status === 'occupied';
+                  return (
+                    <button key={t.id}
+                      onClick={() => openOrder(t.id, 'dine_in')}
+                      className={`group relative aspect-square rounded-2xl border-2 text-center font-bold transition-all duration-200 hover:scale-[1.03] active:scale-95 shadow-md ${
+                        isActive ? 'bg-gradient-to-br from-orange-500 to-red-600 text-white border-orange-600 shadow-orange-500/40 shadow-xl' :
+                        isOccupied ? 'bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-200' :
+                        'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 hover:border-emerald-400'
+                      } ${t.shape === 'round' ? 'rounded-full' : ''}`}>
+                      <div className="text-lg leading-none mt-1">{t.name}</div>
+                      <div className="text-[10px] opacity-70 mt-0.5">{t.seats} seats</div>
+                      {isOccupied && !isActive && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 animate-pulse" />}
+                    </button>
+                  );
+                })}
+                {tables.length === 0 && <div className="col-span-2 text-xs text-muted-foreground p-6 text-center">No tables yet.</div>}
+              </div>
+            </ScrollArea>
           </div>
         )}
 
         {/* Order ticket */}
-        <div className={`${orderType === 'dine_in' ? 'col-span-4' : 'col-span-5'} border rounded-lg flex flex-col overflow-hidden`}>
-          <div className="p-2 border-b bg-muted/30 font-semibold text-sm">Current Order</div>
+        <div className={`${orderType === 'dine_in' ? 'col-span-4' : 'col-span-5'} rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/30 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden`}>
+          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-orange-50/50 dark:from-slate-900 dark:to-orange-950/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-orange-500" />
+              <span className="font-bold text-sm">Order Ticket</span>
+            </div>
+            {order && <span className="text-xs text-muted-foreground">{orderItems.length} items</span>}
+          </div>
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+            <div className="p-3 space-y-2">
               {orderItems.map(oi => (
-                <div key={oi.id} className="flex items-center gap-2 text-sm border rounded p-2">
-                  <div className="flex-1">
-                    <div className="font-medium">{oi.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {Number(oi.unit_price).toFixed(2)} each
-                      {oi.kot_status && oi.kot_status !== 'new' && <Badge variant="outline" className="ml-2 text-xs">{oi.kot_status}</Badge>}
+                <div key={oi.id} className="group flex items-center gap-2 text-sm rounded-xl p-2.5 bg-slate-50/80 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-orange-200 dark:hover:border-orange-900 transition">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate">{oi.name}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <span>{Number(oi.unit_price).toFixed(0)} each</span>
+                      {oi.kot_status && oi.kot_status !== 'new' && <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-amber-300 text-amber-700">{oi.kot_status}</Badge>}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeQty(oi, -1)}><Minus className="h-3 w-3" /></Button>
-                  <span className="w-8 text-center">{Number(oi.qty)}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeQty(oi, 1)}><Plus className="h-3 w-3" /></Button>
-                  <span className="w-16 text-right font-semibold">{(oi.qty * oi.unit_price).toFixed(2)}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(oi)}><Trash2 className="h-3 w-3" /></Button>
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-700 p-0.5">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => changeQty(oi, -1)}><Minus className="h-3 w-3" /></Button>
+                    <span className="w-6 text-center font-bold text-sm">{Number(oi.qty)}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => changeQty(oi, 1)}><Plus className="h-3 w-3" /></Button>
+                  </div>
+                  <span className="w-16 text-right font-bold text-orange-600 dark:text-orange-400">{(oi.qty * oi.unit_price).toFixed(0)}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition" onClick={() => removeItem(oi)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               ))}
-              {!orderItems.length && <p className="text-sm text-muted-foreground p-4 text-center">Pick a table / customer and add items</p>}
+              {!orderItems.length && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 flex items-center justify-center mb-3">
+                    <Receipt className="h-7 w-7 text-orange-400" />
+                  </div>
+                  <p className="text-sm font-medium">No items yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">{orderType === 'dine_in' ? 'Pick a table and tap items to start' : 'Tap items from the menu to start'}</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
           {order && (
-            <div className="p-3 border-t bg-muted/20 space-y-1 text-sm">
-              <div className="flex justify-between"><span>Subtotal</span><span>{Number(order.subtotal).toFixed(2)}</span></div>
-              <div className="flex justify-between text-lg font-bold"><span>Total</span><span>{Number(order.total).toFixed(2)}</span></div>
+            <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/40 dark:from-slate-900 dark:via-orange-950/10 dark:to-amber-950/10 space-y-1.5">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Subtotal</span><span>{Number(order.subtotal).toFixed(0)}</span>
+              </div>
+              {order.discount > 0 && <div className="flex justify-between text-sm text-emerald-600"><span>Discount</span><span>-{Number(order.discount).toFixed(0)}</span></div>}
+              <div className="flex justify-between items-baseline pt-1.5 border-t border-dashed border-slate-300 dark:border-slate-700">
+                <span className="font-bold">Total</span>
+                <span className="text-2xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{Number(order.total).toFixed(0)}</span>
+              </div>
             </div>
           )}
         </div>
 
         {/* Menu */}
-        <div className={`${orderType === 'dine_in' ? 'col-span-5' : 'col-span-7'} border rounded-lg flex flex-col overflow-hidden`}>
-          <div className="p-2 border-b flex gap-2 items-center">
-            <Input placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8" />
+        <div className={`${orderType === 'dine_in' ? 'col-span-5' : 'col-span-7'} rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden`}>
+          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex gap-2 items-center bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-9 rounded-full bg-slate-100/70 dark:bg-slate-800/50 border-0 focus-visible:ring-2 focus-visible:ring-orange-400" />
+            </div>
           </div>
-          <div className="px-2 py-1 border-b overflow-x-auto flex gap-1">
+          <div className="px-3 py-2 border-b border-slate-200/60 dark:border-slate-800 overflow-x-auto flex gap-1.5 scrollbar-thin">
             {cats.map(c => (
-              <Button key={c.id} size="sm" variant={activeCat === c.id ? 'default' : 'outline'} onClick={() => setActiveCat(c.id)}>
+              <Button key={c.id} size="sm" variant="ghost"
+                onClick={() => setActiveCat(c.id)}
+                className={`rounded-full font-semibold transition-all whitespace-nowrap ${
+                  activeCat === c.id
+                    ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg shadow-orange-500/30 hover:opacity-90 hover:text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-orange-100 dark:hover:bg-orange-950/30'
+                }`}>
                 {c.name}
               </Button>
             ))}
             {!cats.length && <span className="text-xs text-muted-foreground p-2">No menu yet. Set up in Restaurant Menu.</span>}
           </div>
           <ScrollArea className="flex-1">
-            <div className="grid grid-cols-3 gap-2 p-2">
-              {visible.map(it => (
-                <Card key={it.id} onClick={() => addItem(it)} className="p-3 cursor-pointer hover:bg-accent transition active:scale-95">
-                  <div className="font-medium text-sm leading-tight">{it.name}</div>
-                  <div className="text-primary font-bold mt-1">{Number(it.price).toFixed(2)}</div>
-                </Card>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
+              {visible.map((it, idx) => {
+                const colors = [
+                  'from-orange-400 to-red-500',
+                  'from-amber-400 to-orange-500',
+                  'from-rose-400 to-pink-500',
+                  'from-emerald-400 to-teal-500',
+                  'from-sky-400 to-blue-500',
+                  'from-violet-400 to-purple-500',
+                ];
+                const grad = colors[idx % colors.length];
+                return (
+                  <button key={it.id} onClick={() => addItem(it)}
+                    className="group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all duration-200 text-left">
+                    <div className={`h-20 bg-gradient-to-br ${grad} relative flex items-center justify-center`}>
+                      <UtensilsCrossed className="h-8 w-8 text-white/80 drop-shadow group-hover:scale-110 transition" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    </div>
+                    <div className="p-2.5">
+                      <div className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">{it.name}</div>
+                      <div className="flex items-baseline justify-between mt-1.5">
+                        <span className="font-black text-orange-600 dark:text-orange-400">{Number(it.price).toFixed(0)}</span>
+                        <span className="h-6 w-6 rounded-full bg-orange-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg shadow-orange-500/40">
+                          <Plus className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {visible.length === 0 && cats.length > 0 && (
+                <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                  <Sparkles className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="text-sm">No items match</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
