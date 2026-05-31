@@ -113,7 +113,7 @@ export default function RestaurantPurchases() {
   }
 
   return (
-    <div className="p-4 space-y-4 min-h-screen">
+    <div className="p-4 space-y-4 min-h-full">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ingredient Purchases</h1>
         <div className="flex items-center gap-2">

@@ -94,7 +94,7 @@ export default function RestaurantRecipes() {
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 grid grid-cols-12 gap-4 h-screen">
+    <div className="p-4 grid grid-cols-12 gap-4 h-full">
       <div className="col-span-12 flex items-center justify-between mb-2">
         <h1 className="text-xl font-bold">Recipes & Costing</h1>
         <RestaurantNavButtons />

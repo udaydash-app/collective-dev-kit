@@ -54,7 +54,7 @@ export default function RestaurantMenu() {
   }
 
   return (
-    <div className="p-4 grid grid-cols-12 gap-4 min-h-screen">
+    <div className="p-4 grid grid-cols-12 gap-4 min-h-full">
       <div className="col-span-12 flex items-center justify-between mb-2">
         <h1 className="text-xl font-bold">Menu Manager</h1>
         <RestaurantNavButtons />

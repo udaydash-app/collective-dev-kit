@@ -49,7 +49,7 @@ export default function RestaurantTables() {
   }
 
   return (
-    <div className="p-4 space-y-4 min-h-screen">
+    <div className="p-4 space-y-4 min-h-full">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Table Manager</h1>
         <RestaurantNavButtons />
