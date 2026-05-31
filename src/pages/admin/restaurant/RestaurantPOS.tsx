@@ -454,15 +454,15 @@ export default function RestaurantPOS() {
                 <span className="font-bold">Total</span>
                 <span className="text-2xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{Number(order.total).toFixed(0)}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-3">
-                <Button variant="outline" size="sm" onClick={sendKOT} disabled={!order} className="rounded-full border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300">
-                  <ChefHat className="h-4 w-4 mr-1" /> KOT <kbd className="ml-1.5 text-[10px] opacity-60">F2</kbd>
+              <div className="grid grid-cols-3 gap-3 pt-3">
+                <Button variant="outline" onClick={sendKOT} disabled={!order} className="rounded-full border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300 h-12 text-base font-semibold">
+                  <ChefHat className="h-5 w-5 mr-1.5" /> KOT <kbd className="ml-1.5 text-xs opacity-60">F2</kbd>
                 </Button>
-                <Button variant="outline" size="sm" onClick={printBill} disabled={!order} className="rounded-full">
-                  <Printer className="h-4 w-4 mr-1" /> Bill <kbd className="ml-1.5 text-[10px] opacity-60">F3</kbd>
+                <Button variant="outline" onClick={printBill} disabled={!order} className="rounded-full h-12 text-base font-semibold">
+                  <Printer className="h-5 w-5 mr-1.5" /> Bill <kbd className="ml-1.5 text-xs opacity-60">F3</kbd>
                 </Button>
-                <Button size="sm" onClick={() => setPayOpen(true)} disabled={!order || !orderItems.length} className="rounded-full bg-gradient-to-r from-emerald-500 to-green-600 hover:opacity-90 text-white border-0 shadow-lg shadow-emerald-500/30">
-                  <CreditCard className="h-4 w-4 mr-1" /> Pay <kbd className="ml-1.5 text-[10px] opacity-70">F4</kbd>
+                <Button onClick={() => setPayOpen(true)} disabled={!order || !orderItems.length} className="rounded-full bg-gradient-to-r from-emerald-500 to-green-600 hover:opacity-90 text-white border-0 shadow-lg shadow-emerald-500/30 h-12 text-base font-semibold">
+                  <CreditCard className="h-5 w-5 mr-1.5" /> Pay <kbd className="ml-1.5 text-xs opacity-70">F4</kbd>
                 </Button>
               </div>
             </div>
