@@ -9,7 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
-import { printKioskReceipt } from '@/lib/kioskPrint';
+
+async function printHtml(html: string) {
+  const w = window.open('', '_blank', 'width=400,height=600');
+  if (!w) return;
+  w.document.write(`<html><head><title>Print</title></head><body>${html}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),200)}</script></body></html>`);
+  w.document.close();
+}
+
+// Supabase types aren't regenerated yet for restaurant_* tables; use a loose alias.
+const sb: any = supabase;
 
 type Cat = { id: string; name: string; color: string | null };
 type Item = { id: string; category_id: string | null; name: string; price: number; image_url: string | null; is_available: boolean; kot_printer: string };
@@ -44,9 +53,9 @@ export default function RestaurantPOS() {
 
   async function reload() {
     const [c, i, t] = await Promise.all([
-      supabase.from('restaurant_menu_categories').select('*').eq('is_active', true).order('sort_order'),
-      supabase.from('restaurant_menu_items').select('*').eq('is_available', true).order('sort_order'),
-      supabase.from('restaurant_tables').select('*').order('name'),
+      sb.from('restaurant_menu_categories').select('*').eq('is_active', true).order('sort_order'),
+      sb.from('restaurant_menu_items').select('*').eq('is_available', true).order('sort_order'),
+      sb.from('restaurant_tables').select('*').order('name'),
     ]);
     setCats((c.data as any) || []);
     setItems((i.data as any) || []);
@@ -60,18 +69,17 @@ export default function RestaurantPOS() {
   ), [items, activeCat, search]);
 
   async function openOrder(tableId: string | null, type: 'dine_in' | 'takeaway' | 'delivery', extra: Partial<Order> = {}) {
-    // If table has existing open order, load it
     if (tableId) {
-      const { data: existing } = await supabase.from('restaurant_orders').select('*').eq('table_id', tableId).neq('status', 'paid').neq('status', 'void').maybeSingle();
+      const { data: existing } = await sb.from('restaurant_orders').select('*').eq('table_id', tableId).neq('status', 'paid').neq('status', 'void').maybeSingle();
       if (existing) {
         setOrder(existing as any);
-        setOrderType(existing.type);
-        const { data: oi } = await supabase.from('restaurant_order_items').select('*').eq('order_id', existing.id).order('created_at');
+        setOrderType((existing as any).type as any);
+        const { data: oi } = await sb.from('restaurant_order_items').select('*').eq('order_id', (existing as any).id).order('created_at');
         setOrderItems((oi as any) || []);
         return;
       }
     }
-    const { data, error } = await supabase.from('restaurant_orders').insert({
+    const { data, error } = await sb.from('restaurant_orders').insert({
       type, table_id: tableId, status: 'open', opened_by: session?.id || null, ...extra,
     }).select().single();
     if (error) { toast.error(error.message); return; }
@@ -92,10 +100,10 @@ export default function RestaurantPOS() {
     const existing = orderItems.find(o => o.menu_item_id === it.id && o.kot_status === 'new');
     if (existing && existing.id) {
       const newQty = Number(existing.qty) + 1;
-      await supabase.from('restaurant_order_items').update({ qty: newQty }).eq('id', existing.id);
+      await sb.from('restaurant_order_items').update({ qty: newQty }).eq('id', existing.id);
       setOrderItems(prev => prev.map(p => p.id === existing.id ? { ...p, qty: newQty } : p));
     } else {
-      const { data, error } = await supabase.from('restaurant_order_items').insert({
+      const { data, error } = await sb.from('restaurant_order_items').insert({
         order_id: order.id, menu_item_id: it.id, name: it.name, qty: 1, unit_price: it.price, kot_status: 'new',
       }).select().single();
       if (error) { toast.error(error.message); return; }
@@ -107,21 +115,21 @@ export default function RestaurantPOS() {
   async function changeQty(oi: OrderItem, delta: number) {
     const newQty = Number(oi.qty) + delta;
     if (newQty <= 0) { await removeItem(oi); return; }
-    await supabase.from('restaurant_order_items').update({ qty: newQty }).eq('id', oi.id!);
+    await sb.from('restaurant_order_items').update({ qty: newQty }).eq('id', oi.id!);
     setOrderItems(prev => prev.map(p => p.id === oi.id ? { ...p, qty: newQty } : p));
     refreshOrderTotals();
   }
 
   async function removeItem(oi: OrderItem) {
     if (oi.kot_status && oi.kot_status !== 'new') { toast.error('Item already sent to kitchen'); return; }
-    await supabase.from('restaurant_order_items').delete().eq('id', oi.id!);
+    await sb.from('restaurant_order_items').delete().eq('id', oi.id!);
     setOrderItems(prev => prev.filter(p => p.id !== oi.id));
     refreshOrderTotals();
   }
 
   async function refreshOrderTotals() {
     if (!order) return;
-    const { data } = await supabase.from('restaurant_orders').select('*').eq('id', order.id).single();
+    const { data } = await sb.from('restaurant_orders').select('*').eq('id', order.id).single();
     if (data) setOrder(data as any);
   }
 
@@ -130,10 +138,10 @@ export default function RestaurantPOS() {
     const newItems = orderItems.filter(o => o.kot_status === 'new');
     if (!newItems.length) { toast.info('No new items to send'); return; }
     const nextBatch = (Math.max(0, ...orderItems.map(o => o.kot_batch || 0))) + 1;
-    await supabase.from('restaurant_order_items')
+    await sb.from('restaurant_order_items')
       .update({ kot_status: 'sent', kot_batch: nextBatch })
       .in('id', newItems.map(n => n.id!));
-    await supabase.from('restaurant_orders').update({ status: 'sent' }).eq('id', order.id);
+    await sb.from('restaurant_orders').update({ status: 'sent' }).eq('id', order.id);
     // Print KOT
     const html = `
       <div style="font-family: monospace; padding: 8px; width: 72mm;">
@@ -144,7 +152,7 @@ export default function RestaurantPOS() {
         <hr/>
         ${newItems.map(n => `<div style="font-size:14px;font-weight:bold">${n.qty} × ${n.name}</div>${n.note ? `<div style="font-size:11px;font-style:italic">→ ${n.note}</div>` : ''}`).join('')}
       </div>`;
-    try { await printKioskReceipt(html); } catch { window.print(); }
+    try { await printHtml(html); } catch { window.print(); }
     setOrderItems(prev => prev.map(p => p.kot_status === 'new' ? { ...p, kot_status: 'sent', kot_batch: nextBatch } : p));
     toast.success('Sent to kitchen');
   }
@@ -167,7 +175,7 @@ export default function RestaurantPOS() {
         <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:16px"><span>TOTAL</span><span>${order.total.toFixed(2)}</span></div>
         <p style="text-align:center;margin-top:8px">Thank you!</p>
       </div>`;
-    try { await printKioskReceipt(html); } catch { window.print(); }
+    try { await printHtml(html); } catch { window.print(); }
   }
 
   function clearOrder() {
@@ -290,9 +298,9 @@ export default function RestaurantPOS() {
         onPaid={async (payments) => {
           if (!order) return;
           for (const p of payments) {
-            await supabase.from('restaurant_payments').insert({ order_id: order.id, method: p.method, amount: p.amount, paid_by: session?.id || null });
+            await sb.from('restaurant_payments').insert({ order_id: order.id, method: p.method, amount: p.amount, paid_by: session?.id || null });
           }
-          await supabase.from('restaurant_orders').update({ status: 'paid' }).eq('id', order.id);
+          await sb.from('restaurant_orders').update({ status: 'paid' }).eq('id', order.id);
           await printBill();
           toast.success('Payment recorded');
           setPayOpen(false);
