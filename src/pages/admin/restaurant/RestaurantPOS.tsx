@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useDesktopWindowId } from '@/components/desktop/DesktopWindowContext';
+import { windowActions } from '@/store/windowStore';
 
 async function printHtml(html: string, widthMm = 80) {
   const w = window.open('', '_blank', 'width=420,height=640');
@@ -44,6 +46,16 @@ type Settings = { company_name: string; logo_url?: string|null; address?: string
 
 export default function RestaurantPOS() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const desktopWindowId = useDesktopWindowId();
+  const goToRestaurant = () => {
+    if (desktopWindowId) {
+      windowActions.close(desktopWindowId);
+      windowActions.openApp('restaurant');
+    } else {
+      navigate('/admin/restaurant');
+    }
+  };
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [tables, setTables] = useState<RTable[]>([]);
