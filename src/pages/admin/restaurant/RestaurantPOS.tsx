@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -248,6 +248,36 @@ export default function RestaurantPOS() {
     reload();
   }
 
+  async function clearTable(t: RTable, e: React.MouseEvent) {
+    e.stopPropagation();
+    // Find open order on this table
+    const { data: openOrd } = await sb
+      .from('restaurant_orders')
+      .select('id')
+      .eq('table_id', t.id)
+      .neq('status', 'paid')
+      .neq('status', 'void')
+      .maybeSingle();
+    if (openOrd) {
+      const { data: sentItems } = await sb
+        .from('restaurant_order_items')
+        .select('id')
+        .eq('order_id', (openOrd as any).id)
+        .not('kot_status', 'in', '(new,void)')
+        .limit(1);
+      if (sentItems && sentItems.length) {
+        toast.error('Cannot clear: items already sent to kitchen');
+        return;
+      }
+      await sb.from('restaurant_order_items').delete().eq('order_id', (openOrd as any).id);
+      await sb.from('restaurant_orders').update({ status: 'void' }).eq('id', (openOrd as any).id);
+    }
+    await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
+    if (order?.table_id === t.id) clearOrder();
+    toast.success(`Table ${t.name} cleared`);
+    reload();
+  }
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
       {/* Top bar */}
@@ -312,6 +342,7 @@ export default function RestaurantPOS() {
                   const isActive = order?.table_id === t.id;
                   const open = tableOrders[t.id];
                   const isOccupied = !!open || t.status === 'occupied';
+                  const canClear = isOccupied && !open;
                   return (
                     <button key={t.id}
                       onClick={() => onTableClick(t)}
@@ -332,6 +363,16 @@ export default function RestaurantPOS() {
                         <div className="text-[10px] opacity-70 mt-0.5">{t.seats} seats</div>
                       )}
                       {isOccupied && !isActive && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 animate-pulse" />}
+                      {canClear && (
+                        <span
+                          role="button"
+                          title="Clear table (no active order)"
+                          onClick={(ev) => clearTable(t, ev as any)}
+                          className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white/90 dark:bg-slate-900/90 border border-orange-300 dark:border-orange-700 flex items-center justify-center text-orange-600 hover:bg-orange-500 hover:text-white shadow"
+                        >
+                          <X className="h-3 w-3" />
+                        </span>
+                      )}
                     </button>
                   );
                 })}
