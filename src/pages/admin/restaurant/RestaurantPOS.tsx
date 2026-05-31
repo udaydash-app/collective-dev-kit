@@ -378,17 +378,17 @@ export default function RestaurantPOS() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
+      <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden min-h-0">
         {/* Order ticket */}
-        <div className="col-span-5 rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/30 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-orange-50/50 dark:from-slate-900 dark:to-orange-950/20 flex items-center justify-between">
+        <div className="col-span-5 rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/30 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden h-full min-h-0">
+          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-orange-50/50 dark:from-slate-900 dark:to-orange-950/20 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-orange-500" />
               <span className="font-bold text-sm">Order Ticket</span>
             </div>
             {order && <span className="text-xs text-muted-foreground">{orderItems.length} items</span>}
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-3 space-y-2">
               {/* Dine-in: no table selected prompt */}
               {orderType === 'dine_in' && !order && (
@@ -443,7 +443,7 @@ export default function RestaurantPOS() {
             </div>
           </ScrollArea>
           {order && (
-            <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/40 dark:from-slate-900 dark:via-orange-950/10 dark:to-amber-950/10 space-y-1.5">
+            <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/40 dark:from-slate-900 dark:via-orange-950/10 dark:to-amber-950/10 space-y-1.5 shrink-0">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Subtotal</span><span>{Number(order.subtotal).toFixed(0)}</span>
               </div>
@@ -457,15 +457,15 @@ export default function RestaurantPOS() {
         </div>
 
         {/* Menu */}
-        <div className="col-span-7 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden">
+        <div className="col-span-7 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden h-full min-h-0">
 
-          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex gap-2 items-center bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50">
+          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex gap-2 items-center bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50 shrink-0">
             <div className="relative flex-1">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-9 rounded-full bg-slate-100/70 dark:bg-slate-800/50 border-0 focus-visible:ring-2 focus-visible:ring-orange-400" />
             </div>
           </div>
-          <div className="px-3 py-2 border-b border-slate-200/60 dark:border-slate-800 overflow-x-auto flex gap-1.5 scrollbar-thin">
+          <div className="px-3 py-2 border-b border-slate-200/60 dark:border-slate-800 overflow-x-auto flex gap-1.5 scrollbar-thin shrink-0">
             {cats.map(c => (
               <Button key={c.id} size="sm" variant="ghost"
                 onClick={() => setActiveCat(c.id)}
@@ -479,7 +479,7 @@ export default function RestaurantPOS() {
             ))}
             {!cats.length && <span className="text-xs text-muted-foreground p-2">No menu yet. Set up in Restaurant Menu.</span>}
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
               {visible.map((it, idx) => {
                 const colors = [
