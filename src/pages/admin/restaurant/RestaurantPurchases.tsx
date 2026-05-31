@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Receipt } from 'lucide-react';
+import { Plus, Trash2, Receipt, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -20,6 +20,7 @@ export default function RestaurantPurchases() {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([{ ingredient_id: '', quantity: '', unit_cost: '' }]);
   const [viewing, setViewing] = useState<any | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { reload(); }, []);
   async function reload() {
@@ -39,28 +40,58 @@ export default function RestaurantPurchases() {
 
   const total = lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unit_cost) || 0), 0);
 
+  function resetForm() {
+    setEditingId(null); setSupplier(''); setNotes('');
+    setLines([{ ingredient_id: '', quantity: '', unit_cost: '' }]);
+  }
+
+  function startEdit(p: any) {
+    setEditingId(p.id);
+    setSupplier(p.supplier_name || '');
+    setNotes(p.notes || '');
+    setLines((p.restaurant_purchase_items || []).map((it: any) => ({
+      ingredient_id: it.ingredient_id,
+      quantity: String(it.quantity),
+      unit_cost: String(it.unit_cost),
+    })));
+    setViewing(null);
+    setOpen(true);
+  }
+
   async function save() {
     const valid = lines.filter(l => l.ingredient_id && Number(l.quantity) > 0 && Number(l.unit_cost) >= 0);
     if (!valid.length) return toast.error('Add at least one valid line.');
-    const { data: ph, error } = await sb.from('restaurant_purchases').insert({
-      supplier_name: supplier || null, notes: notes || null,
-    }).select().single();
-    if (error) return toast.error(error.message);
+    let purchaseId = editingId;
+    if (editingId) {
+      const { error: eu } = await sb.from('restaurant_purchases').update({
+        supplier_name: supplier || null, notes: notes || null,
+      }).eq('id', editingId);
+      if (eu) return toast.error(eu.message);
+      // reverse existing lines via delete (triggers reverse stock)
+      const { error: ed } = await sb.from('restaurant_purchase_items').delete().eq('purchase_id', editingId);
+      if (ed) return toast.error(ed.message);
+    } else {
+      const { data: ph, error } = await sb.from('restaurant_purchases').insert({
+        supplier_name: supplier || null, notes: notes || null,
+      }).select().single();
+      if (error) return toast.error(error.message);
+      purchaseId = ph.id;
+    }
     const rows = valid.map(l => ({
-      purchase_id: ph.id,
+      purchase_id: purchaseId,
       ingredient_id: l.ingredient_id,
       quantity: Number(l.quantity),
       unit_cost: Number(l.unit_cost),
     }));
     const { error: e2 } = await sb.from('restaurant_purchase_items').insert(rows);
     if (e2) return toast.error(e2.message);
-    toast.success('Purchase recorded — stock updated.');
-    setOpen(false); setSupplier(''); setNotes(''); setLines([{ ingredient_id: '', quantity: '', unit_cost: '' }]);
+    toast.success(editingId ? 'Purchase updated — stock adjusted.' : 'Purchase recorded — stock updated.');
+    setOpen(false); resetForm();
     reload();
   }
 
   async function del(id: string) {
-    if (!confirm('Delete purchase? (Stock already added will NOT be reversed automatically.)')) return;
+    if (!confirm('Delete purchase? Stock added by it will be reversed.')) return;
     const { error } = await sb.from('restaurant_purchases').delete().eq('id', id);
     if (error) return toast.error(error.message);
     reload();
@@ -70,7 +101,7 @@ export default function RestaurantPurchases() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ingredient Purchases</h1>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Purchase</Button>
+        <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="h-4 w-4 mr-1" /> New Purchase</Button>
       </div>
 
       <Card className="p-0 overflow-auto">
@@ -93,7 +124,10 @@ export default function RestaurantPurchases() {
                 <td className="p-2">{p.supplier_name || '—'}</td>
                 <td className="p-2 text-right">{p.restaurant_purchase_items?.length || 0}</td>
                 <td className="p-2 text-right font-semibold">{formatCurrency(p.total)}</td>
-                <td className="p-2"><Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); del(p.id); }}><Trash2 className="h-4 w-4" /></Button></td>
+                <td className="p-2 text-right whitespace-nowrap">
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); startEdit(p); }}><Pencil className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); del(p.id); }}><Trash2 className="h-4 w-4" /></Button>
+                </td>
               </tr>
             ))}
             {!purchases.length && <tr><td colSpan={6} className="text-center p-8 text-muted-foreground">No purchases yet.</td></tr>}
@@ -101,9 +135,9 @@ export default function RestaurantPurchases() {
         </table>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>New Ingredient Purchase</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? 'Edit Purchase' : 'New Ingredient Purchase'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Supplier name (optional)" value={supplier} onChange={e => setSupplier(e.target.value)} />
@@ -134,14 +168,18 @@ export default function RestaurantPurchases() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save}>Save Purchase</Button>
+            <Button onClick={save}>{editingId ? 'Update Purchase' : 'Save Purchase'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> {viewing?.purchase_no}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" /> {viewing?.purchase_no}
+            </DialogTitle>
+          </DialogHeader>
           {viewing && (
             <div className="space-y-2 text-sm">
               <div>Date: {formatDate(viewing.purchase_date)}</div>
@@ -161,6 +199,11 @@ export default function RestaurantPurchases() {
                 </tbody>
               </table>
               <div className="text-right text-lg font-bold pt-2">Total: {formatCurrency(viewing.total)}</div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => startEdit(viewing)}>
+                  <Pencil className="h-4 w-4 mr-1" /> Edit
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
