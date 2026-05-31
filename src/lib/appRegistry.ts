@@ -5,7 +5,7 @@ import {
   Calculator, FileSpreadsheet, Truck, ShoppingBag, Settings as SettingsIcon,
   UserCog, MessageSquare, Percent, Gift, Repeat, Barcode as BarcodeIcon,
   ClipboardCheck, Factory, Banknote, Database, FileBarChart, Coins,
-  CreditCard, Upload, type LucideIcon,
+  CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck, type LucideIcon,
 } from 'lucide-react';
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 
@@ -16,7 +16,8 @@ export type AppGroup =
   | 'Accounting'
   | 'Analytics'
   | 'Marketing'
-  | 'Admin';
+  | 'Admin'
+  | 'Restaurant';
 
 export interface AppDef {
   id: string;
@@ -139,6 +140,16 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/Settings')) },
   { id: 'calculator', path: '/admin/calculator', title: 'Calculator', icon: Calculator, group: 'Admin', color: 'from-zinc-500 to-slate-700',
     component: L(() => import('@/pages/admin/Calculator')) },
+
+  // Restaurant
+  { id: 'restaurant-pos', path: '/admin/restaurant', title: 'Restaurant POS', icon: UtensilsCrossed, group: 'Restaurant', color: 'from-orange-500 to-red-600',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantPOS')) },
+  { id: 'restaurant-menu', path: '/admin/restaurant/menu', title: 'Menu', icon: ChefHat, group: 'Restaurant', color: 'from-amber-500 to-orange-600',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantMenu')) },
+  { id: 'restaurant-tables', path: '/admin/restaurant/tables', title: 'Tables', icon: Armchair, group: 'Restaurant', color: 'from-rose-500 to-pink-600',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantTables')) },
+  { id: 'restaurant-recipes', path: '/admin/restaurant/recipes', title: 'Recipes', icon: BookOpenCheck, group: 'Restaurant', color: 'from-red-500 to-orange-700',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantRecipes')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
@@ -147,5 +158,5 @@ export const findAppByPath = (path: string): AppDef | undefined =>
 export const findAppById = (id: string): AppDef | undefined => APPS.find((a) => a.id === id);
 
 export const APP_GROUPS: AppGroup[] = [
-  'POS & Sales', 'Inventory', 'Purchasing', 'Accounting', 'Analytics', 'Marketing', 'Admin',
+  'POS & Sales', 'Inventory', 'Purchasing', 'Accounting', 'Analytics', 'Marketing', 'Admin', 'Restaurant',
 ];

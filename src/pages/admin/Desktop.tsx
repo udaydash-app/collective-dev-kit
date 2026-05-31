@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, LogOut, User as UserIcon,
   ShoppingCart, Package, ShoppingBag, BookOpen, BarChart3, Megaphone, UserCog,
-  Calculator as CalculatorIcon,
+  Calculator as CalculatorIcon, UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,7 @@ const GROUP_META: Record<AppGroup, { icon: LucideIcon; color: string }> = {
   'Analytics': { icon: BarChart3, color: 'from-cyan-500 to-blue-600' },
   'Marketing': { icon: Megaphone, color: 'from-orange-500 to-red-600' },
   'Admin': { icon: UserCog, color: 'from-slate-500 to-gray-700' },
+  'Restaurant': { icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
 };
 
 export default function Desktop() {
