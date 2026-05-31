@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { useAdmin } from "@/hooks/useAdmin";
+import { getOfflineSessionSync, useAdmin } from "@/hooks/useAdmin";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 
 export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, isLoading, user } = useAdmin();
+  const pinSession = getOfflineSessionSync();
 
   // Real-time order notifications for admins - must be before any returns
   useEffect(() => {
@@ -63,7 +64,7 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }, [isAdmin]);
 
   // Prevent any rendering until auth check is complete
-  if (isLoading) {
+  if (isLoading && !pinSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -75,12 +76,12 @@ export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Redirect if not authenticated
-  if (!user) {
+  if (!user && !pinSession) {
     return <Navigate to="/pos-login" replace />;
   }
 
   // Block access if not admin
-  if (!isAdmin) {
+  if (!isAdmin && !pinSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="text-center space-y-4 max-w-md">
