@@ -242,6 +242,7 @@ export default function RestaurantPOS() {
     try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
     setOrderItems(prev => prev.map(p => p.kot_status === 'new' ? { ...p, kot_status: 'sent', kot_batch: nextBatch } : p));
     toast.success('Sent to kitchen');
+    goToRestaurant();
   }
 
   async function printBill() {
@@ -278,6 +279,7 @@ export default function RestaurantPOS() {
         ${settings.website ? `<div class="ctr">${settings.website}</div>` : ''}
       </div>`;
     try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
+    goToRestaurant();
   }
 
   function clearOrder() {
@@ -577,6 +579,7 @@ export default function RestaurantPOS() {
           toast.success('Payment recorded');
           setPayOpen(false);
           clearOrder();
+          goToRestaurant();
         }} />
     </div>
   );
