@@ -342,7 +342,7 @@ export default function RestaurantPOS() {
                   const isActive = order?.table_id === t.id;
                   const open = tableOrders[t.id];
                   const isOccupied = !!open || t.status === 'occupied';
-                  const canClear = isOccupied && !open;
+                  const canClear = isOccupied;
                   return (
                     <button key={t.id}
                       onClick={() => onTableClick(t)}
