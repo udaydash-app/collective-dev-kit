@@ -197,6 +197,7 @@ export default function POSLogin() {
       [sessionType]: true,
     }));
     sessionStorage.setItem('current_pos_pin', pinValue);
+    window.dispatchEvent(new Event('offline-pos-session-changed'));
   };
 
   const handlePinInput = (value: string) => {
