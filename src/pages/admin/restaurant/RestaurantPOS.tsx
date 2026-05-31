@@ -7,13 +7,27 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-async function printHtml(html: string) {
-  const w = window.open('', '_blank', 'width=400,height=600');
+async function printHtml(html: string, widthMm = 80) {
+  const w = window.open('', '_blank', 'width=420,height=640');
   if (!w) return;
-  w.document.write(`<html><head><title>Print</title></head><body>${html}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),200)}</script></body></html>`);
+  w.document.write(`<html><head><title>Print</title><style>
+    @page { size: ${widthMm}mm auto; margin: 0; }
+    html, body { margin: 0; padding: 0; }
+    body { width: ${widthMm}mm; font-family: 'Courier New', monospace; color: #000; }
+    .r { width: ${widthMm - 4}mm; padding: 2mm; font-size: 12px; line-height: 1.35; }
+    .r h1 { font-size: 16px; margin: 0 0 2px; text-align: center; }
+    .r h2 { font-size: 14px; margin: 0; text-align: center; letter-spacing: 1px; }
+    .r .ctr { text-align: center; }
+    .r .row { display: flex; justify-content: space-between; gap: 6px; }
+    .r .b { font-weight: 700; }
+    .r hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
+    .r .big { font-size: 15px; font-weight: 800; }
+    .r img { max-width: 60%; max-height: 80px; display: block; margin: 0 auto 4px; }
+  </style></head><body>${html}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script></body></html>`);
   w.document.close();
 }
 
@@ -24,12 +38,16 @@ type Cat = { id: string; name: string; color: string | null };
 type Item = { id: string; category_id: string | null; name: string; price: number; image_url: string | null; is_available: boolean; kot_printer: string };
 type RTable = { id: string; name: string; seats: number; status: string; x: number; y: number; shape: string };
 type OrderItem = { id?: string; menu_item_id: string; name: string; qty: number; unit_price: number; note?: string; kot_status?: string; kot_batch?: number };
-type Order = { id: string; order_no: string; type: string; table_id: string | null; status: string; subtotal: number; tax: number; service_charge: number; discount: number; total: number; customer_name?: string; customer_phone?: string; delivery_address?: string };
+type Order = { id: string; order_no: string; type: string; table_id: string | null; status: string; subtotal: number; tax: number; service_charge: number; discount: number; total: number; guest_count?: number; customer_name?: string; customer_phone?: string; delivery_address?: string };
+type Settings = { company_name: string; logo_url?: string|null; address?: string|null; phone?: string|null; email?: string|null; website?: string|null; tax_number?: string|null; receipt_footer?: string|null; currency_symbol: string; paper_width_mm: number };
 
 export default function RestaurantPOS() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [tables, setTables] = useState<RTable[]>([]);
+  const [tableOrders, setTableOrders] = useState<Record<string, { total: number; guest_count: number; order_no: string }>>({});
+  const [settings, setSettings] = useState<Settings>({ company_name: 'Restaurant', currency_symbol: 'FCFA', paper_width_mm: 80 });
+  const [guestDialog, setGuestDialog] = useState<{ table: RTable | null; open: boolean }>({ table: null, open: false });
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [order, setOrder] = useState<Order | null>(null);
@@ -52,14 +70,20 @@ export default function RestaurantPOS() {
   });
 
   async function reload() {
-    const [c, i, t] = await Promise.all([
+    const [c, i, t, s, openOrders] = await Promise.all([
       sb.from('restaurant_menu_categories').select('*').eq('is_active', true).order('sort_order'),
       sb.from('restaurant_menu_items').select('*').eq('is_available', true).order('sort_order'),
       sb.from('restaurant_tables').select('*').order('name'),
+      sb.from('restaurant_settings').select('*').limit(1).maybeSingle(),
+      sb.from('restaurant_orders').select('table_id,total,guest_count,order_no').not('table_id', 'is', null).neq('status', 'paid').neq('status', 'void'),
     ]);
     setCats((c.data as any) || []);
     setItems((i.data as any) || []);
     setTables((t.data as any) || []);
+    if (s.data) setSettings({ ...settings, ...(s.data as any) });
+    const map: Record<string, any> = {};
+    ((openOrders.data as any[]) || []).forEach(o => { if (o.table_id) map[o.table_id] = { total: Number(o.total) || 0, guest_count: Number(o.guest_count) || 0, order_no: o.order_no }; });
+    setTableOrders(map);
     if (c.data && c.data.length && !activeCat) setActiveCat(c.data[0].id);
   }
 
@@ -86,6 +110,22 @@ export default function RestaurantPOS() {
     setOrder(data as any);
     setOrderType(type);
     setOrderItems([]);
+  }
+
+  function onTableClick(t: RTable) {
+    // If table already has an open order, open it directly
+    if (tableOrders[t.id]) { openOrder(t.id, 'dine_in'); return; }
+    // Otherwise prompt for guest count first
+    setGuestDialog({ table: t, open: true });
+  }
+
+  async function updateGuestCount(n: number) {
+    if (!order) return;
+    await sb.from('restaurant_orders').update({ guest_count: n }).eq('id', order.id);
+    setOrder({ ...order, guest_count: n });
+    if (order.table_id) {
+      setTableOrders(prev => ({ ...prev, [order.table_id!]: { ...(prev[order.table_id!] || { total: order.total, order_no: order.order_no }), guest_count: n } }));
+    }
   }
 
   async function addItem(it: Item) {
@@ -130,7 +170,12 @@ export default function RestaurantPOS() {
   async function refreshOrderTotals() {
     if (!order) return;
     const { data } = await sb.from('restaurant_orders').select('*').eq('id', order.id).single();
-    if (data) setOrder(data as any);
+    if (data) {
+      setOrder(data as any);
+      if ((data as any).table_id) {
+        setTableOrders(prev => ({ ...prev, [(data as any).table_id]: { total: Number((data as any).total) || 0, guest_count: Number((data as any).guest_count) || 0, order_no: (data as any).order_no } }));
+      }
+    }
   }
 
   async function sendKOT() {
@@ -142,40 +187,59 @@ export default function RestaurantPOS() {
       .update({ kot_status: 'sent', kot_batch: nextBatch })
       .in('id', newItems.map(n => n.id!));
     await sb.from('restaurant_orders').update({ status: 'sent' }).eq('id', order.id);
-    // Print KOT
+    // Print KOT (kitchen ticket, no prices)
+    const tableName = order.table_id ? (tables.find(t => t.id === order.table_id)?.name || '') : '';
     const html = `
-      <div style="font-family: monospace; padding: 8px; width: 72mm;">
-        <h2 style="text-align:center;margin:0">*** KOT ***</h2>
-        <div>Order: ${order.order_no}</div>
-        <div>Type: ${order.type.toUpperCase()}${order.table_id ? ' • Table: ' + (tables.find(t => t.id === order.table_id)?.name || '') : ''}</div>
-        <div>Batch #${nextBatch} • ${new Date().toLocaleTimeString()}</div>
+      <div class="r">
+        <h2>*** KOT ***</h2>
+        <div class="row"><span>Order:</span><span class="b">${order.order_no}</span></div>
+        <div class="row"><span>Type:</span><span>${order.type.toUpperCase()}</span></div>
+        ${tableName ? `<div class="row"><span>Table:</span><span class="b">${tableName}</span></div>` : ''}
+        ${order.guest_count ? `<div class="row"><span>Guests:</span><span>${order.guest_count}</span></div>` : ''}
+        <div class="row"><span>Batch:</span><span>#${nextBatch}</span></div>
+        <div class="row"><span>Time:</span><span>${new Date().toLocaleTimeString()}</span></div>
         <hr/>
-        ${newItems.map(n => `<div style="font-size:14px;font-weight:bold">${n.qty} × ${n.name}</div>${n.note ? `<div style="font-size:11px;font-style:italic">→ ${n.note}</div>` : ''}`).join('')}
+        ${newItems.map(n => `<div class="big">${n.qty} × ${n.name}</div>${n.note ? `<div style="font-style:italic">→ ${n.note}</div>` : ''}`).join('')}
       </div>`;
-    try { await printHtml(html); } catch { window.print(); }
+    try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
     setOrderItems(prev => prev.map(p => p.kot_status === 'new' ? { ...p, kot_status: 'sent', kot_batch: nextBatch } : p));
     toast.success('Sent to kitchen');
   }
 
   async function printBill() {
     if (!order) return;
+    const cur = settings.currency_symbol || '';
+    const fmt = (n: number) => `${Number(n).toFixed(0)} ${cur}`.trim();
+    const tableName = order.table_id ? (tables.find(t => t.id === order.table_id)?.name || '') : '';
     const html = `
-      <div style="font-family: monospace; padding: 8px; width: 72mm;">
-        <h2 style="text-align:center;margin:0">RESTAURANT BILL</h2>
-        <div>Order: ${order.order_no}</div>
-        <div>${new Date().toLocaleString()}</div>
-        ${order.table_id ? `<div>Table: ${tables.find(t => t.id === order.table_id)?.name || ''}</div>` : ''}
+      <div class="r">
+        ${settings.logo_url ? `<img src="${settings.logo_url}" alt="logo"/>` : ''}
+        <h1>${settings.company_name || 'RESTAURANT'}</h1>
+        ${settings.address ? `<div class="ctr">${settings.address}</div>` : ''}
+        ${settings.phone ? `<div class="ctr">Tel: ${settings.phone}</div>` : ''}
+        ${settings.tax_number ? `<div class="ctr">${settings.tax_number}</div>` : ''}
         <hr/>
-        ${orderItems.filter(o => o.kot_status !== 'void').map(o => `<div style="display:grid;grid-template-columns:1fr auto;gap:6px"><span>${o.qty} × ${o.name}</span><span>${(o.qty * o.unit_price).toFixed(2)}</span></div>`).join('')}
+        <div class="row"><span>Bill:</span><span class="b">${order.order_no}</span></div>
+        <div class="row"><span>Date:</span><span>${new Date().toLocaleString()}</span></div>
+        ${tableName ? `<div class="row"><span>Table:</span><span class="b">${tableName}</span></div>` : ''}
+        ${order.guest_count ? `<div class="row"><span>Guests:</span><span>${order.guest_count}</span></div>` : ''}
+        ${order.customer_name ? `<div class="row"><span>Customer:</span><span>${order.customer_name}</span></div>` : ''}
         <hr/>
-        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${order.subtotal.toFixed(2)}</span></div>
-        ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>Discount</span><span>-${order.discount.toFixed(2)}</span></div>` : ''}
-        ${order.service_charge > 0 ? `<div style="display:flex;justify-content:space-between"><span>Service</span><span>${order.service_charge.toFixed(2)}</span></div>` : ''}
-        ${order.tax > 0 ? `<div style="display:flex;justify-content:space-between"><span>Tax</span><span>${order.tax.toFixed(2)}</span></div>` : ''}
-        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:16px"><span>TOTAL</span><span>${order.total.toFixed(2)}</span></div>
-        <p style="text-align:center;margin-top:8px">Thank you!</p>
+        ${orderItems.filter(o => o.kot_status !== 'void').map(o => `
+          <div class="row"><span>${o.qty} × ${o.name}</span><span>${fmt(o.qty * o.unit_price)}</span></div>
+        `).join('')}
+        <hr/>
+        <div class="row"><span>Subtotal</span><span>${fmt(order.subtotal)}</span></div>
+        ${order.discount > 0 ? `<div class="row"><span>Discount</span><span>-${fmt(order.discount)}</span></div>` : ''}
+        ${order.service_charge > 0 ? `<div class="row"><span>Service</span><span>${fmt(order.service_charge)}</span></div>` : ''}
+        ${order.tax > 0 ? `<div class="row"><span>Tax</span><span>${fmt(order.tax)}</span></div>` : ''}
+        <hr/>
+        <div class="row big"><span>TOTAL</span><span>${fmt(order.total)}</span></div>
+        <hr/>
+        <div class="ctr" style="margin-top:6px">${settings.receipt_footer || 'Thank you!'}</div>
+        ${settings.website ? `<div class="ctr">${settings.website}</div>` : ''}
       </div>`;
-    try { await printHtml(html); } catch { window.print(); }
+    try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
   }
 
   function clearOrder() {
@@ -216,6 +280,9 @@ export default function RestaurantPOS() {
         )}
 
         <div className="ml-auto flex gap-2">
+          <Link to="/admin/restaurant/settings">
+            <Button variant="outline" size="sm" className="rounded-full"><SettingsIcon className="h-4 w-4 mr-1" /> Settings</Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={sendKOT} disabled={!order} className="rounded-full border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300">
             <ChefHat className="h-4 w-4 mr-1" /> KOT <kbd className="ml-1.5 text-[10px] opacity-60">F2</kbd>
           </Button>
@@ -243,17 +310,27 @@ export default function RestaurantPOS() {
               <div className="grid grid-cols-2 gap-2.5 pr-1">
                 {tables.map(t => {
                   const isActive = order?.table_id === t.id;
-                  const isOccupied = t.status === 'occupied';
+                  const open = tableOrders[t.id];
+                  const isOccupied = !!open || t.status === 'occupied';
                   return (
                     <button key={t.id}
-                      onClick={() => openOrder(t.id, 'dine_in')}
+                      onClick={() => onTableClick(t)}
                       className={`group relative aspect-square rounded-2xl border-2 text-center font-bold transition-all duration-200 hover:scale-[1.03] active:scale-95 shadow-md ${
                         isActive ? 'bg-gradient-to-br from-orange-500 to-red-600 text-white border-orange-600 shadow-orange-500/40 shadow-xl' :
                         isOccupied ? 'bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-200' :
                         'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 hover:border-emerald-400'
                       } ${t.shape === 'round' ? 'rounded-full' : ''}`}>
                       <div className="text-lg leading-none mt-1">{t.name}</div>
-                      <div className="text-[10px] opacity-70 mt-0.5">{t.seats} seats</div>
+                      {open ? (
+                        <>
+                          <div className="text-[10px] opacity-80 mt-0.5 flex items-center justify-center gap-1">
+                            <Users className="h-2.5 w-2.5" />{open.guest_count || 0}/{t.seats}
+                          </div>
+                          <div className="text-[11px] font-black mt-0.5">{Number(open.total).toFixed(0)} {settings.currency_symbol}</div>
+                        </>
+                      ) : (
+                        <div className="text-[10px] opacity-70 mt-0.5">{t.seats} seats</div>
+                      )}
                       {isOccupied && !isActive && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 animate-pulse" />}
                     </button>
                   );
@@ -386,6 +463,28 @@ export default function RestaurantPOS() {
       <CustomerDialog open={customerOpen} onOpenChange={setCustomerOpen} type={orderType}
         onSubmit={(d) => { setCustomerOpen(false); openOrder(null, orderType, d); }} />
 
+      {/* Guest count dialog for new dine-in */}
+      <GuestCountDialog
+        open={guestDialog.open}
+        table={guestDialog.table}
+        onOpenChange={(o) => setGuestDialog(prev => ({ ...prev, open: o }))}
+        onConfirm={async (n) => {
+          const t = guestDialog.table;
+          setGuestDialog({ table: null, open: false });
+          if (!t) return;
+          await openOrder(t.id, 'dine_in', { guest_count: n } as any);
+        }}
+      />
+
+      {/* Inline editable guest count badge when order has table */}
+      {order && order.table_id && (
+        <FloatingGuestBadge
+          count={order.guest_count || 1}
+          seats={tables.find(t => t.id === order.table_id)?.seats || 0}
+          onChange={updateGuestCount}
+        />
+      )}
+
       {/* Payment dialog */}
       <PaymentDialog open={payOpen} onOpenChange={setPayOpen} order={order}
         onPaid={async (payments) => {
@@ -399,6 +498,51 @@ export default function RestaurantPOS() {
           setPayOpen(false);
           clearOrder();
         }} />
+    </div>
+  );
+}
+
+function GuestCountDialog({ open, onOpenChange, table, onConfirm }: { open: boolean; onOpenChange: (b: boolean) => void; table: RTable | null; onConfirm: (n: number) => void }) {
+  const [n, setN] = useState(2);
+  useEffect(() => { if (open) setN(Math.min(2, table?.seats || 2)); }, [open, table]);
+  if (!table) return null;
+  const max = Math.max(table.seats || 12, 12);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-orange-500" /> Table {table.name} — Guests</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">How many guests are seated? (Capacity: {table.seats})</p>
+          <div className="flex items-center justify-center gap-3">
+            <Button size="icon" variant="outline" className="h-12 w-12 rounded-full" onClick={() => setN(Math.max(1, n - 1))}><Minus className="h-5 w-5" /></Button>
+            <div className="text-5xl font-black w-20 text-center bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{n}</div>
+            <Button size="icon" variant="outline" className="h-12 w-12 rounded-full" onClick={() => setN(Math.min(max, n + 1))}><Plus className="h-5 w-5" /></Button>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {Array.from({ length: Math.min(max, 12) }, (_, i) => i + 1).map(v => (
+              <Button key={v} size="sm" variant={n === v ? 'default' : 'outline'} onClick={() => setN(v)} className={n === v ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-0' : ''}>{v}</Button>
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onConfirm(n)} className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">Seat & open order</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FloatingGuestBadge({ count, seats, onChange }: { count: number; seats: number; onChange: (n: number) => void }) {
+  return (
+    <div className="fixed bottom-4 left-4 z-30 flex items-center gap-1.5 bg-white dark:bg-slate-900 shadow-xl rounded-full pl-3 pr-1.5 py-1.5 border border-orange-200 dark:border-orange-900">
+      <Users className="h-4 w-4 text-orange-500" />
+      <span className="text-xs font-semibold">Guests</span>
+      <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full" onClick={() => onChange(Math.max(1, count - 1))}><Minus className="h-3 w-3" /></Button>
+      <span className="font-bold w-6 text-center">{count}</span>
+      <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full" onClick={() => onChange(count + 1)}><Plus className="h-3 w-3" /></Button>
+      {seats > 0 && <span className="text-[10px] text-muted-foreground pr-1">/ {seats}</span>}
     </div>
   );
 }
