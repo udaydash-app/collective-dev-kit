@@ -53,7 +53,7 @@ export default function RestaurantMenu() {
   }
 
   return (
-    <div className="p-4 grid grid-cols-12 gap-4 h-full">
+    <div className="p-4 grid grid-cols-12 gap-4 min-h-screen">
       <Card className="col-span-4 p-3 flex flex-col">
         <h2 className="font-semibold mb-2">Categories</h2>
         <div className="flex gap-2 mb-3">

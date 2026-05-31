@@ -48,7 +48,7 @@ export default function RestaurantTables() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 min-h-screen">
       <Card className="p-4">
         <h2 className="font-semibold mb-3">Add Table</h2>
         <div className="flex gap-2">
