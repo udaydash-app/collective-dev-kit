@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Save, Building2, Image as ImageIcon } from 'lucide-react';
+import { Save, Building2, Image as ImageIcon, Upload, X, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
 
 const sb: any = supabase;
 
@@ -41,6 +42,8 @@ export default function RestaurantSettings() {
   const [s, setS] = useState<Settings>(empty);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -68,6 +71,25 @@ export default function RestaurantSettings() {
 
   function setF<K extends keyof Settings>(k: K, v: Settings[K]) { setS(prev => ({ ...prev, [k]: v })); }
 
+  async function handleLogoFile(file: File) {
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `logos/${Date.now()}.${ext}`;
+      const { error } = await sb.storage.from('restaurant-assets').upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data } = sb.storage.from('restaurant-assets').getPublicUrl(path);
+      setF('logo_url', data.publicUrl);
+      toast.success('Logo uploaded');
+    } catch (e: any) {
+      toast.error(e.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -85,22 +107,46 @@ export default function RestaurantSettings() {
 
       <Card className="p-5 space-y-4">
         <h2 className="font-semibold text-sm flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Brand</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Company name *</Label>
-            <Input value={s.company_name} onChange={e => setF('company_name', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Logo URL</Label>
-            <Input placeholder="https://…/logo.png" value={s.logo_url || ''} onChange={e => setF('logo_url', e.target.value)} />
-          </div>
+        <div className="space-y-1.5">
+          <Label>Company name *</Label>
+          <Input value={s.company_name} onChange={e => setF('company_name', e.target.value)} />
         </div>
-        {s.logo_url && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
-            <img src={s.logo_url} alt="Logo preview" className="h-16 w-16 object-contain bg-white rounded" />
-            <span className="text-xs text-muted-foreground">Logo preview</span>
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label>Logo</Label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }}
+          />
+          {s.logo_url ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border">
+              <img src={s.logo_url} alt="Logo preview" className="h-20 w-20 object-contain bg-white rounded border" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Current logo</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                Replace
+              </Button>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setF('logo_url', '')}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:bg-muted/40 transition-colors"
+            >
+              {uploading ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
+              <span className="text-sm font-medium">{uploading ? 'Uploading…' : 'Click to upload logo'}</span>
+              <span className="text-[11px] text-muted-foreground">PNG, JPG, SVG up to 5MB</span>
+            </button>
+          )}
+        </div>
       </Card>
 
       <Card className="p-5 space-y-4">
