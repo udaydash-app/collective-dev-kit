@@ -1,4 +1,4 @@
-import { ArrowLeft, LayoutDashboard, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useDesktopWindowId } from "@/components/desktop/DesktopWindowContext";
@@ -18,21 +18,10 @@ export const RestaurantNavButtons = ({ className = "" }: RestaurantNavButtonsPro
     return null;
   }
 
-  const isRestaurantRoot = location.pathname === "/admin/restaurant";
   const isRestaurantPOS = location.pathname === "/admin/restaurant/pos";
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {!isRestaurantRoot && (
-        <Button
-          onClick={() => navigate("/admin/restaurant")}
-          variant="outline"
-          size="sm"
-        >
-          <UtensilsCrossed className="h-4 w-4 mr-2" />
-          Restaurant
-        </Button>
-      )}
       {!isRestaurantPOS && (
         <Button
           onClick={() => {
