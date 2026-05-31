@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Plus, Trash2, Receipt, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -115,7 +116,10 @@ export default function RestaurantPurchases() {
     <div className="p-4 space-y-4 min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ingredient Purchases</h1>
-        <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="h-4 w-4 mr-1" /> New Purchase</Button>
+        <div className="flex items-center gap-2">
+          <RestaurantNavButtons />
+          <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="h-4 w-4 mr-1" /> New Purchase</Button>
+        </div>
       </div>
 
       <Card className="p-0 overflow-auto">

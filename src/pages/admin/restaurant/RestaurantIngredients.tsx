@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -48,7 +49,10 @@ export default function RestaurantIngredients() {
     <div className="p-4 space-y-4 min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ingredients</h1>
-        <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        <div className="flex items-center gap-2">
+          <RestaurantNavButtons />
+          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        </div>
       </div>
 
       <Card className="p-3">

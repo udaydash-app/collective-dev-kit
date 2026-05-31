@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -54,6 +55,10 @@ export default function RestaurantMenu() {
 
   return (
     <div className="p-4 grid grid-cols-12 gap-4 min-h-screen">
+      <div className="col-span-12 flex items-center justify-between mb-2">
+        <h1 className="text-xl font-bold">Menu Manager</h1>
+        <RestaurantNavButtons />
+      </div>
       <Card className="col-span-4 p-3 flex flex-col">
         <h2 className="font-semibold mb-2">Categories</h2>
         <div className="flex gap-2 mb-3">

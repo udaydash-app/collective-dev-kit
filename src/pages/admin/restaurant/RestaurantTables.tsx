@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Trash2, Plus, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -49,6 +50,10 @@ export default function RestaurantTables() {
 
   return (
     <div className="p-4 space-y-4 min-h-screen">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Table Manager</h1>
+        <RestaurantNavButtons />
+      </div>
       <Card className="p-4">
         <h2 className="font-semibold mb-3">Add Table</h2>
         <div className="flex gap-2">
