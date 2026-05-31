@@ -2805,6 +2805,7 @@ export type Database = {
           customer_phone: string | null
           delivery_address: string | null
           discount: number
+          guest_count: number
           id: string
           notes: string | null
           opened_by: string | null
@@ -2826,6 +2827,7 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           discount?: number
+          guest_count?: number
           id?: string
           notes?: string | null
           opened_by?: string | null
@@ -2847,6 +2849,7 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           discount?: number
+          guest_count?: number
           id?: string
           notes?: string | null
           opened_by?: string | null
@@ -2946,6 +2949,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      restaurant_settings: {
+        Row: {
+          address: string | null
+          company_name: string
+          created_at: string
+          currency_symbol: string
+          email: string | null
+          id: string
+          logo_url: string | null
+          paper_width_mm: number
+          phone: string | null
+          receipt_footer: string | null
+          tax_number: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_name?: string
+          created_at?: string
+          currency_symbol?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          paper_width_mm?: number
+          phone?: string | null
+          receipt_footer?: string | null
+          tax_number?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_name?: string
+          created_at?: string
+          currency_symbol?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          paper_width_mm?: number
+          phone?: string | null
+          receipt_footer?: string | null
+          tax_number?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
       }
       restaurant_tables: {
         Row: {
