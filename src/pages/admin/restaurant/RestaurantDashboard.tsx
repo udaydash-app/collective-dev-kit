@@ -22,6 +22,13 @@ type RecentOrder = {
   status: string; total: number; created_at: string; guest_count: number;
 };
 type TopItem = { name: string; qty: number; revenue: number };
+type RunningKot = {
+  order_id: string;
+  order_no: string;
+  table_name: string | null;
+  type: string;
+  items: { name: string; qty: number; batch: number; created_at: string }[];
+};
 
 function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d.toISOString(); }
 
@@ -33,6 +40,7 @@ export default function RestaurantDashboard() {
   const [salesToday, setSalesToday] = useState(0);
   const [ordersToday, setOrdersToday] = useState(0);
   const [topItems, setTopItems] = useState<TopItem[]>([]);
+  const [runningKots, setRunningKots] = useState<RunningKot[]>([]);
   const [currency, setCurrency] = useState('FCFA');
   const [viewOrderId, setViewOrderId] = useState<string | null>(null);
 
@@ -44,7 +52,7 @@ export default function RestaurantDashboard() {
 
   async function load() {
     const today = startOfToday();
-    const [tRes, openRes, recentRes, paidTodayRes, settingsRes] = await Promise.all([
+    const [tRes, openRes, recentRes, paidTodayRes, settingsRes, kotOrdersRes] = await Promise.all([
       sb.from('restaurant_tables').select('*').order('name'),
       sb.from('restaurant_orders').select('table_id,total,guest_count,order_no')
         .not('table_id', 'is', null).neq('status', 'paid').neq('status', 'void'),
@@ -52,6 +60,7 @@ export default function RestaurantDashboard() {
         .neq('status', 'void').order('created_at', { ascending: false }).limit(12),
       sb.from('restaurant_orders').select('id,total').eq('status', 'paid').gte('created_at', today),
       sb.from('restaurant_settings').select('currency_symbol').limit(1).maybeSingle(),
+      sb.from('restaurant_orders').select('id,order_no,type,table_id').eq('status', 'sent').order('created_at', { ascending: false }),
     ]);
     setTables((tRes.data as any) || []);
     const map: Record<string, OpenOrder> = {};
@@ -79,6 +88,30 @@ export default function RestaurantDashboard() {
       setTopItems([...agg.values()].sort((a, b) => b.qty - a.qty).slice(0, 6));
     } else {
       setTopItems([]);
+    }
+
+    // Running KOTs: orders with status='sent' (KOT fired, bill not yet printed)
+    const kotOrders = (kotOrdersRes.data as any[]) || [];
+    if (kotOrders.length) {
+      const ids = kotOrders.map(o => o.id);
+      const { data: kItems } = await sb.from('restaurant_order_items')
+        .select('order_id,name,qty,kot_status,kot_batch,created_at')
+        .in('order_id', ids)
+        .eq('kot_status', 'sent')
+        .order('created_at', { ascending: true });
+      const tblMap = new Map(((tRes.data as any[]) || []).map((t: any) => [t.id, t.name]));
+      const grouped: RunningKot[] = kotOrders.map(o => ({
+        order_id: o.id,
+        order_no: o.order_no,
+        table_name: o.table_id ? (tblMap.get(o.table_id) || null) : null,
+        type: o.type,
+        items: ((kItems as any[]) || [])
+          .filter(it => it.order_id === o.id)
+          .map(it => ({ name: it.name, qty: Number(it.qty), batch: it.kot_batch || 0, created_at: it.created_at })),
+      })).filter(g => g.items.length > 0);
+      setRunningKots(grouped);
+    } else {
+      setRunningKots([]);
     }
   }
 
@@ -173,69 +206,106 @@ export default function RestaurantDashboard() {
           </div>
         </Card>
 
-        {/* Top Selling */}
-        <Card className="p-4 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
-          <h2 className="font-bold flex items-center gap-2 mb-3"><Flame className="h-4 w-4 text-orange-500" /> Top Selling Today</h2>
-          <div className="space-y-2">
-            {topItems.map((it, i) => (
-              <div key={it.name} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center font-black text-white text-sm ${
-                  i === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
-                  i === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500' :
-                  i === 2 ? 'bg-gradient-to-br from-orange-400 to-amber-600' :
-                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                }`}>{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{it.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{it.qty} sold</div>
+        {/* Right column: Top Selling + Running KOT */}
+        <div className="space-y-4">
+          <Card className="p-4 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
+            <h2 className="font-bold flex items-center gap-2 mb-3"><Flame className="h-4 w-4 text-orange-500" /> Top Selling Today</h2>
+            <div className="space-y-2">
+              {topItems.map((it, i) => (
+                <div key={it.name} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-black text-white text-sm ${
+                    i === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
+                    i === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500' :
+                    i === 2 ? 'bg-gradient-to-br from-orange-400 to-amber-600' :
+                    'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                  }`}>{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm truncate">{it.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{it.qty} sold</div>
+                  </div>
+                  <div className="font-bold text-sm text-orange-600 dark:text-orange-400">{fmt(it.revenue)}</div>
                 </div>
-                <div className="font-bold text-sm text-orange-600 dark:text-orange-400">{fmt(it.revenue)}</div>
+              ))}
+              {!topItems.length && (
+                <div className="text-xs text-muted-foreground text-center py-8">No sales yet today.</div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold flex items-center gap-2"><ChefHat className="h-4 w-4 text-amber-500" /> Running KOT</h2>
+              {runningKots.length > 0 && (
+                <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px]">{runningKots.length}</Badge>
+              )}
+            </div>
+            <ScrollArea className="max-h-[320px]">
+              <div className="space-y-2 pr-2">
+                {runningKots.map(k => (
+                  <button key={k.order_id} onClick={() => setViewOrderId(k.order_id)}
+                    className="w-full text-left rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 hover:bg-amber-100/70 dark:hover:bg-amber-950/40 transition p-2.5">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="font-bold text-sm">#{k.order_no}</span>
+                      {k.table_name && <Badge variant="outline" className="text-[10px] h-4 px-1.5">T {k.table_name}</Badge>}
+                      <Badge className="text-[10px] h-4 px-1.5 border-0 bg-amber-200 text-amber-800 ml-auto">{k.items.reduce((s, i) => s + i.qty, 0)} qty</Badge>
+                    </div>
+                    <div className="space-y-0.5">
+                      {k.items.map((it, idx) => (
+                        <div key={idx} className="flex items-baseline gap-2 text-[12px]">
+                          <span className="font-bold text-amber-700 dark:text-amber-400 w-6 shrink-0">{it.qty}×</span>
+                          <span className="truncate flex-1">{it.name}</span>
+                          {it.batch > 0 && <span className="text-[9px] text-muted-foreground">#{it.batch}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+                {!runningKots.length && (
+                  <div className="text-xs text-muted-foreground text-center py-6">No running KOTs.</div>
+                )}
               </div>
-            ))}
-            {!topItems.length && (
-              <div className="text-xs text-muted-foreground text-center py-8">No sales yet today.</div>
-            )}
-          </div>
-        </Card>
+            </ScrollArea>
+          </Card>
+        </div>
       </div>
 
-      {/* Recent orders */}
-      <Card className="p-4 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold flex items-center gap-2"><Clock className="h-4 w-4 text-orange-500" /> Recent Orders</h2>
-          <Link to="/admin/restaurant/pos" className="text-xs text-orange-600 flex items-center gap-1 hover:underline">View POS <ArrowRight className="h-3 w-3" /></Link>
+      {/* Recent orders (compact) */}
+      <Card className="p-3 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-bold text-sm flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-orange-500" /> Recent Orders</h2>
+          <Link to="/admin/restaurant/pos" className="text-[11px] text-orange-600 flex items-center gap-1 hover:underline">POS <ArrowRight className="h-3 w-3" /></Link>
         </div>
-        <ScrollArea className="max-h-[360px]">
-          <div className="space-y-2 pr-2">
-            {recent.map(o => {
+        <ScrollArea className="max-h-[180px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5 pr-2">
+            {recent.slice(0, 9).map(o => {
               const tbl = tables.find(t => t.id === o.table_id);
               const TypeIcon = o.type === 'dine_in' ? Users : o.type === 'takeaway' ? ShoppingBag : Bike;
               return (
                 <button key={o.id}
                   onClick={() => setViewOrderId(o.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:border-orange-200 border border-transparent transition text-left">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white">
-                    <TypeIcon className="h-4 w-4" />
+                  className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:border-orange-200 border border-transparent transition text-left">
+                  <div className="h-7 w-7 shrink-0 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white">
+                    <TypeIcon className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">#{o.order_no}</span>
-                      {tbl && <Badge variant="outline" className="text-[10px] h-4 px-1.5">Table {tbl.name}</Badge>}
-                      <Badge className={`text-[10px] h-4 px-1.5 border-0 ${
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs">#{o.order_no}</span>
+                      {tbl && <Badge variant="outline" className="text-[9px] h-3.5 px-1">T{tbl.name}</Badge>}
+                      <Badge className={`text-[9px] h-3.5 px-1 border-0 ${
                         o.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
                         o.status === 'open' ? 'bg-sky-100 text-sky-700' :
                         o.status === 'sent' ? 'bg-amber-100 text-amber-700' :
                         'bg-slate-100 text-slate-700'
                       }`}>{o.status}</Badge>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleTimeString()} · {o.type.replace('_',' ')}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{new Date(o.created_at).toLocaleTimeString()}</div>
                   </div>
-                  <div className="font-black text-orange-600 dark:text-orange-400">{fmt(o.total)}</div>
+                  <div className="font-black text-xs text-orange-600 dark:text-orange-400 shrink-0">{fmt(o.total)}</div>
                 </button>
               );
             })}
             {!recent.length && (
-              <div className="text-sm text-muted-foreground text-center py-8">No recent orders.</div>
+              <div className="col-span-full text-xs text-muted-foreground text-center py-4">No recent orders.</div>
             )}
           </div>
         </ScrollArea>
