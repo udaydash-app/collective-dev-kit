@@ -3,12 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
 
-// Check offline session synchronously to avoid flicker
-const getOfflineSessionSync = () => {
+// Check offline/PIN session synchronously to avoid protected-route flicker.
+export const getOfflineSessionSync = () => {
   try {
     const offlineData = localStorage.getItem('offline_pos_session');
     if (offlineData) {
-      return JSON.parse(offlineData);
+      const session = JSON.parse(offlineData);
+      if (session?.pos_user_id && session?.full_name) return session;
     }
   } catch (error) {
     console.error('Error reading offline session:', error);
@@ -28,6 +29,17 @@ export const useAdmin = () => {
     if (session && !offlineSession) {
       setOfflineSession(session);
     }
+  }, []);
+
+  useEffect(() => {
+    const syncOfflineSession = () => setOfflineSession(getOfflineSessionSync());
+    window.addEventListener('storage', syncOfflineSession);
+    window.addEventListener('offline-pos-session-changed', syncOfflineSession);
+
+    return () => {
+      window.removeEventListener('storage', syncOfflineSession);
+      window.removeEventListener('offline-pos-session-changed', syncOfflineSession);
+    };
   }, []);
   
   // Monitor online/offline status
