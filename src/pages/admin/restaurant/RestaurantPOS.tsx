@@ -250,32 +250,44 @@ export default function RestaurantPOS() {
 
   async function clearTable(t: RTable, e: React.MouseEvent) {
     e.stopPropagation();
-    // Find open order on this table
-    const { data: openOrd } = await sb
-      .from('restaurant_orders')
-      .select('id')
-      .eq('table_id', t.id)
-      .neq('status', 'paid')
-      .neq('status', 'void')
-      .maybeSingle();
-    if (openOrd) {
-      const { data: sentItems } = await sb
-        .from('restaurant_order_items')
+    try {
+      // Find open order on this table
+      const { data: openOrd, error: ordErr } = await sb
+        .from('restaurant_orders')
         .select('id')
-        .eq('order_id', (openOrd as any).id)
-        .not('kot_status', 'in', '(new,void)')
-        .limit(1);
-      if (sentItems && sentItems.length) {
-        toast.error('Cannot clear: items already sent to kitchen');
-        return;
+        .eq('table_id', t.id)
+        .neq('status', 'paid')
+        .neq('status', 'void')
+        .maybeSingle();
+      if (ordErr) { toast.error('Error checking order: ' + ordErr.message); return; }
+
+      if (openOrd) {
+        const { data: sentItems, error: sentErr } = await sb
+          .from('restaurant_order_items')
+          .select('id')
+          .eq('order_id', (openOrd as any).id)
+          .not('kot_status', 'in', '(new,void)')
+          .limit(1);
+        if (sentErr) { toast.error('Error checking items: ' + sentErr.message); return; }
+        if (sentItems && sentItems.length) {
+          toast.error('Cannot clear: items already sent to kitchen');
+          return;
+        }
+        const { error: delErr } = await sb.from('restaurant_order_items').delete().eq('order_id', (openOrd as any).id);
+        if (delErr) { toast.error('Error deleting items: ' + delErr.message); return; }
+        const { error: voidErr } = await sb.from('restaurant_orders').update({ status: 'void' }).eq('id', (openOrd as any).id);
+        if (voidErr) { toast.error('Error voiding order: ' + voidErr.message); return; }
       }
-      await sb.from('restaurant_order_items').delete().eq('order_id', (openOrd as any).id);
-      await sb.from('restaurant_orders').update({ status: 'void' }).eq('id', (openOrd as any).id);
+
+      const { error: tblErr } = await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
+      if (tblErr) { toast.error('Error updating table: ' + tblErr.message); return; }
+
+      if (order?.table_id === t.id) clearOrder();
+      toast.success(`Table ${t.name} cleared`);
+      await reload();
+    } catch (err: any) {
+      toast.error('Clear failed: ' + (err?.message || String(err)));
     }
-    await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
-    if (order?.table_id === t.id) clearOrder();
-    toast.success(`Table ${t.name} cleared`);
-    reload();
   }
 
   return (
