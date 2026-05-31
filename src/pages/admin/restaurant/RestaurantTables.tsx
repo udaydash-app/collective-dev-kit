@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const sb: any = supabase;
@@ -29,6 +29,22 @@ export default function RestaurantTables() {
   async function update(id: string, patch: any) {
     await sb.from('restaurant_tables').update(patch).eq('id', id);
     reload();
+  }
+
+  async function clearTable(t: any) {
+    const { count, error: cErr } = await sb
+      .from('restaurant_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('table_id', t.id)
+      .in('status', ['open', 'sent', 'preparing', 'ready']);
+    if (cErr) { toast.error(cErr.message); return; }
+    if ((count || 0) > 0) {
+      toast.error(`Cannot clear: ${count} active order(s) on this table.`);
+      return;
+    }
+    const { error } = await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
+    if (error) toast.error(error.message);
+    else { toast.success(`Table ${t.name} cleared`); reload(); }
   }
 
   return (
@@ -58,7 +74,14 @@ export default function RestaurantTables() {
                 <span>Seats:</span>
                 <Input type="number" defaultValue={t.seats} onBlur={e => Number(e.target.value) !== t.seats && update(t.id, { seats: Number(e.target.value) })} className="h-7 w-16" />
               </div>
-              <div className="text-xs mt-1 capitalize text-muted-foreground">Status: {t.status}</div>
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-xs capitalize text-muted-foreground">Status: {t.status}</div>
+                {t.status !== 'available' && (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => clearTable(t)}>
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
           {!tables.length && <p className="col-span-4 text-sm text-muted-foreground text-center py-8">No tables yet.</p>}
