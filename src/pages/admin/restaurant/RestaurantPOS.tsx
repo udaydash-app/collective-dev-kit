@@ -56,6 +56,8 @@ export default function RestaurantPOS() {
   const [search, setSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [tablePickerOpen, setTablePickerOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<Item | null>(null);
 
   const session = (() => { try { return JSON.parse(localStorage.getItem('offline_pos_session') || 'null'); } catch { return null; } })();
 
@@ -148,7 +150,12 @@ export default function RestaurantPOS() {
 
   async function addItem(it: Item) {
     if (!order) {
-      if (orderType === 'dine_in') { toast.error('Select a table first'); return; }
+      if (orderType === 'dine_in') {
+        // Cart is empty and no table chosen → prompt for table selection
+        setPendingItem(it);
+        setTablePickerOpen(true);
+        return;
+      }
       await openOrder(null, orderType);
       // try again next tick
       setTimeout(() => addItem(it), 100);
@@ -371,15 +378,13 @@ export default function RestaurantPOS() {
               {orderType === 'dine_in' && !order && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 flex items-center justify-center mb-3">
-                    <Users className="h-7 w-7 text-orange-400" />
+                    <Receipt className="h-7 w-7 text-orange-400" />
                   </div>
-                  <p className="text-sm font-medium">No table selected</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Choose a table from the dashboard to start a dine-in order.</p>
-                  <Link to="/admin/restaurant" className="mt-3">
-                    <Button size="sm" className="rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
-                      <Users className="h-4 w-4 mr-1" /> Open Floor Plan
-                    </Button>
-                  </Link>
+                  <p className="text-sm font-medium">New order</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">Tap a menu item to start — you'll be asked to pick a table.</p>
+                  <Button size="sm" variant="outline" className="mt-3 rounded-full" onClick={() => setTablePickerOpen(true)}>
+                    <Users className="h-4 w-4 mr-1" /> Choose table
+                  </Button>
                 </div>
               )}
               {/* Takeaway / delivery: no order prompt */}
@@ -517,6 +522,26 @@ export default function RestaurantPOS() {
         }}
       />
 
+      {/* Table picker dialog (when adding an item without a table) */}
+      <TablePickerDialog
+        open={tablePickerOpen}
+        tables={tables}
+        tableOrders={tableOrders}
+        onOpenChange={(o) => { setTablePickerOpen(o); if (!o) setPendingItem(null); }}
+        onPick={async (t) => {
+          setTablePickerOpen(false);
+          const itemToAdd = pendingItem;
+          setPendingItem(null);
+          if (tableOrders[t.id]) {
+            await openOrder(t.id, 'dine_in');
+          } else {
+            // Default 2 guests; user can adjust via floating badge
+            await openOrder(t.id, 'dine_in', { guest_count: Math.min(2, t.seats || 2) } as any);
+          }
+          if (itemToAdd) setTimeout(() => addItem(itemToAdd), 120);
+        }}
+      />
+
       {/* Inline editable guest count badge when order has table */}
       {order && order.table_id && (
         <FloatingGuestBadge
@@ -589,6 +614,40 @@ function FloatingGuestBadge({ count, seats, onChange }: { count: number; seats: 
 }
 
 function CustomerDialog({ open, onOpenChange, type, onSubmit }: { open: boolean; onOpenChange: (b: boolean) => void; type: string; onSubmit: (d: any) => void }) {
+  return CustomerDialogImpl({ open, onOpenChange, type, onSubmit });
+}
+
+function TablePickerDialog({ open, onOpenChange, tables, tableOrders, onPick }: { open: boolean; onOpenChange: (b: boolean) => void; tables: RTable[]; tableOrders: Record<string, { total: number; guest_count: number; order_no: string }>; onPick: (t: RTable) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-orange-500" /> Select a table</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[60vh] overflow-y-auto p-1">
+          {tables.map(t => {
+            const occ = !!tableOrders[t.id];
+            return (
+              <button key={t.id} onClick={() => onPick(t)}
+                className={`relative rounded-xl p-3 border text-left transition active:scale-95 ${
+                  occ
+                    ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800 hover:bg-orange-100'
+                    : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100'
+                }`}>
+                <div className="font-bold text-sm">{t.name}</div>
+                <div className="text-[10px] text-muted-foreground">Seats {t.seats}</div>
+                {occ && <div className="text-[10px] font-semibold text-orange-700 dark:text-orange-300 mt-1">In use</div>}
+              </button>
+            );
+          })}
+          {!tables.length && <div className="col-span-full text-center text-xs text-muted-foreground py-6">No tables configured.</div>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomerDialogImpl({ open, onOpenChange, type, onSubmit }: { open: boolean; onOpenChange: (b: boolean) => void; type: string; onSubmit: (d: any) => void }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [addr, setAddr] = useState('');
