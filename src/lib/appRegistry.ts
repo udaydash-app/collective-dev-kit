@@ -5,7 +5,8 @@ import {
   Calculator, FileSpreadsheet, Truck, ShoppingBag, Settings as SettingsIcon,
   UserCog, MessageSquare, Percent, Gift, Repeat, Barcode as BarcodeIcon,
   ClipboardCheck, Factory, Banknote, Database, FileBarChart, Coins,
-  CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck, type LucideIcon,
+  CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck,
+  Carrot, Truck as TruckIcon, type LucideIcon,
 } from 'lucide-react';
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 
@@ -150,6 +151,10 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/restaurant/RestaurantTables')) },
   { id: 'restaurant-recipes', path: '/admin/restaurant/recipes', title: 'Recipes', icon: BookOpenCheck, group: 'Restaurant', color: 'from-red-500 to-orange-700',
     component: L(() => import('@/pages/admin/restaurant/RestaurantRecipes')) },
+  { id: 'restaurant-ingredients', path: '/admin/restaurant/ingredients', title: 'Ingredients', icon: Carrot, group: 'Restaurant', color: 'from-green-500 to-emerald-700',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantIngredients')) },
+  { id: 'restaurant-purchases', path: '/admin/restaurant/purchases', title: 'Ingredient Purchases', icon: TruckIcon, group: 'Restaurant', color: 'from-blue-500 to-indigo-700',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantPurchases')) },
   { id: 'restaurant-settings', path: '/admin/restaurant/settings', title: 'Restaurant Settings', icon: SettingsIcon, group: 'Restaurant', color: 'from-slate-500 to-slate-700',
     component: L(() => import('@/pages/admin/restaurant/RestaurantSettings')) },
 ];
