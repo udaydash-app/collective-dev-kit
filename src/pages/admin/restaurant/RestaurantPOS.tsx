@@ -279,7 +279,7 @@ export default function RestaurantPOS() {
         if (voidErr) { toast.error('Error voiding order: ' + voidErr.message); return; }
       }
 
-      const { error: tblErr } = await sb.from('restaurant_tables').update({ status: 'available' }).eq('id', t.id);
+      const { error: tblErr } = await sb.from('restaurant_tables').update({ status: 'free' }).eq('id', t.id);
       if (tblErr) { toast.error('Error updating table: ' + tblErr.message); return; }
 
       if (order?.table_id === t.id) clearOrder();
