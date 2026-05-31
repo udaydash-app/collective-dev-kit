@@ -1,0 +1,1 @@
+ALTER VIEW public.restaurant_table_activity SET (security_invoker = on);
