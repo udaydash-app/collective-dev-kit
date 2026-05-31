@@ -12,6 +12,13 @@ const sb: any = supabase;
 
 type Line = { ingredient_id: string; quantity: string; unit_cost: string };
 
+// Convert ingredient base unit (g/ml/pcs) to a friendlier purchase unit (kg/L/pcs).
+function purchaseUnitFor(baseUnit?: string) {
+  if (baseUnit === 'g') return { label: 'kg', factor: 1000 };
+  if (baseUnit === 'ml') return { label: 'L', factor: 1000 };
+  return { label: baseUnit || 'pcs', factor: 1 };
+}
+
 export default function RestaurantPurchases() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -49,11 +56,14 @@ export default function RestaurantPurchases() {
     setEditingId(p.id);
     setSupplier(p.supplier_name || '');
     setNotes(p.notes || '');
-    setLines((p.restaurant_purchase_items || []).map((it: any) => ({
-      ingredient_id: it.ingredient_id,
-      quantity: String(it.quantity),
-      unit_cost: String(it.unit_cost),
-    })));
+    setLines((p.restaurant_purchase_items || []).map((it: any) => {
+      const f = purchaseUnitFor(it.restaurant_ingredients?.unit).factor;
+      return {
+        ingredient_id: it.ingredient_id,
+        quantity: String(Number(it.quantity) / f),
+        unit_cost: String(Number(it.unit_cost) * f),
+      };
+    }));
     setViewing(null);
     setOpen(true);
   }
@@ -77,12 +87,16 @@ export default function RestaurantPurchases() {
       if (error) return toast.error(error.message);
       purchaseId = ph.id;
     }
-    const rows = valid.map(l => ({
-      purchase_id: purchaseId,
-      ingredient_id: l.ingredient_id,
-      quantity: Number(l.quantity),
-      unit_cost: Number(l.unit_cost),
-    }));
+    const rows = valid.map(l => {
+      const ing = ingredients.find(x => x.id === l.ingredient_id);
+      const f = purchaseUnitFor(ing?.unit).factor;
+      return {
+        purchase_id: purchaseId,
+        ingredient_id: l.ingredient_id,
+        quantity: Number(l.quantity) * f,        // store in base unit (g/ml/pcs)
+        unit_cost: Number(l.unit_cost) / f,      // store per base unit
+      };
+    });
     const { error: e2 } = await sb.from('restaurant_purchase_items').insert(rows);
     if (e2) return toast.error(e2.message);
     toast.success(editingId ? 'Purchase updated — stock adjusted.' : 'Purchase recorded — stock updated.');
@@ -146,18 +160,26 @@ export default function RestaurantPurchases() {
             <div className="space-y-2 max-h-96 overflow-auto">
               {lines.map((l, i) => {
                 const ing = ingredients.find(x => x.id === l.ingredient_id);
+                const pu = purchaseUnitFor(ing?.unit);
                 return (
                   <div key={i} className="grid grid-cols-12 gap-2 items-center">
                     <select className="col-span-5 border rounded h-10 px-2 bg-background" value={l.ingredient_id} onChange={e => {
                       const sel = ingredients.find(x => x.id === e.target.value);
-                      updateLine(i, { ingredient_id: e.target.value, unit_cost: l.unit_cost || (sel?.last_cost ? String(sel.last_cost) : '') });
+                      const selPu = purchaseUnitFor(sel?.unit);
+                      updateLine(i, {
+                        ingredient_id: e.target.value,
+                        unit_cost: l.unit_cost || (sel?.last_cost ? String(Number(sel.last_cost) * selPu.factor) : ''),
+                      });
                     }}>
                       <option value="">Select ingredient...</option>
-                      {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>)}
+                      {ingredients.map(ing => {
+                        const u = purchaseUnitFor(ing.unit).label;
+                        return <option key={ing.id} value={ing.id}>{ing.name} ({u})</option>;
+                      })}
                     </select>
-                    <Input className="col-span-2" type="number" placeholder="Qty" value={l.quantity} onChange={e => updateLine(i, { quantity: e.target.value })} />
-                    <div className="col-span-1 text-xs text-muted-foreground">{ing?.unit || ''}</div>
-                    <Input className="col-span-3" type="number" placeholder="Unit cost" value={l.unit_cost} onChange={e => updateLine(i, { unit_cost: e.target.value })} />
+                    <Input className="col-span-2" type="number" step="any" placeholder={`Qty (${pu.label})`} value={l.quantity} onChange={e => updateLine(i, { quantity: e.target.value })} />
+                    <div className="col-span-1 text-xs text-muted-foreground">{pu.label}</div>
+                    <Input className="col-span-3" type="number" step="any" placeholder={`Price / ${pu.label}`} value={l.unit_cost} onChange={e => updateLine(i, { unit_cost: e.target.value })} />
                     <Button variant="ghost" size="icon" className="col-span-1 text-destructive" onClick={() => removeLine(i)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 );
@@ -188,14 +210,19 @@ export default function RestaurantPurchases() {
               <table className="w-full mt-2">
                 <thead><tr className="text-left border-b"><th>Ingredient</th><th className="text-right">Qty</th><th className="text-right">Unit cost</th><th className="text-right">Total</th></tr></thead>
                 <tbody>
-                  {viewing.restaurant_purchase_items?.map((it: any) => (
-                    <tr key={it.id} className="border-b">
-                      <td>{it.restaurant_ingredients?.name}</td>
-                      <td className="text-right">{Number(it.quantity).toFixed(2)} {it.restaurant_ingredients?.unit}</td>
-                      <td className="text-right">{formatCurrency(it.unit_cost)}</td>
-                      <td className="text-right">{formatCurrency(it.total)}</td>
-                    </tr>
-                  ))}
+                  {viewing.restaurant_purchase_items?.map((it: any) => {
+                    const pu = purchaseUnitFor(it.restaurant_ingredients?.unit);
+                    const qty = Number(it.quantity) / pu.factor;
+                    const price = Number(it.unit_cost) * pu.factor;
+                    return (
+                      <tr key={it.id} className="border-b">
+                        <td>{it.restaurant_ingredients?.name}</td>
+                        <td className="text-right">{qty.toFixed(qty < 1 ? 3 : 2)} {pu.label}</td>
+                        <td className="text-right">{formatCurrency(price)} / {pu.label}</td>
+                        <td className="text-right">{formatCurrency(it.total)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="text-right text-lg font-bold pt-2">Total: {formatCurrency(viewing.total)}</div>
