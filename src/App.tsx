@@ -68,6 +68,8 @@ import RestaurantMenu from "./pages/admin/restaurant/RestaurantMenu";
 import RestaurantTables from "./pages/admin/restaurant/RestaurantTables";
 import RestaurantRecipes from "./pages/admin/restaurant/RestaurantRecipes";
 import RestaurantSettings from "./pages/admin/restaurant/RestaurantSettings";
+import RestaurantIngredients from "./pages/admin/restaurant/RestaurantIngredients";
+import RestaurantPurchases from "./pages/admin/restaurant/RestaurantPurchases";
 import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
@@ -339,6 +341,8 @@ const AppContent = () => {
           <Route path="/admin/restaurant/menu" element={<AdminRoute><RestaurantMenu /></AdminRoute>} />
           <Route path="/admin/restaurant/tables" element={<AdminRoute><RestaurantTables /></AdminRoute>} />
           <Route path="/admin/restaurant/recipes" element={<AdminRoute><RestaurantRecipes /></AdminRoute>} />
+          <Route path="/admin/restaurant/ingredients" element={<AdminRoute><RestaurantIngredients /></AdminRoute>} />
+          <Route path="/admin/restaurant/purchases" element={<AdminRoute><RestaurantPurchases /></AdminRoute>} />
           <Route path="/admin/restaurant/settings" element={<AdminRoute><RestaurantSettings /></AdminRoute>} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/search" element={<SearchPage />} />
