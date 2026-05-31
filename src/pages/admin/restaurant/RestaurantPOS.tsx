@@ -316,7 +316,7 @@ export default function RestaurantPOS() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
       {/* Top bar */}
       <div className="px-4 py-3 border-b bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl flex items-center gap-3 flex-wrap shadow-sm">
         <div className="flex items-center gap-2">
