@@ -150,6 +150,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/restaurant/RestaurantTables')) },
   { id: 'restaurant-recipes', path: '/admin/restaurant/recipes', title: 'Recipes', icon: BookOpenCheck, group: 'Restaurant', color: 'from-red-500 to-orange-700',
     component: L(() => import('@/pages/admin/restaurant/RestaurantRecipes')) },
+  { id: 'restaurant-settings', path: '/admin/restaurant/settings', title: 'Restaurant Settings', icon: SettingsIcon, group: 'Restaurant', color: 'from-slate-500 to-slate-700',
+    component: L(() => import('@/pages/admin/restaurant/RestaurantSettings')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
