@@ -247,6 +247,10 @@ export default function RestaurantPOS() {
 
   async function printBill() {
     if (!order) return;
+    // Mark order as billed so it disappears from Running KOT on the dashboard
+    if (order.status !== 'paid') {
+      await sb.from('restaurant_orders').update({ status: 'billed' }).eq('id', order.id);
+    }
     const cur = settings.currency_symbol || '';
     const fmt = (n: number) => `${Number(n).toFixed(0)} ${cur}`.trim();
     const tableName = order.table_id ? (tables.find(t => t.id === order.table_id)?.name || '') : '';
