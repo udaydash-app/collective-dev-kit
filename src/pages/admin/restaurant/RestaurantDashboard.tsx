@@ -57,7 +57,7 @@ export default function RestaurantDashboard() {
       sb.from('restaurant_orders').select('table_id,total,guest_count,order_no')
         .not('table_id', 'is', null).neq('status', 'paid').neq('status', 'void'),
       sb.from('restaurant_orders').select('id,order_no,type,table_id,status,total,created_at,guest_count')
-        .neq('status', 'void').order('created_at', { ascending: false }).limit(12),
+        .eq('status', 'paid').order('created_at', { ascending: false }).limit(12),
       sb.from('restaurant_orders').select('id,total').eq('status', 'paid').gte('created_at', today),
       sb.from('restaurant_settings').select('currency_symbol').limit(1).maybeSingle(),
       sb.from('restaurant_orders').select('id,order_no,type,table_id').eq('status', 'sent').order('created_at', { ascending: false }),
