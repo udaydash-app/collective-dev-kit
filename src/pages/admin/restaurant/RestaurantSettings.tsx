@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { toast } from 'sonner';
 import { Save, Building2, Image as ImageIcon, Upload, X, Loader2 } from 'lucide-react';
 import { useRef } from 'react';
@@ -100,9 +101,12 @@ export default function RestaurantSettings() {
           <h1 className="text-xl font-bold">Restaurant Settings</h1>
           <p className="text-xs text-muted-foreground">Used for printed bills, KOTs and customer-facing receipts.</p>
         </div>
-        <Button onClick={save} disabled={saving || loading} className="ml-auto bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
-          <Save className="h-4 w-4 mr-1" /> {saving ? 'Saving…' : 'Save'}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <RestaurantNavButtons />
+          <Button onClick={save} disabled={saving || loading} className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
+            <Save className="h-4 w-4 mr-1" /> {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
       </div>
 
       <Card className="p-5 space-y-4">

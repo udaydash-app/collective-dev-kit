@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Trash2, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -94,6 +95,10 @@ export default function RestaurantRecipes() {
 
   return (
     <div className="p-4 grid grid-cols-12 gap-4 h-screen">
+      <div className="col-span-12 flex items-center justify-between mb-2">
+        <h1 className="text-xl font-bold">Recipes & Costing</h1>
+        <RestaurantNavButtons />
+      </div>
       <Card className="col-span-4 p-3 overflow-auto flex flex-col">
         <h2 className="font-semibold mb-2">Menu Items</h2>
         <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="mb-2" />
