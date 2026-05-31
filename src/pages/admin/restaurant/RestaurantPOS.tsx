@@ -348,6 +348,7 @@ export default function RestaurantPOS() {
         )}
 
         <div className="ml-auto flex gap-2">
+          <RestaurantNavButtons />
           <Link to="/admin/restaurant/settings">
             <Button variant="outline" size="sm" className="rounded-full"><SettingsIcon className="h-4 w-4 mr-1" /> Settings</Button>
           </Link>
