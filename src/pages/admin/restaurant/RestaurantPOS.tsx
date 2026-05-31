@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon, X } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -356,64 +356,8 @@ export default function RestaurantPOS() {
       </div>
 
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
-        {/* Tables / floor plan */}
-        {orderType === 'dine_in' && (
-          <div className="col-span-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 p-3 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="font-bold text-sm flex items-center gap-1.5"><Users className="h-4 w-4 text-orange-500" /> Floor Plan</h3>
-              <div className="flex gap-1 text-[10px]">
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Free</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />Busy</span>
-              </div>
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="grid grid-cols-2 gap-2.5 pr-1">
-                {tables.map(t => {
-                  const isActive = order?.table_id === t.id;
-                  const open = tableOrders[t.id];
-                  const isOccupied = !!open || t.status === 'occupied';
-                  const canClear = isOccupied;
-                  return (
-                    <button key={t.id}
-                      onClick={() => onTableClick(t)}
-                      className={`group relative aspect-square rounded-2xl border-2 text-center font-bold transition-all duration-200 hover:scale-[1.03] active:scale-95 shadow-md ${
-                        isActive ? 'bg-gradient-to-br from-orange-500 to-red-600 text-white border-orange-600 shadow-orange-500/40 shadow-xl' :
-                        isOccupied ? 'bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-200' :
-                        'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 hover:border-emerald-400'
-                      } ${t.shape === 'round' ? 'rounded-full' : ''}`}>
-                      <div className="text-lg leading-none mt-1">{t.name}</div>
-                      {open ? (
-                        <>
-                          <div className="text-[10px] opacity-80 mt-0.5 flex items-center justify-center gap-1">
-                            <Users className="h-2.5 w-2.5" />{open.guest_count || 0}/{t.seats}
-                          </div>
-                          <div className="text-[11px] font-black mt-0.5">{Number(open.total).toFixed(0)} {settings.currency_symbol}</div>
-                        </>
-                      ) : (
-                        <div className="text-[10px] opacity-70 mt-0.5">{t.seats} seats</div>
-                      )}
-                      {isOccupied && !isActive && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 animate-pulse" />}
-                      {canClear && (
-                        <span
-                          role="button"
-                          title="Clear table (no active order)"
-                          onClick={(ev) => clearTable(t, ev as any)}
-                          className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white/90 dark:bg-slate-900/90 border border-orange-300 dark:border-orange-700 flex items-center justify-center text-orange-600 hover:bg-orange-500 hover:text-white shadow"
-                        >
-                          <X className="h-3 w-3" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-                {tables.length === 0 && <div className="col-span-2 text-xs text-muted-foreground p-6 text-center">No tables yet.</div>}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-
         {/* Order ticket */}
-        <div className={`${orderType === 'dine_in' ? 'col-span-4' : 'col-span-5'} rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/30 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden`}>
+        <div className="col-span-5 rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/30 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden">
           <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-orange-50/50 dark:from-slate-900 dark:to-orange-950/20 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-orange-500" />
@@ -423,6 +367,31 @@ export default function RestaurantPOS() {
           </div>
           <ScrollArea className="flex-1">
             <div className="p-3 space-y-2">
+              {/* Dine-in: no table selected prompt */}
+              {orderType === 'dine_in' && !order && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 flex items-center justify-center mb-3">
+                    <Users className="h-7 w-7 text-orange-400" />
+                  </div>
+                  <p className="text-sm font-medium">No table selected</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Choose a table from the dashboard to start a dine-in order.</p>
+                  <Link to="/admin/restaurant" className="mt-3">
+                    <Button size="sm" className="rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
+                      <Users className="h-4 w-4 mr-1" /> Open Floor Plan
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              {/* Takeaway / delivery: no order prompt */}
+              {(orderType === 'takeaway' || orderType === 'delivery') && !order && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 flex items-center justify-center mb-3">
+                    <Receipt className="h-7 w-7 text-orange-400" />
+                  </div>
+                  <p className="text-sm font-medium">No order started</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tap "New {orderType.replace('_', '-')}" above or add items from the menu.</p>
+                </div>
+              )}
               {orderItems.map(oi => (
                 <div key={oi.id} className="group flex items-center gap-2 text-sm rounded-xl p-2.5 bg-slate-50/80 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-orange-200 dark:hover:border-orange-900 transition">
                   <div className="flex-1 min-w-0">
@@ -441,13 +410,13 @@ export default function RestaurantPOS() {
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition" onClick={() => removeItem(oi)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               ))}
-              {!orderItems.length && (
+              {orderItems.length === 0 && order && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/40 flex items-center justify-center mb-3">
                     <Receipt className="h-7 w-7 text-orange-400" />
                   </div>
                   <p className="text-sm font-medium">No items yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">{orderType === 'dine_in' ? 'Pick a table and tap items to start' : 'Tap items from the menu to start'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tap items from the menu to add them.</p>
                 </div>
               )}
             </div>
@@ -467,7 +436,8 @@ export default function RestaurantPOS() {
         </div>
 
         {/* Menu */}
-        <div className={`${orderType === 'dine_in' ? 'col-span-5' : 'col-span-7'} rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden`}>
+        <div className="col-span-7 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-white/40 dark:border-white/5 flex flex-col overflow-hidden">
+
           <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex gap-2 items-center bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50">
             <div className="relative flex-1">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
