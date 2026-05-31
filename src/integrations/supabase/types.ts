@@ -2563,6 +2563,45 @@ export type Database = {
           },
         ]
       }
+      restaurant_ingredients: {
+        Row: {
+          avg_cost: number
+          created_at: string
+          id: string
+          is_active: boolean
+          last_cost: number
+          min_stock: number
+          name: string
+          stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_cost?: number
+          min_stock?: number
+          name: string
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_cost?: number
+          min_stock?: number
+          name?: string
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       restaurant_item_modifier_groups: {
         Row: {
           menu_item_id: string
@@ -2915,32 +2954,117 @@ export type Database = {
           },
         ]
       }
+      restaurant_purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_id: string
+          purchase_id: string
+          quantity: number
+          total: number | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          purchase_id: string
+          quantity: number
+          total?: number | null
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          purchase_id?: string
+          quantity?: number
+          total?: number | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_purchase_items_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_purchases: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_date: string
+          purchase_no: string
+          supplier_name: string | null
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_no?: string
+          supplier_name?: string | null
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_no?: string
+          supplier_name?: string | null
+          total?: number
+        }
+        Relationships: []
+      }
       restaurant_recipes: {
         Row: {
           created_at: string
           id: string
+          ingredient_id: string | null
           menu_item_id: string
-          product_id: string
+          product_id: string | null
           quantity: number
           unit: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          ingredient_id?: string | null
           menu_item_id: string
-          product_id: string
+          product_id?: string | null
           quantity?: number
           unit?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          ingredient_id?: string | null
           menu_item_id?: string
-          product_id?: string
+          product_id?: string | null
           quantity?: number
           unit?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "restaurant_recipes_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_ingredients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "restaurant_recipes_menu_item_id_fkey"
             columns: ["menu_item_id"]
@@ -3596,6 +3720,10 @@ export type Database = {
       recalculate_products_stock: { Args: never; Returns: number }
       recalculate_variants_stock: { Args: never; Returns: number }
       resolve_auth_user_id: { Args: { p_id: string }; Returns: string }
+      restaurant_menu_item_cost: {
+        Args: { p_menu_item_id: string }
+        Returns: number
+      }
       reverse_transaction_journal_entries: {
         Args: { p_reference: string }
         Returns: undefined
