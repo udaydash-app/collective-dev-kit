@@ -331,7 +331,7 @@ export default function RestaurantPOS() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
+    <div className={`${desktopWindowId ? 'h-full' : 'h-[100dvh]'} flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20`}>
       {/* Top bar */}
       <div className="px-4 py-3 border-b bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl flex items-center gap-3 flex-wrap shadow-sm">
         <div className="flex items-center gap-2">
@@ -386,7 +386,17 @@ export default function RestaurantPOS() {
               <Receipt className="h-4 w-4 text-orange-500" />
               <span className="font-bold text-sm">Order Ticket</span>
             </div>
-            {order && <span className="text-xs text-muted-foreground">{orderItems.length} items</span>}
+            <div className="flex items-center gap-2">
+              {order && order.table_id && (
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-full pl-2 pr-0.5 py-0.5 border border-orange-200 dark:border-orange-900">
+                  <Users className="h-3.5 w-3.5 text-orange-500" />
+                  <Button size="icon" variant="ghost" className="h-5 w-5 rounded-full" onClick={() => updateGuestCount(Math.max(1, (order.guest_count || 1) - 1))}><Minus className="h-3 w-3" /></Button>
+                  <span className="font-bold w-5 text-center text-xs">{order.guest_count || 1}</span>
+                  <Button size="icon" variant="ghost" className="h-5 w-5 rounded-full" onClick={() => updateGuestCount((order.guest_count || 1) + 1)}><Plus className="h-3 w-3" /></Button>
+                </div>
+              )}
+              {order && <span className="text-xs text-muted-foreground">{orderItems.length} items</span>}
+            </div>
           </div>
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-3 space-y-2">
@@ -557,15 +567,6 @@ export default function RestaurantPOS() {
           if (itemToAdd) setTimeout(() => addItem(itemToAdd), 120);
         }}
       />
-
-      {/* Inline editable guest count badge when order has table */}
-      {order && order.table_id && (
-        <FloatingGuestBadge
-          count={order.guest_count || 1}
-          seats={tables.find(t => t.id === order.table_id)?.seats || 0}
-          onChange={updateGuestCount}
-        />
-      )}
 
       {/* Payment dialog */}
       <PaymentDialog open={payOpen} onOpenChange={setPayOpen} order={order}
