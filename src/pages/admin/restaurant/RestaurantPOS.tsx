@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useDesktopWindowId } from '@/components/desktop/DesktopWindowContext';
+import { windowActions } from '@/store/windowStore';
 
 async function printHtml(html: string, widthMm = 80) {
   const w = window.open('', '_blank', 'width=420,height=640');
@@ -44,6 +46,16 @@ type Settings = { company_name: string; logo_url?: string|null; address?: string
 
 export default function RestaurantPOS() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const desktopWindowId = useDesktopWindowId();
+  const goToRestaurant = () => {
+    if (desktopWindowId) {
+      windowActions.close(desktopWindowId);
+      windowActions.openApp('restaurant');
+    } else {
+      navigate('/admin/restaurant');
+    }
+  };
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [tables, setTables] = useState<RTable[]>([]);
@@ -230,6 +242,7 @@ export default function RestaurantPOS() {
     try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
     setOrderItems(prev => prev.map(p => p.kot_status === 'new' ? { ...p, kot_status: 'sent', kot_batch: nextBatch } : p));
     toast.success('Sent to kitchen');
+    goToRestaurant();
   }
 
   async function printBill() {
@@ -266,6 +279,7 @@ export default function RestaurantPOS() {
         ${settings.website ? `<div class="ctr">${settings.website}</div>` : ''}
       </div>`;
     try { await printHtml(html, settings.paper_width_mm); } catch { window.print(); }
+    goToRestaurant();
   }
 
   function clearOrder() {
@@ -317,7 +331,7 @@ export default function RestaurantPOS() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20">
       {/* Top bar */}
       <div className="px-4 py-3 border-b bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl flex items-center gap-3 flex-wrap shadow-sm">
         <div className="flex items-center gap-2">
@@ -565,6 +579,7 @@ export default function RestaurantPOS() {
           toast.success('Payment recorded');
           setPayOpen(false);
           clearOrder();
+          goToRestaurant();
         }} />
     </div>
   );

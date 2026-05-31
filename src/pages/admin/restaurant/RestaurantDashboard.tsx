@@ -88,7 +88,7 @@ export default function RestaurantDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20 p-4 md:p-6 space-y-6">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20 p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -102,7 +102,6 @@ export default function RestaurantDashboard() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <RestaurantNavButtons />
-          <Link to="/admin/restaurant/pos"><Button className="rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white border-0"><Receipt className="h-4 w-4 mr-1.5" /> Open POS</Button></Link>
           <Link to="/admin/restaurant/menu"><Button variant="outline" size="sm" className="rounded-full"><MenuIcon className="h-4 w-4 mr-1.5" /> Menu</Button></Link>
           <Link to="/admin/restaurant/tables"><Button variant="outline" size="sm" className="rounded-full"><Users className="h-4 w-4 mr-1.5" /> Tables</Button></Link>
           <Link to="/admin/restaurant/settings"><Button variant="outline" size="sm" className="rounded-full"><SettingsIcon className="h-4 w-4 mr-1.5" /> Settings</Button></Link>
