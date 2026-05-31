@@ -614,6 +614,40 @@ function FloatingGuestBadge({ count, seats, onChange }: { count: number; seats: 
 }
 
 function CustomerDialog({ open, onOpenChange, type, onSubmit }: { open: boolean; onOpenChange: (b: boolean) => void; type: string; onSubmit: (d: any) => void }) {
+  return CustomerDialogImpl({ open, onOpenChange, type, onSubmit });
+}
+
+function TablePickerDialog({ open, onOpenChange, tables, tableOrders, onPick }: { open: boolean; onOpenChange: (b: boolean) => void; tables: RTable[]; tableOrders: Record<string, { total: number; guest_count: number; order_no: string }>; onPick: (t: RTable) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-orange-500" /> Select a table</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[60vh] overflow-y-auto p-1">
+          {tables.map(t => {
+            const occ = !!tableOrders[t.id];
+            return (
+              <button key={t.id} onClick={() => onPick(t)}
+                className={`relative rounded-xl p-3 border text-left transition active:scale-95 ${
+                  occ
+                    ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800 hover:bg-orange-100'
+                    : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100'
+                }`}>
+                <div className="font-bold text-sm">{t.name}</div>
+                <div className="text-[10px] text-muted-foreground">Seats {t.seats}</div>
+                {occ && <div className="text-[10px] font-semibold text-orange-700 dark:text-orange-300 mt-1">In use</div>}
+              </button>
+            );
+          })}
+          {!tables.length && <div className="col-span-full text-center text-xs text-muted-foreground py-6">No tables configured.</div>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomerDialogImpl({ open, onOpenChange, type, onSubmit }: { open: boolean; onOpenChange: (b: boolean) => void; type: string; onSubmit: (d: any) => void }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [addr, setAddr] = useState('');
