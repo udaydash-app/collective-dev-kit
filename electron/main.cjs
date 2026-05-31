@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const { execSync } = require('child_process');
 const { registerIpc: registerPgliteIpc } = require('./pglite-bridge.cjs');
 registerPgliteIpc();
 
@@ -332,6 +333,17 @@ if (autoUpdater) {
     if (downloadProgressWindow && !downloadProgressWindow.isDestroyed()) {
       downloadProgressWindow.close();
       downloadProgressWindow = null;
+    }
+
+    // Remove Apple quarantine attributes on macOS so the update installs without Gatekeeper blocking it
+    if (process.platform === 'darwin') {
+      try {
+        const appBundlePath = path.resolve(app.getAppPath(), '..', '..');
+        execSync(`xattr -cr "${appBundlePath}"`, { stdio: 'ignore' });
+        console.log('[AUTO-UPDATE] Removed quarantine attributes from app bundle:', appBundlePath);
+      } catch (e) {
+        console.warn('[AUTO-UPDATE] Failed to remove quarantine:', e.message);
+      }
     }
     
     dialog.showMessageBox({
