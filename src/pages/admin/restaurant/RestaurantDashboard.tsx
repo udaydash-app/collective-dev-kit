@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
+import { RestaurantOrderViewDialog } from '@/components/restaurant/RestaurantOrderViewDialog';
 import {
   UtensilsCrossed, Users, Receipt, TrendingUp, Flame, Clock,
   ShoppingBag, Bike, Settings as SettingsIcon, ChefHat, Menu as MenuIcon,
@@ -33,6 +34,7 @@ export default function RestaurantDashboard() {
   const [ordersToday, setOrdersToday] = useState(0);
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [currency, setCurrency] = useState('FCFA');
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -210,7 +212,7 @@ export default function RestaurantDashboard() {
               const TypeIcon = o.type === 'dine_in' ? Users : o.type === 'takeaway' ? ShoppingBag : Bike;
               return (
                 <button key={o.id}
-                  onClick={() => o.table_id ? navigate(`/admin/restaurant/pos?table=${o.table_id}`) : navigate('/admin/restaurant/pos')}
+                  onClick={() => setViewOrderId(o.id)}
                   className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:border-orange-200 border border-transparent transition text-left">
                   <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white">
                     <TypeIcon className="h-4 w-4" />
@@ -238,6 +240,13 @@ export default function RestaurantDashboard() {
           </div>
         </ScrollArea>
       </Card>
+      <RestaurantOrderViewDialog
+        orderId={viewOrderId}
+        open={!!viewOrderId}
+        onOpenChange={(o) => { if (!o) setViewOrderId(null); }}
+        currency={currency}
+        onSaved={load}
+      />
     </div>
   );
 }
