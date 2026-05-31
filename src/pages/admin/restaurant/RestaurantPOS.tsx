@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2, Plus, Minus, Printer, ChefHat, CreditCard, Users, Bike, ShoppingBag, UtensilsCrossed, Search, Sparkles, Receipt, Settings as SettingsIcon, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 async function printHtml(html: string, widthMm = 80) {
@@ -42,6 +42,7 @@ type Order = { id: string; order_no: string; type: string; table_id: string | nu
 type Settings = { company_name: string; logo_url?: string|null; address?: string|null; phone?: string|null; email?: string|null; website?: string|null; tax_number?: string|null; receipt_footer?: string|null; currency_symbol: string; paper_width_mm: number };
 
 export default function RestaurantPOS() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [tables, setTables] = useState<RTable[]>([]);
@@ -59,6 +60,23 @@ export default function RestaurantPOS() {
   const session = (() => { try { return JSON.parse(localStorage.getItem('offline_pos_session') || 'null'); } catch { return null; } })();
 
   useEffect(() => { reload(); }, []);
+  // Auto-open a table when arrived via ?table=<id>
+  useEffect(() => {
+    const tid = searchParams.get('table');
+    if (!tid || !tables.length) return;
+    const t = tables.find(x => x.id === tid);
+    if (!t) return;
+    setOrderType('dine_in');
+    if (tableOrders[tid]) {
+      openOrder(tid, 'dine_in');
+    } else {
+      setGuestDialog({ table: t, open: true });
+    }
+    // consume the param so it doesn't retrigger
+    searchParams.delete('table');
+    setSearchParams(searchParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tables]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'F2') { e.preventDefault(); sendKOT(); }

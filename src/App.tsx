@@ -64,6 +64,7 @@ import AdminProfitLossAnalysis from "./pages/admin/ProfitLossAnalysis";
 import DashboardModern from "./pages/admin/DashboardModern";
 import Desktop from "./pages/admin/Desktop";
 import RestaurantPOS from "./pages/admin/restaurant/RestaurantPOS";
+import RestaurantDashboard from "./pages/admin/restaurant/RestaurantDashboard";
 import RestaurantMenu from "./pages/admin/restaurant/RestaurantMenu";
 import RestaurantTables from "./pages/admin/restaurant/RestaurantTables";
 import RestaurantRecipes from "./pages/admin/restaurant/RestaurantRecipes";
@@ -337,7 +338,8 @@ const AppContent = () => {
           <Route path="/admin/profit-loss-analysis" element={<AdminRoute><AdminProfitLossAnalysis /></AdminRoute>} />
           <Route path="/admin/live-chat" element={<AdminRoute><AdminLiveChat /></AdminRoute>} />
           <Route path="/admin/powersync-test" element={<AdminRoute><PowerSyncTest /></AdminRoute>} />
-          <Route path="/admin/restaurant" element={<AdminRoute><RestaurantPOS /></AdminRoute>} />
+          <Route path="/admin/restaurant" element={<AdminRoute><RestaurantDashboard /></AdminRoute>} />
+          <Route path="/admin/restaurant/pos" element={<AdminRoute><RestaurantPOS /></AdminRoute>} />
           <Route path="/admin/restaurant/menu" element={<AdminRoute><RestaurantMenu /></AdminRoute>} />
           <Route path="/admin/restaurant/tables" element={<AdminRoute><RestaurantTables /></AdminRoute>} />
           <Route path="/admin/restaurant/recipes" element={<AdminRoute><RestaurantRecipes /></AdminRoute>} />
