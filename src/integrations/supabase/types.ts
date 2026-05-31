@@ -2787,6 +2787,13 @@ export type Database = {
             referencedRelation: "restaurant_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "restaurant_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_table_activity"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
       restaurant_orders: {
@@ -2895,6 +2902,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "restaurant_orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_table_activity"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -3325,7 +3339,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      restaurant_table_activity: {
+        Row: {
+          item_count: number | null
+          last_item_at: string | null
+          order_id: string | null
+          order_no: string | null
+          order_status: string | null
+          table_id: string | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       calculate_order_total: {
