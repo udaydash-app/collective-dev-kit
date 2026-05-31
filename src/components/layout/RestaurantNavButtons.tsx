@@ -18,26 +18,23 @@ export const RestaurantNavButtons = ({ className = "" }: RestaurantNavButtonsPro
     return null;
   }
 
-  const isRestaurantPOS = location.pathname === "/admin/restaurant/pos";
-
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {!isRestaurantPOS && (
-        <Button
-          onClick={() => {
-            if (desktopWindowId) {
-              windowActions.close(desktopWindowId);
-            } else {
-              navigate("/admin/desktop");
-            }
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Desktop
-        </Button>
-      )}
+      <Button
+        onClick={() => {
+          if (desktopWindowId) {
+            windowActions.close(desktopWindowId);
+            windowActions.openApp('restaurant');
+          } else {
+            navigate("/admin/restaurant");
+          }
+        }}
+        variant="outline"
+        size="sm"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Desktop
+      </Button>
     </div>
   );
 };
