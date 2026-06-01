@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, LogOut, User as UserIcon,
   ShoppingCart, Package, ShoppingBag, BookOpen, BarChart3, Megaphone, UserCog,
-  Calculator as CalculatorIcon, UtensilsCrossed, BookOpen,
+  Calculator as CalculatorIcon, UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
