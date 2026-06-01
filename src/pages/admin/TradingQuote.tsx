@@ -200,14 +200,14 @@ export default function TradingQuote() {
         if (y + blockH > pageH - margin) { doc.addPage(); y = margin; }
 
         let imgX = margin;
-        for (const imgUrl of imgs.slice(0, 2)) {
+        for (const imgUrl of imgs.slice(0, 3)) {
           const data = await loadImage(imgUrl);
           if (data) {
             try { doc.addImage(data, 'JPEG', imgX, y, 40, 40); } catch { /* ignore */ }
           }
           imgX += 45;
         }
-        const tx = margin + (imgs.length > 0 ? 45 : 0);
+        const tx = margin + (imgs.length > 0 ? Math.min(imgs.length, 3) * 45 - 5 + 6 : 0);
         doc.setFont('helvetica', 'bold').setFontSize(12);
         doc.text(it.brand, tx, y + 5);
         doc.setFont('helvetica', 'normal').setFontSize(10);
