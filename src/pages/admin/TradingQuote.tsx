@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Send, Upload, FileText, X } from 'lucide-react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 
@@ -42,6 +43,8 @@ export default function TradingQuote() {
   const [uploading, setUploading] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [clientName, setClientName] = useState('');
+  const [language, setLanguage] = useState<'en' | 'fr'>('en');
+  const [sendOrder, setSendOrder] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -156,6 +159,21 @@ export default function TradingQuote() {
     else setSelected(new Set(items.map((i) => i.id)));
   };
 
+  const openSend = () => {
+    setSendOrder(items.filter((i) => selected.has(i.id)).map((i) => i.id));
+    setSendOpen(true);
+  };
+
+  const moveItem = (idx: number, dir: -1 | 1) => {
+    setSendOrder((arr) => {
+      const next = [...arr];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return arr;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  };
+
   const loadImage = (
     url: string
   ): Promise<{ data: string; w: number; h: number } | null> =>
@@ -188,9 +206,14 @@ export default function TradingQuote() {
   };
 
   const generatePdf = async () => {
-    const chosen = items.filter((i) => selected.has(i.id));
+    const order = sendOrder.length ? sendOrder : items.filter((i) => selected.has(i.id)).map((i) => i.id);
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const chosen = order.map((id) => byId.get(id)).filter(Boolean) as Item[];
     if (chosen.length === 0) { toast.error('Select at least one item'); return; }
     if (!clientName.trim()) { toast.error('Client name required'); return; }
+    const t = language === 'fr'
+      ? { title: 'MEILLEUR PRIX DISPONIBLE CHEZ NOUS', client: 'Client', Quality: 'Qualité', Packaging: 'Emballage', Warehouse: 'Entrepôt', Payment: 'Paiement', Bank: 'Banque', file: 'Offre' }
+      : { title: 'BEST PRICE AVAILABLE WITH US', client: 'Client', Quality: 'Quality', Packaging: 'Packaging', Warehouse: 'Warehouse', Payment: 'Payment', Bank: 'Bank', file: 'Quotation' };
     setGenerating(true);
     try {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -203,14 +226,14 @@ export default function TradingQuote() {
       doc.setFillColor(30, 41, 59); // slate-800
       doc.rect(0, 0, pageW, 24, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold').setFontSize(20);
-      doc.text('QUOTATION', margin, 15);
+      doc.setFont('helvetica', 'bold').setFontSize(16);
+      doc.text(t.title, margin, 15);
       doc.setFont('helvetica', 'normal').setFontSize(10);
       doc.text(new Date().toLocaleDateString(), pageW - margin, 15, { align: 'right' });
       doc.setTextColor(20, 20, 20);
       y = 32;
       doc.setFont('helvetica', 'bold').setFontSize(12);
-      doc.text(`Client: ${clientName}`, margin, y);
+      doc.text(`${t.client}: ${clientName}`, margin, y);
       y += 8;
 
       // ----- Item cards: one per row, big image + details columns -----
@@ -286,11 +309,11 @@ export default function TradingQuote() {
 
         // Detail rows
         const rows: [string, string][] = [];
-        if (it.quality) rows.push(['Quality', it.quality]);
-        if (it.packaging) rows.push(['Packaging', it.packaging]);
-        if (it.warehouse) rows.push(['Warehouse', it.warehouse]);
-        if (it.payment_condition) rows.push(['Payment', it.payment_condition]);
-        if (it.bank_details) rows.push(['Bank', it.bank_details]);
+        if (it.quality) rows.push([t.Quality, it.quality]);
+        if (it.packaging) rows.push([t.Packaging, it.packaging]);
+        if (it.warehouse) rows.push([t.Warehouse, it.warehouse]);
+        if (it.payment_condition) rows.push([t.Payment, it.payment_condition]);
+        if (it.bank_details) rows.push([t.Bank, it.bank_details]);
 
         doc.setFontSize(9.5);
         const maxValW = pageW - margin - padding - detailsX - labelColW - 2;
@@ -310,7 +333,7 @@ export default function TradingQuote() {
         y += cardH + 4;
       }
 
-      doc.save(`Quotation-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`);
+      doc.save(`${t.file}-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`);
       setSendOpen(false);
       setClientName('');
       toast.success('Quotation generated');
@@ -334,7 +357,7 @@ export default function TradingQuote() {
             size="sm"
             variant="default"
             disabled={selected.size === 0}
-            onClick={() => setSendOpen(true)}
+            onClick={openSend}
             className="gap-1.5"
           >
             <Send className="h-4 w-4" /> Send ({selected.size})
@@ -517,6 +540,37 @@ export default function TradingQuote() {
                 placeholder="Enter client name"
                 autoFocus
               />
+            </div>
+            <div>
+              <Label>Language</Label>
+              <div className="flex gap-2 mt-1">
+                <Button type="button" size="sm" variant={language === 'en' ? 'default' : 'outline'} onClick={() => setLanguage('en')}>English</Button>
+                <Button type="button" size="sm" variant={language === 'fr' ? 'default' : 'outline'} onClick={() => setLanguage('fr')}>Français</Button>
+              </div>
+            </div>
+            <div>
+              <Label>Order (drag arrows to reorder)</Label>
+              <div className="mt-1 border rounded divide-y max-h-64 overflow-auto">
+                {sendOrder.map((id, idx) => {
+                  const it = items.find((i) => i.id === id);
+                  if (!it) return null;
+                  return (
+                    <div key={id} className="flex items-center gap-2 p-2 text-sm">
+                      <span className="w-5 text-slate-400">{idx + 1}.</span>
+                      {it.image_urls?.[0] ? (
+                        <img src={it.image_urls[0]} alt="" className="h-8 w-8 object-cover rounded" />
+                      ) : <div className="h-8 w-8 bg-slate-100 rounded" />}
+                      <span className="flex-1 truncate">{it.brand}</span>
+                      <Button size="icon" variant="ghost" disabled={idx === 0} onClick={() => moveItem(idx, -1)}>
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" disabled={idx === sendOrder.length - 1} onClick={() => moveItem(idx, 1)}>
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>
