@@ -6,7 +6,7 @@ import {
   UserCog, MessageSquare, Percent, Gift, Repeat, Barcode as BarcodeIcon,
   ClipboardCheck, Factory, Banknote, Database, FileBarChart, Coins,
   CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck,
-  Carrot, Truck as TruckIcon, type LucideIcon,
+  Carrot, Truck as TruckIcon, StickyNote, type LucideIcon,
 } from 'lucide-react';
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 
@@ -162,6 +162,10 @@ export const APPS: AppDef[] = [
   // External
   { id: 'ledgerly', path: '/admin/ledgerly', title: 'Ledgerly', icon: BookOpen, group: 'External', color: 'from-emerald-600 to-teal-700',
     component: L(() => import('@/pages/admin/Ledgerly')) },
+
+  // Utilities
+  { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',
+    component: L(() => import('@/pages/admin/StickyNotes')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
