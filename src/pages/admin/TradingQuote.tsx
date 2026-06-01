@@ -22,14 +22,14 @@ type Item = {
   warehouse: string | null;
   payment_condition: string | null;
   bank_details: string | null;
-  image_url: string | null;
+  image_urls: string[];
   created_at: string;
   updated_at: string;
 };
 
 const emptyForm: Omit<Item, 'id' | 'created_at' | 'updated_at'> = {
   brand: '', quality: '', packaging: '', buy_price: 0, sell_price: 0,
-  warehouse: '', payment_condition: '', bank_details: '', image_url: '',
+  warehouse: '', payment_condition: '', bank_details: '', image_urls: [],
 };
 
 export default function TradingQuote() {
@@ -52,7 +52,14 @@ export default function TradingQuote() {
       .select('*')
       .order('created_at', { ascending: false });
     if (error) toast.error(error.message);
-    else setItems((data as Item[]) ?? []);
+    else {
+      setItems(
+        (data ?? []).map((row: any) => ({
+          ...row,
+          image_urls: Array.isArray(row.image_urls) ? row.image_urls : [],
+        })) as Item[]
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -75,7 +82,7 @@ export default function TradingQuote() {
       warehouse: it.warehouse ?? '',
       payment_condition: it.payment_condition ?? '',
       bank_details: it.bank_details ?? '',
-      image_url: it.image_url ?? '',
+      image_urls: Array.isArray(it.image_urls) ? [...it.image_urls] : [],
     });
     setDialogOpen(true);
   };
@@ -88,13 +95,17 @@ export default function TradingQuote() {
       const { error } = await supabase.storage.from('trading-quote-images').upload(path, file);
       if (error) throw error;
       const { data } = supabase.storage.from('trading-quote-images').getPublicUrl(path);
-      setForm((f) => ({ ...f, image_url: data.publicUrl }));
+      setForm((f) => ({ ...f, image_urls: [...f.image_urls, data.publicUrl] }));
       toast.success('Image uploaded');
     } catch (e: any) {
       toast.error(e.message ?? 'Upload failed');
     } finally {
       setUploading(false);
     }
+  };
+
+  const removeImage = (idx: number) => {
+    setForm((f) => ({ ...f, image_urls: f.image_urls.filter((_, i) => i !== idx) }));
   };
 
   const handleSave = async () => {
@@ -184,17 +195,19 @@ export default function TradingQuote() {
       doc.setDrawColor(180); doc.line(margin, y, pageW - margin, y); y += 6;
 
       for (const it of chosen) {
-        const blockH = 56;
+        const imgs = Array.isArray(it.image_urls) ? it.image_urls : [];
+        const blockH = imgs.length > 0 ? 56 : 30;
         if (y + blockH > pageH - margin) { doc.addPage(); y = margin; }
 
         let imgX = margin;
-        if (it.image_url) {
-          const data = await loadImage(it.image_url);
+        for (const imgUrl of imgs.slice(0, 2)) {
+          const data = await loadImage(imgUrl);
           if (data) {
             try { doc.addImage(data, 'JPEG', imgX, y, 40, 40); } catch { /* ignore */ }
           }
+          imgX += 45;
         }
-        const tx = margin + 45;
+        const tx = margin + (imgs.length > 0 ? 45 : 0);
         doc.setFont('helvetica', 'bold').setFontSize(12);
         doc.text(it.brand, tx, y + 5);
         doc.setFont('helvetica', 'normal').setFontSize(10);
@@ -273,7 +286,7 @@ export default function TradingQuote() {
                       onCheckedChange={toggleAll}
                     />
                   </th>
-                  <th className="p-2 w-16">Image</th>
+                  <th className="p-2 w-16">Images</th>
                   <th className="p-2 text-left">Brand</th>
                   <th className="p-2 text-left">Quality</th>
                   <th className="p-2 text-left">Packaging</th>
@@ -292,10 +305,17 @@ export default function TradingQuote() {
                       <Checkbox checked={selected.has(it.id)} onCheckedChange={() => toggleSelect(it.id)} />
                     </td>
                     <td className="p-2">
-                      {it.image_url ? (
-                        <img src={it.image_url} alt={it.brand} className="h-12 w-12 object-cover rounded" />
+                      {Array.isArray(it.image_urls) && it.image_urls.length > 0 ? (
+                        <div className="flex -space-x-2">
+                          {it.image_urls.slice(0, 3).map((url, i) => (
+                            <img key={i} src={url} alt="" className="h-8 w-8 object-cover rounded border border-white" />
+                          ))}
+                          {it.image_urls.length > 3 && (
+                            <span className="h-8 w-8 rounded bg-slate-200 text-xs flex items-center justify-center border border-white">+{it.image_urls.length - 3}</span>
+                          )}
+                        </div>
                       ) : (
-                        <div className="h-12 w-12 bg-slate-100 rounded" />
+                        <div className="h-8 w-8 bg-slate-100 rounded" />
                       )}
                     </td>
                     <td className="p-2 font-medium">{it.brand}</td>
@@ -368,29 +388,33 @@ export default function TradingQuote() {
               />
             </div>
             <div className="col-span-2">
-              <Label>Image</Label>
-              <div className="flex items-center gap-3 mt-1">
-                {form.image_url && (
-                  <div className="relative">
-                    <img src={form.image_url} alt="" className="h-20 w-20 rounded object-cover" />
+              <Label>Images</Label>
+              <div className="flex flex-wrap items-center gap-3 mt-1">
+                {form.image_urls.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={url} alt="" className="h-20 w-20 rounded object-cover" />
                     <button
-                      onClick={() => setForm({ ...form, image_url: '' })}
+                      onClick={() => removeImage(idx)}
                       className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 text-white"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                )}
+                ))}
                 <input
                   type="file"
                   ref={fileRef}
                   accept="image/*"
+                  multiple
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    files.forEach((f) => handleUpload(f));
+                  }}
                 />
                 <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
                   <Upload className="h-4 w-4 mr-1" />
-                  {uploading ? 'Uploading...' : 'Upload Image'}
+                  {uploading ? 'Uploading...' : 'Upload Images'}
                 </Button>
               </div>
             </div>
