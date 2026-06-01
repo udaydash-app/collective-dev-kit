@@ -6,7 +6,7 @@ import {
   UserCog, MessageSquare, Percent, Gift, Repeat, Barcode as BarcodeIcon,
   ClipboardCheck, Factory, Banknote, Database, FileBarChart, Coins,
   CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck,
-  Carrot, Truck as TruckIcon, type LucideIcon,
+  Carrot, Truck as TruckIcon, StickyNote, type LucideIcon,
 } from 'lucide-react';
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 
