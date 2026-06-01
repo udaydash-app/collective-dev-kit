@@ -156,7 +156,9 @@ export default function TradingQuote() {
     else setSelected(new Set(items.map((i) => i.id)));
   };
 
-  const loadImage = (url: string): Promise<string | null> =>
+  const loadImage = (
+    url: string
+  ): Promise<{ data: string; w: number; h: number } | null> =>
     new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -166,12 +168,24 @@ export default function TradingQuote() {
           canvas.width = img.width;
           canvas.height = img.height;
           canvas.getContext('2d')?.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          resolve({
+            data: canvas.toDataURL('image/jpeg', 0.85),
+            w: img.width,
+            h: img.height,
+          });
         } catch { resolve(null); }
       };
       img.onerror = () => resolve(null);
       img.src = url;
     });
+
+  // Fit (contain) image within a box preserving aspect ratio, returns centered placement.
+  const fitBox = (iw: number, ih: number, bw: number, bh: number) => {
+    const r = Math.min(bw / iw, bh / ih);
+    const w = iw * r;
+    const h = ih * r;
+    return { w, h, ox: (bw - w) / 2, oy: (bh - h) / 2 };
+  };
 
   const generatePdf = async () => {
     const chosen = items.filter((i) => selected.has(i.id));
@@ -217,49 +231,58 @@ export default function TradingQuote() {
         const cardX = margin + padding;
         const cardY = y + padding;
 
-        // Left: main image (big)
+        // Main image box (letterboxed to preserve aspect ratio)
+        doc.setFillColor(240, 240, 244);
+        doc.rect(cardX, cardY, imgW, imgH, 'F');
         if (imgs[0]) {
-          const data = await loadImage(imgs[0]);
-          if (data) {
-            try { doc.addImage(data, 'JPEG', cardX, cardY, imgW, imgH); } catch {}
+          const im = await loadImage(imgs[0]);
+          if (im) {
+            const f = fitBox(im.w, im.h, imgW, imgH);
+            try { doc.addImage(im.data, 'JPEG', cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
           }
-        } else {
-          doc.setFillColor(235, 235, 240);
-          doc.rect(cardX, cardY, imgW, imgH, 'F');
         }
 
-        // Thumbnails (2nd & 3rd) stacked beside main
+        // Thumbnails (2nd & 3rd) stacked beside main, aspect preserved
         const thumbW = 28;
         const thumbH = 28;
         const thumbX = cardX + imgW + 4;
         for (let i = 1; i < Math.min(imgs.length, 3); i++) {
-          const data = await loadImage(imgs[i]);
           const ty = cardY + (i - 1) * (thumbH + 4);
-          if (data) {
-            try { doc.addImage(data, 'JPEG', thumbX, ty, thumbW, thumbH); } catch {}
+          doc.setFillColor(240, 240, 244);
+          doc.rect(thumbX, ty, thumbW, thumbH, 'F');
+          const im = await loadImage(imgs[i]);
+          if (im) {
+            const f = fitBox(im.w, im.h, thumbW, thumbH);
+            try { doc.addImage(im.data, 'JPEG', thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
           }
         }
 
         // Right: details in two columns (label / value)
         const detailsX = thumbX + thumbW + 8;
         const labelColW = 28;
-        let dy = cardY + 6;
 
-        // Brand title
+        // Price highlight (top-right) — drawn first so we can reserve space
+        const priceTxt = `${Number(it.sell_price ?? 0).toLocaleString()}`;
+        doc.setFont('helvetica', 'bold').setFontSize(12);
+        const priceW = doc.getTextWidth(priceTxt) + 8;
+        const priceH = 8;
+        const priceX = pageW - margin - padding - priceW;
+        const priceY = cardY + 2;
+        doc.setFillColor(34, 197, 94);
+        doc.roundedRect(priceX, priceY, priceW, priceH, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(priceTxt, priceX + priceW - 4, priceY + priceH - 2.2, { align: 'right' });
+        doc.setTextColor(50, 50, 50);
+
+        // Brand title (wrap so it doesn't run under price badge)
+        let dy = cardY + 6;
         doc.setFont('helvetica', 'bold').setFontSize(14);
         doc.setTextColor(15, 23, 42);
-        doc.text(it.brand, detailsX, dy);
-        dy += 7;
-
-        // Price highlight (top-right)
-        doc.setFillColor(34, 197, 94);
-        const priceTxt = `${Number(it.sell_price ?? 0).toLocaleString()}`;
-        doc.setFont('helvetica', 'bold').setFontSize(13);
-        const priceW = doc.getTextWidth(priceTxt) + 8;
-        doc.roundedRect(pageW - margin - padding - priceW, cardY + 2, priceW, 9, 1.5, 1.5, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.text(priceTxt, pageW - margin - padding - 4, cardY + 8, { align: 'right' });
-        doc.setTextColor(50, 50, 50);
+        const brandMaxW = priceX - detailsX - 4;
+        const brandLines = doc.splitTextToSize(it.brand, brandMaxW).slice(0, 1);
+        doc.text(brandLines, detailsX, dy);
+        // Move below the price badge to avoid any overlap with detail rows
+        dy = Math.max(dy + 6, priceY + priceH + 4);
 
         // Detail rows
         const rows: [string, string][] = [];
@@ -286,16 +309,6 @@ export default function TradingQuote() {
 
         y += cardH + 4;
       }
-
-      // ----- Total -----
-      const total = chosen.reduce((s, i) => s + Number(i.sell_price ?? 0), 0);
-      if (y + 16 > pageH - margin) { doc.addPage(); y = margin; }
-      doc.setFillColor(15, 23, 42);
-      doc.roundedRect(pageW - margin - 80, y, 80, 12, 2, 2, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold').setFontSize(13);
-      doc.text(`TOTAL: ${total.toLocaleString()}`, pageW - margin - 4, y + 8, { align: 'right' });
-      doc.setTextColor(20, 20, 20);
 
       doc.save(`Quotation-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`);
       setSendOpen(false);
