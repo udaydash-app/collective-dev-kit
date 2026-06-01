@@ -162,6 +162,8 @@ export const APPS: AppDef[] = [
   // External
   { id: 'ledgerly', path: '/admin/ledgerly', title: 'Ledgerly', icon: BookOpen, group: 'External', color: 'from-emerald-600 to-teal-700',
     component: L(() => import('@/pages/admin/Ledgerly')) },
+  { id: 'trading-quote', path: '/admin/trading-quote', title: 'Trading Quote', icon: FileText, group: 'External', color: 'from-blue-600 to-cyan-700',
+    component: L(() => import('@/pages/admin/TradingQuote')) },
 
   // Utilities
   { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',

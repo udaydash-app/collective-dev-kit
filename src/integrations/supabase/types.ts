@@ -3462,6 +3462,51 @@ export type Database = {
           },
         ]
       }
+      trading_quote_items: {
+        Row: {
+          bank_details: string | null
+          brand: string
+          buy_price: number | null
+          created_at: string
+          id: string
+          image_url: string | null
+          packaging: string | null
+          payment_condition: string | null
+          quality: string | null
+          sell_price: number | null
+          updated_at: string
+          warehouse: string | null
+        }
+        Insert: {
+          bank_details?: string | null
+          brand: string
+          buy_price?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          packaging?: string | null
+          payment_condition?: string | null
+          quality?: string | null
+          sell_price?: number | null
+          updated_at?: string
+          warehouse?: string | null
+        }
+        Update: {
+          bank_details?: string | null
+          brand?: string
+          buy_price?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          packaging?: string | null
+          payment_condition?: string | null
+          quality?: string | null
+          sell_price?: number | null
+          updated_at?: string
+          warehouse?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
