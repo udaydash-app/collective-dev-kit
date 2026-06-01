@@ -199,7 +199,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                   ))}
                 </div>
               )}
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-xs font-bold">
                 <span>{item.quantity} x {formatCurrency(effectivePrice)}</span>
                 <span>{formatCurrency(effectivePrice * item.quantity)}</span>
               </div>
