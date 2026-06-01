@@ -185,55 +185,117 @@ export default function TradingQuote() {
       const margin = 12;
       let y = margin;
 
-      doc.setFontSize(18).setFont('helvetica', 'bold');
-      doc.text('QUOTATION', pageW / 2, y + 6, { align: 'center' });
-      y += 14;
-      doc.setFontSize(11).setFont('helvetica', 'normal');
+      // ----- Header banner -----
+      doc.setFillColor(30, 41, 59); // slate-800
+      doc.rect(0, 0, pageW, 24, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold').setFontSize(20);
+      doc.text('QUOTATION', margin, 15);
+      doc.setFont('helvetica', 'normal').setFontSize(10);
+      doc.text(new Date().toLocaleDateString(), pageW - margin, 15, { align: 'right' });
+      doc.setTextColor(20, 20, 20);
+      y = 32;
+      doc.setFont('helvetica', 'bold').setFontSize(12);
       doc.text(`Client: ${clientName}`, margin, y);
-      doc.text(`Date: ${new Date().toLocaleDateString()}`, pageW - margin, y, { align: 'right' });
       y += 8;
-      doc.setDrawColor(180); doc.line(margin, y, pageW - margin, y); y += 6;
+
+      // ----- Item cards: one per row, big image + details columns -----
+      const cardH = 70; // mm
+      const imgW = 60;
+      const imgH = 60;
+      const padding = 5;
 
       for (const it of chosen) {
+        if (y + cardH > pageH - margin - 20) { doc.addPage(); y = margin; }
+
+        // Card border
+        doc.setDrawColor(220);
+        doc.setFillColor(250, 250, 252);
+        doc.roundedRect(margin, y, pageW - margin * 2, cardH, 2, 2, 'FD');
+
         const imgs = Array.isArray(it.image_urls) ? it.image_urls : [];
-        const blockH = imgs.length > 0 ? 56 : 30;
-        if (y + blockH > pageH - margin) { doc.addPage(); y = margin; }
+        const cardX = margin + padding;
+        const cardY = y + padding;
 
-        let imgX = margin;
-        for (const imgUrl of imgs.slice(0, 3)) {
-          const data = await loadImage(imgUrl);
+        // Left: main image (big)
+        if (imgs[0]) {
+          const data = await loadImage(imgs[0]);
           if (data) {
-            try { doc.addImage(data, 'JPEG', imgX, y, 40, 40); } catch { /* ignore */ }
+            try { doc.addImage(data, 'JPEG', cardX, cardY, imgW, imgH); } catch {}
           }
-          imgX += 45;
+        } else {
+          doc.setFillColor(235, 235, 240);
+          doc.rect(cardX, cardY, imgW, imgH, 'F');
         }
-        const tx = margin + (imgs.length > 0 ? Math.min(imgs.length, 3) * 45 - 5 + 6 : 0);
-        doc.setFont('helvetica', 'bold').setFontSize(12);
-        doc.text(it.brand, tx, y + 5);
-        doc.setFont('helvetica', 'normal').setFontSize(10);
-        const lines: string[] = [];
-        if (it.quality) lines.push(`Quality: ${it.quality}`);
-        if (it.packaging) lines.push(`Packaging: ${it.packaging}`);
-        if (it.warehouse) lines.push(`Warehouse: ${it.warehouse}`);
-        if (it.payment_condition) lines.push(`Payment: ${it.payment_condition}`);
-        if (it.bank_details) lines.push(`Bank: ${it.bank_details}`);
-        let ly = y + 11;
-        for (const l of lines) {
-          const wrapped = doc.splitTextToSize(l, pageW - tx - margin - 30);
-          doc.text(wrapped, tx, ly);
-          ly += 4.5 * wrapped.length;
-        }
-        doc.setFont('helvetica', 'bold').setFontSize(13);
-        doc.text(`Price: ${Number(it.sell_price ?? 0).toLocaleString()}`, pageW - margin, y + 5, { align: 'right' });
 
-        y += blockH;
-        doc.setDrawColor(220); doc.line(margin, y - 2, pageW - margin, y - 2);
+        // Thumbnails (2nd & 3rd) stacked beside main
+        const thumbW = 28;
+        const thumbH = 28;
+        const thumbX = cardX + imgW + 4;
+        for (let i = 1; i < Math.min(imgs.length, 3); i++) {
+          const data = await loadImage(imgs[i]);
+          const ty = cardY + (i - 1) * (thumbH + 4);
+          if (data) {
+            try { doc.addImage(data, 'JPEG', thumbX, ty, thumbW, thumbH); } catch {}
+          }
+        }
+
+        // Right: details in two columns (label / value)
+        const detailsX = thumbX + thumbW + 8;
+        const labelColW = 28;
+        let dy = cardY + 6;
+
+        // Brand title
+        doc.setFont('helvetica', 'bold').setFontSize(14);
+        doc.setTextColor(15, 23, 42);
+        doc.text(it.brand, detailsX, dy);
+        dy += 7;
+
+        // Price highlight (top-right)
+        doc.setFillColor(34, 197, 94);
+        const priceTxt = `${Number(it.sell_price ?? 0).toLocaleString()}`;
+        doc.setFont('helvetica', 'bold').setFontSize(13);
+        const priceW = doc.getTextWidth(priceTxt) + 8;
+        doc.roundedRect(pageW - margin - padding - priceW, cardY + 2, priceW, 9, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(priceTxt, pageW - margin - padding - 4, cardY + 8, { align: 'right' });
+        doc.setTextColor(50, 50, 50);
+
+        // Detail rows
+        const rows: [string, string][] = [];
+        if (it.quality) rows.push(['Quality', it.quality]);
+        if (it.packaging) rows.push(['Packaging', it.packaging]);
+        if (it.warehouse) rows.push(['Warehouse', it.warehouse]);
+        if (it.payment_condition) rows.push(['Payment', it.payment_condition]);
+        if (it.bank_details) rows.push(['Bank', it.bank_details]);
+
+        doc.setFontSize(9.5);
+        const maxValW = pageW - margin - padding - detailsX - labelColW - 2;
+        for (const [label, value] of rows) {
+          if (dy > cardY + cardH - 4) break;
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(100, 116, 139);
+          doc.text(label, detailsX, dy);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(15, 23, 42);
+          const wrapped = doc.splitTextToSize(String(value), maxValW);
+          const shown = wrapped.slice(0, 2);
+          doc.text(shown, detailsX + labelColW, dy);
+          dy += 4.5 * shown.length + 1.5;
+        }
+
+        y += cardH + 4;
       }
 
+      // ----- Total -----
       const total = chosen.reduce((s, i) => s + Number(i.sell_price ?? 0), 0);
-      if (y + 14 > pageH - margin) { doc.addPage(); y = margin; }
+      if (y + 16 > pageH - margin) { doc.addPage(); y = margin; }
+      doc.setFillColor(15, 23, 42);
+      doc.roundedRect(pageW - margin - 80, y, 80, 12, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold').setFontSize(13);
-      doc.text(`Total: ${total.toLocaleString()}`, pageW - margin, y + 6, { align: 'right' });
+      doc.text(`TOTAL: ${total.toLocaleString()}`, pageW - margin - 4, y + 8, { align: 'right' });
+      doc.setTextColor(20, 20, 20);
 
       doc.save(`Quotation-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`);
       setSendOpen(false);
