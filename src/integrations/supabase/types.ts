@@ -3469,7 +3469,7 @@ export type Database = {
           buy_price: number | null
           created_at: string
           id: string
-          image_url: string | null
+          image_urls: Json | null
           packaging: string | null
           payment_condition: string | null
           quality: string | null
@@ -3483,7 +3483,7 @@ export type Database = {
           buy_price?: number | null
           created_at?: string
           id?: string
-          image_url?: string | null
+          image_urls?: Json | null
           packaging?: string | null
           payment_condition?: string | null
           quality?: string | null
@@ -3497,7 +3497,7 @@ export type Database = {
           buy_price?: number | null
           created_at?: string
           id?: string
-          image_url?: string | null
+          image_urls?: Json | null
           packaging?: string | null
           payment_condition?: string | null
           quality?: string | null
