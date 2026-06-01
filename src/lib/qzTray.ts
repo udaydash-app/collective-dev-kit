@@ -184,7 +184,9 @@ class QZTrayService {
         const qtyPrice = `${item.quantity} x ${this.formatCurrency(effectivePrice)}`;
         const total = this.formatCurrency(effectivePrice * item.quantity);
         const spaces = 42 - qtyPrice.length - total.length;
+        commands += ESC + '!' + '\x08'; // Bold to match product name visibility
         commands += qtyPrice + ' '.repeat(Math.max(spaces, 1)) + total + '\n';
+        commands += ESC + '!' + '\x00'; // Reset
         if (item.originalPrice && item.originalPrice > effectivePrice * item.quantity) {
           commands += this.formatLine('Original:', '~' + this.formatCurrency(item.originalPrice) + '~');
         }
