@@ -18,7 +18,8 @@ export type AppGroup =
   | 'Analytics'
   | 'Marketing'
   | 'Admin'
-  | 'Restaurant';
+  | 'Restaurant'
+  | 'External';
 
 export interface AppDef {
   id: string;
@@ -157,6 +158,10 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/restaurant/RestaurantPurchases')) },
   { id: 'restaurant-settings', path: '/admin/restaurant/settings', title: 'Restaurant Settings', icon: SettingsIcon, group: 'Restaurant', color: 'from-slate-500 to-slate-700',
     component: L(() => import('@/pages/admin/restaurant/RestaurantSettings')) },
+
+  // External
+  { id: 'ledgerly', path: '/admin/ledgerly', title: 'Ledgerly', icon: BookOpen, group: 'External', color: 'from-emerald-600 to-teal-700',
+    component: L(() => import('@/pages/admin/Ledgerly')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
@@ -165,5 +170,5 @@ export const findAppByPath = (path: string): AppDef | undefined =>
 export const findAppById = (id: string): AppDef | undefined => APPS.find((a) => a.id === id);
 
 export const APP_GROUPS: AppGroup[] = [
-  'POS & Sales', 'Inventory', 'Purchasing', 'Accounting', 'Analytics', 'Marketing', 'Admin', 'Restaurant',
+  'POS & Sales', 'Inventory', 'Purchasing', 'Accounting', 'Analytics', 'Marketing', 'Admin', 'Restaurant', 'External',
 ];
