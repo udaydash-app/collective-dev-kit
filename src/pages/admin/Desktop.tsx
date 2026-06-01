@@ -28,6 +28,7 @@ const GROUP_META: Record<AppGroup, { icon: LucideIcon; color: string }> = {
   'Marketing': { icon: Megaphone, color: 'from-orange-500 to-red-600' },
   'Admin': { icon: UserCog, color: 'from-slate-500 to-gray-700' },
   'Restaurant': { icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
+  'External': { icon: BookOpen, color: 'from-emerald-600 to-teal-700' },
 };
 
 export default function Desktop() {
