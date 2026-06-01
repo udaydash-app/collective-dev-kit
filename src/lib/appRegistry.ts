@@ -162,6 +162,10 @@ export const APPS: AppDef[] = [
   // External
   { id: 'ledgerly', path: '/admin/ledgerly', title: 'Ledgerly', icon: BookOpen, group: 'External', color: 'from-emerald-600 to-teal-700',
     component: L(() => import('@/pages/admin/Ledgerly')) },
+
+  // Utilities
+  { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',
+    component: L(() => import('@/pages/admin/StickyNotes')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
