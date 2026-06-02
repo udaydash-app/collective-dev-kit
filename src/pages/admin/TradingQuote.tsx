@@ -277,7 +277,7 @@ export default function TradingQuote() {
     const t = language === 'fr'
       ? { title: 'MEILLEUR PRIX DISPONIBLE CHEZ NOUS', client: 'Client', Quality: 'Qualité', Packaging: 'Emballage', Warehouse: 'Entrepôt', Payment: 'Paiement', Bank: 'Banque', file: 'Offre' }
       : { title: 'BEST PRICE AVAILABLE WITH US', client: 'Client', Quality: 'Quality', Packaging: 'Packaging', Warehouse: 'Warehouse', Payment: 'Payment', Bank: 'Bank', file: 'Quotation' };
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const margin = 12;
