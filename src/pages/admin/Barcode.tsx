@@ -37,6 +37,9 @@ export default function BarcodeManagement() {
   const [itemDetails, setItemDetails] = useState<Map<string, { manufacturingDate: string; expiryDate: string; batchNumber: string }>>(new Map());
   const printRef = useRef<HTMLDivElement>(null);
   const priceTagPrintRef = useRef<HTMLDivElement>(null);
+  const allStockPriceTagRef = useRef<HTMLDivElement>(null);
+  const [allStockItems, setAllStockItems] = useState<SelectedItem[]>([]);
+  const [loadingAllStock, setLoadingAllStock] = useState(false);
 
   // Customization settings — persisted to localStorage so last-used values are the default
   const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
