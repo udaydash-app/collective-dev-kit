@@ -216,13 +216,13 @@ export default function TradingQuote() {
     return data && data.type.startsWith('image/') ? blobToDataUrl(data) : null;
   };
 
-  const loadImage = (
+  const loadImage = async (
     url: string
-  ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> =>
-    new Promise(async (resolve) => {
-      try {
-        const dataUrl = await fetchImageDataUrl(url);
-        if (!dataUrl) return resolve(null);
+  ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> => {
+    try {
+      const dataUrl = await fetchImageDataUrl(url);
+      if (!dataUrl) return null;
+      return await new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           try {
@@ -231,23 +231,18 @@ export default function TradingQuote() {
             canvas.height = img.naturalHeight || img.height;
             canvas.getContext('2d')?.drawImage(img, 0, 0);
             const pngData = canvas.toDataURL('image/png');
-            resolve({
-              data: pngData,
-              format: 'PNG',
-              w: canvas.width,
-              h: canvas.height,
-            });
+            resolve({ data: pngData, format: 'PNG', w: canvas.width, h: canvas.height });
           } catch {
-            // Fall back to raw data URL (jsPDF accepts PNG/JPEG data URLs directly)
             resolve({ data: dataUrl, format: getImageFormat(dataUrl), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
           }
         };
         img.onerror = () => resolve(null);
         img.src = dataUrl;
-      } catch {
-        resolve(null);
-      }
-    });
+      });
+    } catch {
+      return null;
+    }
+  };
 
   // Fit (contain) image within a box preserving aspect ratio, returns centered placement.
   const fitBox = (iw: number, ih: number, bw: number, bh: number) => {
@@ -255,6 +250,22 @@ export default function TradingQuote() {
     const w = iw * r;
     const h = ih * r;
     return { w, h, ox: (bw - w) / 2, oy: (bh - h) / 2 };
+  };
+
+  const addLoadedImage = (
+    doc: jsPDF,
+    im: { data: string; format: 'PNG' | 'JPEG' | 'WEBP' },
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ) => {
+    try {
+      doc.addImage(im.data, im.format, x, y, w, h);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const buildPdf = async (): Promise<{ doc: jsPDF; fileName: string } | null> => {
