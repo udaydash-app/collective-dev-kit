@@ -48,6 +48,13 @@ export default function BarcodeManagement() {
     detailsSize: 36,
     expirySize: 84,
     customPrice: 0,
+    printProductName: true,
+    printVariantLabel: true,
+    printBarcode: true,
+    printPrice: true,
+    printBatch: true,
+    printManufacturingDate: true,
+    printExpiryDate: true,
   };
   const loadedPrefs = (() => {
     try {
@@ -65,6 +72,13 @@ export default function BarcodeManagement() {
   const [detailsSize, setDetailsSize] = useState(loadedPrefs.detailsSize);
   const [expirySize, setExpirySize] = useState(loadedPrefs.expirySize);
   const [customPrice, setCustomPrice] = useState<number>(loadedPrefs.customPrice ?? 0);
+  const [printProductName, setPrintProductName] = useState<boolean>(loadedPrefs.printProductName ?? true);
+  const [printVariantLabel, setPrintVariantLabel] = useState<boolean>(loadedPrefs.printVariantLabel ?? true);
+  const [printBarcode, setPrintBarcode] = useState<boolean>(loadedPrefs.printBarcode ?? true);
+  const [printPrice, setPrintPrice] = useState<boolean>(loadedPrefs.printPrice ?? true);
+  const [printBatch, setPrintBatch] = useState<boolean>(loadedPrefs.printBatch ?? true);
+  const [printManufacturingDate, setPrintManufacturingDate] = useState<boolean>(loadedPrefs.printManufacturingDate ?? true);
+  const [printExpiryDate, setPrintExpiryDate] = useState<boolean>(loadedPrefs.printExpiryDate ?? true);
 
   useEffect(() => {
     try {
@@ -79,12 +93,19 @@ export default function BarcodeManagement() {
           detailsSize,
           expirySize,
           customPrice,
+          printProductName,
+          printVariantLabel,
+          printBarcode,
+          printPrice,
+          printBatch,
+          printManufacturingDate,
+          printExpiryDate,
         })
       );
     } catch {
       /* ignore quota errors */
     }
-  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice]);
+  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice, printProductName, printVariantLabel, printBarcode, printPrice, printBatch, printManufacturingDate, printExpiryDate]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
