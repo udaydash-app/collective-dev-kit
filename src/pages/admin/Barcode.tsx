@@ -304,6 +304,112 @@ export default function BarcodeManagement() {
     onAfterPrint: () => toast.success('Price tags sent to printer'),
   });
 
+  const handlePrintAllStockPriceTags = useReactToPrint({
+    contentRef: allStockPriceTagRef,
+    documentTitle: 'All In-Stock Price Tags',
+    onAfterPrint: () => toast.success('Price tags sent to printer'),
+  });
+
+  const handlePrintAllInStock = async () => {
+    setLoadingAllStock(true);
+    try {
+      const loadCached = async (): Promise<SelectedItem[]> => {
+        const [cachedProducts, cachedVariants] = await Promise.all([
+          offlineDB.getProducts().catch(() => []),
+          offlineDB.getProductVariants().catch(() => []),
+        ]);
+        const variantsByProduct = new Map<string, any[]>();
+        cachedVariants.forEach((v: any) => {
+          const list = variantsByProduct.get(v.product_id) || [];
+          list.push(v);
+          variantsByProduct.set(v.product_id, list);
+        });
+        const items: SelectedItem[] = [];
+        cachedProducts
+          .filter((p: any) =>
+            (selectedStoreId === '__all__' || !selectedStoreId || p.store_id === selectedStoreId) &&
+            (p.is_available === true || p.is_available === 1) &&
+            Number(p.stock_quantity) > 0
+          )
+          .forEach((p: any) => {
+            const variants = (variantsByProduct.get(p.id) || []).filter(
+              (v: any) => (v.is_available === true || v.is_available === 1) && Number(v.stock_quantity) > 0
+            );
+            if (variants.length > 0) {
+              variants.forEach((v: any) =>
+                items.push({
+                  id: v.id,
+                  name: p.name,
+                  type: 'variant',
+                  barcode: v.barcode,
+                  price: v.price,
+                  productId: p.id,
+                  variantLabel: v.label,
+                })
+              );
+            } else {
+              items.push({ id: p.id, name: p.name, type: 'product', barcode: p.barcode, price: p.price });
+            }
+          });
+        return items;
+      };
+
+      let items: SelectedItem[] = [];
+      if (shouldUseLocalData()) {
+        items = await loadCached();
+      } else {
+        try {
+          let query = supabase
+            .from('products')
+            .select(`id, name, barcode, price, stock_quantity, product_variants(id, label, barcode, price, stock_quantity, is_available)`)
+            .eq('is_available', true)
+            .gt('stock_quantity', 0)
+            .order('name');
+          if (selectedStoreId && selectedStoreId !== '__all__') {
+            query = query.eq('store_id', selectedStoreId);
+          }
+          const { data, error } = await query.limit(2000);
+          if (error) throw error;
+          (data || []).forEach((p: any) => {
+            const variants = (p.product_variants || []).filter(
+              (v: any) => v.is_available && Number(v.stock_quantity) > 0
+            );
+            if (variants.length > 0) {
+              variants.forEach((v: any) =>
+                items.push({
+                  id: v.id,
+                  name: p.name,
+                  type: 'variant',
+                  barcode: v.barcode,
+                  price: v.price,
+                  productId: p.id,
+                  variantLabel: v.label,
+                })
+              );
+            } else {
+              items.push({ id: p.id, name: p.name, type: 'product', barcode: p.barcode, price: p.price });
+            }
+          });
+        } catch (err) {
+          console.warn('[barcode] online in-stock fetch failed, using cache', err);
+          items = await loadCached();
+        }
+      }
+
+      if (items.length === 0) {
+        toast.error('No in-stock products found');
+        return;
+      }
+      setAllStockItems(items);
+      toast.success(`Preparing ${items.length} price tags...`);
+      // Wait for render before printing
+      await new Promise((r) => setTimeout(r, 200));
+      handlePrintAllStockPriceTags();
+    } finally {
+      setLoadingAllStock(false);
+    }
+  };
+
   const getBarcodeValue = (item: SelectedItem) => {
     const key = `${item.type}-${item.id}`;
     return generatedBarcodes.get(key) || item.barcode || generateBarcode(item.id);
