@@ -177,21 +177,52 @@ export default function TradingQuote() {
     });
   };
 
-  const loadImage = (
-    url: string
-  ): Promise<{ data: string; w: number; h: number } | null> =>
-    new Promise(async (resolve) => {
-      try {
-        // Fetch as blob first to avoid canvas tainting from cross-origin images.
-        const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-        if (!res.ok) return resolve(null);
+  const getImageFormat = (dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' => {
+    if (dataUrl.startsWith('data:image/png')) return 'PNG';
+    if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+    return 'JPEG';
+  };
+
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+
+  const getTradingQuoteStoragePath = (url: string): string | null => {
+    const marker = '/storage/v1/object/public/trading-quote-images/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+  };
+
+  const fetchImageDataUrl = async (url: string): Promise<string | null> => {
+    if (url.startsWith('data:')) return url;
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+      if (res.ok) {
         const blob = await res.blob();
-        const dataUrl: string = await new Promise((r, j) => {
-          const fr = new FileReader();
-          fr.onload = () => r(fr.result as string);
-          fr.onerror = j;
-          fr.readAsDataURL(blob);
-        });
+        if (blob.type.startsWith('image/')) return await blobToDataUrl(blob);
+      }
+    } catch {
+      // Fall back to Supabase Storage download below.
+    }
+
+    const storagePath = getTradingQuoteStoragePath(url);
+    if (!storagePath) return null;
+    const { data } = await supabase.storage.from('trading-quote-images').download(storagePath);
+    return data && data.type.startsWith('image/') ? blobToDataUrl(data) : null;
+  };
+
+  const loadImage = async (
+    url: string
+  ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> => {
+    try {
+      const dataUrl = await fetchImageDataUrl(url);
+      if (!dataUrl) return null;
+      return await new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           try {
@@ -199,22 +230,19 @@ export default function TradingQuote() {
             canvas.width = img.naturalWidth || img.width;
             canvas.height = img.naturalHeight || img.height;
             canvas.getContext('2d')?.drawImage(img, 0, 0);
-            resolve({
-              data: canvas.toDataURL('image/jpeg', 0.85),
-              w: canvas.width,
-              h: canvas.height,
-            });
+            const pngData = canvas.toDataURL('image/png');
+            resolve({ data: pngData, format: 'PNG', w: canvas.width, h: canvas.height });
           } catch {
-            // Fall back to raw data URL (jsPDF accepts PNG/JPEG data URLs directly)
-            resolve({ data: dataUrl, w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+            resolve({ data: dataUrl, format: getImageFormat(dataUrl), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
           }
         };
         img.onerror = () => resolve(null);
         img.src = dataUrl;
-      } catch {
-        resolve(null);
-      }
-    });
+      });
+    } catch {
+      return null;
+    }
+  };
 
   // Fit (contain) image within a box preserving aspect ratio, returns centered placement.
   const fitBox = (iw: number, ih: number, bw: number, bh: number) => {
@@ -222,6 +250,22 @@ export default function TradingQuote() {
     const w = iw * r;
     const h = ih * r;
     return { w, h, ox: (bw - w) / 2, oy: (bh - h) / 2 };
+  };
+
+  const addLoadedImage = (
+    doc: jsPDF,
+    im: { data: string; format: 'PNG' | 'JPEG' | 'WEBP' },
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ) => {
+    try {
+      doc.addImage(im.data, im.format, x, y, w, h);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const buildPdf = async (): Promise<{ doc: jsPDF; fileName: string } | null> => {
@@ -298,7 +342,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[0]);
           if (im) {
             const f = fitBox(im.w, im.h, imgW, imgH);
-            try { doc.addImage(im.data, 'JPEG', cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, cardX + f.ox, cardY + f.oy, f.w, f.h);
           }
         }
 
@@ -313,7 +357,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[i]);
           if (im) {
             const f = fitBox(im.w, im.h, thumbW, thumbH);
-            try { doc.addImage(im.data, 'JPEG', thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, thumbX + f.ox, ty + f.oy, f.w, f.h);
           }
         }
 
