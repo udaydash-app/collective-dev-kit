@@ -254,12 +254,32 @@ export default function TradingQuote() {
       y += 8;
 
       // ----- Item cards: one per row, big image + details columns -----
-      const cardH = 70; // mm
       const imgW = 60;
       const imgH = 60;
       const padding = 5;
+      const minCardH = 70; // mm
 
       for (const it of chosen) {
+        // Pre-compute required card height based on details content
+        const detailsX0 = margin + padding + imgW + 4 + 28 + 8;
+        const labelColW0 = 28;
+        const maxValW0 = pageW - margin - padding - detailsX0 - labelColW0 - 2;
+        const rowsPre: [string, string][] = [];
+        if (it.quality) rowsPre.push([t.Quality, it.quality]);
+        if (it.packaging) rowsPre.push([t.Packaging, it.packaging]);
+        if (it.warehouse) rowsPre.push([t.Warehouse, it.warehouse]);
+        if (it.payment_condition) rowsPre.push([t.Payment, it.payment_condition]);
+        if (it.bank_details) rowsPre.push([t.Bank, it.bank_details]);
+        doc.setFont('helvetica', 'normal').setFontSize(9.5);
+        let detailsTextH = 0;
+        for (const [, value] of rowsPre) {
+          const wrapped = doc.splitTextToSize(String(value), maxValW0);
+          detailsTextH += 4.5 * wrapped.length + 1.5;
+        }
+        // brand line (~6) + price badge clearance (~4) + padding
+        const detailsBlockH = 6 + 4 + detailsTextH + 4;
+        const cardH = Math.max(minCardH, detailsBlockH + padding * 2);
+
         if (y + cardH > pageH - margin - 20) { doc.addPage(); y = margin; }
 
         // Card border
@@ -335,16 +355,14 @@ export default function TradingQuote() {
         doc.setFontSize(9.5);
         const maxValW = pageW - margin - padding - detailsX - labelColW - 2;
         for (const [label, value] of rows) {
-          if (dy > cardY + cardH - 4) break;
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(100, 116, 139);
           doc.text(label, detailsX, dy);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(15, 23, 42);
           const wrapped = doc.splitTextToSize(String(value), maxValW);
-          const shown = wrapped.slice(0, 2);
-          doc.text(shown, detailsX + labelColW, dy);
-          dy += 4.5 * shown.length + 1.5;
+          doc.text(wrapped, detailsX + labelColW, dy);
+          dy += 4.5 * wrapped.length + 1.5;
         }
 
         y += cardH + 4;
