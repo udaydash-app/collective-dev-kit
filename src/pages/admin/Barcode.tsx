@@ -907,7 +907,7 @@ export default function BarcodeManagement() {
                   }
                   .price-tag-label {
                     width: 7cm !important;
-                    height: 5cm !important;
+                    height: 4.9cm !important;
                     padding: 2mm !important;
                     margin: 0 !important;
                     box-sizing: border-box;
@@ -916,7 +916,11 @@ export default function BarcodeManagement() {
                     justify-content: center;
                     align-items: center;
                     page-break-after: always;
-                    border: 1px solid #ccc;
+                    border: none !important;
+                    overflow: hidden;
+                  }
+                  .price-tag-label:last-child {
+                    page-break-after: auto;
                   }
                   .price-tag-name {
                     font-size: 10pt !important;
