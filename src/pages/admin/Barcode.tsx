@@ -770,7 +770,7 @@ export default function BarcodeManagement() {
               {`
                 @media print {
                   @page {
-                    size: 5cm 3cm;
+                    size: 6cm 3.5cm;
                     margin: 0;
                   }
                   body {
