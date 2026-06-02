@@ -177,9 +177,15 @@ export default function TradingQuote() {
     });
   };
 
+  const getImageFormat = (dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' => {
+    if (dataUrl.startsWith('data:image/png')) return 'PNG';
+    if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+    return 'JPEG';
+  };
+
   const loadImage = (
     url: string
-  ): Promise<{ data: string; w: number; h: number } | null> =>
+  ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> =>
     new Promise(async (resolve) => {
       try {
         // Fetch as blob first to avoid canvas tainting from cross-origin images.
@@ -199,14 +205,16 @@ export default function TradingQuote() {
             canvas.width = img.naturalWidth || img.width;
             canvas.height = img.naturalHeight || img.height;
             canvas.getContext('2d')?.drawImage(img, 0, 0);
+            const jpegData = canvas.toDataURL('image/jpeg', 0.88);
             resolve({
-              data: canvas.toDataURL('image/jpeg', 0.85),
+              data: jpegData,
+              format: 'JPEG',
               w: canvas.width,
               h: canvas.height,
             });
           } catch {
             // Fall back to raw data URL (jsPDF accepts PNG/JPEG data URLs directly)
-            resolve({ data: dataUrl, w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+            resolve({ data: dataUrl, format: getImageFormat(dataUrl), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
           }
         };
         img.onerror = () => resolve(null);
@@ -298,7 +306,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[0]);
           if (im) {
             const f = fitBox(im.w, im.h, imgW, imgH);
-            try { doc.addImage(im.data, 'JPEG', cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
+            try { doc.addImage(im.data, im.format, cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
           }
         }
 
@@ -313,7 +321,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[i]);
           if (im) {
             const f = fitBox(im.w, im.h, thumbW, thumbH);
-            try { doc.addImage(im.data, 'JPEG', thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
+            try { doc.addImage(im.data, im.format, thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
           }
         }
 
