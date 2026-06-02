@@ -217,7 +217,8 @@ export default function TradingQuote() {
   };
 
   const loadImage = async (
-    url: string
+    url: string,
+    maxDim = 700
   ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> => {
     try {
       const dataUrl = await fetchImageDataUrl(url);
@@ -226,12 +227,23 @@ export default function TradingQuote() {
         const img = new Image();
         img.onload = () => {
           try {
+            const iw = img.naturalWidth || img.width;
+            const ih = img.naturalHeight || img.height;
+            const scale = Math.min(1, maxDim / Math.max(iw, ih));
+            const cw = Math.max(1, Math.round(iw * scale));
+            const ch = Math.max(1, Math.round(ih * scale));
             const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth || img.width;
-            canvas.height = img.naturalHeight || img.height;
-            canvas.getContext('2d')?.drawImage(img, 0, 0);
-            const pngData = canvas.toDataURL('image/png');
-            resolve({ data: pngData, format: 'PNG', w: canvas.width, h: canvas.height });
+            canvas.width = cw;
+            canvas.height = ch;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, cw, ch);
+              (ctx as any).imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, cw, ch);
+            }
+            const jpegData = canvas.toDataURL('image/jpeg', 0.82);
+            resolve({ data: jpegData, format: 'JPEG', w: cw, h: ch });
           } catch {
             resolve({ data: dataUrl, format: getImageFormat(dataUrl), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
           }
@@ -261,7 +273,7 @@ export default function TradingQuote() {
     h: number
   ) => {
     try {
-      doc.addImage(im.data, im.format, x, y, w, h);
+      doc.addImage(im.data, im.format, x, y, w, h, undefined, 'FAST');
       return true;
     } catch {
       return false;
