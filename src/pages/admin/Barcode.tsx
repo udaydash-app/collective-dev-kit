@@ -709,12 +709,14 @@ export default function BarcodeManagement() {
                       style={{ width: '36cm', height: '23cm' }}
                     >
                       <div className="w-full text-center">
-                        <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
-                        {item.variantLabel && (
+                        {printProductName && (
+                          <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
+                        )}
+                        {printVariantLabel && item.variantLabel && (
                           <p className="variant-label text-5xl leading-tight px-2 mt-4">{item.variantLabel}</p>
                         )}
                       </div>
-                      {barcodeValues.map((barcodeValue, index) => (
+                      {printBarcode && barcodeValues.map((barcodeValue, index) => (
                         <div key={index} className="flex justify-center w-full">
                           <Barcode
                             value={barcodeValue}
@@ -726,16 +728,18 @@ export default function BarcodeManagement() {
                           />
                         </div>
                       ))}
-                      <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
+                      {printPrice && (
+                        <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
+                      )}
                       {details && (
                         <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
-                          {details.batchNumber && (
+                          {printBatch && details.batchNumber && (
                             <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
-                          {details.manufacturingDate && (
+                          {printManufacturingDate && details.manufacturingDate && (
                             <p><span className="font-semibold">Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
-                          {details.expiryDate && (
+                          {printExpiryDate && details.expiryDate && (
                             <p className="expiry-date font-bold text-black"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
