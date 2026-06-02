@@ -180,24 +180,40 @@ export default function TradingQuote() {
   const loadImage = (
     url: string
   ): Promise<{ data: string; w: number; h: number } | null> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          canvas.getContext('2d')?.drawImage(img, 0, 0);
-          resolve({
-            data: canvas.toDataURL('image/jpeg', 0.85),
-            w: img.width,
-            h: img.height,
-          });
-        } catch { resolve(null); }
-      };
-      img.onerror = () => resolve(null);
-      img.src = url;
+    new Promise(async (resolve) => {
+      try {
+        // Fetch as blob first to avoid canvas tainting from cross-origin images.
+        const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+        if (!res.ok) return resolve(null);
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((r, j) => {
+          const fr = new FileReader();
+          fr.onload = () => r(fr.result as string);
+          fr.onerror = j;
+          fr.readAsDataURL(blob);
+        });
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            canvas.getContext('2d')?.drawImage(img, 0, 0);
+            resolve({
+              data: canvas.toDataURL('image/jpeg', 0.85),
+              w: canvas.width,
+              h: canvas.height,
+            });
+          } catch {
+            // Fall back to raw data URL (jsPDF accepts PNG/JPEG data URLs directly)
+            resolve({ data: dataUrl, w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      } catch {
+        resolve(null);
+      }
     });
 
   // Fit (contain) image within a box preserving aspect ratio, returns centered placement.
