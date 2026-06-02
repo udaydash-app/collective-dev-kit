@@ -342,7 +342,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[0]);
           if (im) {
             const f = fitBox(im.w, im.h, imgW, imgH);
-            try { doc.addImage(im.data, im.format, cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, cardX + f.ox, cardY + f.oy, f.w, f.h);
           }
         }
 
@@ -357,7 +357,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[i]);
           if (im) {
             const f = fitBox(im.w, im.h, thumbW, thumbH);
-            try { doc.addImage(im.data, im.format, thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, thumbX + f.ox, ty + f.oy, f.w, f.h);
           }
         }
 
