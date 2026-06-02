@@ -895,7 +895,7 @@ export default function BarcodeManagement() {
               {`
                 @media print {
                   @page {
-                    size: 6cm 3.5cm;
+                    size: 7cm 5cm;
                     margin: 0;
                   }
                   body {
@@ -906,8 +906,8 @@ export default function BarcodeManagement() {
                     display: block !important;
                   }
                   .price-tag-label {
-                    width: 6cm !important;
-                    height: 3.5cm !important;
+                    width: 7cm !important;
+                    height: 5cm !important;
                     padding: 2mm !important;
                     margin: 0 !important;
                     box-sizing: border-box;
@@ -942,8 +942,8 @@ export default function BarcodeManagement() {
                     key={itemKey}
                     className="price-tag-label"
                     style={{
-                      width: '6cm',
-                      height: '3.5cm',
+                      width: '7cm',
+                      height: '5cm',
                       padding: '2mm',
                       border: '1px solid #ccc',
                       display: 'flex',
@@ -996,8 +996,8 @@ export default function BarcodeManagement() {
                     key={itemKey}
                     className="price-tag-label"
                     style={{
-                      width: '5cm',
-                      height: '3cm',
+                      width: '7cm',
+                      height: '5cm',
                       padding: '2mm',
                       border: '1px solid #ccc',
                       display: 'flex',
