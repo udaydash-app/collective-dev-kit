@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Barcode as BarcodeIcon, Printer, Save, RefreshCw } from 'lucide-react';
+import { Barcode as BarcodeIcon, Printer, Save, RefreshCw, Tag } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useReactToPrint } from 'react-to-print';
@@ -36,6 +36,7 @@ export default function BarcodeManagement() {
   const [generatedBarcodes, setGeneratedBarcodes] = useState<Map<string, string>>(new Map());
   const [itemDetails, setItemDetails] = useState<Map<string, { manufacturingDate: string; expiryDate: string; batchNumber: string }>>(new Map());
   const printRef = useRef<HTMLDivElement>(null);
+  const priceTagPrintRef = useRef<HTMLDivElement>(null);
 
   // Customization settings — persisted to localStorage so last-used values are the default
   const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
@@ -292,6 +293,12 @@ export default function BarcodeManagement() {
     contentRef: printRef,
     documentTitle: 'Product Barcodes',
     onAfterPrint: () => toast.success('Barcodes sent to printer'),
+  });
+
+  const handlePrintPriceTags = useReactToPrint({
+    contentRef: priceTagPrintRef,
+    documentTitle: 'Price Tags',
+    onAfterPrint: () => toast.success('Price tags sent to printer'),
   });
 
   const getBarcodeValue = (item: SelectedItem) => {
@@ -626,6 +633,10 @@ export default function BarcodeManagement() {
                   <Printer className="h-4 w-4" />
                   Print Barcodes
                 </Button>
+                <Button onClick={handlePrintPriceTags} variant="outline" className="gap-2">
+                  <Tag className="h-4 w-4" />
+                  Print Price Tags
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -750,6 +761,103 @@ export default function BarcodeManagement() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Price Tag Print Section (hidden, used for printing) */}
+        {selectedItems.length > 0 && (
+          <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+            <style>
+              {`
+                @media print {
+                  @page {
+                    size: 5cm 3cm;
+                    margin: 0;
+                  }
+                  body {
+                    margin: 0;
+                    padding: 0;
+                  }
+                  .price-tag-container {
+                    display: block !important;
+                  }
+                  .price-tag-label {
+                    width: 5cm !important;
+                    height: 3cm !important;
+                    padding: 2mm !important;
+                    margin: 0 !important;
+                    box-sizing: border-box;
+                    display: flex !important;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    page-break-after: always;
+                    border: 1px solid #ccc;
+                  }
+                  .price-tag-name {
+                    font-size: 10pt !important;
+                    font-weight: bold !important;
+                    text-align: center;
+                    line-height: 1.2;
+                    margin-bottom: 2mm;
+                  }
+                  .price-tag-price {
+                    font-size: 14pt !important;
+                    font-weight: bold !important;
+                    text-align: center;
+                    color: #000 !important;
+                  }
+                }
+              `}
+            </style>
+            <div ref={priceTagPrintRef} className="price-tag-container">
+              {selectedItems.map((item) => {
+                const itemKey = `${item.type}-${item.id}`;
+                return (
+                  <div
+                    key={itemKey}
+                    className="price-tag-label"
+                    style={{
+                      width: '5cm',
+                      height: '3cm',
+                      padding: '2mm',
+                      border: '1px solid #ccc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <div
+                      className="price-tag-name"
+                      style={{
+                        fontSize: '10pt',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        lineHeight: 1.2,
+                        marginBottom: '2mm',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {item.name}
+                      {item.variantLabel ? ` - ${item.variantLabel}` : ''}
+                    </div>
+                    <div
+                      className="price-tag-price"
+                      style={{
+                        fontSize: '14pt',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        color: '#000',
+                      }}
+                    >
+                      {formatCurrency(customPrice || item.price)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>
