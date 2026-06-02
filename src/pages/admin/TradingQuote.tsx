@@ -183,21 +183,46 @@ export default function TradingQuote() {
     return 'JPEG';
   };
 
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+
+  const getTradingQuoteStoragePath = (url: string): string | null => {
+    const marker = '/storage/v1/object/public/trading-quote-images/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+  };
+
+  const fetchImageDataUrl = async (url: string): Promise<string | null> => {
+    if (url.startsWith('data:')) return url;
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.type.startsWith('image/')) return await blobToDataUrl(blob);
+      }
+    } catch {
+      // Fall back to Supabase Storage download below.
+    }
+
+    const storagePath = getTradingQuoteStoragePath(url);
+    if (!storagePath) return null;
+    const { data } = await supabase.storage.from('trading-quote-images').download(storagePath);
+    return data && data.type.startsWith('image/') ? blobToDataUrl(data) : null;
+  };
+
   const loadImage = (
     url: string
   ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> =>
     new Promise(async (resolve) => {
       try {
-        // Fetch as blob first to avoid canvas tainting from cross-origin images.
-        const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-        if (!res.ok) return resolve(null);
-        const blob = await res.blob();
-        const dataUrl: string = await new Promise((r, j) => {
-          const fr = new FileReader();
-          fr.onload = () => r(fr.result as string);
-          fr.onerror = j;
-          fr.readAsDataURL(blob);
-        });
+        const dataUrl = await fetchImageDataUrl(url);
+        if (!dataUrl) return resolve(null);
         const img = new Image();
         img.onload = () => {
           try {
@@ -205,10 +230,10 @@ export default function TradingQuote() {
             canvas.width = img.naturalWidth || img.width;
             canvas.height = img.naturalHeight || img.height;
             canvas.getContext('2d')?.drawImage(img, 0, 0);
-            const jpegData = canvas.toDataURL('image/jpeg', 0.88);
+            const pngData = canvas.toDataURL('image/png');
             resolve({
-              data: jpegData,
-              format: 'JPEG',
+              data: pngData,
+              format: 'PNG',
               w: canvas.width,
               h: canvas.height,
             });
