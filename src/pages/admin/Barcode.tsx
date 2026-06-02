@@ -465,6 +465,22 @@ export default function BarcodeManagement() {
                 />
               </div>
             </div>
+            {selectedStoreId && (
+              <div className="flex flex-wrap gap-3 pt-2 border-t">
+                <Button
+                  onClick={handlePrintAllInStock}
+                  disabled={loadingAllStock}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Tag className="h-4 w-4" />
+                  {loadingAllStock ? 'Loading...' : 'Print Price Tags For All In-Stock Products'}
+                </Button>
+                <p className="text-xs text-muted-foreground self-center">
+                  Prints a price tag for every available product (and variant) with stock greater than zero in the selected store.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
