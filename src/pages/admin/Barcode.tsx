@@ -781,8 +781,8 @@ export default function BarcodeManagement() {
                     display: block !important;
                   }
                   .price-tag-label {
-                    width: 5cm !important;
-                    height: 3cm !important;
+                    width: 6cm !important;
+                    height: 3.5cm !important;
                     padding: 2mm !important;
                     margin: 0 !important;
                     box-sizing: border-box;
@@ -817,8 +817,8 @@ export default function BarcodeManagement() {
                     key={itemKey}
                     className="price-tag-label"
                     style={{
-                      width: '5cm',
-                      height: '3cm',
+                      width: '6cm',
+                      height: '3.5cm',
                       padding: '2mm',
                       border: '1px solid #ccc',
                       display: 'flex',
