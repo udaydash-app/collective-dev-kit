@@ -984,6 +984,60 @@ export default function BarcodeManagement() {
             </div>
           </div>
         )}
+
+        {/* All In-Stock Price Tag Print Section (hidden) */}
+        {allStockItems.length > 0 && (
+          <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+            <div ref={allStockPriceTagRef} className="price-tag-container">
+              {allStockItems.map((item) => {
+                const itemKey = `all-${item.type}-${item.id}`;
+                return (
+                  <div
+                    key={itemKey}
+                    className="price-tag-label"
+                    style={{
+                      width: '5cm',
+                      height: '3cm',
+                      padding: '2mm',
+                      border: '1px solid #ccc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <div
+                      className="price-tag-name"
+                      style={{
+                        fontSize: '10pt',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        lineHeight: 1.2,
+                        marginBottom: '2mm',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {item.name}
+                      {item.variantLabel ? ` - ${item.variantLabel}` : ''}
+                    </div>
+                    <div
+                      className="price-tag-price"
+                      style={{
+                        fontSize: '14pt',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        color: '#000',
+                      }}
+                    >
+                      {formatCurrency(item.price)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
