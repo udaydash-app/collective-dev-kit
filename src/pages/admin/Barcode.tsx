@@ -48,6 +48,13 @@ export default function BarcodeManagement() {
     detailsSize: 36,
     expirySize: 84,
     customPrice: 0,
+    printProductName: true,
+    printVariantLabel: true,
+    printBarcode: true,
+    printPrice: true,
+    printBatch: true,
+    printManufacturingDate: true,
+    printExpiryDate: true,
   };
   const loadedPrefs = (() => {
     try {
@@ -65,6 +72,13 @@ export default function BarcodeManagement() {
   const [detailsSize, setDetailsSize] = useState(loadedPrefs.detailsSize);
   const [expirySize, setExpirySize] = useState(loadedPrefs.expirySize);
   const [customPrice, setCustomPrice] = useState<number>(loadedPrefs.customPrice ?? 0);
+  const [printProductName, setPrintProductName] = useState<boolean>(loadedPrefs.printProductName ?? true);
+  const [printVariantLabel, setPrintVariantLabel] = useState<boolean>(loadedPrefs.printVariantLabel ?? true);
+  const [printBarcode, setPrintBarcode] = useState<boolean>(loadedPrefs.printBarcode ?? true);
+  const [printPrice, setPrintPrice] = useState<boolean>(loadedPrefs.printPrice ?? true);
+  const [printBatch, setPrintBatch] = useState<boolean>(loadedPrefs.printBatch ?? true);
+  const [printManufacturingDate, setPrintManufacturingDate] = useState<boolean>(loadedPrefs.printManufacturingDate ?? true);
+  const [printExpiryDate, setPrintExpiryDate] = useState<boolean>(loadedPrefs.printExpiryDate ?? true);
 
   useEffect(() => {
     try {
@@ -79,12 +93,19 @@ export default function BarcodeManagement() {
           detailsSize,
           expirySize,
           customPrice,
+          printProductName,
+          printVariantLabel,
+          printBarcode,
+          printPrice,
+          printBatch,
+          printManufacturingDate,
+          printExpiryDate,
         })
       );
     } catch {
       /* ignore quota errors */
     }
-  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice]);
+  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice, printProductName, printVariantLabel, printBarcode, printPrice, printBatch, printManufacturingDate, printExpiryDate]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -469,6 +490,42 @@ export default function BarcodeManagement() {
               <CardTitle>Customize Barcode Appearance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <Label className="text-base">What to print</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Disabling Barcode also hides the SKU number printed below it.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printProductName} onCheckedChange={(v) => setPrintProductName(!!v)} />
+                    Product Name
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printVariantLabel} onCheckedChange={(v) => setPrintVariantLabel(!!v)} />
+                    Variant Label
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printBarcode} onCheckedChange={(v) => setPrintBarcode(!!v)} />
+                    Barcode + SKU
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printPrice} onCheckedChange={(v) => setPrintPrice(!!v)} />
+                    Price
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printBatch} onCheckedChange={(v) => setPrintBatch(!!v)} />
+                    Batch Number
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printManufacturingDate} onCheckedChange={(v) => setPrintManufacturingDate(!!v)} />
+                    Manufacturing Date
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printExpiryDate} onCheckedChange={(v) => setPrintExpiryDate(!!v)} />
+                    Expiry Date
+                  </label>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="barcode-width">Barcode Width (1-10)</Label>
@@ -652,12 +709,14 @@ export default function BarcodeManagement() {
                       style={{ width: '36cm', height: '23cm' }}
                     >
                       <div className="w-full text-center">
-                        <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
-                        {item.variantLabel && (
+                        {printProductName && (
+                          <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
+                        )}
+                        {printVariantLabel && item.variantLabel && (
                           <p className="variant-label text-5xl leading-tight px-2 mt-4">{item.variantLabel}</p>
                         )}
                       </div>
-                      {barcodeValues.map((barcodeValue, index) => (
+                      {printBarcode && barcodeValues.map((barcodeValue, index) => (
                         <div key={index} className="flex justify-center w-full">
                           <Barcode
                             value={barcodeValue}
@@ -669,16 +728,18 @@ export default function BarcodeManagement() {
                           />
                         </div>
                       ))}
-                      <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
+                      {printPrice && (
+                        <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
+                      )}
                       {details && (
                         <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
-                          {details.batchNumber && (
+                          {printBatch && details.batchNumber && (
                             <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
-                          {details.manufacturingDate && (
+                          {printManufacturingDate && details.manufacturingDate && (
                             <p><span className="font-semibold">Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
-                          {details.expiryDate && (
+                          {printExpiryDate && details.expiryDate && (
                             <p className="expiry-date font-bold text-black"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
                           )}
                         </div>
