@@ -46,6 +46,9 @@ export default function TradingQuote() {
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
   const [sendOrder, setSendOrder] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchItems = useCallback(async () => {
@@ -205,18 +208,16 @@ export default function TradingQuote() {
     return { w, h, ox: (bw - w) / 2, oy: (bh - h) / 2 };
   };
 
-  const generatePdf = async () => {
+  const buildPdf = async (): Promise<{ doc: jsPDF; fileName: string } | null> => {
     const order = sendOrder.length ? sendOrder : items.filter((i) => selected.has(i.id)).map((i) => i.id);
     const byId = new Map(items.map((i) => [i.id, i]));
     const chosen = order.map((id) => byId.get(id)).filter(Boolean) as Item[];
-    if (chosen.length === 0) { toast.error('Select at least one item'); return; }
-    if (!clientName.trim()) { toast.error('Client name required'); return; }
+    if (chosen.length === 0) { toast.error('Select at least one item'); return null; }
+    if (!clientName.trim()) { toast.error('Client name required'); return null; }
     const t = language === 'fr'
       ? { title: 'MEILLEUR PRIX DISPONIBLE CHEZ NOUS', client: 'Client', Quality: 'Qualité', Packaging: 'Emballage', Warehouse: 'Entrepôt', Payment: 'Paiement', Bank: 'Banque', file: 'Offre' }
       : { title: 'BEST PRICE AVAILABLE WITH US', client: 'Client', Quality: 'Quality', Packaging: 'Packaging', Warehouse: 'Warehouse', Payment: 'Payment', Bank: 'Bank', file: 'Quotation' };
-    setGenerating(true);
-    try {
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const margin = 12;
@@ -332,16 +333,40 @@ export default function TradingQuote() {
 
         y += cardH + 4;
       }
+    const fileName = `${t.file}-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`;
+    return { doc, fileName };
+  };
 
-      doc.save(`${t.file}-${clientName.replace(/\s+/g, '_')}-${Date.now()}.pdf`);
-      setSendOpen(false);
-      setClientName('');
-      toast.success('Quotation generated');
+  const openPreview = async () => {
+    setGenerating(true);
+    try {
+      const res = await buildPdf();
+      if (!res) return;
+      const blob = res.doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+      setPreviewFileName(res.fileName);
+      setPreviewOpen(true);
     } catch (e: any) {
       toast.error(e.message ?? 'PDF generation failed');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const downloadFromPreview = () => {
+    if (!previewUrl) return;
+    const a = document.createElement('a');
+    a.href = previewUrl;
+    a.download = previewFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setPreviewOpen(false);
+    setSendOpen(false);
+    setClientName('');
+    toast.success('Quotation downloaded');
   };
 
   return (
@@ -575,9 +600,27 @@ export default function TradingQuote() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
-            <Button onClick={generatePdf} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate PDF'}
+            <Button onClick={openPreview} disabled={generating}>
+              {generating ? 'Generating...' : 'Preview'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={(o) => { setPreviewOpen(o); if (!o && previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-4">
+          <DialogHeader>
+            <DialogTitle>Quotation Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 border rounded overflow-hidden bg-slate-100">
+            {previewUrl && (
+              <iframe src={previewUrl} title="Quotation preview" className="w-full h-full" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Back to Edit</Button>
+            <Button onClick={downloadFromPreview}>Download PDF</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
