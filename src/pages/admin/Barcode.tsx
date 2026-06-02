@@ -490,6 +490,42 @@ export default function BarcodeManagement() {
               <CardTitle>Customize Barcode Appearance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <Label className="text-base">What to print</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Disabling Barcode also hides the SKU number printed below it.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printProductName} onCheckedChange={(v) => setPrintProductName(!!v)} />
+                    Product Name
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printVariantLabel} onCheckedChange={(v) => setPrintVariantLabel(!!v)} />
+                    Variant Label
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printBarcode} onCheckedChange={(v) => setPrintBarcode(!!v)} />
+                    Barcode + SKU
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printPrice} onCheckedChange={(v) => setPrintPrice(!!v)} />
+                    Price
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printBatch} onCheckedChange={(v) => setPrintBatch(!!v)} />
+                    Batch Number
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printManufacturingDate} onCheckedChange={(v) => setPrintManufacturingDate(!!v)} />
+                    Manufacturing Date
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={printExpiryDate} onCheckedChange={(v) => setPrintExpiryDate(!!v)} />
+                    Expiry Date
+                  </label>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="barcode-width">Barcode Width (1-10)</Label>
