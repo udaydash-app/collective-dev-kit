@@ -600,9 +600,27 @@ export default function TradingQuote() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
-            <Button onClick={generatePdf} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate PDF'}
+            <Button onClick={openPreview} disabled={generating}>
+              {generating ? 'Generating...' : 'Preview'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={(o) => { setPreviewOpen(o); if (!o && previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-4">
+          <DialogHeader>
+            <DialogTitle>Quotation Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 border rounded overflow-hidden bg-slate-100">
+            {previewUrl && (
+              <iframe src={previewUrl} title="Quotation preview" className="w-full h-full" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Back to Edit</Button>
+            <Button onClick={downloadFromPreview}>Download PDF</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
