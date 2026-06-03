@@ -44,13 +44,13 @@ export default function BarcodeManagement() {
   // Customization settings — persisted to localStorage so last-used values are the default
   const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
   const defaultPrefs = {
-    barcodeWidth: 6,
-    barcodeHeight: 200,
-    productNameSize: 72,
-    variantLabelSize: 48,
-    priceSize: 96,
-    detailsSize: 36,
-    expirySize: 84,
+    barcodeWidth: 1.4,
+    barcodeHeight: 40,
+    productNameSize: 9,
+    variantLabelSize: 7,
+    priceSize: 11,
+    detailsSize: 6,
+    expirySize: 7,
     customPrice: 0,
     printProductName: true,
     printVariantLabel: true,
