@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
+import { getPosAdminSession } from '@/db/queries/accounting';
 
 type GroupBy = 'customer' | 'month' | 'year';
 
@@ -37,6 +38,29 @@ export default function ProfitLossAnalysis() {
   const { data: rows, isLoading } = useQuery({
     queryKey: ['pl-analysis', groupBy, startDate, endDate],
     queryFn: async () => {
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_profit_loss_group_report' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          group_by: groupBy,
+          start_ts: startDate,
+          end_ts: endDate + 'T23:59:59',
+        });
+        if (!error && data) {
+          return ((data as any[]) || []).map((row: any) => ({
+            key: row.key,
+            label: row.label,
+            sales: Number(row.sales) || 0,
+            cost: Number(row.cost) || 0,
+            profit: Number(row.profit) || 0,
+            margin: Number(row.margin) || 0,
+            units: Number(row.units) || 0,
+          }));
+        }
+        console.warn('[profit-loss-analysis] secure RPC failed, falling back to direct reads', error);
+      }
+
       const { data: txns, error } = await supabase
         .from('pos_transactions')
         .select('customer_id, items, created_at')
