@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { TrendingUp, DollarSign, Package } from 'lucide-react';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
+import { getPosAdminSession } from '@/db/queries/accounting';
 
 export default function COGSAnalysis() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('all');
@@ -41,6 +42,40 @@ export default function COGSAnalysis() {
   const { data: cogsData, isLoading } = useQuery({
     queryKey: ['cogs-analysis', selectedStoreId, selectedCategoryId],
     queryFn: async () => {
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_product_profit_report' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          start_ts: null,
+          end_ts: null,
+          store_filter: selectedStoreId === 'all' ? null : selectedStoreId,
+          category_filter: selectedCategoryId === 'all' ? null : selectedCategoryId,
+        });
+        if (!error && data) {
+          const products = ((data as any[]) || []).map((row: any) => ({
+            product_id: row.product_id,
+            product_name: row.product_name,
+            category: row.category_name || 'Uncategorized',
+            quantity_sold: Number(row.units_sold) || 0,
+            revenue: Number(row.total_revenue) || 0,
+            cogs: Number(row.total_cogs) || 0,
+            gross_profit: Number(row.gross_profit) || 0,
+            margin_percent: Number(row.profit_margin) || 0,
+          }));
+          const totals = products.reduce(
+            (acc, item) => ({
+              revenue: acc.revenue + item.revenue,
+              cogs: acc.cogs + item.cogs,
+              gross_profit: acc.gross_profit + item.gross_profit,
+            }),
+            { revenue: 0, cogs: 0, gross_profit: 0 }
+          );
+          return { products, totals };
+        }
+        console.warn('[cogs-analysis] secure RPC failed, falling back to direct reads', error);
+      }
+
       // Fetch products with cost_price
       let productsQuery = supabase
         .from('products')
