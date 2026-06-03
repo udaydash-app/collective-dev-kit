@@ -295,18 +295,21 @@ export default function BarcodeManagement() {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: 'Product Barcodes',
+    pageStyle: `@page { size: 40mm 30mm; margin: 0; } body { margin: 0; padding: 0; }`,
     onAfterPrint: () => toast.success('Barcodes sent to printer'),
   });
 
   const handlePrintPriceTags = useReactToPrint({
     contentRef: priceTagPrintRef,
     documentTitle: 'Price Tags',
+    pageStyle: `@page { size: 7cm 5cm; margin: 0; } body { margin: 0; padding: 0; }`,
     onAfterPrint: () => toast.success('Price tags sent to printer'),
   });
 
   const handlePrintAllStockPriceTags = useReactToPrint({
     contentRef: allStockPriceTagRef,
     documentTitle: 'All In-Stock Price Tags',
+    pageStyle: `@page { size: 7cm 5cm; margin: 0; } body { margin: 0; padding: 0; }`,
     onAfterPrint: () => toast.success('Price tags sent to printer'),
   });
 
