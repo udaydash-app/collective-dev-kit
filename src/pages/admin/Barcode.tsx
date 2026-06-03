@@ -783,10 +783,6 @@ export default function BarcodeManagement() {
               <style>
                 {`
                   @media print {
-                    @page {
-                      size: 40mm 30mm;
-                      margin: 0;
-                    }
                     body {
                       margin: 0;
                       padding: 0;
@@ -907,10 +903,6 @@ export default function BarcodeManagement() {
             <style>
               {`
                 @media print {
-                  @page {
-                    size: 7cm 5cm;
-                    margin: 0;
-                  }
                   body {
                     margin: 0;
                     padding: 0;
