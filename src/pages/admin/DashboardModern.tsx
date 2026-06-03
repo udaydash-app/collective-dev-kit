@@ -132,33 +132,21 @@ export default function DashboardModern() {
   const { data: dashboardData } = useQuery({
     queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
     queryFn: async () => {
-      // Local-first: read from the PowerSync SQLite mirror so the
-      // dashboard renders instantly and works offline.
-      try {
-        const localData = await fetchModernDashboardLocal(since.toISOString());
-        const hasLocalData = Boolean(
-          localData.pos_transactions.length ||
-          localData.orders.length ||
-          localData.purchases.length ||
-          localData.expenses.length ||
-          localData.journal_entries.length ||
-          localData.accounts.length ||
-          localData.counts.products ||
-          localData.counts.contacts
-        );
-        if (hasLocalData || !navigator.onLine) return localData;
-      } catch (e) {
-        console.warn('[dashboard] local read failed, falling back', e);
-      }
-
       const adminSession = getPosAdminSession();
-      if (adminSession) {
+      if (adminSession && navigator.onLine) {
         const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
           input_pos_user_id: adminSession.posUserId,
           input_pin: adminSession.pin,
         });
         if (!error && data) return data as any;
         console.error("Modern dashboard RPC failed, falling back to direct queries:", error);
+      }
+
+      // Offline / RPC fallback: read from the PowerSync SQLite mirror.
+      try {
+        return await fetchModernDashboardLocal(since.toISOString());
+      } catch (e) {
+        console.warn('[dashboard] local read failed, falling back', e);
       }
 
       const [tx, orders, products, contacts, lowStock, posUsers, purchases, expenses, journals, accounts] = await Promise.all([
