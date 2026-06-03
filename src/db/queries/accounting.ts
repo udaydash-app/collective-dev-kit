@@ -505,40 +505,19 @@ async function loadBalancesCloud(ids: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
-
-  const { data: accounts, error: accountError } = await supabase
-    .from('accounts')
-    .select('id, opening_balance, account_type')
-    .in('id', unique);
-  if (accountError) throw accountError;
-
-  const lines: any[] = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from('journal_entry_lines')
-      .select('account_id, debit_amount, credit_amount, journal_entries!inner(status)')
-      .in('account_id', unique)
-      .eq('journal_entries.status', 'posted')
-      .range(from, from + pageSize - 1);
+  // Chunk to keep payload small; the RPC computes opening_balance + posted
+  // journal-line movement server-side so we avoid fragile client-side
+  // pagination over journal_entry_lines.
+  const chunkSize = 100;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { data, error } = await supabase.rpc('get_ledger_balances', {
+      account_ids: chunk,
+    });
     if (error) throw error;
-    const page = data ?? [];
-    lines.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  const movement = new Map<string, number>();
-  for (const line of lines) {
-    movement.set(
-      line.account_id,
-      (movement.get(line.account_id) ?? 0) + (Number(line.debit_amount) || 0) - (Number(line.credit_amount) || 0),
-    );
-  }
-  for (const account of accounts ?? []) {
-    const opening = Number(account.opening_balance) || 0;
-    const delta = movement.get(account.id) ?? 0;
-    const debitNormal = account.account_type === 'asset' || account.account_type === 'expense';
-    map.set(account.id, debitNormal ? opening + delta : opening - delta);
+    for (const row of (data ?? []) as Array<{ account_id: string; balance: number }>) {
+      map.set(row.account_id, Number(row.balance) || 0);
+    }
   }
   return map;
 }
