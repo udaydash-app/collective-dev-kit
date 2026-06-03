@@ -3675,6 +3675,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_ledger_balances: {
+        Args: { account_ids: string[] }
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
+      }
       get_modern_dashboard_data: {
         Args: { input_pin: string; input_pos_user_id: string }
         Returns: Json
