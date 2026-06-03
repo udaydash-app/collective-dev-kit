@@ -121,7 +121,6 @@ export default function DashboardModern() {
       return null;
     }
   })();
-  const currentPin = sessionStorage.getItem('current_pos_pin');
 
   // Last 14 days range for chart
   const since = new Date();
