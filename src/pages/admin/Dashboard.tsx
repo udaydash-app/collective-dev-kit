@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
+import { getPosAdminSession } from "@/db/queries/accounting";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
@@ -41,6 +42,17 @@ export default function AdminDashboard() {
       if (timeRange === 'day') startDate.setDate(now.getDate() - 1);
       else if (timeRange === 'week') startDate.setDate(now.getDate() - 7);
       else startDate.setMonth(now.getMonth() - 1);
+
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_classic_dashboard_stats' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          start_ts: startDate.toISOString(),
+        });
+        if (!error && data) return data as any;
+        console.warn('[classic-dashboard] secure RPC failed, falling back to direct reads', error);
+      }
 
       // Get orders
       const { data: orders } = await supabase
