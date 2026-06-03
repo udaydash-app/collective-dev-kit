@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchModernDashboardLocal } from "@/db/queries/accounting";
+import { fetchModernDashboardLocal, getPosAdminSession } from "@/db/queries/accounting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +121,6 @@ export default function DashboardModern() {
       return null;
     }
   })();
-  const currentPin = sessionStorage.getItem('current_pos_pin');
 
   // Last 14 days range for chart
   const since = new Date();
@@ -133,21 +132,21 @@ export default function DashboardModern() {
   const { data: dashboardData } = useQuery({
     queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
     queryFn: async () => {
-      // Local-first: read from the PowerSync SQLite mirror so the
-      // dashboard renders instantly and works offline.
+      const adminSession = getPosAdminSession();
+      if (adminSession && navigator.onLine) {
+        const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+        });
+        if (!error && data) return data as any;
+        console.error("Modern dashboard RPC failed, falling back to direct queries:", error);
+      }
+
+      // Offline / RPC fallback: read from the PowerSync SQLite mirror.
       try {
         return await fetchModernDashboardLocal(since.toISOString());
       } catch (e) {
         console.warn('[dashboard] local read failed, falling back', e);
-      }
-
-      if (offlineSession?.pos_user_id && currentPin) {
-        const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
-          input_pos_user_id: offlineSession.pos_user_id,
-          input_pin: currentPin,
-        });
-        if (!error && data) return data as any;
-        console.error("Modern dashboard RPC failed, falling back to direct queries:", error);
       }
 
       const [tx, orders, products, contacts, lowStock, posUsers, purchases, expenses, journals, accounts] = await Promise.all([

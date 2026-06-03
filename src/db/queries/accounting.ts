@@ -158,6 +158,19 @@ function safeJson(s: any): any[] {
   }
 }
 
+export function getPosAdminSession(): { posUserId: string; pin: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("offline_pos_session");
+    const session = raw ? JSON.parse(raw) : null;
+    const pin = sessionStorage.getItem("current_pos_pin");
+    const posUserId = session?.pos_user_id || session?.id;
+    return posUserId && pin ? { posUserId, pin } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
   const rows = await queryRows(
     `SELECT id, name, is_customer, is_supplier,
@@ -505,40 +518,19 @@ async function loadBalancesCloud(ids: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
-
-  const { data: accounts, error: accountError } = await supabase
-    .from('accounts')
-    .select('id, opening_balance, account_type')
-    .in('id', unique);
-  if (accountError) throw accountError;
-
-  const lines: any[] = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from('journal_entry_lines')
-      .select('account_id, debit_amount, credit_amount, journal_entries!inner(status)')
-      .in('account_id', unique)
-      .eq('journal_entries.status', 'posted')
-      .range(from, from + pageSize - 1);
+  // Chunk to keep payload small; the RPC computes opening_balance + posted
+  // journal-line movement server-side so we avoid fragile client-side
+  // pagination over journal_entry_lines.
+  const chunkSize = 100;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { data, error } = await supabase.rpc('get_ledger_balances', {
+      account_ids: chunk,
+    });
     if (error) throw error;
-    const page = data ?? [];
-    lines.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  const movement = new Map<string, number>();
-  for (const line of lines) {
-    movement.set(
-      line.account_id,
-      (movement.get(line.account_id) ?? 0) + (Number(line.debit_amount) || 0) - (Number(line.credit_amount) || 0),
-    );
-  }
-  for (const account of accounts ?? []) {
-    const opening = Number(account.opening_balance) || 0;
-    const delta = movement.get(account.id) ?? 0;
-    const debitNormal = account.account_type === 'asset' || account.account_type === 'expense';
-    map.set(account.id, debitNormal ? opening + delta : opening - delta);
+    for (const row of (data ?? []) as Array<{ account_id: string; balance: number }>) {
+      map.set(row.account_id, Number(row.balance) || 0);
+    }
   }
   return map;
 }
@@ -548,9 +540,11 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
   const ph = unique.map(() => "?").join(",");
-  // Authoritative balance: opening_balance + sum(debits - credits) from
-  // POSTED journal entry lines. accounts.current_balance is a cached
-  // value and can drift, so we never rely on it for AR/AP totals.
+  // Authoritative balance: opening balance (from contacts for
+  // customer/supplier ledgers, else accounts.opening_balance) +
+  // sum(debits - credits) from POSTED journal entry lines, excluding
+  // explicit "opening balance" entries. Mirrors get_ledger_balances RPC
+  // and the General Ledger page logic so AR/AP totals agree.
   const accRes: any = await db.getAll(
     `SELECT id, opening_balance, account_type
      FROM accounts WHERE id IN (${ph})`,
@@ -562,16 +556,32 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
             COALESCE(SUM(l.credit_amount), 0) AS c
      FROM journal_entry_lines l
      JOIN journal_entries e ON e.id = l.journal_entry_id
-     WHERE l.account_id IN (${ph}) AND e.status = 'posted'
+     WHERE l.account_id IN (${ph})
+       AND e.status = 'posted'
+       AND COALESCE(LOWER(e.description), '') NOT LIKE '%opening balance%'
      GROUP BY l.account_id`,
     unique,
   );
+  const contactOpenRes: any = await db.getAll(
+    `SELECT customer_ledger_account_id AS account_id, COALESCE(opening_balance, 0) AS opening
+       FROM contacts WHERE customer_ledger_account_id IN (${ph})
+     UNION ALL
+     SELECT supplier_ledger_account_id AS account_id, COALESCE(supplier_opening_balance, 0) AS opening
+       FROM contacts WHERE supplier_ledger_account_id IN (${ph})`,
+    [...unique, ...unique],
+  );
+  const contactOpening = new Map<string, number>();
+  for (const r of rowsOf(contactOpenRes)) {
+    if (r.account_id) contactOpening.set(r.account_id, Number(r.opening) || 0);
+  }
   const movement = new Map<string, number>();
   for (const r of rowsOf(linesRes)) {
     movement.set(r.account_id, (Number(r.d) || 0) - (Number(r.c) || 0));
   }
   for (const a of rowsOf(accRes)) {
-    const opening = Number(a.opening_balance) || 0;
+    const opening = contactOpening.has(a.id)
+      ? (contactOpening.get(a.id) || 0)
+      : (Number(a.opening_balance) || 0);
     const delta = movement.get(a.id) ?? 0;
     // For asset/expense accounts a debit balance is positive; for
     // liability/equity/revenue a credit balance is positive. The 411x

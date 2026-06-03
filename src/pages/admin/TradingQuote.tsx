@@ -177,28 +177,84 @@ export default function TradingQuote() {
     });
   };
 
-  const loadImage = (
-    url: string
-  ): Promise<{ data: string; w: number; h: number } | null> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          canvas.getContext('2d')?.drawImage(img, 0, 0);
-          resolve({
-            data: canvas.toDataURL('image/jpeg', 0.85),
-            w: img.width,
-            h: img.height,
-          });
-        } catch { resolve(null); }
-      };
-      img.onerror = () => resolve(null);
-      img.src = url;
+  const getImageFormat = (dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' => {
+    if (dataUrl.startsWith('data:image/png')) return 'PNG';
+    if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+    return 'JPEG';
+  };
+
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
     });
+
+  const getTradingQuoteStoragePath = (url: string): string | null => {
+    const marker = '/storage/v1/object/public/trading-quote-images/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+  };
+
+  const fetchImageDataUrl = async (url: string): Promise<string | null> => {
+    if (url.startsWith('data:')) return url;
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.type.startsWith('image/')) return await blobToDataUrl(blob);
+      }
+    } catch {
+      // Fall back to Supabase Storage download below.
+    }
+
+    const storagePath = getTradingQuoteStoragePath(url);
+    if (!storagePath) return null;
+    const { data } = await supabase.storage.from('trading-quote-images').download(storagePath);
+    return data && data.type.startsWith('image/') ? blobToDataUrl(data) : null;
+  };
+
+  const loadImage = async (
+    url: string,
+    maxDim = 700
+  ): Promise<{ data: string; format: 'PNG' | 'JPEG' | 'WEBP'; w: number; h: number } | null> => {
+    try {
+      const dataUrl = await fetchImageDataUrl(url);
+      if (!dataUrl) return null;
+      return await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const iw = img.naturalWidth || img.width;
+            const ih = img.naturalHeight || img.height;
+            const scale = Math.min(1, maxDim / Math.max(iw, ih));
+            const cw = Math.max(1, Math.round(iw * scale));
+            const ch = Math.max(1, Math.round(ih * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = cw;
+            canvas.height = ch;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, cw, ch);
+              (ctx as any).imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, cw, ch);
+            }
+            const jpegData = canvas.toDataURL('image/jpeg', 0.82);
+            resolve({ data: jpegData, format: 'JPEG', w: cw, h: ch });
+          } catch {
+            resolve({ data: dataUrl, format: getImageFormat(dataUrl), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      });
+    } catch {
+      return null;
+    }
+  };
 
   // Fit (contain) image within a box preserving aspect ratio, returns centered placement.
   const fitBox = (iw: number, ih: number, bw: number, bh: number) => {
@@ -206,6 +262,22 @@ export default function TradingQuote() {
     const w = iw * r;
     const h = ih * r;
     return { w, h, ox: (bw - w) / 2, oy: (bh - h) / 2 };
+  };
+
+  const addLoadedImage = (
+    doc: jsPDF,
+    im: { data: string; format: 'PNG' | 'JPEG' | 'WEBP' },
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ) => {
+    try {
+      doc.addImage(im.data, im.format, x, y, w, h, undefined, 'FAST');
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const buildPdf = async (): Promise<{ doc: jsPDF; fileName: string } | null> => {
@@ -217,7 +289,7 @@ export default function TradingQuote() {
     const t = language === 'fr'
       ? { title: 'MEILLEUR PRIX DISPONIBLE CHEZ NOUS', client: 'Client', Quality: 'Qualité', Packaging: 'Emballage', Warehouse: 'Entrepôt', Payment: 'Paiement', Bank: 'Banque', file: 'Offre' }
       : { title: 'BEST PRICE AVAILABLE WITH US', client: 'Client', Quality: 'Quality', Packaging: 'Packaging', Warehouse: 'Warehouse', Payment: 'Payment', Bank: 'Bank', file: 'Quotation' };
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const margin = 12;
@@ -238,12 +310,32 @@ export default function TradingQuote() {
       y += 8;
 
       // ----- Item cards: one per row, big image + details columns -----
-      const cardH = 70; // mm
       const imgW = 60;
       const imgH = 60;
       const padding = 5;
+      const minCardH = 70; // mm
 
       for (const it of chosen) {
+        // Pre-compute required card height based on details content
+        const detailsX0 = margin + padding + imgW + 4 + 28 + 8;
+        const labelColW0 = 28;
+        const maxValW0 = pageW - margin - padding - detailsX0 - labelColW0 - 2;
+        const rowsPre: [string, string][] = [];
+        if (it.quality) rowsPre.push([t.Quality, it.quality]);
+        if (it.packaging) rowsPre.push([t.Packaging, it.packaging]);
+        if (it.warehouse) rowsPre.push([t.Warehouse, it.warehouse]);
+        if (it.payment_condition) rowsPre.push([t.Payment, it.payment_condition]);
+        if (it.bank_details) rowsPre.push([t.Bank, it.bank_details]);
+        doc.setFont('helvetica', 'normal').setFontSize(9.5);
+        let detailsTextH = 0;
+        for (const [, value] of rowsPre) {
+          const wrapped = doc.splitTextToSize(String(value), maxValW0);
+          detailsTextH += 4.5 * wrapped.length + 1.5;
+        }
+        // brand line (~6) + price badge clearance (~4) + padding
+        const detailsBlockH = 6 + 4 + detailsTextH + 4;
+        const cardH = Math.max(minCardH, detailsBlockH + padding * 2);
+
         if (y + cardH > pageH - margin - 20) { doc.addPage(); y = margin; }
 
         // Card border
@@ -262,7 +354,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[0]);
           if (im) {
             const f = fitBox(im.w, im.h, imgW, imgH);
-            try { doc.addImage(im.data, 'JPEG', cardX + f.ox, cardY + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, cardX + f.ox, cardY + f.oy, f.w, f.h);
           }
         }
 
@@ -277,7 +369,7 @@ export default function TradingQuote() {
           const im = await loadImage(imgs[i]);
           if (im) {
             const f = fitBox(im.w, im.h, thumbW, thumbH);
-            try { doc.addImage(im.data, 'JPEG', thumbX + f.ox, ty + f.oy, f.w, f.h); } catch {}
+            addLoadedImage(doc, im, thumbX + f.ox, ty + f.oy, f.w, f.h);
           }
         }
 
@@ -319,16 +411,14 @@ export default function TradingQuote() {
         doc.setFontSize(9.5);
         const maxValW = pageW - margin - padding - detailsX - labelColW - 2;
         for (const [label, value] of rows) {
-          if (dy > cardY + cardH - 4) break;
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(100, 116, 139);
           doc.text(label, detailsX, dy);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(15, 23, 42);
           const wrapped = doc.splitTextToSize(String(value), maxValW);
-          const shown = wrapped.slice(0, 2);
-          doc.text(shown, detailsX + labelColW, dy);
-          dy += 4.5 * shown.length + 1.5;
+          doc.text(wrapped, detailsX + labelColW, dy);
+          dy += 4.5 * wrapped.length + 1.5;
         }
 
         y += cardH + 4;

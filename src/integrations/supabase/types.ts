@@ -3636,6 +3636,14 @@ export type Database = {
       }
       generate_order_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_admin_analytics: {
+        Args: { input_pin: string; input_pos_user_id: string }
+        Returns: Json
+      }
+      get_classic_dashboard_stats: {
+        Args: { input_pin: string; input_pos_user_id: string; start_ts: string }
+        Returns: Json
+      }
       get_guest_conversation: {
         Args: { p_conversation_id: string; p_session_token: string }
         Returns: {
@@ -3675,6 +3683,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_ledger_balances: {
+        Args: { account_ids: string[] }
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
+      }
       get_modern_dashboard_data: {
         Args: { input_pin: string; input_pos_user_id: string }
         Returns: Json
@@ -3703,6 +3718,47 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_product_profit_report: {
+        Args: {
+          category_filter?: string
+          end_ts?: string
+          input_pin: string
+          input_pos_user_id: string
+          start_ts?: string
+          store_filter?: string
+        }
+        Returns: {
+          avg_cost: number
+          avg_selling_price: number
+          category_id: string
+          category_name: string
+          gross_profit: number
+          product_id: string
+          product_name: string
+          profit_margin: number
+          total_cogs: number
+          total_revenue: number
+          units_sold: number
+        }[]
+      }
+      get_profit_loss_group_report: {
+        Args: {
+          end_ts: string
+          group_by: string
+          input_pin: string
+          input_pos_user_id: string
+          start_ts: string
+        }
+        Returns: {
+          cost: number
+          key: string
+          label: string
+          margin: number
+          profit: number
+          sales: number
+          units: number
+        }[]
       }
       get_purchase_order_by_share_token: {
         Args: { _token: string }
@@ -3798,6 +3854,10 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       verify_admin_access: { Args: { p_user_id: string }; Returns: boolean }
+      verify_admin_pin_session: {
+        Args: { input_pin: string; input_pos_user_id: string }
+        Returns: boolean
+      }
       verify_pin: {
         Args: { input_pin: string }
         Returns: {
