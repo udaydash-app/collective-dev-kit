@@ -8,6 +8,7 @@ import { Activity, ShoppingBag, TrendingUp, Users } from "lucide-react";
 import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { getPosAdminSession } from "@/db/queries/accounting";
 
 interface AnalyticsSummary {
   totalEvents: number;
@@ -49,6 +50,21 @@ export default function Analytics() {
 
   const fetchAnalytics = async () => {
     try {
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_admin_analytics' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+        });
+        if (!error && data) {
+          setSummary((data as any).summary);
+          setEventData((data as any).eventData || []);
+          setImportLogs((data as any).importLogs || []);
+          return;
+        }
+        console.warn('[analytics] secure RPC failed, falling back to direct reads', error);
+      }
+
       // Fetch POS transactions instead of orders since this is a POS system
       const { data: transactions, error: transactionsError } = await supabase
         .from("pos_transactions")
