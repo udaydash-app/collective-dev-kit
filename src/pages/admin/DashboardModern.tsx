@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchModernDashboardLocal } from "@/db/queries/accounting";
+import { fetchModernDashboardLocal, getPosAdminSession } from "@/db/queries/accounting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -136,15 +136,27 @@ export default function DashboardModern() {
       // Local-first: read from the PowerSync SQLite mirror so the
       // dashboard renders instantly and works offline.
       try {
-        return await fetchModernDashboardLocal(since.toISOString());
+        const localData = await fetchModernDashboardLocal(since.toISOString());
+        const hasLocalData = Boolean(
+          localData.pos_transactions.length ||
+          localData.orders.length ||
+          localData.purchases.length ||
+          localData.expenses.length ||
+          localData.journal_entries.length ||
+          localData.accounts.length ||
+          localData.counts.products ||
+          localData.counts.contacts
+        );
+        if (hasLocalData || !navigator.onLine) return localData;
       } catch (e) {
         console.warn('[dashboard] local read failed, falling back', e);
       }
 
-      if (offlineSession?.pos_user_id && currentPin) {
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
         const { data, error } = await supabase.rpc("get_modern_dashboard_data" as any, {
-          input_pos_user_id: offlineSession.pos_user_id,
-          input_pin: currentPin,
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
         });
         if (!error && data) return data as any;
         console.error("Modern dashboard RPC failed, falling back to direct queries:", error);
