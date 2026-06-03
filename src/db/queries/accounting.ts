@@ -158,6 +158,19 @@ function safeJson(s: any): any[] {
   }
 }
 
+export function getPosAdminSession(): { posUserId: string; pin: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("offline_pos_session");
+    const session = raw ? JSON.parse(raw) : null;
+    const pin = sessionStorage.getItem("current_pos_pin");
+    const posUserId = session?.pos_user_id || session?.id;
+    return posUserId && pin ? { posUserId, pin } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
   const rows = await queryRows(
     `SELECT id, name, is_customer, is_supplier,
