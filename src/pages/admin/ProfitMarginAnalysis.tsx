@@ -14,6 +14,7 @@ import { Calendar, TrendingUp, TrendingDown, DollarSign, Package, Percent } from
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { getPosAdminSession } from "@/db/queries/accounting";
 
 interface ProfitMarginData {
   product_id: string;
@@ -63,6 +64,33 @@ export default function ProfitMarginAnalysis() {
   const { data: profitData, isLoading } = useQuery({
     queryKey: ["profit-margin", startDate, endDate, selectedCategory],
     queryFn: async () => {
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_product_profit_report' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          start_ts: startDate,
+          end_ts: endDate + "T23:59:59",
+          store_filter: null,
+          category_filter: selectedCategory === "all" ? null : selectedCategory,
+        });
+        if (!error && data) {
+          return ((data as any[]) || []).map((row: any) => ({
+            product_id: row.product_id,
+            product_name: row.product_name,
+            category_name: row.category_name || "Uncategorized",
+            units_sold: Number(row.units_sold) || 0,
+            total_revenue: Number(row.total_revenue) || 0,
+            total_cogs: Number(row.total_cogs) || 0,
+            gross_profit: Number(row.gross_profit) || 0,
+            profit_margin: Number(row.profit_margin) || 0,
+            avg_selling_price: Number(row.avg_selling_price) || 0,
+            avg_cost: Number(row.avg_cost) || 0,
+          }));
+        }
+        console.warn('[profit-margin] secure RPC failed, falling back to direct reads', error);
+      }
+
       // Fetch POS transactions within date range
       const { data: transactions, error: txError } = await supabase
         .from("pos_transactions")
