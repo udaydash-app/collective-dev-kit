@@ -527,9 +527,11 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
   const ph = unique.map(() => "?").join(",");
-  // Authoritative balance: opening_balance + sum(debits - credits) from
-  // POSTED journal entry lines. accounts.current_balance is a cached
-  // value and can drift, so we never rely on it for AR/AP totals.
+  // Authoritative balance: opening balance (from contacts for
+  // customer/supplier ledgers, else accounts.opening_balance) +
+  // sum(debits - credits) from POSTED journal entry lines, excluding
+  // explicit "opening balance" entries. Mirrors get_ledger_balances RPC
+  // and the General Ledger page logic so AR/AP totals agree.
   const accRes: any = await db.getAll(
     `SELECT id, opening_balance, account_type
      FROM accounts WHERE id IN (${ph})`,
@@ -541,16 +543,32 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
             COALESCE(SUM(l.credit_amount), 0) AS c
      FROM journal_entry_lines l
      JOIN journal_entries e ON e.id = l.journal_entry_id
-     WHERE l.account_id IN (${ph}) AND e.status = 'posted'
+     WHERE l.account_id IN (${ph})
+       AND e.status = 'posted'
+       AND COALESCE(LOWER(e.description), '') NOT LIKE '%opening balance%'
      GROUP BY l.account_id`,
     unique,
   );
+  const contactOpenRes: any = await db.getAll(
+    `SELECT customer_ledger_account_id AS account_id, COALESCE(opening_balance, 0) AS opening
+       FROM contacts WHERE customer_ledger_account_id IN (${ph})
+     UNION ALL
+     SELECT supplier_ledger_account_id AS account_id, COALESCE(supplier_opening_balance, 0) AS opening
+       FROM contacts WHERE supplier_ledger_account_id IN (${ph})`,
+    [...unique, ...unique],
+  );
+  const contactOpening = new Map<string, number>();
+  for (const r of rowsOf(contactOpenRes)) {
+    if (r.account_id) contactOpening.set(r.account_id, Number(r.opening) || 0);
+  }
   const movement = new Map<string, number>();
   for (const r of rowsOf(linesRes)) {
     movement.set(r.account_id, (Number(r.d) || 0) - (Number(r.c) || 0));
   }
   for (const a of rowsOf(accRes)) {
-    const opening = Number(a.opening_balance) || 0;
+    const opening = contactOpening.has(a.id)
+      ? (contactOpening.get(a.id) || 0)
+      : (Number(a.opening_balance) || 0);
     const delta = movement.get(a.id) ?? 0;
     // For asset/expense accounts a debit balance is positive; for
     // liability/equity/revenue a credit balance is positive. The 411x
