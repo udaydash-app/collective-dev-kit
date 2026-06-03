@@ -42,7 +42,7 @@ export default function BarcodeManagement() {
   const [loadingAllStock, setLoadingAllStock] = useState(false);
 
   // Customization settings — persisted to localStorage so last-used values are the default
-  const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
+  const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v2-40x30mm';
   const defaultPrefs = {
     barcodeWidth: 1.4,
     barcodeHeight: 40,
