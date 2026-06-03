@@ -42,15 +42,15 @@ export default function BarcodeManagement() {
   const [loadingAllStock, setLoadingAllStock] = useState(false);
 
   // Customization settings — persisted to localStorage so last-used values are the default
-  const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v1';
+  const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v2-40x30mm';
   const defaultPrefs = {
-    barcodeWidth: 6,
-    barcodeHeight: 200,
-    productNameSize: 72,
-    variantLabelSize: 48,
-    priceSize: 96,
-    detailsSize: 36,
-    expirySize: 84,
+    barcodeWidth: 1.4,
+    barcodeHeight: 40,
+    productNameSize: 9,
+    variantLabelSize: 7,
+    priceSize: 11,
+    detailsSize: 6,
+    expirySize: 7,
     customPrice: 0,
     printProductName: true,
     printVariantLabel: true,
@@ -781,7 +781,7 @@ export default function BarcodeManagement() {
                 {`
                   @media print {
                     @page {
-                      size: 38cm 25cm;
+                      size: 40mm 30mm;
                       margin: 0;
                     }
                     body {
@@ -792,9 +792,9 @@ export default function BarcodeManagement() {
                       display: block !important;
                     }
                     .barcode-label {
-                      width: 38cm !important;
-                      height: 25cm !important;
-                      padding: 1cm !important;
+                      width: 40mm !important;
+                      height: 30mm !important;
+                      padding: 1mm !important;
                       margin: 0 !important;
                       box-sizing: border-box;
                       display: flex !important;
@@ -802,32 +802,42 @@ export default function BarcodeManagement() {
                       justify-content: center;
                       align-items: center;
                       page-break-after: always;
-                      gap: 1cm !important;
+                      gap: 0.5mm !important;
+                      overflow: hidden;
                     }
                     .barcode-label p {
                       margin: 0 !important;
                       padding: 0 !important;
                     }
                     .barcode-label svg {
-                      width: 32cm !important;
+                      width: 36mm !important;
                       height: auto !important;
+                      max-height: 14mm !important;
                     }
                     .product-name {
-                      font-size: ${productNameSize}px !important;
+                      font-size: ${productNameSize}pt !important;
                       font-weight: bold !important;
+                      line-height: 1.1 !important;
+                      white-space: nowrap;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      max-width: 38mm;
                     }
                     .variant-label {
-                      font-size: ${variantLabelSize}px !important;
+                      font-size: ${variantLabelSize}pt !important;
+                      line-height: 1.1 !important;
                     }
                     .price-text {
-                      font-size: ${priceSize}px !important;
+                      font-size: ${priceSize}pt !important;
                       font-weight: bold !important;
+                      line-height: 1.1 !important;
                     }
                     .details-text {
-                      font-size: ${detailsSize}px !important;
+                      font-size: ${detailsSize}pt !important;
+                      line-height: 1.15 !important;
                     }
                     .expiry-date {
-                      font-size: ${expirySize}px !important;
+                      font-size: ${expirySize}pt !important;
                       font-weight: bold !important;
                     }
                   }
@@ -841,15 +851,15 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label rounded-lg p-8 flex flex-col items-center justify-center gap-6"
-                      style={{ width: '36cm', height: '23cm' }}
+                      className="barcode-label rounded border p-1 flex flex-col items-center justify-center gap-1"
+                      style={{ width: '40mm', height: '30mm', overflow: 'hidden' }}
                     >
                       <div className="w-full text-center">
                         {printProductName && (
-                          <p className="product-name font-bold text-7xl leading-tight px-2">{item.name}</p>
+                          <p className="product-name font-bold leading-tight truncate">{item.name}</p>
                         )}
                         {printVariantLabel && item.variantLabel && (
-                          <p className="variant-label text-5xl leading-tight px-2 mt-4">{item.variantLabel}</p>
+                          <p className="variant-label leading-tight truncate">{item.variantLabel}</p>
                         )}
                       </div>
                       {printBarcode && barcodeValues.map((barcodeValue, index) => (
@@ -858,17 +868,17 @@ export default function BarcodeManagement() {
                             value={barcodeValue}
                             width={barcodeWidth}
                             height={barcodeHeight}
-                            fontSize={48}
+                            fontSize={10}
                             background="#ffffff"
-                            margin={10}
+                            margin={0}
                           />
                         </div>
                       ))}
                       {printPrice && (
-                        <p className="price-text text-8xl font-bold">{formatCurrency(customPrice)}</p>
+                        <p className="price-text font-bold">{formatCurrency(customPrice)}</p>
                       )}
                       {details && (
-                        <div className="details-text text-4xl leading-relaxed w-full text-center space-y-3">
+                        <div className="details-text leading-tight w-full text-center">
                           {printBatch && details.batchNumber && (
                             <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
                           )}
