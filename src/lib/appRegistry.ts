@@ -116,6 +116,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/ProfitLossAnalysis')) },
   { id: 'margin-simulator', path: '/admin/margin-simulator', title: 'Margin Simulator', icon: Percent, group: 'Analytics', color: 'from-fuchsia-500 to-pink-600',
     component: L(() => import('@/pages/admin/MarginSimulator')) },
+  { id: 'sales-target', path: '/admin/sales-target', title: 'Sales Target', icon: TrendingUp, group: 'Analytics', color: 'from-emerald-500 to-teal-600',
+    component: L(() => import('@/pages/admin/SalesTarget')) },
 
   // Marketing
   { id: 'offers', path: '/admin/offers', title: 'Offers', icon: Percent, group: 'Marketing', color: 'from-orange-500 to-red-600',
