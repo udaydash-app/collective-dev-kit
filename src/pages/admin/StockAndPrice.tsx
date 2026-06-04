@@ -34,6 +34,7 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
+import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
 
 type EditedPrices = {
   [key: string]: {
@@ -57,6 +58,7 @@ export default function StockAndPrice() {
   
   // Edit prices dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [bulkSellOpen, setBulkSellOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{
     id: string;
     name: string;
@@ -371,9 +373,14 @@ export default function StockAndPrice() {
               Edit All Prices
             </Button>
           )}
+          <Button variant="outline" onClick={() => setBulkSellOpen(true)}>
+            Bulk Sell Price Update
+          </Button>
           <ReturnToPOSButton inline />
         </div>
       </div>
+
+      <BulkSellPriceUpdateDialog open={bulkSellOpen} onOpenChange={setBulkSellOpen} />
 
       {/* Filters and View Toggle */}
       <Card className="p-4">
