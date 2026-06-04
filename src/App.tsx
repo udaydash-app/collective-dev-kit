@@ -50,6 +50,7 @@ import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import COGSAnalysis from "./pages/admin/COGSAnalysis";
 import Production from "./pages/admin/Production";
 import ProfitMarginAnalysis from "./pages/admin/ProfitMarginAnalysis";
+import MarginSimulator from "./pages/admin/MarginSimulator";
 import AdminComboOffers from "./pages/admin/ComboOffers";
 import AdminBOGOOffers from "./pages/admin/BOGOOffers";
 import AdminMultiProductBOGO from "./pages/admin/MultiProductBOGO";
@@ -321,6 +322,7 @@ const AppContent = () => {
           <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
           <Route path="/admin/production" element={<AdminRoute><Production /></AdminRoute>} />
           <Route path="/admin/profit-margin-analysis" element={<AdminRoute><ProfitMarginAnalysis /></AdminRoute>} />
+          <Route path="/admin/margin-simulator" element={<AdminRoute><MarginSimulator /></AdminRoute>} />
           <Route path="/admin/payment-receipts" element={<AdminRoute><AdminPaymentReceipts /></AdminRoute>} />
           <Route path="/admin/supplier-payments" element={<AdminRoute><AdminSupplierPayments /></AdminRoute>} />
           <Route path="/admin/trial-balance" element={<AdminRoute><AdminTrialBalance /></AdminRoute>} />
