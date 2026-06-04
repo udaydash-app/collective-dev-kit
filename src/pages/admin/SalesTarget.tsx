@@ -40,30 +40,92 @@ export default function SalesTarget() {
   const { data: history, isLoading } = useQuery({
     queryKey: ["sales-target-history", startDate, endDate],
     queryFn: async () => {
-      const adminSession = getPosAdminSession();
-      if (!adminSession) return null;
-      const { data, error } = await supabase.rpc("get_product_profit_report" as any, {
-        input_pos_user_id: adminSession.posUserId,
-        input_pin: adminSession.pin,
-        start_ts: startDate,
-        end_ts: endDate + "T23:59:59",
-        store_filter: null,
-        category_filter: null,
-      });
-      if (error) throw error;
-      const rows = (data as any[]) || [];
-      const total_revenue = rows.reduce((s, r) => s + (Number(r.total_revenue) || 0), 0);
-      const total_cogs = rows.reduce((s, r) => s + (Number(r.total_cogs) || 0), 0);
-      const gross_profit = total_revenue - total_cogs;
-      const margin_pct = total_revenue > 0 ? (gross_profit / total_revenue) * 100 : 0;
-      return {
-        total_revenue,
-        total_cogs,
-        gross_profit,
-        margin_pct,
-        avg_monthly_revenue: total_revenue / 3,
-        avg_monthly_profit: gross_profit / 3,
+      const build = (total_revenue: number, total_cogs: number) => {
+        const gross_profit = total_revenue - total_cogs;
+        const margin_pct = total_revenue > 0 ? (gross_profit / total_revenue) * 100 : 0;
+        return {
+          total_revenue,
+          total_cogs,
+          gross_profit,
+          margin_pct,
+          avg_monthly_revenue: total_revenue / 3,
+          avg_monthly_profit: gross_profit / 3,
+        };
       };
+
+      // Try secure RPC first (uses admin PIN session)
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc("get_product_profit_report" as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          start_ts: startDate,
+          end_ts: endDate + "T23:59:59",
+          store_filter: null,
+          category_filter: null,
+        });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const rows = data as any[];
+          const total_revenue = rows.reduce((s, r) => s + (Number(r.total_revenue) || 0), 0);
+          const total_cogs = rows.reduce((s, r) => s + (Number(r.total_cogs) || 0), 0);
+          return build(total_revenue, total_cogs);
+        }
+        if (error) console.warn("[sales-target] RPC failed, falling back", error);
+      }
+
+      // Fallback: compute directly from pos_transactions + products
+      const { data: txs, error: txErr } = await supabase
+        .from("pos_transactions")
+        .select("items, total, created_at")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate + "T23:59:59");
+      if (txErr) throw txErr;
+
+      const productIds = new Set<string>();
+      const lineItems: { pid: string; qty: number; price: number; discount: number }[] = [];
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const t of (txs || []) as any[]) {
+        const items = Array.isArray(t.items) ? t.items : [];
+        for (const it of items) {
+          const pid = it.productId || it.product_id || it.id;
+          if (!pid || !uuidRe.test(pid)) continue;
+          const qty = Math.abs(Number(it.quantity) || 0);
+          const price = Number(it.customPrice ?? it.price ?? it.unit_price ?? 0);
+          const discount = Number(it.itemDiscount ?? it.discount ?? 0);
+          if (qty <= 0) continue;
+          productIds.add(pid);
+          lineItems.push({ pid, qty, price, discount });
+        }
+      }
+
+      const total_revenue = lineItems.reduce(
+        (s, l) => s + Math.max(l.price - l.discount, 0) * l.qty,
+        0
+      );
+
+      if (productIds.size === 0) return build(total_revenue, 0);
+
+      const ids = Array.from(productIds);
+      const costMap = new Map<string, number>();
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { data: prods, error: pErr } = await supabase
+          .from("products")
+          .select("id, cost_price, local_charges")
+          .in("id", slice);
+        if (pErr) throw pErr;
+        for (const p of (prods || []) as any[]) {
+          costMap.set(p.id, (Number(p.cost_price) || 0) + (Number(p.local_charges) || 0));
+        }
+      }
+
+      const total_cogs = lineItems.reduce(
+        (s, l) => s + (costMap.get(l.pid) || 0) * l.qty,
+        0
+      );
+
+      return build(total_revenue, total_cogs);
     },
   });
 
