@@ -1,0 +1,302 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/layout/Header";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2, Target, TrendingUp, Calculator, Calendar } from "lucide-react";
+import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { formatCurrency } from "@/lib/utils";
+import { getPosAdminSession } from "@/db/queries/accounting";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+
+interface ExpenseRow {
+  id: string;
+  label: string;
+  amount: number;
+}
+
+type Mode = "current" | "simulated";
+
+export default function SalesTarget() {
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([
+    { id: crypto.randomUUID(), label: "Rent", amount: 0 },
+    { id: crypto.randomUUID(), label: "Salaries", amount: 0 },
+    { id: crypto.randomUUID(), label: "Utilities", amount: 0 },
+  ]);
+  const [mode, setMode] = useState<Mode>("current");
+  const [simulatedMarkup, setSimulatedMarkup] = useState<number>(50);
+
+  // Past 3 months window
+  const now = new Date();
+  const startDate = format(startOfMonth(subMonths(now, 3)), "yyyy-MM-dd");
+  const endDate = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
+
+  const { data: history, isLoading } = useQuery({
+    queryKey: ["sales-target-history", startDate, endDate],
+    queryFn: async () => {
+      const adminSession = getPosAdminSession();
+      if (!adminSession) return null;
+      const { data, error } = await supabase.rpc("get_product_profit_report" as any, {
+        input_pos_user_id: adminSession.posUserId,
+        input_pin: adminSession.pin,
+        start_ts: startDate,
+        end_ts: endDate + "T23:59:59",
+        store_filter: null,
+        category_filter: null,
+      });
+      if (error) throw error;
+      const rows = (data as any[]) || [];
+      const total_revenue = rows.reduce((s, r) => s + (Number(r.total_revenue) || 0), 0);
+      const total_cogs = rows.reduce((s, r) => s + (Number(r.total_cogs) || 0), 0);
+      const gross_profit = total_revenue - total_cogs;
+      const margin_pct = total_revenue > 0 ? (gross_profit / total_revenue) * 100 : 0;
+      return {
+        total_revenue,
+        total_cogs,
+        gross_profit,
+        margin_pct,
+        avg_monthly_revenue: total_revenue / 3,
+        avg_monthly_profit: gross_profit / 3,
+      };
+    },
+  });
+
+  const totalExpenses = useMemo(
+    () => expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+    [expenses]
+  );
+  const marginTarget = totalExpenses * 2; // double the expenses
+
+  // Effective margin ratio = gross_profit / revenue
+  const effectiveMarginRatio = useMemo(() => {
+    if (mode === "simulated") {
+      const p = simulatedMarkup / 100;
+      // sale = cost*(1+p); margin/sale = p/(1+p)
+      return p / (1 + p);
+    }
+    if (history && history.margin_pct > 0) return history.margin_pct / 100;
+    return 0;
+  }, [mode, simulatedMarkup, history]);
+
+  const requiredRevenue = effectiveMarginRatio > 0 ? marginTarget / effectiveMarginRatio : 0;
+  const dailyTarget = requiredRevenue / 30;
+
+  const avgMonthly = history?.avg_monthly_revenue ?? 0;
+  const gapVsAvg = requiredRevenue - avgMonthly;
+  const gapPct = avgMonthly > 0 ? (gapVsAvg / avgMonthly) * 100 : 0;
+
+  const updateExpense = (id: string, patch: Partial<ExpenseRow>) =>
+    setExpenses((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const addExpense = () =>
+    setExpenses((rows) => [...rows, { id: crypto.randomUUID(), label: "", amount: 0 }]);
+  const removeExpense = (id: string) =>
+    setExpenses((rows) => rows.filter((r) => r.id !== id));
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <Header />
+      <ReturnToPOSButton />
+      <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
+        <div className="flex items-center gap-3">
+          <Target className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Sales Target</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter monthly expenses — target margin is set to 2× expenses, then we compute required sales.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Expenses */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" /> Monthly Expenses
+              </CardTitle>
+              <CardDescription>Add every recurring monthly cost.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {expenses.map((row) => (
+                <div key={row.id} className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Expense name"
+                      value={row.label}
+                      onChange={(e) => updateExpense(row.id, { label: e.target.value })}
+                    />
+                  </div>
+                  <div className="w-40">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={row.amount || ""}
+                      onChange={(e) => updateExpense(row.id, { amount: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => removeExpense(row.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addExpense} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add expense
+              </Button>
+              <Separator />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total monthly expenses</span>
+                <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
+              </div>
+              <div className="flex justify-between text-base">
+                <span className="text-muted-foreground">Margin target (2× expenses)</span>
+                <span className="font-bold text-primary">{formatCurrency(marginTarget)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Margin source */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" /> Margin Source
+              </CardTitle>
+              <CardDescription>How should we estimate margin per sale?</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)}>
+                <div className="flex items-start gap-2 border rounded-lg p-3">
+                  <RadioGroupItem value="current" id="m-current" className="mt-1" />
+                  <Label htmlFor="m-current" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Current sale prices</div>
+                    <div className="text-xs text-muted-foreground">
+                      Uses the actual margin % from the last 3 months of sales.
+                    </div>
+                    {history && (
+                      <div className="text-xs mt-1">
+                        Past margin: <span className="font-semibold">{history.margin_pct.toFixed(2)}%</span>
+                      </div>
+                    )}
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2 border rounded-lg p-3">
+                  <RadioGroupItem value="simulated" id="m-sim" className="mt-1" />
+                  <Label htmlFor="m-sim" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Simulated markup</div>
+                    <div className="text-xs text-muted-foreground">
+                      sale = effective_cost × (1 + %). Margin ratio = p / (1 + p).
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={simulatedMarkup}
+                        onChange={(e) => setSimulatedMarkup(parseFloat(e.target.value) || 0)}
+                        className="w-24"
+                        disabled={mode !== "simulated"}
+                      />
+                      <span className="text-sm text-muted-foreground">% markup on cost</span>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+              <Separator />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Effective margin ratio</span>
+                <span className="font-semibold">{(effectiveMarginRatio * 100).toFixed(2)}%</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Result */}
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Required Sales
+            </CardTitle>
+            <CardDescription>
+              Sales volume needed so gross profit covers 2× your monthly expenses.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {marginTarget <= 0 ? (
+              <p className="text-sm text-muted-foreground">Add at least one expense to compute the target.</p>
+            ) : effectiveMarginRatio <= 0 ? (
+              <p className="text-sm text-destructive">
+                Margin ratio is 0%. {mode === "current"
+                  ? "No past sales found — switch to Simulated markup."
+                  : "Increase the simulated markup %."}
+              </p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-3">
+                <Stat label="Required monthly sales" value={formatCurrency(requiredRevenue)} highlight />
+                <Stat label="Required daily sales (÷30)" value={formatCurrency(dailyTarget)} />
+                <Stat label="Expected gross profit" value={formatCurrency(marginTarget)} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" /> Past 3 months
+            </CardTitle>
+            <CardDescription>
+              {format(new Date(startDate), "dd/MM/yyyy")} → {format(new Date(endDate), "dd/MM/yyyy")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : !history ? (
+              <p className="text-sm text-muted-foreground">No history available.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Stat label="Total revenue" value={formatCurrency(history.total_revenue)} />
+                  <Stat label="Gross profit" value={formatCurrency(history.gross_profit)} />
+                  <Stat label="Avg monthly revenue" value={formatCurrency(history.avg_monthly_revenue)} />
+                  <Stat label="Avg monthly profit" value={formatCurrency(history.avg_monthly_profit)} />
+                </div>
+                {marginTarget > 0 && effectiveMarginRatio > 0 && (
+                  <div className="p-4 rounded-lg bg-muted/40 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span>Required vs avg monthly sales</span>
+                      <span className={gapVsAvg > 0 ? "text-destructive font-semibold" : "text-emerald-600 font-semibold"}>
+                        {gapVsAvg > 0 ? "+" : ""}
+                        {formatCurrency(gapVsAvg)} ({gapPct > 0 ? "+" : ""}{gapPct.toFixed(1)}%)
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {gapVsAvg > 0
+                        ? `You need to sell ${formatCurrency(gapVsAvg)} more per month than your 3-month average to hit the target.`
+                        : `Your 3-month average already exceeds the required target by ${formatCurrency(-gapVsAvg)}.`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <BottomNav />
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`p-4 rounded-lg border ${highlight ? "border-primary bg-primary/5" : "bg-card"}`}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`text-lg font-bold ${highlight ? "text-primary" : ""}`}>{value}</div>
+    </div>
+  );
+}
