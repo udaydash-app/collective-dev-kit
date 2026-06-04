@@ -114,6 +114,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/ProfitMarginAnalysis')) },
   { id: 'profit-loss-analysis', path: '/admin/profit-loss-analysis', title: 'P&L Analysis', icon: TrendingUp, group: 'Analytics', color: 'from-rose-500 to-red-600',
     component: L(() => import('@/pages/admin/ProfitLossAnalysis')) },
+  { id: 'margin-simulator', path: '/admin/margin-simulator', title: 'Margin Simulator', icon: Percent, group: 'Analytics', color: 'from-fuchsia-500 to-pink-600',
+    component: L(() => import('@/pages/admin/MarginSimulator')) },
 
   // Marketing
   { id: 'offers', path: '/admin/offers', title: 'Offers', icon: Percent, group: 'Marketing', color: 'from-orange-500 to-red-600',
