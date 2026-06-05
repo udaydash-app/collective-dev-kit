@@ -100,6 +100,7 @@ import { ChatWidget } from "./components/chat/ChatWidget";
 import { ChatNotifications } from "./components/chat/ChatNotifications";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import LedgerlyApp from "@/ledgerly/LedgerlyApp";
 
 import { useCloudSync } from "./hooks/useCloudSync";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -369,6 +370,8 @@ const AppContent = () => {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/stores" element={<Stores />} />
           <Route path="/support" element={<Support />} />
+          {/* Embedded Ledgerly accounting sub-app — uses its own Supabase project */}
+          <Route path="/ledgerly/*" element={<LedgerlyApp />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
