@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Target, TrendingUp, Calculator, Calendar } from "lucide-react";
+import { FileSpreadsheet, FileDown } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { addPdfHeader, fetchCompanySettings } from "@/lib/pdfBranding";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
 import { getPosAdminSession } from "@/db/queries/accounting";
@@ -160,18 +165,131 @@ export default function SalesTarget() {
   const removeExpense = (id: string) =>
     setExpenses((rows) => rows.filter((r) => r.id !== id));
 
+  const periodLabel = `${format(new Date(startDate), "dd/MM/yyyy")} to ${format(new Date(endDate), "dd/MM/yyyy")}`;
+  const modeLabel = mode === "current" ? "Current sale prices (past 3-month margin)" : `Simulated markup ${simulatedMarkup}% on cost`;
+
+  const buildRows = (): (string | number)[][] => {
+    const rows: (string | number)[][] = [];
+    rows.push(["Monthly Expenses", ""]);
+    expenses.forEach((e) => rows.push([e.label || "(unnamed)", e.amount || 0]));
+    rows.push(["Total monthly expenses", totalExpenses]);
+    rows.push(["Margin target (2× expenses)", marginTarget]);
+    rows.push([]);
+    rows.push(["Margin Source", modeLabel]);
+    rows.push(["Effective margin ratio", `${(effectiveMarginRatio * 100).toFixed(2)}%`]);
+    rows.push([]);
+    rows.push(["Required monthly sales", requiredRevenue]);
+    rows.push(["Required daily sales (÷30)", dailyTarget]);
+    rows.push(["Expected gross profit", marginTarget]);
+    rows.push([]);
+    rows.push([`Past 3 months (${periodLabel})`, ""]);
+    if (history) {
+      rows.push(["Total revenue", history.total_revenue]);
+      rows.push(["Gross profit", history.gross_profit]);
+      rows.push(["Past margin %", `${history.margin_pct.toFixed(2)}%`]);
+      rows.push(["Avg monthly revenue", history.avg_monthly_revenue]);
+      rows.push(["Avg monthly profit", history.avg_monthly_profit]);
+      rows.push(["Required vs avg monthly", gapVsAvg]);
+      rows.push(["Gap %", `${gapPct.toFixed(1)}%`]);
+    }
+    return rows;
+  };
+
+  const exportExcel = () => {
+    const data: (string | number)[][] = [
+      ["SALES TARGET SIMULATION"],
+      [`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")}`],
+      [],
+      ...buildRows(),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Target");
+    XLSX.writeFile(wb, `Sales_Target_${format(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+  };
+
+  const exportPDF = async () => {
+    const doc = new jsPDF();
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Sales Target Simulation", 105, yPos, { align: "center" });
+    yPos += 7;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 105, yPos, { align: "center" });
+    yPos += 6;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Monthly Expenses", "Amount"]],
+      body: [
+        ...expenses.map((e) => [e.label || "(unnamed)", formatCurrency(e.amount || 0)]),
+        ["Total monthly expenses", formatCurrency(totalExpenses)],
+        ["Margin target (2× expenses)", formatCurrency(marginTarget)],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [34, 197, 94] },
+      styles: { fontSize: 9 },
+    });
+
+    autoTable(doc, {
+      head: [["Required Sales", "Value"]],
+      body: [
+        ["Margin source", modeLabel],
+        ["Effective margin ratio", `${(effectiveMarginRatio * 100).toFixed(2)}%`],
+        ["Required monthly sales", formatCurrency(requiredRevenue)],
+        ["Required daily sales (÷30)", formatCurrency(dailyTarget)],
+        ["Expected gross profit", formatCurrency(marginTarget)],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [34, 197, 94] },
+      styles: { fontSize: 9 },
+    });
+
+    if (history) {
+      autoTable(doc, {
+        head: [[`Past 3 months (${periodLabel})`, "Value"]],
+        body: [
+          ["Total revenue", formatCurrency(history.total_revenue)],
+          ["Gross profit", formatCurrency(history.gross_profit)],
+          ["Past margin %", `${history.margin_pct.toFixed(2)}%`],
+          ["Avg monthly revenue", formatCurrency(history.avg_monthly_revenue)],
+          ["Avg monthly profit", formatCurrency(history.avg_monthly_profit)],
+          ["Required vs avg monthly", `${gapVsAvg > 0 ? "+" : ""}${formatCurrency(gapVsAvg)} (${gapPct > 0 ? "+" : ""}${gapPct.toFixed(1)}%)`],
+        ],
+        theme: "striped",
+        headStyles: { fillColor: [34, 197, 94] },
+        styles: { fontSize: 9 },
+      });
+    }
+
+    doc.save(`Sales_Target_${format(new Date(), "yyyyMMdd_HHmm")}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
       <ReturnToPOSButton />
       <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Target className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Sales Target</h1>
-            <p className="text-sm text-muted-foreground">
-              Enter monthly expenses — target margin is set to 2× expenses, then we compute required sales.
-            </p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Target className="h-7 w-7 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">Sales Target</h1>
+              <p className="text-sm text-muted-foreground">
+                Enter monthly expenses — target margin is set to 2× expenses, then we compute required sales.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportPDF}>
+              <FileDown className="h-4 w-4 mr-2" /> PDF
+            </Button>
           </div>
         </div>
 
