@@ -54,6 +54,37 @@ const profitOf = (r: TradeRecord) =>
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
+type PeriodKey = "this_month" | "last_month" | "this_year" | "last_7" | "last_30" | "all" | "custom";
+
+const periodRange = (key: PeriodKey, fromStr: string, toStr: string): { from?: string; to?: string } => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  switch (key) {
+    case "this_month":
+      return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
+    case "last_month":
+      return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
+    case "this_year":
+      return { from: iso(new Date(y, 0, 1)), to: iso(new Date(y, 11, 31)) };
+    case "last_7": {
+      const d = startOfDay(today); d.setDate(d.getDate() - 6);
+      return { from: iso(d), to: iso(today) };
+    }
+    case "last_30": {
+      const d = startOfDay(today); d.setDate(d.getDate() - 29);
+      return { from: iso(d), to: iso(today) };
+    }
+    case "custom":
+      return { from: fromStr || undefined, to: toStr || undefined };
+    case "all":
+    default:
+      return {};
+  }
+};
+
 const TradeRecords = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [records, setRecords] = useState<TradeRecord[]>([]);
@@ -65,6 +96,9 @@ const TradeRecords = () => {
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", phone: "", notes: "" });
+  const [period, setPeriod] = useState<PeriodKey>("this_month");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
 
   useEffect(() => {
     try {
@@ -122,10 +156,20 @@ const TradeRecords = () => {
     persistContacts(contacts.filter((c) => c.id !== id));
   };
 
+  const { from: rangeFrom, to: rangeTo } = useMemo(
+    () => periodRange(period, customFrom, customTo),
+    [period, customFrom, customTo]
+  );
+
+  const inRange = (date: string) =>
+    (!rangeFrom || date >= rangeFrom) && (!rangeTo || date <= rangeTo);
+
   const filtered = useMemo(() => {
-    const list = filterContact === "all" ? records : records.filter((r) => r.contact_id === filterContact);
+    const list = records.filter((r) =>
+      (filterContact === "all" || r.contact_id === filterContact) && inRange(r.date)
+    );
     return [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [records, filterContact]);
+  }, [records, filterContact, rangeFrom, rangeTo]);
 
   const totals = useMemo(() => filtered.reduce(
     (acc, r) => {
@@ -135,6 +179,28 @@ const TradeRecords = () => {
       return acc;
     }, { buy: 0, sell: 0, profit: 0 }
   ), [filtered]);
+
+  const summaryFor = (key: PeriodKey) => {
+    const { from, to } = periodRange(key, "", "");
+    const list = records.filter((r) =>
+      (filterContact === "all" || r.contact_id === filterContact) &&
+      (!from || r.date >= from) && (!to || r.date <= to)
+    );
+    return list.reduce(
+      (acc, r) => {
+        acc.turnover += (r.sell_price || 0) * (r.bags || 0);
+        acc.profit += profitOf(r);
+        acc.count += 1;
+        return acc;
+      },
+      { turnover: 0, profit: 0, count: 0 }
+    );
+  };
+
+  const thisMonth = useMemo(() => summaryFor("this_month"), [records, filterContact]);
+  const lastMonth = useMemo(() => summaryFor("last_month"), [records, filterContact]);
+  const thisYear = useMemo(() => summaryFor("this_year"), [records, filterContact]);
+  const allTime = useMemo(() => summaryFor("all"), [records, filterContact]);
 
   const openNew = () => {
     setEditing(null);
