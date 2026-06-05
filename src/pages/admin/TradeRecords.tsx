@@ -729,6 +729,67 @@ const TradeRecords = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={commissionsOpen} onOpenChange={setCommissionsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-4">
+              <span>Commissions Summary</span>
+              <Button size="sm" variant="outline" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-1" />Print
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const brokerByContact = new Map<string, number>();
+            const supplierBySupplier = new Map<string, number>();
+            for (const r of filtered) {
+              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+              const sup = (r.supplier || "—").trim() || "—";
+              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+            }
+            const brokerList = [...brokerByContact.entries()].filter(([, v]) => v !== 0)
+              .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])));
+            const supplierList = [...supplierBySupplier.entries()].filter(([, v]) => v !== 0)
+              .sort((a, b) => a[0].localeCompare(b[0]));
+            const brokerTotal = brokerList.reduce((a, [, v]) => a + v, 0);
+            const supplierTotal = supplierList.reduce((a, [, v]) => a + v, 0);
+            return (
+              <div className="grid md:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
+                <div>
+                  <div className="text-sm font-medium mb-2">Broker Commission (paid to contact)</div>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Contact</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {brokerList.length === 0 ? (
+                        <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">None</TableCell></TableRow>
+                      ) : brokerList.map(([cid, v]) => (
+                        <TableRow key={cid}><TableCell>{contactName(cid)}</TableCell><TableCell className="text-right">{fmt(v)}</TableCell></TableRow>
+                      ))}
+                      <TableRow><TableCell className="font-semibold">Total</TableCell><TableCell className="text-right font-semibold">{fmt(brokerTotal)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <div className="text-sm font-medium mb-2">Supplier Commission (paid to supplier)</div>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {supplierList.length === 0 ? (
+                        <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">None</TableCell></TableRow>
+                      ) : supplierList.map(([s, v]) => (
+                        <TableRow key={s}><TableCell>{s}</TableCell><TableCell className="text-right">{fmt(v)}</TableCell></TableRow>
+                      ))}
+                      <TableRow><TableCell className="font-semibold">Total</TableCell><TableCell className="text-right font-semibold">{fmt(supplierTotal)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            );
+          })()}
+          <p className="text-xs text-muted-foreground">Based on the current contact filter and period.</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
