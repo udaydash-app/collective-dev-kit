@@ -61,12 +61,23 @@ export default function ProfitLossAnalysis() {
         console.warn('[profit-loss-analysis] secure RPC failed, falling back to direct reads', error);
       }
 
-      const { data: txns, error } = await supabase
-        .from('pos_transactions')
-        .select('customer_id, items, created_at')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59');
-      if (error) throw error;
+      // Paginate to bypass Supabase's default 1000-row limit
+      const txns: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .select('id, customer_id, items, created_at')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate + 'T23:59:59')
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        txns.push(...data);
+        if (data.length < pageSize) break;
+      }
 
       // Collect product ids
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
