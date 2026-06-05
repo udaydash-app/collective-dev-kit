@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,10 +6,10 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 
-interface Contact { id: string; name: string }
+interface Contact { id: string; name: string; phone?: string; notes?: string }
 
 interface TradeRecord {
   id: string;
@@ -28,6 +27,7 @@ interface TradeRecord {
 }
 
 const STORAGE_KEY = "admin:trade-records";
+const CONTACTS_KEY = "admin:trade-contacts";
 
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
@@ -57,13 +57,16 @@ const TradeRecords = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TradeRecord | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [contactsOpen, setContactsOpen] = useState(false);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [contactForm, setContactForm] = useState({ name: "", phone: "", notes: "" });
 
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.from("contacts").select("id,name").order("name");
-      if (error) toast.error(error.message);
-      setContacts((data ?? []) as Contact[]);
-    })();
+    try {
+      const raw = localStorage.getItem(CONTACTS_KEY);
+      setContacts(raw ? JSON.parse(raw) : []);
+    } catch { setContacts([]); }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       setRecords(raw ? JSON.parse(raw) : []);
@@ -73,6 +76,46 @@ const TradeRecords = () => {
   const persist = (next: TradeRecord[]) => {
     setRecords(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  };
+
+  const persistContacts = (next: Contact[]) => {
+    setContacts(next);
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(next));
+  };
+
+  const openNewContact = () => {
+    setEditingContact(null);
+    setContactForm({ name: "", phone: "", notes: "" });
+    setContactDialogOpen(true);
+  };
+
+  const openEditContact = (c: Contact) => {
+    setEditingContact(c);
+    setContactForm({ name: c.name, phone: c.phone ?? "", notes: c.notes ?? "" });
+    setContactDialogOpen(true);
+  };
+
+  const saveContact = () => {
+    if (!contactForm.name.trim()) { toast.error("Name is required"); return; }
+    const next: Contact = {
+      id: editingContact?.id ?? crypto.randomUUID(),
+      name: contactForm.name.trim(),
+      phone: contactForm.phone.trim() || undefined,
+      notes: contactForm.notes.trim() || undefined,
+    };
+    const updated = editingContact
+      ? contacts.map((c) => (c.id === editingContact.id ? next : c))
+      : [...contacts, next];
+    persistContacts(updated.sort((a, b) => a.name.localeCompare(b.name)));
+    setContactDialogOpen(false);
+    toast.success(editingContact ? "Contact updated" : "Contact added");
+  };
+
+  const removeContact = (id: string) => {
+    const used = records.some((r) => r.contact_id === id);
+    if (used && !confirm("This contact has trade records. Delete anyway? Records will keep the contact name.")) return;
+    if (!used && !confirm("Delete this contact?")) return;
+    persistContacts(contacts.filter((c) => c.id !== id));
   };
 
   const filtered = useMemo(() => {
@@ -157,9 +200,14 @@ const TradeRecords = () => {
               <p className="text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
             </div>
           </div>
-          <Button onClick={openNew} disabled={!contacts.length}>
-            <Plus className="h-4 w-4 mr-2" />New Record
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setContactsOpen(true)}>
+              <Users className="h-4 w-4 mr-2" />Contacts
+            </Button>
+            <Button onClick={openNew} disabled={!contacts.length}>
+              <Plus className="h-4 w-4 mr-2" />New Record
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -235,7 +283,9 @@ const TradeRecords = () => {
         </Card>
 
         {!contacts.length && (
-          <p className="text-sm text-muted-foreground">Add a contact first from Contacts to start recording trades.</p>
+          <p className="text-sm text-muted-foreground">
+            No contacts yet. <button className="underline" onClick={openNewContact}>Add your first contact</button> to start recording trades.
+          </p>
         )}
       </div>
 
@@ -287,6 +337,70 @@ const TradeRecords = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editing ? "Update" : "Add"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={contactsOpen} onOpenChange={setContactsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-4">
+              <span>Trade Contacts</span>
+              <Button size="sm" onClick={openNewContact}>
+                <Plus className="h-4 w-4 mr-1" />Add Contact
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-24"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contacts.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No contacts yet</TableCell></TableRow>
+                ) : contacts.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>{c.phone ?? "—"}</TableCell>
+                    <TableCell className="max-w-[240px] truncate">{c.notes ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" onClick={() => openEditContact(c)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => removeContact(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editingContact ? "Edit" : "New"} Contact</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Name *</Label>
+              <Input value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Input value={contactForm.notes} onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveContact}>{editingContact ? "Update" : "Add"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
