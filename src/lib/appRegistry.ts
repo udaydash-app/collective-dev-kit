@@ -168,6 +168,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/Ledgerly')) },
   { id: 'trading-quote', path: '/admin/trading-quote', title: 'Trading Quote', icon: FileText, group: 'External', color: 'from-blue-600 to-cyan-700',
     component: L(() => import('@/pages/admin/TradingQuote')) },
+  { id: 'trade-records', path: '/admin/trade-records', title: 'Trade Records', icon: FileText, group: 'External', color: 'from-indigo-600 to-blue-700',
+    component: L(() => import('@/pages/admin/TradeRecords')) },
 
   // Utilities
   { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',

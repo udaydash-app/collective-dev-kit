@@ -62,6 +62,7 @@ import AdminBarcode from "./pages/admin/Barcode";
 import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import AdminTaxCollectionReport from "./pages/admin/TaxCollectionReport";
 import AdminTradingAccount from "./pages/admin/TradingAccount";
+import AdminTradeRecords from "./pages/admin/TradeRecords";
 import AdminProfitLossAnalysis from "./pages/admin/ProfitLossAnalysis";
 import DashboardModern from "./pages/admin/DashboardModern";
 import Desktop from "./pages/admin/Desktop";
@@ -340,6 +341,7 @@ const AppContent = () => {
           <Route path="/admin/purchase-orders" element={<AdminRoute><AdminPurchaseOrders /></AdminRoute>} />
           <Route path="/admin/tax-collection-report" element={<AdminRoute><AdminTaxCollectionReport /></AdminRoute>} />
           <Route path="/admin/trading-account" element={<AdminRoute><AdminTradingAccount /></AdminRoute>} />
+          <Route path="/admin/trade-records" element={<AdminRoute><AdminTradeRecords /></AdminRoute>} />
           <Route path="/admin/profit-loss-analysis" element={<AdminRoute><AdminProfitLossAnalysis /></AdminRoute>} />
           <Route path="/admin/live-chat" element={<AdminRoute><AdminLiveChat /></AdminRoute>} />
           <Route path="/admin/powersync-test" element={<AdminRoute><PowerSyncTest /></AdminRoute>} />

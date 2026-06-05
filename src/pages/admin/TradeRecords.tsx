@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/ledgerly/integrations/supabase/client";
-import { PageHeader } from "@/ledgerly/components/PageHeader";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,17 +7,16 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney } from "@/ledgerly/lib/format";
-import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
-interface Contact { id: string; name: string; }
+interface Contact { id: string; name: string }
 
 interface TradeRecord {
   id: string;
   date: string;
   contact_id: string;
+  contact_name: string;
   description: string;
   packing: number;
   buy_price: number;
@@ -28,6 +26,8 @@ interface TradeRecord {
   broker_commission: number;
   expenses: number;
 }
+
+const STORAGE_KEY = "admin:trade-records";
 
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
@@ -42,16 +42,15 @@ const emptyForm = {
   expenses: "0",
 };
 
-const storageKey = (companyId: string) => `ledgerly:trade-records:${companyId}`;
-
-const computeTotalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number }) =>
+const totalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number }) =>
   (r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0);
 
-const computeProfit = (r: TradeRecord) =>
-  (r.sell_price || 0) - computeTotalBuy(r) - (r.broker_commission || 0) - (r.expenses || 0);
+const profitOf = (r: TradeRecord) =>
+  (r.sell_price || 0) - totalBuy(r) - (r.broker_commission || 0) - (r.expenses || 0);
+
+const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
 const TradeRecords = () => {
-  const { companyId } = useCompany();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [records, setRecords] = useState<TradeRecord[]>([]);
   const [filterContact, setFilterContact] = useState<string>("all");
@@ -60,28 +59,20 @@ const TradeRecords = () => {
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
-    if (!companyId) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("id,name")
-        .eq("company_id", companyId)
-        .order("name");
+      const { data, error } = await supabase.from("contacts").select("id,name").order("name");
       if (error) toast.error(error.message);
       setContacts((data ?? []) as Contact[]);
     })();
     try {
-      const raw = localStorage.getItem(storageKey(companyId));
+      const raw = localStorage.getItem(STORAGE_KEY);
       setRecords(raw ? JSON.parse(raw) : []);
-    } catch {
-      setRecords([]);
-    }
-  }, [companyId]);
+    } catch { setRecords([]); }
+  }, []);
 
   const persist = (next: TradeRecord[]) => {
-    if (!companyId) return;
     setRecords(next);
-    localStorage.setItem(storageKey(companyId), JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
 
   const filtered = useMemo(() => {
@@ -89,17 +80,14 @@ const TradeRecords = () => {
     return [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [records, filterContact]);
 
-  const totals = useMemo(() => {
-    return filtered.reduce(
-      (acc, r) => {
-        acc.buy += computeTotalBuy(r);
-        acc.sell += r.sell_price || 0;
-        acc.profit += computeProfit(r);
-        return acc;
-      },
-      { buy: 0, sell: 0, profit: 0 },
-    );
-  }, [filtered]);
+  const totals = useMemo(() => filtered.reduce(
+    (acc, r) => {
+      acc.buy += totalBuy(r);
+      acc.sell += r.sell_price || 0;
+      acc.profit += profitOf(r);
+      return acc;
+    }, { buy: 0, sell: 0, profit: 0 }
+  ), [filtered]);
 
   const openNew = () => {
     setEditing(null);
@@ -127,11 +115,13 @@ const TradeRecords = () => {
   const save = () => {
     if (!form.contact_id) { toast.error("Select a contact"); return; }
     if (!form.date) { toast.error("Date is required"); return; }
+    const contact = contacts.find((c) => c.id === form.contact_id);
     const num = (s: string) => Number(s) || 0;
     const next: TradeRecord = {
       id: editing?.id ?? crypto.randomUUID(),
       date: form.date,
       contact_id: form.contact_id,
+      contact_name: contact?.name ?? "",
       description: form.description.trim(),
       packing: num(form.packing),
       buy_price: num(form.buy_price),
@@ -141,10 +131,7 @@ const TradeRecords = () => {
       broker_commission: num(form.broker_commission),
       expenses: num(form.expenses),
     };
-    const list = editing
-      ? records.map((r) => (r.id === editing.id ? next : r))
-      : [next, ...records];
-    persist(list);
+    persist(editing ? records.map((r) => (r.id === editing.id ? next : r)) : [next, ...records]);
     setOpen(false);
     toast.success(editing ? "Record updated" : "Record added");
   };
@@ -154,19 +141,28 @@ const TradeRecords = () => {
     persist(records.filter((r) => r.id !== id));
   };
 
-  const contactName = (id: string) => contacts.find((c) => c.id === id)?.name ?? "—";
+  const contactName = (id: string) =>
+    contacts.find((c) => c.id === id)?.name ?? records.find((r) => r.contact_id === id)?.contact_name ?? "—";
 
   return (
-    <div className="flex-1 flex flex-col">
-      <PageHeader
-        title="Trade Records"
-        description="Contact-wise trade ledger: packing, buy, tax, commissions, expenses & profit"
-        actions={
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="px-6 py-5 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Trade Records</h1>
+              <p className="text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
+            </div>
+          </div>
           <Button onClick={openNew} disabled={!contacts.length}>
             <Plus className="h-4 w-4 mr-2" />New Record
           </Button>
-        }
-      />
+        </div>
+      </header>
+
       <div className="p-6 space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-64">
@@ -182,9 +178,9 @@ const TradeRecords = () => {
             </Select>
           </div>
           <div className="ml-auto flex gap-4 text-sm">
-            <div><span className="text-muted-foreground">Total Buy: </span><span className="font-medium">{formatMoney(totals.buy)}</span></div>
-            <div><span className="text-muted-foreground">Total Sell: </span><span className="font-medium">{formatMoney(totals.sell)}</span></div>
-            <div><span className="text-muted-foreground">Profit: </span><span className={totals.profit >= 0 ? "font-semibold text-green-600" : "font-semibold text-red-600"}>{formatMoney(totals.profit)}</span></div>
+            <div><span className="text-muted-foreground">Total Buy: </span><span className="font-medium">{fmt(totals.buy)}</span></div>
+            <div><span className="text-muted-foreground">Total Sell: </span><span className="font-medium">{fmt(totals.sell)}</span></div>
+            <div><span className="text-muted-foreground">Profit: </span><span className={totals.profit >= 0 ? "font-semibold text-green-600" : "font-semibold text-red-600"}>{fmt(totals.profit)}</span></div>
           </div>
         </div>
 
@@ -211,22 +207,22 @@ const TradeRecords = () => {
               {filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
-                const tb = computeTotalBuy(r);
-                const profit = computeProfit(r);
+                const tb = totalBuy(r);
+                const profit = profitOf(r);
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.packing)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.buy_price)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.tax)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.supplier_commission)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatMoney(tb)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.sell_price)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.broker_commission)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.expenses)}</TableCell>
-                    <TableCell className={"text-right font-semibold " + (profit >= 0 ? "text-green-600" : "text-red-600")}>{formatMoney(profit)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.packing)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.buy_price)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.tax)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.supplier_commission)}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(tb)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.sell_price)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.broker_commission)}</TableCell>
+                    <TableCell className="text-right">{fmt(r.expenses)}</TableCell>
+                    <TableCell className={"text-right font-semibold " + (profit >= 0 ? "text-green-600" : "text-red-600")}>{fmt(profit)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -239,7 +235,7 @@ const TradeRecords = () => {
         </Card>
 
         {!contacts.length && (
-          <p className="text-sm text-muted-foreground">Add a contact first from the Contacts page to start recording trades.</p>
+          <p className="text-sm text-muted-foreground">Add a contact first from Contacts to start recording trades.</p>
         )}
       </div>
 
@@ -279,8 +275,8 @@ const TradeRecords = () => {
               </div>
             ))}
             <div className="col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex justify-between">
-              <span>Total Buy: <b>{formatMoney(computeTotalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0 }))}</b></span>
-              <span>Profit: <b>{formatMoney(
+              <span>Total Buy: <b>{fmt(totalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0 }))}</b></span>
+              <span>Profit: <b>{fmt(
                 (Number(form.sell_price)||0)
                 - ((Number(form.buy_price)||0) + (Number(form.tax)||0) + (Number(form.supplier_commission)||0) + (Number(form.packing)||0))
                 - (Number(form.broker_commission)||0)
