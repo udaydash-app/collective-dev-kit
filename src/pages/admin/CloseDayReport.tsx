@@ -1110,7 +1110,8 @@ export default function CloseDayReport() {
 
     // Sales by Product — Detailed (single product) Report
     if (reportData.type === 'sales-by-product-detail') {
-      const { productName, filterCustomerName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const { productName, filterCustomerName, costPrice, entries, summary } = reportData as any;
+      const avgSellingPrice = summary.totalQuantity > 0 ? summary.totalRevenue / summary.totalQuantity : 0;
       const showCustomerCol = !filterCustomerName; // show customer column when not filtered to one customer
       return (
         <div className="space-y-4">
@@ -1164,7 +1165,7 @@ export default function CloseDayReport() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm border-t pt-3">
-                <div><span className="text-muted-foreground">Selling Price: </span><span className="font-semibold">{formatCurrency(sellingPrice)}</span></div>
+                <div><span className="text-muted-foreground">Avg. Selling Price: </span><span className="font-semibold">{formatCurrency(avgSellingPrice)}</span></div>
                 <div><span className="text-muted-foreground">Cost Price: </span><span className="font-semibold">{formatCurrency(costPrice)}</span></div>
               </div>
             </CardContent>
