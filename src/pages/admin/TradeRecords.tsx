@@ -446,6 +446,9 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
             </Button>
+            <Button variant="outline" onClick={() => setCommissionsOpen(true)}>
+              <Receipt className="h-4 w-4 mr-2" />Commissions
+            </Button>
             <Button variant="outline" onClick={() => setContactsOpen(true)}>
               <Users className="h-4 w-4 mr-2" />Contacts
             </Button>
