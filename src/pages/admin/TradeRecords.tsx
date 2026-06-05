@@ -300,7 +300,7 @@ const TradeRecords = () => {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Description</th>
+              <th>Date</th><th>Supplier</th><th>Description</th>
               <th class="r">Packing</th><th>Unit</th><th class="r">Bags</th>
               <th class="r">Buy Price</th><th class="r">Tax</th><th class="r">Sup. Comm.</th>
               <th class="r">Total Buy</th><th class="r">Sell Price</th>
@@ -313,6 +313,7 @@ const TradeRecords = () => {
               const p = profitOf(r);
               return `<tr>
                 <td>${esc(r.date)}</td>
+                <td>${esc(r.supplier ?? "")}</td>
                 <td>${esc(r.description)}</td>
                 <td class="r">${fmt(r.packing)}</td>
                 <td>${esc(r.unit ?? "")}</td>
@@ -330,7 +331,7 @@ const TradeRecords = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="8" class="r"><b>Subtotal</b></td>
+              <td colspan="9" class="r"><b>Subtotal</b></td>
               <td class="r"><b>${fmt(sub.buy)}</b></td>
               <td class="r"></td>
               <td class="r"></td>
@@ -347,6 +348,43 @@ const TradeRecords = () => {
           .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])))
           .map(([cid, rows]) => renderGroup(cid, rows)).join("")
       : renderGroup(filterContact, filtered);
+
+    // Commission summaries
+    const brokerByContact = new Map<string, number>();
+    const supplierBySupplier = new Map<string, number>();
+    for (const r of filtered) {
+      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+      const sup = (r.supplier || "—").trim() || "—";
+      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+    }
+    const brokerRows = [...brokerByContact.entries()]
+      .filter(([, v]) => v !== 0)
+      .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])))
+      .map(([cid, v]) => `<tr><td>${esc(contactName(cid))}</td><td class="r">${fmt(v)}</td></tr>`).join("");
+    const supplierRows = [...supplierBySupplier.entries()]
+      .filter(([, v]) => v !== 0)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([s, v]) => `<tr><td>${esc(s)}</td><td class="r">${fmt(v)}</td></tr>`).join("");
+    const brokerTotal = [...brokerByContact.values()].reduce((a, b) => a + b, 0);
+    const supplierTotal = [...supplierBySupplier.values()].reduce((a, b) => a + b, 0);
+    const commissionsHtml = `
+      <h2>Commissions Summary</h2>
+      <div style="display:flex; gap:24px; align-items:flex-start;">
+        <div style="flex:1">
+          <h3 style="font-size:12px;margin:4px 0">Broker Commission (paid to contact)</h3>
+          <table><thead><tr><th>Contact</th><th class="r">Amount</th></tr></thead>
+            <tbody>${brokerRows || '<tr><td colspan="2" style="text-align:center;color:#777">None</td></tr>'}</tbody>
+            <tfoot><tr><td class="r"><b>Total</b></td><td class="r"><b>${fmt(brokerTotal)}</b></td></tr></tfoot>
+          </table>
+        </div>
+        <div style="flex:1">
+          <h3 style="font-size:12px;margin:4px 0">Supplier Commission (paid to supplier)</h3>
+          <table><thead><tr><th>Supplier</th><th class="r">Amount</th></tr></thead>
+            <tbody>${supplierRows || '<tr><td colspan="2" style="text-align:center;color:#777">None</td></tr>'}</tbody>
+            <tfoot><tr><td class="r"><b>Total</b></td><td class="r"><b>${fmt(supplierTotal)}</b></td></tr></tfoot>
+          </table>
+        </div>
+      </div>`;
 
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Ledger</title>
       <style>
@@ -373,7 +411,7 @@ const TradeRecords = () => {
         <span><b>Period:</b> ${esc(periodLabel[period])} (${esc(rangeText)})</span>
         <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
       </div>
-      ${filtered.length === 0 ? "<p>No records in selected range.</p>" : groupsHtml}
+      ${filtered.length === 0 ? "<p>No records in selected range.</p>" : groupsHtml + commissionsHtml}
       <div class="totals">
         <div>Total Buy: <b>${fmt(totals.buy)}</b></div>
         <div>Turnover: <b>${fmt(totals.sell)}</b></div>
