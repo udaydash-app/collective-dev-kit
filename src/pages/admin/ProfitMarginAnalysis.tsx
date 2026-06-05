@@ -270,6 +270,9 @@ export default function ProfitMarginAnalysis() {
               <div className="text-2xl font-bold">
                 {formatCurrency(overallSummary.total_revenue)}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tracked products: {formatCurrency(overallSummary.product_revenue)}
+              </p>
             </CardContent>
           </Card>
 
