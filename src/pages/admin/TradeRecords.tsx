@@ -248,6 +248,8 @@ const TradeRecords = () => {
                 <TableHead>Contact</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Packing</TableHead>
+                <TableHead>Unit</TableHead>
+                <TableHead className="text-right">Bags</TableHead>
                 <TableHead className="text-right">Buy Price</TableHead>
                 <TableHead className="text-right">Tax</TableHead>
                 <TableHead className="text-right">Supplier Comm.</TableHead>
@@ -261,7 +263,7 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const tb = totalBuy(r);
                 const profit = profitOf(r);
@@ -271,6 +273,8 @@ const TradeRecords = () => {
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
                     <TableCell className="text-right">{fmt(r.packing)}</TableCell>
+                    <TableCell>{r.unit ?? "—"}</TableCell>
+                    <TableCell className="text-right">{fmt(r.bags ?? 0)}</TableCell>
                     <TableCell className="text-right">{fmt(r.buy_price)}</TableCell>
                     <TableCell className="text-right">{fmt(r.tax)}</TableCell>
                     <TableCell className="text-right">{fmt(r.supplier_commission)}</TableCell>
@@ -318,12 +322,30 @@ const TradeRecords = () => {
               <Label>Description</Label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
+            <div>
+              <Label>Packing</Label>
+              <Input type="number" step="0.01" value={form.packing} onChange={(e) => setForm({ ...form, packing: e.target.value })} />
+            </div>
+            <div>
+              <Label>Unit</Label>
+              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["kg", "g", "ltr", "ml", "pcs", "dozen", "bag", "box"].map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Number of Bags</Label>
+              <Input type="number" step="1" value={form.bags} onChange={(e) => setForm({ ...form, bags: e.target.value })} />
+            </div>
             {([
-              ["packing", "Packing"],
-              ["buy_price", "Buy Price"],
+              ["buy_price", "Buy Price (per bag)"],
               ["tax", "Tax"],
               ["supplier_commission", "Supplier Commission"],
-              ["sell_price", "Sell Price"],
+              ["sell_price", "Sell Price (per bag)"],
               ["broker_commission", "Broker Commission"],
               ["expenses", "Expenses"],
             ] as const).map(([key, label]) => (
@@ -333,10 +355,10 @@ const TradeRecords = () => {
               </div>
             ))}
             <div className="col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex justify-between">
-              <span>Total Buy: <b>{fmt(totalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0 }))}</b></span>
+              <span>Total Buy: <b>{fmt(totalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, bags: Number(form.bags)||0 }))}</b></span>
               <span>Profit: <b>{fmt(
-                (Number(form.sell_price)||0)
-                - ((Number(form.buy_price)||0) + (Number(form.tax)||0) + (Number(form.supplier_commission)||0) + (Number(form.packing)||0))
+                ((Number(form.sell_price)||0) * (Number(form.bags)||0))
+                - (((Number(form.buy_price)||0) * (Number(form.bags)||0)) + (Number(form.tax)||0) + (Number(form.supplier_commission)||0) + (Number(form.packing)||0))
                 - (Number(form.broker_commission)||0)
                 - (Number(form.expenses)||0)
               )}</b></span>
