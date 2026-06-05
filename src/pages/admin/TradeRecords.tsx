@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
@@ -16,6 +16,7 @@ interface TradeRecord {
   date: string;
   contact_id: string;
   contact_name: string;
+  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -34,6 +35,7 @@ const CONTACTS_KEY = "admin:trade-contacts";
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
+  supplier: "",
   description: "",
   packing: "0",
   unit: "kg",
