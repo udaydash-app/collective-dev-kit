@@ -91,14 +91,23 @@ export default function ProfitMarginAnalysis() {
         console.warn('[profit-margin] secure RPC failed, falling back to direct reads', error);
       }
 
-      // Fetch POS transactions within date range
-      const { data: transactions, error: txError } = await supabase
-        .from("pos_transactions")
-        .select("id, items, created_at")
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59");
-
-      if (txError) throw txError;
+      // Fetch POS transactions within date range (paginated to bypass 1000-row cap)
+      const transactions: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error: txError } = await supabase
+          .from("pos_transactions")
+          .select("id, items, created_at")
+          .gte("created_at", startDate)
+          .lte("created_at", endDate + "T23:59:59")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (txError) throw txError;
+        if (!data || data.length === 0) break;
+        transactions.push(...data);
+        if (data.length < pageSize) break;
+      }
 
       // Get all products with cost_price for margin calculation
       let productsQuery = supabase
@@ -117,15 +126,18 @@ export default function ProfitMarginAnalysis() {
       // Process transactions to calculate profit margins using simple cost_price
       const profitMap = new Map<string, ProfitMarginData>();
 
-      transactions?.forEach((tx: any) => {
+      transactions.forEach((tx: any) => {
         const items = tx.items as any[];
         items?.forEach((item: any) => {
-          const productId = item.productId;
+          const productId = item.productId || item.product_id || item.id;
           const product = productMap.get(productId);
           if (!product) return;
 
           const quantity = Math.abs(item.quantity || 0);
-          const revenue = (item.price || 0) * quantity;
+          // Use actual transaction price: customPrice ?? price, minus per-unit itemDiscount
+          const unitPrice = Number(item.customPrice ?? item.price ?? item.unit_price ?? 0);
+          const itemDiscount = Number(item.itemDiscount ?? item.discount ?? 0);
+          const revenue = Math.max(unitPrice - itemDiscount, 0) * quantity;
           // Landed cost = CIF cost_price + local_charges
           const unitCost = (Number(product.cost_price) || 0) + (Number((product as any).local_charges) || 0);
           const cogs = unitCost * quantity;
