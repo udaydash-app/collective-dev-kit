@@ -166,6 +166,29 @@ export default function ProfitMarginAnalysis() {
     },
   });
 
+  // Fetch true total revenue from pos_transactions.total for the period
+  // (the per-product RPC under-counts: it drops non-UUID/custom items and ignores tax/timbre/delivery)
+  const { data: trueRevenue } = useQuery({
+    queryKey: ["profit-margin-true-revenue", startDate, endDate],
+    queryFn: async () => {
+      let sum = 0;
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("pos_transactions")
+          .select("total")
+          .gte("created_at", startDate)
+          .lte("created_at", endDate + "T23:59:59")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        sum += data.reduce((s, r: any) => s + (Number(r.total) || 0), 0);
+        if (data.length < pageSize) break;
+      }
+      return sum;
+    },
+  });
+
   // Calculate category summaries
   const categorySummaries: CategorySummary[] = profitData
     ? Object.values(
@@ -197,15 +220,16 @@ export default function ProfitMarginAnalysis() {
 
   // Calculate overall summary
   const overallSummary = {
-    total_revenue: profitData?.reduce((sum, item) => sum + item.total_revenue, 0) || 0,
+    total_revenue: trueRevenue ?? (profitData?.reduce((sum, item) => sum + item.total_revenue, 0) || 0),
+    product_revenue: profitData?.reduce((sum, item) => sum + item.total_revenue, 0) || 0,
     total_cogs: profitData?.reduce((sum, item) => sum + item.total_cogs, 0) || 0,
     total_units: profitData?.reduce((sum, item) => sum + item.units_sold, 0) || 0,
     gross_profit: 0,
     profit_margin: 0,
   };
-  overallSummary.gross_profit = overallSummary.total_revenue - overallSummary.total_cogs;
+  overallSummary.gross_profit = overallSummary.product_revenue - overallSummary.total_cogs;
   overallSummary.profit_margin =
-    overallSummary.total_revenue > 0 ? (overallSummary.gross_profit / overallSummary.total_revenue) * 100 : 0;
+    overallSummary.product_revenue > 0 ? (overallSummary.gross_profit / overallSummary.product_revenue) * 100 : 0;
 
   // Filter data based on search
   const filteredData = profitData?.filter((item) =>
@@ -246,6 +270,9 @@ export default function ProfitMarginAnalysis() {
               <div className="text-2xl font-bold">
                 {formatCurrency(overallSummary.total_revenue)}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tracked products: {formatCurrency(overallSummary.product_revenue)}
+              </p>
             </CardContent>
           </Card>
 
