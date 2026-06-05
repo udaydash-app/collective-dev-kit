@@ -1111,6 +1111,7 @@ export default function CloseDayReport() {
     // Sales by Product — Detailed (single product) Report
     if (reportData.type === 'sales-by-product-detail') {
       const { productName, filterCustomerName, costPrice, sellingPrice, entries, summary } = reportData as any;
+      const avgSellingPrice = summary.totalQuantity > 0 ? summary.totalRevenue / summary.totalQuantity : 0;
       const showCustomerCol = !filterCustomerName; // show customer column when not filtered to one customer
       return (
         <div className="space-y-4">
