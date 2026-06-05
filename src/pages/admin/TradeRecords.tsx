@@ -215,6 +215,7 @@ const TradeRecords = () => {
     setForm({
       date: r.date,
       contact_id: r.contact_id,
+      supplier: r.supplier ?? "",
       description: r.description,
       packing: String(r.packing),
       unit: r.unit ?? "kg",
@@ -239,6 +240,7 @@ const TradeRecords = () => {
       date: form.date,
       contact_id: form.contact_id,
       contact_name: contact?.name ?? "",
+      supplier: form.supplier.trim(),
       description: form.description.trim(),
       packing: num(form.packing),
       unit: form.unit || "kg",
