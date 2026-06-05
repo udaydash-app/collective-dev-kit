@@ -493,6 +493,7 @@ const TradeRecords = () => {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Supplier</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Packing</TableHead>
                 <TableHead>Unit</TableHead>
@@ -510,7 +511,7 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const tb = totalBuy(r);
                 const profit = profitOf(r);
@@ -518,6 +519,7 @@ const TradeRecords = () => {
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.supplier || "—"}</TableCell>
                     <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
                     <TableCell className="text-right">{fmt(r.packing)}</TableCell>
                     <TableCell>{r.unit ?? "—"}</TableCell>
@@ -564,6 +566,10 @@ const TradeRecords = () => {
                   {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="col-span-2">
+              <Label>Supplier</Label>
+              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
             </div>
             <div className="col-span-2">
               <Label>Description</Label>
