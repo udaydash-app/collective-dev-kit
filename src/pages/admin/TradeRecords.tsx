@@ -101,6 +101,7 @@ const TradeRecords = () => {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
+  const [commissionsOpen, setCommissionsOpen] = useState(false);
 
   useEffect(() => {
     try {
