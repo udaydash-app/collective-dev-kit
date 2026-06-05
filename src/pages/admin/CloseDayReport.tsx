@@ -1165,7 +1165,7 @@ export default function CloseDayReport() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm border-t pt-3">
-                <div><span className="text-muted-foreground">Selling Price: </span><span className="font-semibold">{formatCurrency(sellingPrice)}</span></div>
+                <div><span className="text-muted-foreground">Avg. Selling Price: </span><span className="font-semibold">{formatCurrency(avgSellingPrice)}</span></div>
                 <div><span className="text-muted-foreground">Cost Price: </span><span className="font-semibold">{formatCurrency(costPrice)}</span></div>
               </div>
             </CardContent>
