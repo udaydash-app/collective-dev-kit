@@ -180,41 +180,66 @@ export default function SalesTarget() {
   const periodLabel = `${format(new Date(startDate), "dd/MM/yyyy")} to ${format(new Date(endDate), "dd/MM/yyyy")}`;
   const modeLabel = mode === "current" ? "Current sale prices (past 3-month margin)" : `Simulated markup ${simulatedMarkup}% on cost`;
 
-  const buildRows = (): (string | number)[][] => {
-    const rows: (string | number)[][] = [];
-    rows.push(["Monthly Expenses", ""]);
-    expenses.forEach((e) => rows.push([e.label || "(unnamed)", e.amount || 0]));
-    rows.push(["Total monthly expenses", totalExpenses]);
-    rows.push(["Margin target (2× expenses)", marginTarget]);
-    rows.push([]);
-    rows.push(["Margin Source", modeLabel]);
-    rows.push(["Effective margin ratio", `${(effectiveMarginRatio * 100).toFixed(2)}%`]);
-    rows.push([]);
-    rows.push(["Required monthly sales", requiredRevenue]);
-    rows.push(["Required daily sales (÷30)", dailyTarget]);
-    rows.push(["Expected gross profit", marginTarget]);
-    rows.push([]);
-    rows.push([`Past 3 months (${periodLabel})`, ""]);
-    if (history) {
-      rows.push(["Total revenue", history.total_revenue]);
-      rows.push(["Gross profit", history.gross_profit]);
-      rows.push(["Past margin %", `${history.margin_pct.toFixed(2)}%`]);
-      rows.push(["Avg monthly revenue", history.avg_monthly_revenue]);
-      rows.push(["Avg monthly profit", history.avg_monthly_profit]);
-      rows.push(["Required vs avg monthly", gapVsAvg]);
-      rows.push(["Gap %", `${gapPct.toFixed(1)}%`]);
-    }
-    return rows;
-  };
+  // Round to whole FCFA (no decimals) – matches in-app display
+  const r0 = (n: number) => Math.round(Number(n) || 0);
 
   const exportExcel = () => {
-    const data: (string | number)[][] = [
-      ["SALES TARGET SIMULATION"],
-      [`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")}`],
-      [],
-      ...buildRows(),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(data);
+    type Cell = { v: string | number; t?: "s" | "n"; z?: string; bold?: boolean };
+    const FMT = '#,##0" FCFA"';
+    const S = (v: string, bold = false): Cell => ({ v, t: "s", bold });
+    const N = (v: number, bold = false): Cell => ({ v: r0(v), t: "n", z: FMT, bold });
+    const P = (v: number, bold = false): Cell => ({ v: `${v.toFixed(2)}%`, t: "s", bold });
+
+    const matrix: Cell[][] = [];
+    matrix.push([S("SALES TARGET SIMULATION", true)]);
+    matrix.push([S(`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")}`)]);
+    matrix.push([S(`Period analysed: ${periodLabel}`)]);
+    matrix.push([]);
+
+    matrix.push([S("MONTHLY EXPENSES", true), S("AMOUNT", true)]);
+    expenses.forEach((e) => matrix.push([S(e.label || "(unnamed)"), N(e.amount || 0)]));
+    matrix.push([S("Total monthly expenses", true), N(totalExpenses, true)]);
+    matrix.push([S("Margin target (2× expenses)", true), N(marginTarget, true)]);
+    matrix.push([]);
+
+    matrix.push([S("MARGIN SOURCE", true), S("", true)]);
+    matrix.push([S("Mode"), S(modeLabel)]);
+    matrix.push([S("Effective margin ratio"), P(effectiveMarginRatio * 100)]);
+    matrix.push([]);
+
+    matrix.push([S("REQUIRED SALES", true), S("", true)]);
+    matrix.push([S("Required monthly sales"), N(requiredRevenue, true)]);
+    matrix.push([S("Required daily sales (÷30)"), N(dailyTarget)]);
+    matrix.push([S("Expected gross profit"), N(marginTarget)]);
+    matrix.push([]);
+
+    if (history) {
+      matrix.push([S(`PAST 3 MONTHS (${periodLabel})`, true), S("", true)]);
+      matrix.push([S("Total revenue"), N(history.total_revenue)]);
+      matrix.push([S("Gross profit"), N(history.gross_profit)]);
+      matrix.push([S("Past margin %"), P(history.margin_pct)]);
+      matrix.push([S("Avg monthly revenue"), N(history.avg_monthly_revenue)]);
+      matrix.push([S("Avg monthly profit"), N(history.avg_monthly_profit)]);
+      matrix.push([S("Required vs avg monthly"), N(gapVsAvg)]);
+      matrix.push([S("Gap %"), S(`${gapPct > 0 ? "+" : ""}${gapPct.toFixed(1)}%`)]);
+    }
+
+    const ws: XLSX.WorkSheet = {};
+    let maxCol = 0;
+    matrix.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        if (!cell) return;
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const out: any = { v: cell.v, t: cell.t || "s" };
+        if (cell.z) out.z = cell.z;
+        if (cell.bold) out.s = { font: { bold: true } };
+        ws[addr] = out;
+        if (c > maxCol) maxCol = c;
+      });
+    });
+    ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: matrix.length - 1, c: Math.max(maxCol, 1) } });
+    ws["!cols"] = [{ wch: 38 }, { wch: 22 }];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sales Target");
     XLSX.writeFile(wb, `Sales_Target_${format(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
@@ -231,50 +256,81 @@ export default function SalesTarget() {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 105, yPos, { align: "center" });
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text(`Period analysed: ${periodLabel}`, 105, yPos, { align: "center" });
+    doc.setTextColor(0);
     yPos += 6;
 
+    const fc = (n: number) => formatCurrency(r0(n));
+    const tableStyle = {
+      theme: "grid" as const,
+      headStyles: { fillColor: [34, 197, 94] as [number, number, number], textColor: 255, fontStyle: "bold" as const },
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      columnStyles: { 1: { halign: "right" as const, cellWidth: 55 } },
+      margin: { left: 14, right: 14 },
+    };
+
+    // Executive summary
     autoTable(doc, {
+      ...tableStyle,
       startY: yPos,
-      head: [["Monthly Expenses", "Amount"]],
+      head: [["Executive Summary", "Value"]],
       body: [
-        ...expenses.map((e) => [e.label || "(unnamed)", formatCurrency(e.amount || 0)]),
-        ["Total monthly expenses", formatCurrency(totalExpenses)],
-        ["Margin target (2× expenses)", formatCurrency(marginTarget)],
+        ["Total monthly expenses", fc(totalExpenses)],
+        ["Margin target (2× expenses)", fc(marginTarget)],
+        ["Effective margin ratio", `${(effectiveMarginRatio * 100).toFixed(2)}%`],
+        ["Required monthly sales", fc(requiredRevenue)],
+        ["Required daily sales", fc(dailyTarget)],
       ],
-      theme: "striped",
-      headStyles: { fillColor: [34, 197, 94] },
-      styles: { fontSize: 9 },
+      headStyles: { ...tableStyle.headStyles, fillColor: [30, 41, 59] },
     });
 
     autoTable(doc, {
+      ...tableStyle,
+      head: [["Monthly Expenses", "Amount"]],
+      body: [
+        ...expenses.map((e) => [e.label || "(unnamed)", fc(e.amount || 0)]),
+        [{ content: "Total monthly expenses", styles: { fontStyle: "bold" } }, { content: fc(totalExpenses), styles: { fontStyle: "bold", halign: "right" } }],
+        [{ content: "Margin target (2× expenses)", styles: { fontStyle: "bold" } }, { content: fc(marginTarget), styles: { fontStyle: "bold", halign: "right" } }],
+      ],
+    });
+
+    autoTable(doc, {
+      ...tableStyle,
       head: [["Required Sales", "Value"]],
       body: [
         ["Margin source", modeLabel],
         ["Effective margin ratio", `${(effectiveMarginRatio * 100).toFixed(2)}%`],
-        ["Required monthly sales", formatCurrency(requiredRevenue)],
-        ["Required daily sales (÷30)", formatCurrency(dailyTarget)],
-        ["Expected gross profit", formatCurrency(marginTarget)],
+        [{ content: "Required monthly sales", styles: { fontStyle: "bold" } }, { content: fc(requiredRevenue), styles: { fontStyle: "bold", halign: "right" } }],
+        ["Required daily sales (÷30)", fc(dailyTarget)],
+        ["Expected gross profit", fc(marginTarget)],
       ],
-      theme: "striped",
-      headStyles: { fillColor: [34, 197, 94] },
-      styles: { fontSize: 9 },
     });
 
     if (history) {
       autoTable(doc, {
+        ...tableStyle,
         head: [[`Past 3 months (${periodLabel})`, "Value"]],
         body: [
-          ["Total revenue", formatCurrency(history.total_revenue)],
-          ["Gross profit", formatCurrency(history.gross_profit)],
+          ["Total revenue", fc(history.total_revenue)],
+          ["Gross profit", fc(history.gross_profit)],
           ["Past margin %", `${history.margin_pct.toFixed(2)}%`],
-          ["Avg monthly revenue", formatCurrency(history.avg_monthly_revenue)],
-          ["Avg monthly profit", formatCurrency(history.avg_monthly_profit)],
-          ["Required vs avg monthly", `${gapVsAvg > 0 ? "+" : ""}${formatCurrency(gapVsAvg)} (${gapPct > 0 ? "+" : ""}${gapPct.toFixed(1)}%)`],
+          ["Avg monthly revenue", fc(history.avg_monthly_revenue)],
+          ["Avg monthly profit", fc(history.avg_monthly_profit)],
+          ["Required vs avg monthly", `${gapVsAvg > 0 ? "+" : ""}${fc(gapVsAvg)} (${gapPct > 0 ? "+" : ""}${gapPct.toFixed(1)}%)`],
         ],
-        theme: "striped",
-        headStyles: { fillColor: [34, 197, 94] },
-        styles: { fontSize: 9 },
       });
+    }
+
+    // Footer page numbers
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text(`Page ${i} / ${pageCount}`, 196, 290, { align: "right" });
     }
 
     doc.save(`Sales_Target_${format(new Date(), "yyyyMMdd_HHmm")}.pdf`);
