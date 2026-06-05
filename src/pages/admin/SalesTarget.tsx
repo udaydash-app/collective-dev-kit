@@ -263,7 +263,10 @@ export default function SalesTarget() {
     doc.setTextColor(0);
     yPos += 6;
 
-    const fc = (n: number) => formatCurrency(r0(n));
+    // jsPDF's default font doesn't render narrow/non-breaking spaces correctly,
+    // so normalize them to regular spaces for the PDF output.
+    const fc = (n: number) =>
+      formatCurrency(r0(n)).replace(/[\u00A0\u202F\u2009]/g, " ");
     const tableStyle = {
       theme: "grid" as const,
       headStyles: { fillColor: [34, 197, 94] as [number, number, number], textColor: 255, fontStyle: "bold" as const },
