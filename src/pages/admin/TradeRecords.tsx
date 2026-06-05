@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
@@ -16,6 +16,7 @@ interface TradeRecord {
   date: string;
   contact_id: string;
   contact_name: string;
+  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -34,6 +35,7 @@ const CONTACTS_KEY = "admin:trade-contacts";
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
+  supplier: "",
   description: "",
   packing: "0",
   unit: "kg",
@@ -99,6 +101,7 @@ const TradeRecords = () => {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
+  const [commissionsOpen, setCommissionsOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -213,6 +216,7 @@ const TradeRecords = () => {
     setForm({
       date: r.date,
       contact_id: r.contact_id,
+      supplier: r.supplier ?? "",
       description: r.description,
       packing: String(r.packing),
       unit: r.unit ?? "kg",
@@ -237,6 +241,7 @@ const TradeRecords = () => {
       date: form.date,
       contact_id: form.contact_id,
       contact_name: contact?.name ?? "",
+      supplier: form.supplier.trim(),
       description: form.description.trim(),
       packing: num(form.packing),
       unit: form.unit || "kg",
@@ -296,7 +301,7 @@ const TradeRecords = () => {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Description</th>
+              <th>Date</th><th>Supplier</th><th>Description</th>
               <th class="r">Packing</th><th>Unit</th><th class="r">Bags</th>
               <th class="r">Buy Price</th><th class="r">Tax</th><th class="r">Sup. Comm.</th>
               <th class="r">Total Buy</th><th class="r">Sell Price</th>
@@ -309,6 +314,7 @@ const TradeRecords = () => {
               const p = profitOf(r);
               return `<tr>
                 <td>${esc(r.date)}</td>
+                <td>${esc(r.supplier ?? "")}</td>
                 <td>${esc(r.description)}</td>
                 <td class="r">${fmt(r.packing)}</td>
                 <td>${esc(r.unit ?? "")}</td>
@@ -326,7 +332,7 @@ const TradeRecords = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="8" class="r"><b>Subtotal</b></td>
+              <td colspan="9" class="r"><b>Subtotal</b></td>
               <td class="r"><b>${fmt(sub.buy)}</b></td>
               <td class="r"></td>
               <td class="r"></td>
@@ -343,6 +349,43 @@ const TradeRecords = () => {
           .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])))
           .map(([cid, rows]) => renderGroup(cid, rows)).join("")
       : renderGroup(filterContact, filtered);
+
+    // Commission summaries
+    const brokerByContact = new Map<string, number>();
+    const supplierBySupplier = new Map<string, number>();
+    for (const r of filtered) {
+      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+      const sup = (r.supplier || "—").trim() || "—";
+      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+    }
+    const brokerRows = [...brokerByContact.entries()]
+      .filter(([, v]) => v !== 0)
+      .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])))
+      .map(([cid, v]) => `<tr><td>${esc(contactName(cid))}</td><td class="r">${fmt(v)}</td></tr>`).join("");
+    const supplierRows = [...supplierBySupplier.entries()]
+      .filter(([, v]) => v !== 0)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([s, v]) => `<tr><td>${esc(s)}</td><td class="r">${fmt(v)}</td></tr>`).join("");
+    const brokerTotal = [...brokerByContact.values()].reduce((a, b) => a + b, 0);
+    const supplierTotal = [...supplierBySupplier.values()].reduce((a, b) => a + b, 0);
+    const commissionsHtml = `
+      <h2>Commissions Summary</h2>
+      <div style="display:flex; gap:24px; align-items:flex-start;">
+        <div style="flex:1">
+          <h3 style="font-size:12px;margin:4px 0">Broker Commission (paid to contact)</h3>
+          <table><thead><tr><th>Contact</th><th class="r">Amount</th></tr></thead>
+            <tbody>${brokerRows || '<tr><td colspan="2" style="text-align:center;color:#777">None</td></tr>'}</tbody>
+            <tfoot><tr><td class="r"><b>Total</b></td><td class="r"><b>${fmt(brokerTotal)}</b></td></tr></tfoot>
+          </table>
+        </div>
+        <div style="flex:1">
+          <h3 style="font-size:12px;margin:4px 0">Supplier Commission (paid to supplier)</h3>
+          <table><thead><tr><th>Supplier</th><th class="r">Amount</th></tr></thead>
+            <tbody>${supplierRows || '<tr><td colspan="2" style="text-align:center;color:#777">None</td></tr>'}</tbody>
+            <tfoot><tr><td class="r"><b>Total</b></td><td class="r"><b>${fmt(supplierTotal)}</b></td></tr></tfoot>
+          </table>
+        </div>
+      </div>`;
 
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Ledger</title>
       <style>
@@ -369,7 +412,7 @@ const TradeRecords = () => {
         <span><b>Period:</b> ${esc(periodLabel[period])} (${esc(rangeText)})</span>
         <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
       </div>
-      ${filtered.length === 0 ? "<p>No records in selected range.</p>" : groupsHtml}
+      ${filtered.length === 0 ? "<p>No records in selected range.</p>" : groupsHtml + commissionsHtml}
       <div class="totals">
         <div>Total Buy: <b>${fmt(totals.buy)}</b></div>
         <div>Turnover: <b>${fmt(totals.sell)}</b></div>
@@ -402,6 +445,9 @@ const TradeRecords = () => {
           <div className="flex gap-2">
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
+            </Button>
+            <Button variant="outline" onClick={() => setCommissionsOpen(true)}>
+              <Receipt className="h-4 w-4 mr-2" />Commissions
             </Button>
             <Button variant="outline" onClick={() => setContactsOpen(true)}>
               <Users className="h-4 w-4 mr-2" />Contacts
@@ -489,6 +535,7 @@ const TradeRecords = () => {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Supplier</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Packing</TableHead>
                 <TableHead>Unit</TableHead>
@@ -506,7 +553,7 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const tb = totalBuy(r);
                 const profit = profitOf(r);
@@ -514,6 +561,7 @@ const TradeRecords = () => {
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.supplier || "—"}</TableCell>
                     <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
                     <TableCell className="text-right">{fmt(r.packing)}</TableCell>
                     <TableCell>{r.unit ?? "—"}</TableCell>
@@ -560,6 +608,10 @@ const TradeRecords = () => {
                   {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="col-span-2">
+              <Label>Supplier</Label>
+              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
             </div>
             <div className="col-span-2">
               <Label>Description</Label>
@@ -675,6 +727,67 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
             <Button onClick={saveContact}>{editingContact ? "Update" : "Add"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={commissionsOpen} onOpenChange={setCommissionsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-4">
+              <span>Commissions Summary</span>
+              <Button size="sm" variant="outline" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-1" />Print
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const brokerByContact = new Map<string, number>();
+            const supplierBySupplier = new Map<string, number>();
+            for (const r of filtered) {
+              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+              const sup = (r.supplier || "—").trim() || "—";
+              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+            }
+            const brokerList = [...brokerByContact.entries()].filter(([, v]) => v !== 0)
+              .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])));
+            const supplierList = [...supplierBySupplier.entries()].filter(([, v]) => v !== 0)
+              .sort((a, b) => a[0].localeCompare(b[0]));
+            const brokerTotal = brokerList.reduce((a, [, v]) => a + v, 0);
+            const supplierTotal = supplierList.reduce((a, [, v]) => a + v, 0);
+            return (
+              <div className="grid md:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
+                <div>
+                  <div className="text-sm font-medium mb-2">Broker Commission (paid to contact)</div>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Contact</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {brokerList.length === 0 ? (
+                        <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">None</TableCell></TableRow>
+                      ) : brokerList.map(([cid, v]) => (
+                        <TableRow key={cid}><TableCell>{contactName(cid)}</TableCell><TableCell className="text-right">{fmt(v)}</TableCell></TableRow>
+                      ))}
+                      <TableRow><TableCell className="font-semibold">Total</TableCell><TableCell className="text-right font-semibold">{fmt(brokerTotal)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <div className="text-sm font-medium mb-2">Supplier Commission (paid to supplier)</div>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {supplierList.length === 0 ? (
+                        <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">None</TableCell></TableRow>
+                      ) : supplierList.map(([s, v]) => (
+                        <TableRow key={s}><TableCell>{s}</TableCell><TableCell className="text-right">{fmt(v)}</TableCell></TableRow>
+                      ))}
+                      <TableRow><TableCell className="font-semibold">Total</TableCell><TableCell className="text-right font-semibold">{fmt(supplierTotal)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            );
+          })()}
+          <p className="text-xs text-muted-foreground">Based on the current contact filter and period.</p>
         </DialogContent>
       </Dialog>
     </div>
