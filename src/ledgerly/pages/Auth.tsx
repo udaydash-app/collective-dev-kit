@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ const Auth = () => {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
 
-  useEffect(() => { if (user) navigate("/", { replace: true }); }, [user, navigate]);
+  useEffect(() => { if (user) navigate("/ledgerly", { replace: true }); }, [user, navigate]);
 
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ const Auth = () => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) toast.error(error.message);
-    else { toast.success("Welcome back"); navigate("/"); }
+    else { toast.success("Welcome back"); navigate("/ledgerly"); }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -57,7 +57,7 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else { toast.success("Account created"); navigate("/"); }
+    else { toast.success("Account created"); navigate("/ledgerly"); }
   };
 
   return (

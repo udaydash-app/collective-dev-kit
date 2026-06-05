@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
 import { cn } from "@/lib/utils";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type Kind = "ar" | "ap";
 
@@ -91,8 +91,8 @@ const Aging = ({ kind }: { kind: Kind }) => {
   const [contactId, setContactId] = useState<string>("all");
 
   const config = kind === "ar"
-    ? { title: "Accounts Receivable Aging", desc: "Open invoices grouped by customer with days overdue", table: "invoices" as const, numberCol: "invoice_number", dateCol: "invoice_date", linkBase: "/invoices", contactTypes: ["customer", "both"] as const }
-    : { title: "Accounts Payable Aging", desc: "Open bills grouped by supplier with days overdue", table: "bills" as const, numberCol: "bill_number", dateCol: "bill_date", linkBase: "/bills", contactTypes: ["supplier", "both"] as const };
+    ? { title: "Accounts Receivable Aging", desc: "Open invoices grouped by customer with days overdue", table: "invoices" as const, numberCol: "invoice_number", dateCol: "invoice_date", linkBase: "/ledgerly/invoices", contactTypes: ["customer", "both"] as const }
+    : { title: "Accounts Payable Aging", desc: "Open bills grouped by supplier with days overdue", table: "bills" as const, numberCol: "bill_number", dateCol: "bill_date", linkBase: "/ledgerly/bills", contactTypes: ["supplier", "both"] as const };
 
   // Reset contact filter when switching AR/AP
   useEffect(() => { setContactId("all"); }, [kind]);
@@ -198,7 +198,7 @@ const Aging = ({ kind }: { kind: Kind }) => {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => {
               const q = new URLSearchParams({ kind, asOf, contact: contactId }).toString();
-              navigate(`/reports/aging/print?${q}`);
+              navigate(`/ledgerly/reports/aging/print?${q}`);
             }} disabled={rows.length === 0}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
             </Button>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Search, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type ContactType = "customer" | "supplier" | "both";
 interface Contact {

@@ -5,57 +5,57 @@ import {
   Receipt, Wallet, BookMarked, BarChart3, LogOut, Building2, Settings as SettingsIcon, ClipboardList,
   ChevronDown,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useFormatProfile } from "@/hooks/useFormatProfile";
+import { useFormatProfile } from "@/ledgerly/hooks/useFormatProfile";
 
 type LeafItem = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; soon?: boolean };
 type GroupItem = { label: string; icon: typeof LayoutDashboard; children: { to: string; label: string }[] };
 type NavItem = { section: string } | LeafItem | GroupItem;
 
 const reportsChildren = [
-  { to: "/reports/trial-balance", label: "Trial Balance" },
-  { to: "/reports/profit-loss", label: "Profit & Loss" },
-  { to: "/reports/balance-sheet", label: "Balance Sheet" },
-  { to: "/reports/cash-flow", label: "Cash Flow" },
-  { to: "/reports/ar-aging", label: "AR Aging" },
-  { to: "/reports/ap-aging", label: "AP Aging" },
-  { to: "/reports/statements", label: "Statements" },
-  { to: "/reports/stock-movement", label: "Stock Movement" },
+  { to: "/ledgerly/reports/trial-balance", label: "Trial Balance" },
+  { to: "/ledgerly/reports/profit-loss", label: "Profit & Loss" },
+  { to: "/ledgerly/reports/balance-sheet", label: "Balance Sheet" },
+  { to: "/ledgerly/reports/cash-flow", label: "Cash Flow" },
+  { to: "/ledgerly/reports/ar-aging", label: "AR Aging" },
+  { to: "/ledgerly/reports/ap-aging", label: "AP Aging" },
+  { to: "/ledgerly/reports/statements", label: "Statements" },
+  { to: "/ledgerly/reports/stock-movement", label: "Stock Movement" },
 ];
 
 const nav: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/ledgerly", label: "Dashboard", icon: LayoutDashboard, end: true },
   { section: "Accounting" },
-  { to: "/accounts", label: "Chart of Accounts", icon: BookOpen },
-  { to: "/journal", label: "Journal Entries", icon: BookMarked },
-  { to: "/ledger", label: "General Ledger", icon: BarChart3 },
+  { to: "/ledgerly/accounts", label: "Chart of Accounts", icon: BookOpen },
+  { to: "/ledgerly/journal", label: "Journal Entries", icon: BookMarked },
+  { to: "/ledgerly/ledger", label: "General Ledger", icon: BarChart3 },
   { section: "Sales" },
-  { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/invoices", label: "Sales Invoices", icon: FileText },
+  { to: "/ledgerly/contacts", label: "Contacts", icon: Users },
+  { to: "/ledgerly/invoices", label: "Sales Invoices", icon: FileText },
   { section: "Purchases" },
-  { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
-  { to: "/bills", label: "Purchase Bills", icon: ShoppingCart },
-  { to: "/expenses", label: "Expenses", icon: Receipt },
+  { to: "/ledgerly/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
+  { to: "/ledgerly/bills", label: "Purchase Bills", icon: ShoppingCart },
+  { to: "/ledgerly/expenses", label: "Expenses", icon: Receipt },
   { section: "Inventory" },
-  { to: "/items", label: "Items", icon: Package },
+  { to: "/ledgerly/items", label: "Items", icon: Package },
   { section: "Money" },
-  { to: "/payments", label: "Payments & Receipts", icon: Wallet },
+  { to: "/ledgerly/payments", label: "Payments & Receipts", icon: Wallet },
   { section: "Reports" },
   { label: "Reports", icon: BarChart3, children: reportsChildren },
   { section: "Settings" },
-  { to: "/settings", label: "Business Settings", icon: SettingsIcon },
+  { to: "/ledgerly/settings", label: "Business Settings", icon: SettingsIcon },
 ];
 
 export const AppLayout = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith("/reports"));
+  const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith("/ledgerly/reports"));
   useFormatProfile();
 
-  const handleSignOut = async () => { await signOut(); navigate("/auth"); };
+  const handleSignOut = async () => { await signOut(); navigate("/ledgerly/auth"); };
 
   return (
     <div className="flex min-h-screen w-full bg-background">

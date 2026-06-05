@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,8 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface InvoiceRow {
   id: string;
@@ -115,7 +115,7 @@ const Invoices = () => {
       <PageHeader
         title="Sales Invoices"
         description="Customer invoices with auto-posted journal & COGS"
-        actions={<Button onClick={() => navigate("/invoices/new")}><Plus className="h-4 w-4 mr-1.5" />New Invoice</Button>}
+        actions={<Button onClick={() => navigate("/ledgerly/invoices/new")}><Plus className="h-4 w-4 mr-1.5" />New Invoice</Button>}
       />
       <div className="p-6 space-y-4">
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
@@ -164,9 +164,9 @@ const Invoices = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((r) => (
-                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => navigate(`/invoices/${r.id}`)}>
+                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => navigate(`/ledgerly/invoices/${r.id}`)}>
                   <TableCell className="font-medium">
-                    <Link to={`/invoices/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{r.invoice_number}</Link>
+                    <Link to={`/ledgerly/invoices/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{r.invoice_number}</Link>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(r.invoice_date)}</TableCell>
                   <TableCell>{r.contact?.name ?? "—"}</TableCell>
@@ -176,7 +176,7 @@ const Invoices = () => {
                   <TableCell className="text-right num">{formatMoney(Number(r.total) - Number(r.paid_amount))}</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Edit" onClick={() => navigate(`/invoices/${r.id}`)}>
+                      <Button variant="ghost" size="icon" title="Edit" onClick={() => navigate(`/ledgerly/invoices/${r.id}`)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Delete" onClick={() => setToDelete(r)}>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, CheckCircle2, ArrowLeft, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatNumber } from "@/lib/format";
-import { postInvoice } from "@/lib/posting";
-import { QuickAddItemDialog, type QuickItem } from "@/components/QuickAddItemDialog";
-import { QuickAddContactDialog, type QuickContact } from "@/components/QuickAddContactDialog";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatNumber } from "@/ledgerly/lib/format";
+import { postInvoice } from "@/ledgerly/lib/posting";
+import { QuickAddItemDialog, type QuickItem } from "@/ledgerly/components/QuickAddItemDialog";
+import { QuickAddContactDialog, type QuickContact } from "@/ledgerly/components/QuickAddContactDialog";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface Contact { id: string; name: string; type: string; }
 interface ItemRef { id: string; name: string; sku: string | null; unit: string; selling_rate: number; stock_qty: number; avg_cost: number; }
@@ -103,7 +103,7 @@ const InvoiceForm = () => {
     (async () => {
       setLoading(true);
       const { data: inv, error } = await supabase.from("invoices").select("*").eq("id", id).single();
-      if (error || !inv) { toast.error(error?.message ?? "Not found"); navigate("/invoices"); return; }
+      if (error || !inv) { toast.error(error?.message ?? "Not found"); navigate("/ledgerly/invoices"); return; }
       setStatus(inv.status);
       setInvoiceNumber(inv.invoice_number);
       setInvoiceDate(inv.invoice_date);
@@ -220,7 +220,7 @@ const InvoiceForm = () => {
     const invId = await persist();
     if (!invId) return;
     toast.success("Invoice saved as draft");
-    if (isNew) navigate(`/invoices/${invId}`, { replace: true });
+    if (isNew) navigate(`/ledgerly/invoices/${invId}`, { replace: true });
   };
 
   const handleSaveAndPost = async () => {
@@ -230,7 +230,7 @@ const InvoiceForm = () => {
     try {
       await postInvoice(invId);
       toast.success("Invoice posted. AR, sales & COGS recorded.");
-      navigate(`/invoices/${invId}`, { replace: true });
+      navigate(`/ledgerly/invoices/${invId}`, { replace: true });
       setStatus("open");
     } catch (e) {
       toast.error("Posting failed: " + (e as Error).message);
@@ -250,9 +250,9 @@ const InvoiceForm = () => {
         description={isNew ? "Bill a customer for goods or services" : "Invoice details"}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/invoices")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
+            <Button variant="outline" onClick={() => navigate("/ledgerly/invoices")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
             {!isNew && (
-              <Button variant="outline" onClick={() => navigate(`/invoices/${id}/print`)}>
+              <Button variant="outline" onClick={() => navigate(`/ledgerly/invoices/${id}/print`)}>
                 <Printer className="h-4 w-4 mr-1.5" />Print / PDF
               </Button>
             )}

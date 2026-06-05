@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMoney } from "@/lib/format";
+import { formatMoney } from "@/ledgerly/lib/format";
 import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp, Receipt, Package } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { format, subMonths, startOfMonth } from "date-fns";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface Kpis {
   sales: number; purchases: number; expenses: number; profit: number;

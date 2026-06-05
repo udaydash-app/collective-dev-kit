@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,8 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type POStatus = "draft" | "sent" | "partial" | "billed" | "cancelled";
 
@@ -110,7 +110,7 @@ const PurchaseOrders = () => {
       <PageHeader
         title="Purchase Orders"
         description="Track orders to suppliers; convert to bills when received"
-        actions={<Button onClick={() => navigate("/purchase-orders/new")}><Plus className="h-4 w-4 mr-1.5" />New PO</Button>}
+        actions={<Button onClick={() => navigate("/ledgerly/purchase-orders/new")}><Plus className="h-4 w-4 mr-1.5" />New PO</Button>}
       />
       <div className="p-6 space-y-4">
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
@@ -160,9 +160,9 @@ const PurchaseOrders = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((r) => (
-                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => navigate(`/purchase-orders/${r.id}`)}>
+                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => navigate(`/ledgerly/purchase-orders/${r.id}`)}>
                   <TableCell className="font-medium">
-                    <Link to={`/purchase-orders/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{r.po_number}</Link>
+                    <Link to={`/ledgerly/purchase-orders/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{r.po_number}</Link>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(r.po_date)}</TableCell>
                   <TableCell>{r.contact?.name ?? "—"}</TableCell>
@@ -175,7 +175,7 @@ const PurchaseOrders = () => {
                         variant="ghost"
                         size="icon"
                         title="Edit"
-                        onClick={() => navigate(`/purchase-orders/${r.id}`)}
+                        onClick={() => navigate(`/ledgerly/purchase-orders/${r.id}`)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>

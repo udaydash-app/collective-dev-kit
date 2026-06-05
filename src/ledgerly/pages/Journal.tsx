@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, BookMarked } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface JournalRow {
   id: string;
@@ -73,7 +73,7 @@ const Journal = () => {
         description="Manual double-entry adjustments and all posted entries"
         actions={
           <Button asChild size="sm">
-            <Link to="/journal/new"><Plus className="h-4 w-4 mr-2" />New Journal Entry</Link>
+            <Link to="/ledgerly/journal/new"><Plus className="h-4 w-4 mr-2" />New Journal Entry</Link>
           </Button>
         }
       />
@@ -116,7 +116,7 @@ const Journal = () => {
                     <TableCell className="text-sm text-muted-foreground">{formatDate(r.entry_date)}</TableCell>
                     <TableCell className="font-medium">
                       {isManual ? (
-                        <Link to={`/journal/${r.id}`} className="text-primary hover:underline">
+                        <Link to={`/ledgerly/journal/${r.id}`} className="text-primary hover:underline">
                           {r.reference ?? "—"}
                         </Link>
                       ) : (r.reference ?? "—")}

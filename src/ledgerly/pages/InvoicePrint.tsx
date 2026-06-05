@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Download } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatNumber, formatDate } from "@/lib/format";
-import { downloadElementAsPdf } from "@/lib/pdf";
+import { formatMoney, formatNumber, formatDate } from "@/ledgerly/lib/format";
+import { downloadElementAsPdf } from "@/ledgerly/lib/pdf";
 
 interface Profile { business_name: string; base_currency: string; logo_url: string | null; address: string | null; email: string | null; phone: string | null; website: string | null; tax_number: string | null; invoice_footer: string | null; }
 interface Contact { name: string; email: string | null; phone: string | null; address: string | null; }
@@ -75,7 +75,7 @@ const InvoicePrint = () => {
       {/* Toolbar - hidden on print */}
       <div className="print:hidden border-b bg-card">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/${invoice.id}`)}>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/ledgerly/invoices/${invoice.id}`)}>
             <ArrowLeft className="h-4 w-4 mr-2" />Back to invoice
           </Button>
           <div className="flex items-center gap-2">

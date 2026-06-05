@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, FileDown } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatNumber, formatDate } from "@/lib/format";
-import { downloadElementAsPdf } from "@/lib/pdf";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatNumber, formatDate } from "@/ledgerly/lib/format";
+import { downloadElementAsPdf } from "@/ledgerly/lib/pdf";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface Item { id: string; name: string; sku: string | null; unit: string; stock_qty: number; }
 interface Contact { id: string; name: string; type: string; }
@@ -321,7 +321,7 @@ const StockMovement = () => {
                         <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(m.date)}</TableCell>
                         <TableCell>
                           <Link
-                            to={m.kind === "purchase" ? `/bills/${m.doc_id}` : `/invoices/${m.doc_id}`}
+                            to={m.kind === "purchase" ? `/ledgerly/bills/${m.doc_id}` : `/ledgerly/invoices/${m.doc_id}`}
                             className="text-primary hover:underline"
                           >{m.doc_number}</Link>
                         </TableCell>

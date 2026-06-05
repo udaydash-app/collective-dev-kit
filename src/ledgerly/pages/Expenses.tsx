@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Receipt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface ExpenseRow {
   id: string;
@@ -90,7 +90,7 @@ const Expenses = () => {
         description="Operating expenses paid from cash or bank"
         actions={
           <Button asChild size="sm">
-            <Link to="/expenses/new"><Plus className="h-4 w-4 mr-2" />Record Expense</Link>
+            <Link to="/ledgerly/expenses/new"><Plus className="h-4 w-4 mr-2" />Record Expense</Link>
           </Button>
         }
       />

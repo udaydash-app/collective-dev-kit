@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { setFormatSettings } from "@/lib/format";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
+import { setFormatSettings } from "@/ledgerly/lib/format";
 
 /**
  * Loads the user's profile once and primes the global format settings

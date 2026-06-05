@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, CheckCircle2, ArrowLeft, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
-import { postBill } from "@/lib/posting";
-import { QuickAddItemDialog, type QuickItem } from "@/components/QuickAddItemDialog";
-import { QuickAddContactDialog, type QuickContact } from "@/components/QuickAddContactDialog";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney } from "@/ledgerly/lib/format";
+import { postBill } from "@/ledgerly/lib/posting";
+import { QuickAddItemDialog, type QuickItem } from "@/ledgerly/components/QuickAddItemDialog";
+import { QuickAddContactDialog, type QuickContact } from "@/ledgerly/components/QuickAddContactDialog";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface Contact { id: string; name: string; type: string; }
 interface ItemRef { id: string; name: string; sku: string | null; unit: string; purchase_rate: number; }
@@ -117,7 +117,7 @@ const BillForm = () => {
     (async () => {
       setLoading(true);
       const { data: b, error } = await supabase.from("bills").select("*").eq("id", id).single();
-      if (error || !b) { toast.error(error?.message ?? "Not found"); navigate("/bills"); return; }
+      if (error || !b) { toast.error(error?.message ?? "Not found"); navigate("/ledgerly/bills"); return; }
       setStatus(b.status);
       setBillNumber(b.bill_number);
       setBillDate(b.bill_date);
@@ -239,7 +239,7 @@ const BillForm = () => {
     const billId = await persist();
     if (!billId) return;
     toast.success("Bill saved as draft");
-    if (isNew) navigate(`/bills/${billId}`, { replace: true });
+    if (isNew) navigate(`/ledgerly/bills/${billId}`, { replace: true });
   };
 
   const handleSaveAndPost = async () => {
@@ -249,7 +249,7 @@ const BillForm = () => {
     try {
       await postBill(billId);
       toast.success("Bill posted. Inventory & journal updated.");
-      navigate(`/bills/${billId}`, { replace: true });
+      navigate(`/ledgerly/bills/${billId}`, { replace: true });
       // reload state
       setStatus("open");
     } catch (e) {
@@ -270,9 +270,9 @@ const BillForm = () => {
         description={isNew ? "Record a supplier purchase" : "Bill details"}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/bills")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
+            <Button variant="outline" onClick={() => navigate("/ledgerly/bills")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
             {!isNew && (
-              <Button variant="outline" onClick={() => navigate(`/bills/${id}/print`)}>
+              <Button variant="outline" onClick={() => navigate(`/ledgerly/bills/${id}/print`)}>
                 <Printer className="h-4 w-4 mr-1.5" />Print / PDF
               </Button>
             )}

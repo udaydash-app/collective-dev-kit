@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, ArrowLeft, Printer, FileDown, XCircle, Send } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
-import { QuickAddItemDialog, type QuickItem } from "@/components/QuickAddItemDialog";
-import { QuickAddContactDialog, type QuickContact } from "@/components/QuickAddContactDialog";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney } from "@/ledgerly/lib/format";
+import { QuickAddItemDialog, type QuickItem } from "@/ledgerly/components/QuickAddItemDialog";
+import { QuickAddContactDialog, type QuickContact } from "@/ledgerly/components/QuickAddContactDialog";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type POStatus = "draft" | "sent" | "partial" | "billed" | "cancelled";
 
@@ -111,7 +111,7 @@ const PurchaseOrderForm = () => {
     (async () => {
       setLoading(true);
       const { data: p, error } = await (supabase as any).from("purchase_orders").select("*").eq("id", id).single();
-      if (error || !p) { toast.error(error?.message ?? "Not found"); navigate("/purchase-orders"); return; }
+      if (error || !p) { toast.error(error?.message ?? "Not found"); navigate("/ledgerly/purchase-orders"); return; }
       setStatus(p.status);
       setPoNumber(p.po_number);
       setPoDate(p.po_date);
@@ -226,14 +226,14 @@ const PurchaseOrderForm = () => {
     const poId = await persist();
     if (!poId) return;
     toast.success("Purchase order saved");
-    if (isNew) navigate(`/purchase-orders/${poId}`, { replace: true });
+    if (isNew) navigate(`/ledgerly/purchase-orders/${poId}`, { replace: true });
   };
 
   const handleMarkSent = async () => {
     const poId = await persist("sent");
     if (!poId) return;
     toast.success("Marked as sent");
-    if (isNew) navigate(`/purchase-orders/${poId}`, { replace: true });
+    if (isNew) navigate(`/ledgerly/purchase-orders/${poId}`, { replace: true });
   };
 
   const handleCancel = async () => {
@@ -301,7 +301,7 @@ const PurchaseOrderForm = () => {
       await (supabase as any).from("purchase_orders").update({ status: "billed" }).eq("id", id);
       setStatus("billed");
       toast.success("Bill created from PO. Review and post it.");
-      navigate(`/bills/${bill.id}`);
+      navigate(`/ledgerly/bills/${bill.id}`);
     } catch (e) {
       toast.error("Convert failed: " + (e as Error).message);
     } finally {
@@ -318,9 +318,9 @@ const PurchaseOrderForm = () => {
         description={isNew ? "Order goods or services from a supplier" : "Purchase order details"}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => navigate("/purchase-orders")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
+            <Button variant="outline" onClick={() => navigate("/ledgerly/purchase-orders")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
             {!isNew && (
-              <Button variant="outline" onClick={() => navigate(`/purchase-orders/${id}/print`)}>
+              <Button variant="outline" onClick={() => navigate(`/ledgerly/purchase-orders/${id}/print`)}>
                 <Printer className="h-4 w-4 mr-1.5" />Print / PDF
               </Button>
             )}

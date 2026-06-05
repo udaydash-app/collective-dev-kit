@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney } from "@/ledgerly/lib/format";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 
@@ -47,8 +47,8 @@ const firstOfYearISO = () => {
 
 const sourceLink = (sourceType: string | null, sourceId: string | null): string | null => {
   if (!sourceType || !sourceId) return null;
-  if (sourceType === "bill") return `/bills/${sourceId}`;
-  if (sourceType === "invoice") return `/invoices/${sourceId}`;
+  if (sourceType === "bill") return `/ledgerly/bills/${sourceId}`;
+  if (sourceType === "invoice") return `/ledgerly/invoices/${sourceId}`;
   return null;
 };
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, MoreHorizontal, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,8 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { reversePayment } from "@/lib/posting";
-import { useCompany } from "@/contexts/CompanyContext";
+import { reversePayment } from "@/ledgerly/lib/posting";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface PaymentRow {
   id: string;
@@ -112,10 +112,10 @@ const Payments = () => {
         description="Money in (receipts) and money out (payments)"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/payments/new?type=in")}>
+            <Button variant="outline" onClick={() => navigate("/ledgerly/payments/new?type=in")}>
               <ArrowDownLeft className="h-4 w-4 mr-1.5" />Receipt
             </Button>
-            <Button onClick={() => navigate("/payments/new?type=out")}>
+            <Button onClick={() => navigate("/ledgerly/payments/new?type=out")}>
               <ArrowUpRight className="h-4 w-4 mr-1.5" />Payment
             </Button>
           </div>
@@ -189,7 +189,7 @@ const Payments = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/payments/${r.id}/edit`)}>
+                        <DropdownMenuItem onClick={() => navigate(`/ledgerly/payments/${r.id}/edit`)}>
                           <Pencil className="h-4 w-4 mr-2" />Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
 
 type Kind = "customer" | "supplier";
 interface Contact { id: string; name: string; email: string | null; phone: string | null; address: string | null; opening_balance: number; type: string; }

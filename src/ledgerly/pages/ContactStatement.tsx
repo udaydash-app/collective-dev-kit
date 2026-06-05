@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Printer, Download } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
 import { cn } from "@/lib/utils";
-import { ApplyCreditDialog } from "@/components/ApplyCreditDialog";
-import { useCompany } from "@/contexts/CompanyContext";
+import { ApplyCreditDialog } from "@/ledgerly/components/ApplyCreditDialog";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type ContactType = "customer" | "supplier" | "both";
 interface Contact {
@@ -133,13 +133,13 @@ const ContactStatement = () => {
         const all: Row[] = [];
         (invRes.data ?? []).forEach((i: any) => all.push({
           date: i.invoice_date, due: i.due_date ?? null, type: "Invoice", ref: `#${i.invoice_number}`,
-          notes: i.notes ?? "", link: `/invoices/${i.id}`,
+          notes: i.notes ?? "", link: `/ledgerly/invoices/${i.id}`,
           debit: Number(i.total), credit: 0,
         }));
         (payRes.data ?? []).forEach((p: any) => all.push({
           date: p.payment_date, due: null, type: "Receipt",
           ref: p.reference ?? `${p.mode}`,
-          notes: p.notes ?? "", link: `/payments`,
+          notes: p.notes ?? "", link: `/ledgerly/payments`,
           debit: 0, credit: Number(p.amount),
         }));
         finalize(all, c?.opening_balance ?? 0);
@@ -153,13 +153,13 @@ const ContactStatement = () => {
         const all: Row[] = [];
         (bRes.data ?? []).forEach((b: any) => all.push({
           date: b.bill_date, due: b.due_date ?? null, type: "Bill", ref: `#${b.bill_number}`,
-          notes: b.notes ?? "", link: `/bills/${b.id}`,
+          notes: b.notes ?? "", link: `/ledgerly/bills/${b.id}`,
           debit: Number(b.total), credit: 0,
         }));
         (payRes.data ?? []).forEach((p: any) => all.push({
           date: p.payment_date, due: null, type: "Payment",
           ref: p.reference ?? `${p.mode}`,
-          notes: p.notes ?? "", link: `/payments`,
+          notes: p.notes ?? "", link: `/ledgerly/payments`,
           debit: 0, credit: Number(p.amount),
         }));
         finalize(all, c?.opening_balance ?? 0);
@@ -213,7 +213,7 @@ const ContactStatement = () => {
   const openPrint = () => {
     if (!contactId) { toast.error("Pick a contact first"); return; }
     const q = new URLSearchParams({ kind, contact: contactId, from, to }).toString();
-    navigate(`/reports/statements/print?${q}`);
+    navigate(`/ledgerly/reports/statements/print?${q}`);
   };
 
   // running rows for display

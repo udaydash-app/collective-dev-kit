@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
+import { formatMoney } from "@/ledgerly/lib/format";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 

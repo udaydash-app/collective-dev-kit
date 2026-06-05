@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
-import { postExpense } from "@/lib/posting";
-import { useCompany } from "@/contexts/CompanyContext";
+import { postExpense } from "@/ledgerly/lib/posting";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 interface Account { id: string; code: string | null; name: string; type: string; }
 interface Contact { id: string; name: string; }
@@ -90,7 +90,7 @@ const ExpenseForm = () => {
 
       await postExpense(created.id);
       toast.success("Expense recorded and posted");
-      navigate("/expenses");
+      navigate("/ledgerly/expenses");
     } catch (e: any) {
       toast.error(e?.message ?? "Save failed");
     } finally {
@@ -105,7 +105,7 @@ const ExpenseForm = () => {
         description="Posts Dr Expense / Cr Cash-or-Bank automatically"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/expenses")}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/ledgerly/expenses")}>
               <ArrowLeft className="h-4 w-4 mr-2" />Back
             </Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>

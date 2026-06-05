@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
-import { postPayment, reversePayment } from "@/lib/posting";
-import { QuickAddContactDialog, type QuickContact } from "@/components/QuickAddContactDialog";
-import { useCompany } from "@/contexts/CompanyContext";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
+import { postPayment, reversePayment } from "@/ledgerly/lib/posting";
+import { QuickAddContactDialog, type QuickContact } from "@/ledgerly/components/QuickAddContactDialog";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 
 const ON_ACCOUNT = "__on_account__";
 
@@ -88,7 +88,7 @@ const PaymentForm = () => {
         .single();
       if (error || !data) {
         toast.error(error?.message ?? "Payment not found");
-        navigate("/payments");
+        navigate("/ledgerly/payments");
         return;
       }
       setDirection(data.direction as "in" | "out");
@@ -233,7 +233,7 @@ const PaymentForm = () => {
           throw e;
         }
         toast.success("Payment updated");
-        navigate("/payments");
+        navigate("/ledgerly/payments");
         return;
       }
 
@@ -248,7 +248,7 @@ const PaymentForm = () => {
         throw e;
       }
       toast.success(direction === "in" ? "Receipt recorded" : "Payment recorded");
-      navigate("/payments");
+      navigate("/ledgerly/payments");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -266,7 +266,7 @@ const PaymentForm = () => {
         description={isReceipt ? "Record money received from a customer" : "Record money paid to a supplier"}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/payments")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
+            <Button variant="outline" onClick={() => navigate("/ledgerly/payments")}><ArrowLeft className="h-4 w-4 mr-1.5" />Back</Button>
             <Button onClick={handleSubmit} disabled={saving || loadingEdit}>
               <CheckCircle2 className="h-4 w-4 mr-1.5" />{saving ? "Saving…" : isEdit ? "Update & Re-post" : "Save & Post"}
             </Button>

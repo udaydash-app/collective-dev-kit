@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -9,6 +9,6 @@ export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
   );
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/ledgerly/auth" replace />;
   return children;
 };

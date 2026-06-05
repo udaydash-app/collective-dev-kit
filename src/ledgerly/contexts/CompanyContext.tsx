@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
 
 export interface Company {
   id: string;

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/contexts/CompanyContext";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { useCompany } from "@/ledgerly/contexts/CompanyContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate } from "@/ledgerly/lib/format";
 
 type Kind = "customer" | "supplier";
 

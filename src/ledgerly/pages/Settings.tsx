@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/ledgerly/integrations/supabase/client";
+import { useAuth } from "@/ledgerly/contexts/AuthContext";
+import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Save, Upload, Trash2, Building2 } from "lucide-react";
-import { fmtMoney } from "@/lib/formatProfile";
-import { setFormatSettings } from "@/lib/format";
+import { fmtMoney } from "@/ledgerly/lib/formatProfile";
+import { setFormatSettings } from "@/ledgerly/lib/format";
 
 interface Profile {
   id?: string;
