@@ -286,6 +286,28 @@ const TradeRecords = () => {
       </header>
 
       <div className="p-6 space-y-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          {([
+            ["This Month", thisMonth],
+            ["Last Month", lastMonth],
+            ["This Year", thisYear],
+            ["All Time", allTime],
+          ] as const).map(([label, s]) => (
+            <Card key={label} className="p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-xs text-muted-foreground">Turnover</span>
+                <span className="font-semibold">{fmt(s.turnover)}</span>
+              </div>
+              <div className="mt-1 flex items-baseline justify-between">
+                <span className="text-xs text-muted-foreground">Profit</span>
+                <span className={"font-semibold " + (s.profit >= 0 ? "text-green-600" : "text-red-600")}>{fmt(s.profit)}</span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{s.count} record{s.count === 1 ? "" : "s"}</div>
+            </Card>
+          ))}
+        </div>
+
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-64">
             <Label className="text-xs">Filter by contact</Label>
@@ -299,9 +321,36 @@ const TradeRecords = () => {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-48">
+            <Label className="text-xs">Period</Label>
+            <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="this_month">This month</SelectItem>
+                <SelectItem value="last_month">Last month</SelectItem>
+                <SelectItem value="last_7">Last 7 days</SelectItem>
+                <SelectItem value="last_30">Last 30 days</SelectItem>
+                <SelectItem value="this_year">This year</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {period === "custom" && (
+            <>
+              <div>
+                <Label className="text-xs">From</Label>
+                <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">To</Label>
+                <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+              </div>
+            </>
+          )}
           <div className="ml-auto flex gap-4 text-sm">
-            <div><span className="text-muted-foreground">Total Buy: </span><span className="font-medium">{fmt(totals.buy)}</span></div>
-            <div><span className="text-muted-foreground">Total Sell: </span><span className="font-medium">{fmt(totals.sell)}</span></div>
+            <div><span className="text-muted-foreground">Buy: </span><span className="font-medium">{fmt(totals.buy)}</span></div>
+            <div><span className="text-muted-foreground">Turnover: </span><span className="font-medium">{fmt(totals.sell)}</span></div>
             <div><span className="text-muted-foreground">Profit: </span><span className={totals.profit >= 0 ? "font-semibold text-green-600" : "font-semibold text-red-600"}>{fmt(totals.profit)}</span></div>
           </div>
         </div>
