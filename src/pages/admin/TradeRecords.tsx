@@ -18,6 +18,8 @@ interface TradeRecord {
   contact_name: string;
   description: string;
   packing: number;
+  unit: string;
+  bags: number;
   buy_price: number;
   tax: number;
   supplier_commission: number;
@@ -34,6 +36,8 @@ const emptyForm = {
   contact_id: "",
   description: "",
   packing: "0",
+  unit: "kg",
+  bags: "1",
   buy_price: "0",
   tax: "0",
   supplier_commission: "0",
@@ -42,11 +46,11 @@ const emptyForm = {
   expenses: "0",
 };
 
-const totalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number }) =>
-  (r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0);
+const totalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number; bags: number }) =>
+  ((r.buy_price || 0) * (r.bags || 0)) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0);
 
 const profitOf = (r: TradeRecord) =>
-  (r.sell_price || 0) - totalBuy(r) - (r.broker_commission || 0) - (r.expenses || 0);
+  ((r.sell_price || 0) * (r.bags || 0)) - totalBuy(r) - (r.broker_commission || 0) - (r.expenses || 0);
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
@@ -126,7 +130,7 @@ const TradeRecords = () => {
   const totals = useMemo(() => filtered.reduce(
     (acc, r) => {
       acc.buy += totalBuy(r);
-      acc.sell += r.sell_price || 0;
+      acc.sell += (r.sell_price || 0) * (r.bags || 0);
       acc.profit += profitOf(r);
       return acc;
     }, { buy: 0, sell: 0, profit: 0 }
@@ -145,6 +149,8 @@ const TradeRecords = () => {
       contact_id: r.contact_id,
       description: r.description,
       packing: String(r.packing),
+      unit: r.unit ?? "kg",
+      bags: String(r.bags ?? 1),
       buy_price: String(r.buy_price),
       tax: String(r.tax),
       supplier_commission: String(r.supplier_commission),
@@ -167,6 +173,8 @@ const TradeRecords = () => {
       contact_name: contact?.name ?? "",
       description: form.description.trim(),
       packing: num(form.packing),
+      unit: form.unit || "kg",
+      bags: num(form.bags),
       buy_price: num(form.buy_price),
       tax: num(form.tax),
       supplier_commission: num(form.supplier_commission),
