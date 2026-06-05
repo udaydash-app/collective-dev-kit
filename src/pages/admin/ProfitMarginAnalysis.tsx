@@ -176,9 +176,11 @@ export default function ProfitMarginAnalysis() {
       for (let from = 0; ; from += pageSize) {
         const { data, error } = await supabase
           .from("pos_transactions")
-          .select("total")
+          .select("id,total")
           .gte("created_at", startDate)
           .lte("created_at", endDate + "T23:59:59")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
