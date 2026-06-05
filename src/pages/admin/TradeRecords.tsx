@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
@@ -261,6 +261,131 @@ const TradeRecords = () => {
   const contactName = (id: string) =>
     contacts.find((c) => c.id === id)?.name ?? records.find((r) => r.contact_id === id)?.contact_name ?? "—";
 
+  const handlePrint = () => {
+    const esc = (s: string) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+    const periodLabel: Record<PeriodKey, string> = {
+      this_month: "This Month", last_month: "Last Month", this_year: "This Year",
+      last_7: "Last 7 Days", last_30: "Last 30 Days", all: "All Time", custom: "Custom Range",
+    };
+    const rangeText = rangeFrom || rangeTo
+      ? `${rangeFrom ?? "…"} → ${rangeTo ?? "…"}`
+      : "All dates";
+    const contactLabel = filterContact === "all" ? "All Contacts" : contactName(filterContact);
+
+    const groups = new Map<string, TradeRecord[]>();
+    for (const r of filtered) {
+      const key = r.contact_id;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(r);
+    }
+
+    const renderGroup = (cid: string, rows: TradeRecord[]) => {
+      const sub = rows.reduce(
+        (a, r) => {
+          a.buy += totalBuy(r);
+          a.sell += (r.sell_price || 0) * (r.bags || 0);
+          a.profit += profitOf(r);
+          return a;
+        },
+        { buy: 0, sell: 0, profit: 0 }
+      );
+      const sorted = [...rows].sort((a, b) => (a.date < b.date ? -1 : 1));
+      return `
+        <h2>${esc(contactName(cid))}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Description</th>
+              <th class="r">Packing</th><th>Unit</th><th class="r">Bags</th>
+              <th class="r">Buy Price</th><th class="r">Tax</th><th class="r">Sup. Comm.</th>
+              <th class="r">Total Buy</th><th class="r">Sell Price</th>
+              <th class="r">Brk. Comm.</th><th class="r">Exps</th><th class="r">Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map((r) => {
+              const tb = totalBuy(r);
+              const p = profitOf(r);
+              return `<tr>
+                <td>${esc(r.date)}</td>
+                <td>${esc(r.description)}</td>
+                <td class="r">${fmt(r.packing)}</td>
+                <td>${esc(r.unit ?? "")}</td>
+                <td class="r">${fmt(r.bags ?? 0)}</td>
+                <td class="r">${fmt(r.buy_price)}</td>
+                <td class="r">${fmt(r.tax)}</td>
+                <td class="r">${fmt(r.supplier_commission)}</td>
+                <td class="r">${fmt(tb)}</td>
+                <td class="r">${fmt(r.sell_price)}</td>
+                <td class="r">${fmt(r.broker_commission)}</td>
+                <td class="r">${fmt(r.expenses)}</td>
+                <td class="r ${p >= 0 ? "pos" : "neg"}">${fmt(p)}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="8" class="r"><b>Subtotal</b></td>
+              <td class="r"><b>${fmt(sub.buy)}</b></td>
+              <td class="r"></td>
+              <td class="r"></td>
+              <td class="r"><b>Turnover ${fmt(sub.sell)}</b></td>
+              <td class="r ${sub.profit >= 0 ? "pos" : "neg"}"><b>${fmt(sub.profit)}</b></td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    };
+
+    const groupsHtml = filterContact === "all"
+      ? [...groups.entries()]
+          .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])))
+          .map(([cid, rows]) => renderGroup(cid, rows)).join("")
+      : renderGroup(filterContact, filtered);
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Ledger</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #111; margin: 24px; }
+        h1 { margin: 0 0 4px; font-size: 20px; }
+        h2 { margin: 24px 0 8px; font-size: 14px; border-bottom: 1px solid #999; padding-bottom: 4px; }
+        .meta { color: #555; margin-bottom: 16px; font-size: 11px; }
+        .meta span { margin-right: 16px; }
+        .totals { margin-top: 16px; padding: 10px 12px; border: 1px solid #ccc; background: #f7f7f7; display: flex; gap: 24px; font-size: 12px; }
+        .totals b { font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 4px 6px; }
+        th { background: #f1f1f1; text-align: left; }
+        .r { text-align: right; }
+        .pos { color: #15803d; }
+        .neg { color: #b91c1c; }
+        tfoot td { background: #fafafa; }
+        @media print { body { margin: 12mm; } h2 { page-break-after: avoid; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } }
+      </style></head><body>
+      <h1>Trade Ledger</h1>
+      <div class="meta">
+        <span><b>Contact:</b> ${esc(contactLabel)}</span>
+        <span><b>Period:</b> ${esc(periodLabel[period])} (${esc(rangeText)})</span>
+        <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
+      </div>
+      ${filtered.length === 0 ? "<p>No records in selected range.</p>" : groupsHtml}
+      <div class="totals">
+        <div>Total Buy: <b>${fmt(totals.buy)}</b></div>
+        <div>Turnover: <b>${fmt(totals.sell)}</b></div>
+        <div>Profit: <b class="${totals.profit >= 0 ? "pos" : "neg"}">${fmt(totals.profit)}</b></div>
+        <div>Records: <b>${filtered.length}</b></div>
+      </div>
+      <script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>
+      </body></html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow popups to print"); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -275,6 +400,9 @@ const TradeRecords = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />Print / PDF
+            </Button>
             <Button variant="outline" onClick={() => setContactsOpen(true)}>
               <Users className="h-4 w-4 mr-2" />Contacts
             </Button>
