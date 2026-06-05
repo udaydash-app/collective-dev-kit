@@ -79,12 +79,24 @@ export default function SalesTarget() {
       }
 
       // Fallback: compute directly from pos_transactions + products
-      const { data: txs, error: txErr } = await supabase
-        .from("pos_transactions")
-        .select("items, total, created_at")
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59");
-      if (txErr) throw txErr;
+      const pageSize = 1000;
+      const txs: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error: txErr } = await supabase
+          .from("pos_transactions")
+          .select("items, total, created_at, id")
+          .gte("created_at", startDate)
+          .lte("created_at", endDate + "T23:59:59")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (txErr) throw txErr;
+        if (!data || data.length === 0) break;
+        txs.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
 
       const productIds = new Set<string>();
       const lineItems: { pid: string; qty: number; price: number; discount: number }[] = [];
