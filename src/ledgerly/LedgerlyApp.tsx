@@ -36,6 +36,7 @@ import Aging from "@/ledgerly/pages/Aging";
 import AgingPrint from "@/ledgerly/pages/AgingPrint";
 import StockMovement from "@/ledgerly/pages/StockMovement";
 import Settings from "@/ledgerly/pages/Settings";
+import TradeRecords from "@/ledgerly/pages/TradeRecords";
 import NotFound from "@/ledgerly/pages/NotFound";
 
 /**
@@ -74,6 +75,7 @@ const LedgerlyApp = () => (
           <Route path="purchase-orders/:id" element={<PurchaseOrderForm />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="expenses/new" element={<ExpenseForm />} />
+          <Route path="trade-records" element={<TradeRecords />} />
           <Route path="payments" element={<Payments />} />
           <Route path="payments/new" element={<PaymentForm />} />
           <Route path="payments/:id/edit" element={<PaymentForm />} />

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, Users, Package, FileText, ShoppingCart,
   Receipt, Wallet, BookMarked, BarChart3, LogOut, Building2, Settings as SettingsIcon, ClipboardList,
-  ChevronDown,
+  ChevronDown, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/ledgerly/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,8 @@ const nav: NavItem[] = [
   { to: "/ledgerly/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/ledgerly/bills", label: "Purchase Bills", icon: ShoppingCart },
   { to: "/ledgerly/expenses", label: "Expenses", icon: Receipt },
+  { section: "Trading" },
+  { to: "/ledgerly/trade-records", label: "Trade Records", icon: TrendingUp },
   { section: "Inventory" },
   { to: "/ledgerly/items", label: "Items", icon: Package },
   { section: "Money" },
