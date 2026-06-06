@@ -12,6 +12,7 @@ import { formatMoney } from "@/ledgerly/lib/format";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompany } from "@/ledgerly/contexts/CompanyContext";
+import { fetchAllJournalLines } from "@/ledgerly/lib/fetchAllJournalLines";
 
 type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 
@@ -56,22 +57,21 @@ const TrialBalance = () => {
     if (!companyId) return;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("journal_lines")
-        .select("account_id, debit, credit, entry:journal_entries!inner(entry_date)")
-        .eq("company_id", companyId)
-        .gte("entry.entry_date", from)
-        .lte("entry.entry_date", asOf);
-      if (error) { toast.error(error.message); setLoading(false); return; }
-      const m: Record<string, { d: number; c: number }> = {};
-      (data ?? []).forEach((r: any) => {
-        const cur = m[r.account_id] ?? { d: 0, c: 0 };
-        cur.d += Number(r.debit);
-        cur.c += Number(r.credit);
-        m[r.account_id] = cur;
-      });
-      setBalanceMap(m);
-      setLoading(false);
+      try {
+        const rows = await fetchAllJournalLines(companyId, from, asOf);
+        const m: Record<string, { d: number; c: number }> = {};
+        rows.forEach((r) => {
+          const cur = m[r.account_id] ?? { d: 0, c: 0 };
+          cur.d += r.debit;
+          cur.c += r.credit;
+          m[r.account_id] = cur;
+        });
+        setBalanceMap(m);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed to load trial balance");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [from, asOf, companyId]);
 

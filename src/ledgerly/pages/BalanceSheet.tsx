@@ -11,6 +11,7 @@ import { formatMoney } from "@/ledgerly/lib/format";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompany } from "@/ledgerly/contexts/CompanyContext";
+import { fetchAllJournalLines } from "@/ledgerly/lib/fetchAllJournalLines";
 
 type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 
@@ -47,19 +48,18 @@ const BalanceSheet = () => {
     if (!companyId) return;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("journal_lines")
-        .select("account_id, debit, credit, entry:journal_entries!inner(entry_date)")
-        .eq("company_id", companyId)
-        .lte("entry.entry_date", asOf);
-      if (error) { toast.error(error.message); setLoading(false); return; }
-      const map: Record<string, number> = {};
-      (data ?? []).forEach((r: any) => {
-        const v = Number(r.debit) - Number(r.credit);
-        map[r.account_id] = (map[r.account_id] ?? 0) + v;
-      });
-      setBalanceMap(map);
-      setLoading(false);
+      try {
+        const rows = await fetchAllJournalLines(companyId, null, asOf);
+        const map: Record<string, number> = {};
+        rows.forEach((r) => {
+          map[r.account_id] = (map[r.account_id] ?? 0) + (r.debit - r.credit);
+        });
+        setBalanceMap(map);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed to load balance sheet");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [asOf, companyId]);
 
