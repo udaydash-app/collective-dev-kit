@@ -6,17 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
 
-interface TradeRecord {
+interface TradeItem {
   id: string;
-  date: string;
-  contact_id: string;
-  contact_name: string;
-  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -26,36 +22,79 @@ interface TradeRecord {
   supplier_commission: number;
   sell_price: number;
   broker_commission: number;
+}
+
+interface TradeRecord {
+  id: string;
+  date: string;
+  contact_id: string;
+  contact_name: string;
+  supplier: string;
   expenses: number;
+  items: TradeItem[];
 }
 
 const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
 
+const emptyItem = (): TradeItem => ({
+  id: crypto.randomUUID(),
+  description: "",
+  packing: 0,
+  unit: "kg",
+  bags: 1,
+  buy_price: 0,
+  tax: 0,
+  supplier_commission: 0,
+  sell_price: 0,
+  broker_commission: 0,
+});
+
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
   supplier: "",
-  description: "",
-  packing: "0",
-  unit: "kg",
-  bags: "1",
-  buy_price: "0",
-  tax: "0",
-  supplier_commission: "0",
-  sell_price: "0",
-  broker_commission: "0",
   expenses: "0",
+  items: [emptyItem()] as TradeItem[],
 };
 
-const totalBuy = (r: { buy_price: number; tax: number; supplier_commission: number; broker_commission: number; bags: number }) =>
-  ((r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.broker_commission || 0)) * (r.bags || 0);
+const itemBuy = (i: TradeItem) =>
+  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0) + (i.broker_commission || 0)) * (i.bags || 0);
 
-const totalSell = (r: { sell_price: number; bags: number }) =>
-  (r.sell_price || 0) * (r.bags || 0);
+const itemSell = (i: TradeItem) => (i.sell_price || 0) * (i.bags || 0);
 
-const profitOf = (r: TradeRecord) =>
-  totalSell(r) - totalBuy(r) - (r.expenses || 0);
+const totalBuy = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + itemBuy(i), 0);
+const totalSell = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + itemSell(i), 0);
+const totalBags = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + (i.bags || 0), 0);
+const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((s, x) => s + (f(x) || 0), 0);
+const totalBrokerComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.broker_commission || 0) * (i.bags || 0));
+const totalSupplierComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.supplier_commission || 0) * (i.bags || 0));
+const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses || 0);
+
+// Migrate legacy single-product records to items[] shape
+const migrate = (raw: any): TradeRecord => {
+  if (raw && Array.isArray(raw.items)) return raw as TradeRecord;
+  return {
+    id: raw.id ?? crypto.randomUUID(),
+    date: raw.date,
+    contact_id: raw.contact_id,
+    contact_name: raw.contact_name ?? "",
+    supplier: raw.supplier ?? "",
+    expenses: Number(raw.expenses) || 0,
+    items: [{
+      id: crypto.randomUUID(),
+      description: raw.description ?? "",
+      packing: Number(raw.packing) || 0,
+      unit: raw.unit ?? "kg",
+      bags: Number(raw.bags) || 0,
+      buy_price: Number(raw.buy_price) || 0,
+      tax: Number(raw.tax) || 0,
+      supplier_commission: Number(raw.supplier_commission) || 0,
+      sell_price: Number(raw.sell_price) || 0,
+      broker_commission: Number(raw.broker_commission) || 0,
+    }],
+  };
+};
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
