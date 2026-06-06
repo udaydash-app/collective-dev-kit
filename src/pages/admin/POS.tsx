@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useInDesktopWindow } from '@/components/desktop/DesktopWindowContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +105,7 @@ import { offlineDB } from '@/lib/offlineDB';
 export default function POS() {
   const navigate = useNavigate();
   const inDesktop = useInDesktopWindow();
+  const isMobile = useIsMobile();
   const hideAdminMenu = true;
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -2566,11 +2568,13 @@ export default function POS() {
   useEffect(() => {
     const handlePaymentShortcut = (event: KeyboardEvent) => {
       if (!['F2', 'F3', 'F4'].includes(event.key)) return;
-      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
-
+      // Always block the browser default (e.g. F3 = Find) for these keys
+      // while POS is mounted, regardless of which dialog is open.
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+
+      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
 
       // Block re-entry while a payment is being processed / printed.
       // Without this, pressing F2/F3/F4 a second time before the cart
@@ -4123,17 +4127,22 @@ export default function POS() {
   };
 
   return (
-    <div className={cn("bg-background flex overflow-hidden", inDesktop ? "h-full w-full" : "h-screen")}>
+    <div className={cn(
+      "bg-background flex",
+      isMobile ? "flex-col h-screen overflow-y-auto overflow-x-hidden w-full" : "overflow-hidden",
+      !isMobile && (inDesktop ? "h-full w-full" : "h-screen"),
+    )}>
       {/* Left Sidebar - Cart */}
       <div 
         className={cn(
           "cart-container border-r flex flex-col bg-card shadow-lg transition-shadow relative",
           cartPosition && "absolute z-50 shadow-2xl",
-          isDragging && "cursor-move select-none"
+          isDragging && "cursor-move select-none",
+          isMobile && "w-full border-r-0 border-b shadow-none"
         )}
         style={{
-          width: `${cartWidth}px`,
-          ...(cartPosition && {
+          ...(isMobile ? {} : { width: `${cartWidth}px` }),
+          ...(!isMobile && cartPosition && {
             left: `${cartPosition.x}px`,
             top: `${cartPosition.y}px`,
             height: 'calc(100vh - 40px)',
