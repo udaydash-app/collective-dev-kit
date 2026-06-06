@@ -36,6 +36,9 @@ interface TradeRecord {
 
 const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
+const PIN_KEY = "admin:trade-records:pin";
+const UNLOCK_KEY = "admin:trade-records:unlocked";
+const DEFAULT_PIN = "1234";
 
 const emptyItem = (): TradeItem => ({
   id: crypto.randomUUID(),
@@ -151,6 +154,39 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState<boolean>(() => sessionStorage.getItem(UNLOCK_KEY) === "1");
+  const [pinInput, setPinInput] = useState("");
+  const [changePinOpen, setChangePinOpen] = useState(false);
+  const [pinForm, setPinForm] = useState({ current: "", next: "", confirm: "" });
+
+  const getStoredPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+
+  const tryUnlock = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (pinInput === getStoredPin()) {
+      sessionStorage.setItem(UNLOCK_KEY, "1");
+      setUnlocked(true);
+      setPinInput("");
+    } else {
+      toast.error("Incorrect PIN");
+      setPinInput("");
+    }
+  };
+
+  const lock = () => {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    setUnlocked(false);
+  };
+
+  const saveNewPin = () => {
+    if (pinForm.current !== getStoredPin()) { toast.error("Current PIN is incorrect"); return; }
+    if (!/^\d{4,8}$/.test(pinForm.next)) { toast.error("New PIN must be 4-8 digits"); return; }
+    if (pinForm.next !== pinForm.confirm) { toast.error("PINs do not match"); return; }
+    localStorage.setItem(PIN_KEY, pinForm.next);
+    setPinForm({ current: "", next: "", confirm: "" });
+    setChangePinOpen(false);
+    toast.success("PIN updated");
+  };
 
   useEffect(() => {
     try {
@@ -471,28 +507,57 @@ const TradeRecords = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {!unlocked && (
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-background/95 backdrop-blur p-4">
+          <form onSubmit={tryUnlock} className="w-full max-w-sm bg-card border border-border rounded-lg p-6 shadow-lg space-y-4">
+            <div className="text-center space-y-1">
+              <div className="mx-auto h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg font-semibold">Trade Records Locked</h2>
+              <p className="text-xs text-muted-foreground">Enter PIN to continue (default: {DEFAULT_PIN})</p>
+            </div>
+            <Input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              placeholder="PIN"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              className="text-center tracking-widest text-lg"
+            />
+            <Button type="submit" className="w-full">Unlock</Button>
+          </form>
+        </div>
+      )}
       <header className="border-b border-border bg-card">
-        <div className="px-6 py-5 flex items-start justify-between gap-4">
+        <div className="px-4 md:px-6 py-4 md:py-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-xl font-semibold">Trade Records</h1>
-              <p className="text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handlePrint}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
             </Button>
-            <Button variant="outline" onClick={() => setCommissionsOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setCommissionsOpen(true)}>
               <Receipt className="h-4 w-4 mr-2" />Commissions
             </Button>
-            <Button variant="outline" onClick={() => setContactsOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setContactsOpen(true)}>
               <Users className="h-4 w-4 mr-2" />Contacts
             </Button>
-            <Button onClick={openNew} disabled={!contacts.length}>
+            <Button variant="outline" size="sm" onClick={() => setChangePinOpen(true)}>
+              Change PIN
+            </Button>
+            <Button variant="outline" size="sm" onClick={lock}>
+              Lock
+            </Button>
+            <Button size="sm" onClick={openNew} disabled={!contacts.length}>
               <Plus className="h-4 w-4 mr-2" />New Record
             </Button>
           </div>
@@ -888,6 +953,35 @@ const TradeRecords = () => {
             );
           })()}
           <p className="text-xs text-muted-foreground">Based on the current contact filter and period.</p>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={changePinOpen} onOpenChange={setChangePinOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change PIN</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Current PIN</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.current}
+                onChange={(e) => setPinForm({ ...pinForm, current: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>New PIN (4-8 digits)</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.next}
+                onChange={(e) => setPinForm({ ...pinForm, next: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Confirm New PIN</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.confirm}
+                onChange={(e) => setPinForm({ ...pinForm, confirm: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangePinOpen(false)}>Cancel</Button>
+            <Button onClick={saveNewPin}>Save</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
