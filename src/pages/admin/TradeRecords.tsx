@@ -659,9 +659,12 @@ const TradeRecords = () => {
               <span>Total Buy: <b>{fmt(totalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, bags: Number(form.bags)||0 }))}</b></span>
               <span>Profit: <b>{fmt(
                 ((Number(form.sell_price)||0) * (Number(form.bags)||0))
-                - (((Number(form.buy_price)||0) * (Number(form.bags)||0)) + (Number(form.tax)||0) + (Number(form.supplier_commission)||0) + (Number(form.packing)||0))
-                - (Number(form.broker_commission)||0)
-                - (Number(form.expenses)||0)
+                - ((Number(form.buy_price)||0) * (Number(form.bags)||0))
+                + (Number(form.tax)||0)
+                + (Number(form.supplier_commission)||0)
+                + (Number(form.broker_commission)||0)
+                + (Number(form.expenses)||0)
+                - (Number(form.packing)||0)
               )}</b></span>
             </div>
           </div>
