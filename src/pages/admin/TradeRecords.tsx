@@ -49,16 +49,18 @@ const emptyForm = {
 };
 
 const totalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number; bags: number }) =>
-  ((r.buy_price || 0) * (r.bags || 0)) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0);
+  ((r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0)) * (r.bags || 0);
 
 const profitOf = (r: TradeRecord) =>
-  ((r.sell_price || 0) * (r.bags || 0))
-  - ((r.buy_price || 0) * (r.bags || 0))
-  + (r.tax || 0)
-  + (r.supplier_commission || 0)
-  + (r.broker_commission || 0)
-  + (r.expenses || 0)
-  - (r.packing || 0);
+  (
+    (r.sell_price || 0)
+    - (r.buy_price || 0)
+    + (r.tax || 0)
+    + (r.supplier_commission || 0)
+    + (r.broker_commission || 0)
+    + (r.expenses || 0)
+    - (r.packing || 0)
+  ) * (r.bags || 0);
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
