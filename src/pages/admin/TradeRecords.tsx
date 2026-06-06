@@ -507,6 +507,29 @@ const TradeRecords = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {!unlocked && (
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-background/95 backdrop-blur p-4">
+          <form onSubmit={tryUnlock} className="w-full max-w-sm bg-card border border-border rounded-lg p-6 shadow-lg space-y-4">
+            <div className="text-center space-y-1">
+              <div className="mx-auto h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg font-semibold">Trade Records Locked</h2>
+              <p className="text-xs text-muted-foreground">Enter PIN to continue (default: {DEFAULT_PIN})</p>
+            </div>
+            <Input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              placeholder="PIN"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              className="text-center tracking-widest text-lg"
+            />
+            <Button type="submit" className="w-full">Unlock</Button>
+          </form>
+        </div>
+      )}
       <header className="border-b border-border bg-card">
         <div className="px-6 py-5 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
