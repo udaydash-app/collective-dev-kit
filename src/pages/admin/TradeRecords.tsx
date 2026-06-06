@@ -567,16 +567,10 @@ const TradeRecords = () => {
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Supplier</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Packing</TableHead>
-                <TableHead>Unit</TableHead>
+                <TableHead>Products</TableHead>
                 <TableHead className="text-right">Bags</TableHead>
-                <TableHead className="text-right">Buy Price</TableHead>
-                <TableHead className="text-right">Tax</TableHead>
-                <TableHead className="text-right">Supplier Comm.</TableHead>
                 <TableHead className="text-right">Total Buy</TableHead>
-                <TableHead className="text-right">Sell Price</TableHead>
-                <TableHead className="text-right">Broker Comm.</TableHead>
+                <TableHead className="text-right">Total Sell</TableHead>
                 <TableHead className="text-right">Exps</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -584,25 +578,27 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
-                const tb = totalBuy(r);
                 const profit = profitOf(r);
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.supplier || "—"}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
-                    <TableCell className="text-right">{fmt(r.packing)}</TableCell>
-                    <TableCell>{r.unit ?? "—"}</TableCell>
-                    <TableCell className="text-right">{fmt(r.bags ?? 0)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.buy_price)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.tax)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.supplier_commission)}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(tb)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.sell_price)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.broker_commission)}</TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <div className="space-y-0.5 text-xs">
+                        {r.items.map((i) => (
+                          <div key={i.id} className="truncate">
+                            <span className="font-medium">{i.description || "—"}</span>
+                            <span className="text-muted-foreground"> · {fmt(i.bags)} {i.unit} · buy {fmt(i.buy_price)} → sell {fmt(i.sell_price)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{fmt(totalBags(r))}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(totalBuy(r))}</TableCell>
+                    <TableCell className="text-right">{fmt(totalSell(r))}</TableCell>
                     <TableCell className="text-right">{fmt(r.expenses)}</TableCell>
                     <TableCell className={"text-right font-semibold " + (profit >= 0 ? "text-green-600" : "text-red-600")}>{fmt(profit)}</TableCell>
                     <TableCell className="text-right">
@@ -624,70 +620,130 @@ const TradeRecords = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} Trade Record</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-            <div>
-              <Label>Contact</Label>
-              <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <Label>Supplier</Label>
-              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
-            </div>
-            <div className="col-span-2">
-              <Label>Description</Label>
-              <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            </div>
-            <div>
-              <Label>Packing (per bag)</Label>
-              <Input type="number" step="0.01" value={form.packing} onChange={(e) => setForm({ ...form, packing: e.target.value })} />
-            </div>
-            <div>
-              <Label>Unit</Label>
-              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["kg", "g", "ltr", "ml", "pcs", "dozen", "bag", "box"].map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Number of Bags</Label>
-              <Input type="number" step="1" value={form.bags} onChange={(e) => setForm({ ...form, bags: e.target.value })} />
-            </div>
-            {([
-              ["buy_price", "Buy Price (per bag)"],
-              ["tax", "Tax (per bag)"],
-              ["supplier_commission", "Supplier Commission (per bag)"],
-              ["sell_price", "Sell Price (per bag)"],
-              ["broker_commission", "Broker Commission (per bag)"],
-              ["expenses", "Expenses (total)"],
-            ] as const).map(([key, label]) => (
-              <div key={key}>
-                <Label>{label}</Label>
-                <Input type="number" step="0.01" value={(form as any)[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               </div>
-            ))}
-            <div className="col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex justify-between flex-wrap gap-2">
-              <span>Total Buy: <b>{fmt(totalBuy({ buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, broker_commission: Number(form.broker_commission)||0, bags: Number(form.bags)||0 }))}</b></span>
-              <span>Total Sell: <b>{fmt(totalSell({ sell_price: Number(form.sell_price)||0, bags: Number(form.bags)||0 }))}</b></span>
-              <span>Profit: <b>{fmt(
-                totalSell({ sell_price: Number(form.sell_price)||0, bags: Number(form.bags)||0 })
-                - totalBuy({ buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, broker_commission: Number(form.broker_commission)||0, bags: Number(form.bags)||0 })
-                - (Number(form.expenses)||0)
-              )}</b></span>
+              <div>
+                <Label>Contact</Label>
+                <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
+                  <SelectContent>
+                    {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Supplier</Label>
+                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base">Products</Label>
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => setForm({ ...form, items: [...form.items, emptyItem()] })}>
+                  <Plus className="h-4 w-4 mr-1" />Add product
+                </Button>
+              </div>
+              {form.items.map((it, idx) => {
+                const updateItem = (patch: Partial<TradeItem>) => {
+                  const next = form.items.map((x, i) => i === idx ? { ...x, ...patch } : x);
+                  setForm({ ...form, items: next });
+                };
+                const removeItem = () => {
+                  if (form.items.length === 1) { toast.error("At least one product is required"); return; }
+                  setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
+                };
+                return (
+                  <div key={it.id} className="rounded-md border p-3 space-y-2 relative">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Product #{idx + 1}</span>
+                      <Button type="button" size="icon" variant="ghost" onClick={removeItem}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="col-span-2 md:col-span-4">
+                        <Label className="text-xs">Description</Label>
+                        <Input value={it.description} onChange={(e) => updateItem({ description: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Packing</Label>
+                        <Input type="number" step="0.01" value={String(it.packing)} onChange={(e) => updateItem({ packing: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Unit</Label>
+                        <Select value={it.unit} onValueChange={(v) => updateItem({ unit: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["kg", "g", "ltr", "ml", "pcs", "dozen", "bag", "box"].map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Bags</Label>
+                        <Input type="number" step="1" value={String(it.bags)} onChange={(e) => updateItem({ bags: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Buy Price /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.buy_price)} onChange={(e) => updateItem({ buy_price: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Tax /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.tax)} onChange={(e) => updateItem({ tax: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Sup. Comm /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.supplier_commission)} onChange={(e) => updateItem({ supplier_commission: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Brk. Comm /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.broker_commission)} onChange={(e) => updateItem({ broker_commission: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Sell Price /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.sell_price)} onChange={(e) => updateItem({ sell_price: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div className="md:col-span-3 flex items-end justify-end gap-4 text-xs">
+                        <span>Buy: <b>{fmt(itemBuy(it))}</b></span>
+                        <span>Sell: <b>{fmt(itemSell(it))}</b></span>
+                        <span>Line profit: <b>{fmt(itemSell(it) - itemBuy(it))}</b></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Expenses (total)</Label>
+                <Input type="number" step="0.01" value={form.expenses} onChange={(e) => setForm({ ...form, expenses: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="rounded-md bg-muted px-3 py-2 text-sm flex justify-between flex-wrap gap-2">
+              {(() => {
+                const tb = form.items.reduce((s, i) => s + itemBuy(i), 0);
+                const ts = form.items.reduce((s, i) => s + itemSell(i), 0);
+                const p = ts - tb - (Number(form.expenses) || 0);
+                return (
+                  <>
+                    <span>Total Buy: <b>{fmt(tb)}</b></span>
+                    <span>Total Sell: <b>{fmt(ts)}</b></span>
+                    <span>Expenses: <b>{fmt(Number(form.expenses) || 0)}</b></span>
+                    <span>Profit: <b className={p >= 0 ? "text-green-600" : "text-red-600"}>{fmt(p)}</b></span>
+                  </>
+                );
+              })()}
             </div>
           </div>
           <DialogFooter>
