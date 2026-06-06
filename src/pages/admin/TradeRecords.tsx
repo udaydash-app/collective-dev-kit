@@ -13,6 +13,7 @@ interface Contact { id: string; name: string; phone?: string; notes?: string }
 
 interface TradeItem {
   id: string;
+  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -29,7 +30,6 @@ interface TradeRecord {
   date: string;
   contact_id: string;
   contact_name: string;
-  supplier: string;
   expenses: number;
   items: TradeItem[];
 }
@@ -39,6 +39,7 @@ const CONTACTS_KEY = "admin:trade-contacts";
 
 const emptyItem = (): TradeItem => ({
   id: crypto.randomUUID(),
+  supplier: "",
   description: "",
   packing: 0,
   unit: "kg",
@@ -53,7 +54,6 @@ const emptyItem = (): TradeItem => ({
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
-  supplier: "",
   expenses: "0",
   items: [emptyItem()] as TradeItem[],
 };
@@ -73,16 +73,23 @@ const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses ||
 
 // Migrate legacy single-product records to items[] shape
 const migrate = (raw: any): TradeRecord => {
-  if (raw && Array.isArray(raw.items)) return raw as TradeRecord;
+  if (raw && Array.isArray(raw.items)) {
+    // backfill supplier onto items if missing (older multi-item records)
+    const recSup = raw.supplier ?? "";
+    return {
+      ...raw,
+      items: raw.items.map((i: any) => ({ ...i, supplier: i.supplier ?? recSup })),
+    } as TradeRecord;
+  }
   return {
     id: raw.id ?? crypto.randomUUID(),
     date: raw.date,
     contact_id: raw.contact_id,
     contact_name: raw.contact_name ?? "",
-    supplier: raw.supplier ?? "",
     expenses: Number(raw.expenses) || 0,
     items: [{
       id: crypto.randomUUID(),
+      supplier: raw.supplier ?? "",
       description: raw.description ?? "",
       packing: Number(raw.packing) || 0,
       unit: raw.unit ?? "kg",
@@ -259,7 +266,6 @@ const TradeRecords = () => {
     setForm({
       date: r.date,
       contact_id: r.contact_id,
-      supplier: r.supplier ?? "",
       expenses: String(r.expenses),
       items: r.items.map((i) => ({ ...i })),
     });
@@ -276,10 +282,10 @@ const TradeRecords = () => {
       date: form.date,
       contact_id: form.contact_id,
       contact_name: contact?.name ?? "",
-      supplier: form.supplier.trim(),
       expenses: Number(form.expenses) || 0,
       items: form.items.map((i) => ({
         ...i,
+        supplier: (i.supplier || "").trim(),
         description: (i.description || "").trim(),
         unit: i.unit || "kg",
         packing: Number(i.packing) || 0,
@@ -347,12 +353,13 @@ const TradeRecords = () => {
           <tbody>
             ${sorted.map((r) => {
               const p = profitOf(r);
+              const suppliers = Array.from(new Set(r.items.map(i => (i.supplier || "").trim()).filter(Boolean))).join(", ") || "—";
               const itemsHtml = r.items.map((i) =>
-                `${esc(i.description || "—")} (${fmt(i.bags)} × ${fmt(i.buy_price)} → ${fmt(i.sell_price)})`
+                `${esc(i.description || "—")}${i.supplier ? ` <i style="color:#666">[${esc(i.supplier)}]</i>` : ""} (${fmt(i.bags)} × ${fmt(i.buy_price)} → ${fmt(i.sell_price)})`
               ).join("<br/>");
               return `<tr>
                 <td>${esc(r.date)}</td>
-                <td>${esc(r.supplier ?? "")}</td>
+                <td>${esc(suppliers)}</td>
                 <td>${itemsHtml}</td>
                 <td class="r">${fmt(totalBags(r))}</td>
                 <td class="r">${fmt(totalBuy(r))}</td>
@@ -386,8 +393,10 @@ const TradeRecords = () => {
     const supplierBySupplier = new Map<string, number>();
     for (const r of filtered) {
       brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
-      const sup = (r.supplier || "—").trim() || "—";
-      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
+      for (const i of r.items) {
+        const sup = (i.supplier || "—").trim() || "—";
+        supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (i.supplier_commission || 0) * (i.bags || 0));
+      }
     }
     const brokerRows = [...brokerByContact.entries()]
       .filter(([, v]) => v !== 0)
@@ -566,7 +575,7 @@ const TradeRecords = () => {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Supplier</TableHead>
+                <TableHead>Supplier(s)</TableHead>
                 <TableHead>Products</TableHead>
                 <TableHead className="text-right">Bags</TableHead>
                 <TableHead className="text-right">Total Buy</TableHead>
@@ -581,16 +590,18 @@ const TradeRecords = () => {
                 <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const profit = profitOf(r);
+                const suppliers = Array.from(new Set(r.items.map(i => (i.supplier || "").trim()).filter(Boolean))).join(", ") || "—";
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.supplier || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap max-w-[200px] truncate" title={suppliers}>{suppliers}</TableCell>
                     <TableCell className="max-w-[320px]">
                       <div className="space-y-0.5 text-xs">
                         {r.items.map((i) => (
                           <div key={i.id} className="truncate">
                             <span className="font-medium">{i.description || "—"}</span>
+                            {i.supplier ? <span className="text-muted-foreground"> [{i.supplier}]</span> : null}
                             <span className="text-muted-foreground"> · {fmt(i.bags)} {i.unit} · buy {fmt(i.buy_price)} → sell {fmt(i.sell_price)}</span>
                           </div>
                         ))}
@@ -637,10 +648,6 @@ const TradeRecords = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
-                <Label>Supplier</Label>
-                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
-              </div>
             </div>
 
             <div className="space-y-3">
@@ -669,7 +676,11 @@ const TradeRecords = () => {
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <div className="col-span-2 md:col-span-4">
+                      <div className="col-span-2 md:col-span-2">
+                        <Label className="text-xs">Supplier</Label>
+                        <Input value={it.supplier} onChange={(e) => updateItem({ supplier: e.target.value })} placeholder="Supplier name" />
+                      </div>
+                      <div className="col-span-2 md:col-span-2">
                         <Label className="text-xs">Description</Label>
                         <Input value={it.description} onChange={(e) => updateItem({ description: e.target.value })} />
                       </div>
@@ -832,8 +843,10 @@ const TradeRecords = () => {
             const supplierBySupplier = new Map<string, number>();
             for (const r of filtered) {
               brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
-              const sup = (r.supplier || "—").trim() || "—";
-              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
+              for (const i of r.items) {
+                const sup = (i.supplier || "—").trim() || "—";
+                supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (i.supplier_commission || 0) * (i.bags || 0));
+              }
             }
             const brokerList = [...brokerByContact.entries()].filter(([, v]) => v !== 0)
               .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])));
