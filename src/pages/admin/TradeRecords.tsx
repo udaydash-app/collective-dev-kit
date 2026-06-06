@@ -36,6 +36,9 @@ interface TradeRecord {
 
 const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
+const PIN_KEY = "admin:trade-records:pin";
+const UNLOCK_KEY = "admin:trade-records:unlocked";
+const DEFAULT_PIN = "1234";
 
 const emptyItem = (): TradeItem => ({
   id: crypto.randomUUID(),
@@ -151,6 +154,39 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState<boolean>(() => sessionStorage.getItem(UNLOCK_KEY) === "1");
+  const [pinInput, setPinInput] = useState("");
+  const [changePinOpen, setChangePinOpen] = useState(false);
+  const [pinForm, setPinForm] = useState({ current: "", next: "", confirm: "" });
+
+  const getStoredPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+
+  const tryUnlock = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (pinInput === getStoredPin()) {
+      sessionStorage.setItem(UNLOCK_KEY, "1");
+      setUnlocked(true);
+      setPinInput("");
+    } else {
+      toast.error("Incorrect PIN");
+      setPinInput("");
+    }
+  };
+
+  const lock = () => {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    setUnlocked(false);
+  };
+
+  const saveNewPin = () => {
+    if (pinForm.current !== getStoredPin()) { toast.error("Current PIN is incorrect"); return; }
+    if (!/^\d{4,8}$/.test(pinForm.next)) { toast.error("New PIN must be 4-8 digits"); return; }
+    if (pinForm.next !== pinForm.confirm) { toast.error("PINs do not match"); return; }
+    localStorage.setItem(PIN_KEY, pinForm.next);
+    setPinForm({ current: "", next: "", confirm: "" });
+    setChangePinOpen(false);
+    toast.success("PIN updated");
+  };
 
   useEffect(() => {
     try {
