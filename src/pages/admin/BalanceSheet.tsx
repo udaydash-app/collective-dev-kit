@@ -421,6 +421,19 @@ export default function BalanceSheet() {
                   </tr>
                 ))}
 
+                {balanceSheetData.netIncome !== 0 && (
+                  <tr className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border font-medium">
+                      Current {balanceSheetData.netIncome >= 0 ? 'Profit' : 'Loss'}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(balanceSheetData.netIncome)}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                )}
+
                 {/* Fixed Assets on Right */}
                 {balanceSheetData.fixedAssets.map((acc, idx) => (
                   <tr key={`fixed-${acc.id}`} className="border-b border-border/30">
@@ -440,7 +453,7 @@ export default function BalanceSheet() {
                 <tr className="bg-muted/20 font-semibold">
                   <td className="p-2 text-right border-r border-border">Total Capital & Reserves</td>
                   <td className="p-2 text-right font-mono border-r border-border">
-                    {formatCurrency(balanceSheetData.totalEquity)}
+                    {formatCurrency(balanceSheetData.totalEquity + balanceSheetData.netIncome)}
                   </td>
                   <td className="p-2 text-right border-r border-border">Total Fixed Assets</td>
                   <td className="p-2 text-right font-mono">
