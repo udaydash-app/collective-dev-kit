@@ -6,17 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
 
-interface TradeRecord {
+interface TradeItem {
   id: string;
-  date: string;
-  contact_id: string;
-  contact_name: string;
-  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -26,36 +22,79 @@ interface TradeRecord {
   supplier_commission: number;
   sell_price: number;
   broker_commission: number;
+}
+
+interface TradeRecord {
+  id: string;
+  date: string;
+  contact_id: string;
+  contact_name: string;
+  supplier: string;
   expenses: number;
+  items: TradeItem[];
 }
 
 const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
 
+const emptyItem = (): TradeItem => ({
+  id: crypto.randomUUID(),
+  description: "",
+  packing: 0,
+  unit: "kg",
+  bags: 1,
+  buy_price: 0,
+  tax: 0,
+  supplier_commission: 0,
+  sell_price: 0,
+  broker_commission: 0,
+});
+
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
   supplier: "",
-  description: "",
-  packing: "0",
-  unit: "kg",
-  bags: "1",
-  buy_price: "0",
-  tax: "0",
-  supplier_commission: "0",
-  sell_price: "0",
-  broker_commission: "0",
   expenses: "0",
+  items: [emptyItem()] as TradeItem[],
 };
 
-const totalBuy = (r: { buy_price: number; tax: number; supplier_commission: number; broker_commission: number; bags: number }) =>
-  ((r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.broker_commission || 0)) * (r.bags || 0);
+const itemBuy = (i: TradeItem) =>
+  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0) + (i.broker_commission || 0)) * (i.bags || 0);
 
-const totalSell = (r: { sell_price: number; bags: number }) =>
-  (r.sell_price || 0) * (r.bags || 0);
+const itemSell = (i: TradeItem) => (i.sell_price || 0) * (i.bags || 0);
 
-const profitOf = (r: TradeRecord) =>
-  totalSell(r) - totalBuy(r) - (r.expenses || 0);
+const totalBuy = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + itemBuy(i), 0);
+const totalSell = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + itemSell(i), 0);
+const totalBags = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + (i.bags || 0), 0);
+const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((s, x) => s + (f(x) || 0), 0);
+const totalBrokerComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.broker_commission || 0) * (i.bags || 0));
+const totalSupplierComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.supplier_commission || 0) * (i.bags || 0));
+const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses || 0);
+
+// Migrate legacy single-product records to items[] shape
+const migrate = (raw: any): TradeRecord => {
+  if (raw && Array.isArray(raw.items)) return raw as TradeRecord;
+  return {
+    id: raw.id ?? crypto.randomUUID(),
+    date: raw.date,
+    contact_id: raw.contact_id,
+    contact_name: raw.contact_name ?? "",
+    supplier: raw.supplier ?? "",
+    expenses: Number(raw.expenses) || 0,
+    items: [{
+      id: crypto.randomUUID(),
+      description: raw.description ?? "",
+      packing: Number(raw.packing) || 0,
+      unit: raw.unit ?? "kg",
+      bags: Number(raw.bags) || 0,
+      buy_price: Number(raw.buy_price) || 0,
+      tax: Number(raw.tax) || 0,
+      supplier_commission: Number(raw.supplier_commission) || 0,
+      sell_price: Number(raw.sell_price) || 0,
+      broker_commission: Number(raw.broker_commission) || 0,
+    }],
+  };
+};
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
@@ -113,7 +152,8 @@ const TradeRecords = () => {
     } catch { setContacts([]); }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      setRecords(raw ? JSON.parse(raw) : []);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setRecords(Array.isArray(parsed) ? parsed.map(migrate) : []);
     } catch { setRecords([]); }
   }, []);
 
@@ -180,7 +220,7 @@ const TradeRecords = () => {
   const totals = useMemo(() => filtered.reduce(
     (acc, r) => {
       acc.buy += totalBuy(r);
-      acc.sell += (r.sell_price || 0) * (r.bags || 0);
+      acc.sell += totalSell(r);
       acc.profit += profitOf(r);
       return acc;
     }, { buy: 0, sell: 0, profit: 0 }
@@ -194,7 +234,7 @@ const TradeRecords = () => {
     );
     return list.reduce(
       (acc, r) => {
-        acc.turnover += (r.sell_price || 0) * (r.bags || 0);
+        acc.turnover += totalSell(r);
         acc.profit += profitOf(r);
         acc.count += 1;
         return acc;
@@ -220,16 +260,8 @@ const TradeRecords = () => {
       date: r.date,
       contact_id: r.contact_id,
       supplier: r.supplier ?? "",
-      description: r.description,
-      packing: String(r.packing),
-      unit: r.unit ?? "kg",
-      bags: String(r.bags ?? 1),
-      buy_price: String(r.buy_price),
-      tax: String(r.tax),
-      supplier_commission: String(r.supplier_commission),
-      sell_price: String(r.sell_price),
-      broker_commission: String(r.broker_commission),
       expenses: String(r.expenses),
+      items: r.items.map((i) => ({ ...i })),
     });
     setOpen(true);
   };
@@ -237,24 +269,27 @@ const TradeRecords = () => {
   const save = () => {
     if (!form.contact_id) { toast.error("Select a contact"); return; }
     if (!form.date) { toast.error("Date is required"); return; }
+    if (!form.items.length) { toast.error("Add at least one product"); return; }
     const contact = contacts.find((c) => c.id === form.contact_id);
-    const num = (s: string) => Number(s) || 0;
     const next: TradeRecord = {
       id: editing?.id ?? crypto.randomUUID(),
       date: form.date,
       contact_id: form.contact_id,
       contact_name: contact?.name ?? "",
       supplier: form.supplier.trim(),
-      description: form.description.trim(),
-      packing: num(form.packing),
-      unit: form.unit || "kg",
-      bags: num(form.bags),
-      buy_price: num(form.buy_price),
-      tax: num(form.tax),
-      supplier_commission: num(form.supplier_commission),
-      sell_price: num(form.sell_price),
-      broker_commission: num(form.broker_commission),
-      expenses: num(form.expenses),
+      expenses: Number(form.expenses) || 0,
+      items: form.items.map((i) => ({
+        ...i,
+        description: (i.description || "").trim(),
+        unit: i.unit || "kg",
+        packing: Number(i.packing) || 0,
+        bags: Number(i.bags) || 0,
+        buy_price: Number(i.buy_price) || 0,
+        tax: Number(i.tax) || 0,
+        supplier_commission: Number(i.supplier_commission) || 0,
+        sell_price: Number(i.sell_price) || 0,
+        broker_commission: Number(i.broker_commission) || 0,
+      })),
     };
     persist(editing ? records.map((r) => (r.id === editing.id ? next : r)) : [next, ...records]);
     setOpen(false);
@@ -292,7 +327,7 @@ const TradeRecords = () => {
       const sub = rows.reduce(
         (a, r) => {
           a.buy += totalBuy(r);
-          a.sell += (r.sell_price || 0) * (r.bags || 0);
+          a.sell += totalSell(r);
           a.profit += profitOf(r);
           return a;
         },
@@ -304,30 +339,24 @@ const TradeRecords = () => {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Supplier</th><th>Description</th>
-              <th class="r">Packing</th><th>Unit</th><th class="r">Bags</th>
-              <th class="r">Buy Price</th><th class="r">Tax</th><th class="r">Sup. Comm.</th>
-              <th class="r">Total Buy</th><th class="r">Sell Price</th>
-              <th class="r">Brk. Comm.</th><th class="r">Exps</th><th class="r">Profit</th>
+              <th>Date</th><th>Supplier</th><th>Products</th>
+              <th class="r">Bags</th><th class="r">Total Buy</th>
+              <th class="r">Total Sell</th><th class="r">Exps</th><th class="r">Profit</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.map((r) => {
-              const tb = totalBuy(r);
               const p = profitOf(r);
+              const itemsHtml = r.items.map((i) =>
+                `${esc(i.description || "—")} (${fmt(i.bags)} × ${fmt(i.buy_price)} → ${fmt(i.sell_price)})`
+              ).join("<br/>");
               return `<tr>
                 <td>${esc(r.date)}</td>
                 <td>${esc(r.supplier ?? "")}</td>
-                <td>${esc(r.description)}</td>
-                <td class="r">${fmt(r.packing)}</td>
-                <td>${esc(r.unit ?? "")}</td>
-                <td class="r">${fmt(r.bags ?? 0)}</td>
-                <td class="r">${fmt(r.buy_price)}</td>
-                <td class="r">${fmt(r.tax)}</td>
-                <td class="r">${fmt(r.supplier_commission)}</td>
-                <td class="r">${fmt(tb)}</td>
-                <td class="r">${fmt(r.sell_price)}</td>
-                <td class="r">${fmt(r.broker_commission)}</td>
+                <td>${itemsHtml}</td>
+                <td class="r">${fmt(totalBags(r))}</td>
+                <td class="r">${fmt(totalBuy(r))}</td>
+                <td class="r">${fmt(totalSell(r))}</td>
                 <td class="r">${fmt(r.expenses)}</td>
                 <td class="r ${p >= 0 ? "pos" : "neg"}">${fmt(p)}</td>
               </tr>`;
@@ -335,11 +364,10 @@ const TradeRecords = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="9" class="r"><b>Subtotal</b></td>
+              <td colspan="4" class="r"><b>Subtotal</b></td>
               <td class="r"><b>${fmt(sub.buy)}</b></td>
+              <td class="r"><b>${fmt(sub.sell)}</b></td>
               <td class="r"></td>
-              <td class="r"></td>
-              <td class="r"><b>Turnover ${fmt(sub.sell)}</b></td>
               <td class="r ${sub.profit >= 0 ? "pos" : "neg"}"><b>${fmt(sub.profit)}</b></td>
             </tr>
           </tfoot>
@@ -357,9 +385,9 @@ const TradeRecords = () => {
     const brokerByContact = new Map<string, number>();
     const supplierBySupplier = new Map<string, number>();
     for (const r of filtered) {
-      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
       const sup = (r.supplier || "—").trim() || "—";
-      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
     }
     const brokerRows = [...brokerByContact.entries()]
       .filter(([, v]) => v !== 0)
@@ -539,16 +567,10 @@ const TradeRecords = () => {
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Supplier</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Packing</TableHead>
-                <TableHead>Unit</TableHead>
+                <TableHead>Products</TableHead>
                 <TableHead className="text-right">Bags</TableHead>
-                <TableHead className="text-right">Buy Price</TableHead>
-                <TableHead className="text-right">Tax</TableHead>
-                <TableHead className="text-right">Supplier Comm.</TableHead>
                 <TableHead className="text-right">Total Buy</TableHead>
-                <TableHead className="text-right">Sell Price</TableHead>
-                <TableHead className="text-right">Broker Comm.</TableHead>
+                <TableHead className="text-right">Total Sell</TableHead>
                 <TableHead className="text-right">Exps</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -556,25 +578,27 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
-                const tb = totalBuy(r);
                 const profit = profitOf(r);
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.supplier || "—"}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
-                    <TableCell className="text-right">{fmt(r.packing)}</TableCell>
-                    <TableCell>{r.unit ?? "—"}</TableCell>
-                    <TableCell className="text-right">{fmt(r.bags ?? 0)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.buy_price)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.tax)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.supplier_commission)}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(tb)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.sell_price)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.broker_commission)}</TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <div className="space-y-0.5 text-xs">
+                        {r.items.map((i) => (
+                          <div key={i.id} className="truncate">
+                            <span className="font-medium">{i.description || "—"}</span>
+                            <span className="text-muted-foreground"> · {fmt(i.bags)} {i.unit} · buy {fmt(i.buy_price)} → sell {fmt(i.sell_price)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{fmt(totalBags(r))}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(totalBuy(r))}</TableCell>
+                    <TableCell className="text-right">{fmt(totalSell(r))}</TableCell>
                     <TableCell className="text-right">{fmt(r.expenses)}</TableCell>
                     <TableCell className={"text-right font-semibold " + (profit >= 0 ? "text-green-600" : "text-red-600")}>{fmt(profit)}</TableCell>
                     <TableCell className="text-right">
@@ -596,70 +620,130 @@ const TradeRecords = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} Trade Record</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-            <div>
-              <Label>Contact</Label>
-              <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <Label>Supplier</Label>
-              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
-            </div>
-            <div className="col-span-2">
-              <Label>Description</Label>
-              <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            </div>
-            <div>
-              <Label>Packing (per bag)</Label>
-              <Input type="number" step="0.01" value={form.packing} onChange={(e) => setForm({ ...form, packing: e.target.value })} />
-            </div>
-            <div>
-              <Label>Unit</Label>
-              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["kg", "g", "ltr", "ml", "pcs", "dozen", "bag", "box"].map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Number of Bags</Label>
-              <Input type="number" step="1" value={form.bags} onChange={(e) => setForm({ ...form, bags: e.target.value })} />
-            </div>
-            {([
-              ["buy_price", "Buy Price (per bag)"],
-              ["tax", "Tax (per bag)"],
-              ["supplier_commission", "Supplier Commission (per bag)"],
-              ["sell_price", "Sell Price (per bag)"],
-              ["broker_commission", "Broker Commission (per bag)"],
-              ["expenses", "Expenses (total)"],
-            ] as const).map(([key, label]) => (
-              <div key={key}>
-                <Label>{label}</Label>
-                <Input type="number" step="0.01" value={(form as any)[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               </div>
-            ))}
-            <div className="col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex justify-between flex-wrap gap-2">
-              <span>Total Buy: <b>{fmt(totalBuy({ buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, broker_commission: Number(form.broker_commission)||0, bags: Number(form.bags)||0 }))}</b></span>
-              <span>Total Sell: <b>{fmt(totalSell({ sell_price: Number(form.sell_price)||0, bags: Number(form.bags)||0 }))}</b></span>
-              <span>Profit: <b>{fmt(
-                totalSell({ sell_price: Number(form.sell_price)||0, bags: Number(form.bags)||0 })
-                - totalBuy({ buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, broker_commission: Number(form.broker_commission)||0, bags: Number(form.bags)||0 })
-                - (Number(form.expenses)||0)
-              )}</b></span>
+              <div>
+                <Label>Contact</Label>
+                <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
+                  <SelectContent>
+                    {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Supplier</Label>
+                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base">Products</Label>
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => setForm({ ...form, items: [...form.items, emptyItem()] })}>
+                  <Plus className="h-4 w-4 mr-1" />Add product
+                </Button>
+              </div>
+              {form.items.map((it, idx) => {
+                const updateItem = (patch: Partial<TradeItem>) => {
+                  const next = form.items.map((x, i) => i === idx ? { ...x, ...patch } : x);
+                  setForm({ ...form, items: next });
+                };
+                const removeItem = () => {
+                  if (form.items.length === 1) { toast.error("At least one product is required"); return; }
+                  setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
+                };
+                return (
+                  <div key={it.id} className="rounded-md border p-3 space-y-2 relative">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Product #{idx + 1}</span>
+                      <Button type="button" size="icon" variant="ghost" onClick={removeItem}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="col-span-2 md:col-span-4">
+                        <Label className="text-xs">Description</Label>
+                        <Input value={it.description} onChange={(e) => updateItem({ description: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Packing</Label>
+                        <Input type="number" step="0.01" value={String(it.packing)} onChange={(e) => updateItem({ packing: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Unit</Label>
+                        <Select value={it.unit} onValueChange={(v) => updateItem({ unit: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["kg", "g", "ltr", "ml", "pcs", "dozen", "bag", "box"].map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Bags</Label>
+                        <Input type="number" step="1" value={String(it.bags)} onChange={(e) => updateItem({ bags: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Buy Price /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.buy_price)} onChange={(e) => updateItem({ buy_price: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Tax /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.tax)} onChange={(e) => updateItem({ tax: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Sup. Comm /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.supplier_commission)} onChange={(e) => updateItem({ supplier_commission: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Brk. Comm /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.broker_commission)} onChange={(e) => updateItem({ broker_commission: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Sell Price /bag</Label>
+                        <Input type="number" step="0.01" value={String(it.sell_price)} onChange={(e) => updateItem({ sell_price: Number(e.target.value) || 0 })} />
+                      </div>
+                      <div className="md:col-span-3 flex items-end justify-end gap-4 text-xs">
+                        <span>Buy: <b>{fmt(itemBuy(it))}</b></span>
+                        <span>Sell: <b>{fmt(itemSell(it))}</b></span>
+                        <span>Line profit: <b>{fmt(itemSell(it) - itemBuy(it))}</b></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Expenses (total)</Label>
+                <Input type="number" step="0.01" value={form.expenses} onChange={(e) => setForm({ ...form, expenses: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="rounded-md bg-muted px-3 py-2 text-sm flex justify-between flex-wrap gap-2">
+              {(() => {
+                const tb = form.items.reduce((s, i) => s + itemBuy(i), 0);
+                const ts = form.items.reduce((s, i) => s + itemSell(i), 0);
+                const p = ts - tb - (Number(form.expenses) || 0);
+                return (
+                  <>
+                    <span>Total Buy: <b>{fmt(tb)}</b></span>
+                    <span>Total Sell: <b>{fmt(ts)}</b></span>
+                    <span>Expenses: <b>{fmt(Number(form.expenses) || 0)}</b></span>
+                    <span>Profit: <b className={p >= 0 ? "text-green-600" : "text-red-600"}>{fmt(p)}</b></span>
+                  </>
+                );
+              })()}
             </div>
           </div>
           <DialogFooter>
@@ -747,9 +831,9 @@ const TradeRecords = () => {
             const brokerByContact = new Map<string, number>();
             const supplierBySupplier = new Map<string, number>();
             for (const r of filtered) {
-              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
               const sup = (r.supplier || "—").trim() || "—";
-              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
             }
             const brokerList = [...brokerByContact.entries()].filter(([, v]) => v !== 0)
               .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])));
