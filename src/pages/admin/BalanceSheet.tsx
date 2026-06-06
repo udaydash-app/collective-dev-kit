@@ -213,7 +213,8 @@ export default function BalanceSheet() {
       const totalRetainedEarningsPositive = retainedEarningsPositive.reduce((sum, acc) => sum + acc.balance, 0);
       const totalEquity = totalCapitalPositive + totalReservesPositive + totalRetainedEarningsPositive;
 
-      const totalLiabilitiesAndEquity = totalLiabilities + totalEquity + netIncome;
+      const unpostedDifference = totalAssets - (totalLiabilities + totalEquity + netIncome);
+      const totalLiabilitiesAndEquity = totalLiabilities + totalEquity + netIncome + unpostedDifference;
       const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.01;
 
       return {
@@ -251,6 +252,7 @@ export default function BalanceSheet() {
         totalRetainedEarnings: totalRetainedEarningsPositive,
         totalEquity,
         netIncome,
+        unpostedDifference,
         totalLiabilitiesAndEquity,
         isBalanced,
         // For display of negative items moved to opposite side
