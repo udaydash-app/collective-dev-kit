@@ -152,7 +152,8 @@ const TradeRecords = () => {
     } catch { setContacts([]); }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      setRecords(raw ? JSON.parse(raw) : []);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setRecords(Array.isArray(parsed) ? parsed.map(migrate) : []);
     } catch { setRecords([]); }
   }, []);
 
@@ -219,7 +220,7 @@ const TradeRecords = () => {
   const totals = useMemo(() => filtered.reduce(
     (acc, r) => {
       acc.buy += totalBuy(r);
-      acc.sell += (r.sell_price || 0) * (r.bags || 0);
+      acc.sell += totalSell(r);
       acc.profit += profitOf(r);
       return acc;
     }, { buy: 0, sell: 0, profit: 0 }
@@ -233,7 +234,7 @@ const TradeRecords = () => {
     );
     return list.reduce(
       (acc, r) => {
-        acc.turnover += (r.sell_price || 0) * (r.bags || 0);
+        acc.turnover += totalSell(r);
         acc.profit += profitOf(r);
         acc.count += 1;
         return acc;
@@ -259,16 +260,8 @@ const TradeRecords = () => {
       date: r.date,
       contact_id: r.contact_id,
       supplier: r.supplier ?? "",
-      description: r.description,
-      packing: String(r.packing),
-      unit: r.unit ?? "kg",
-      bags: String(r.bags ?? 1),
-      buy_price: String(r.buy_price),
-      tax: String(r.tax),
-      supplier_commission: String(r.supplier_commission),
-      sell_price: String(r.sell_price),
-      broker_commission: String(r.broker_commission),
       expenses: String(r.expenses),
+      items: r.items.map((i) => ({ ...i })),
     });
     setOpen(true);
   };
@@ -276,24 +269,27 @@ const TradeRecords = () => {
   const save = () => {
     if (!form.contact_id) { toast.error("Select a contact"); return; }
     if (!form.date) { toast.error("Date is required"); return; }
+    if (!form.items.length) { toast.error("Add at least one product"); return; }
     const contact = contacts.find((c) => c.id === form.contact_id);
-    const num = (s: string) => Number(s) || 0;
     const next: TradeRecord = {
       id: editing?.id ?? crypto.randomUUID(),
       date: form.date,
       contact_id: form.contact_id,
       contact_name: contact?.name ?? "",
       supplier: form.supplier.trim(),
-      description: form.description.trim(),
-      packing: num(form.packing),
-      unit: form.unit || "kg",
-      bags: num(form.bags),
-      buy_price: num(form.buy_price),
-      tax: num(form.tax),
-      supplier_commission: num(form.supplier_commission),
-      sell_price: num(form.sell_price),
-      broker_commission: num(form.broker_commission),
-      expenses: num(form.expenses),
+      expenses: Number(form.expenses) || 0,
+      items: form.items.map((i) => ({
+        ...i,
+        description: (i.description || "").trim(),
+        unit: i.unit || "kg",
+        packing: Number(i.packing) || 0,
+        bags: Number(i.bags) || 0,
+        buy_price: Number(i.buy_price) || 0,
+        tax: Number(i.tax) || 0,
+        supplier_commission: Number(i.supplier_commission) || 0,
+        sell_price: Number(i.sell_price) || 0,
+        broker_commission: Number(i.broker_commission) || 0,
+      })),
     };
     persist(editing ? records.map((r) => (r.id === editing.id ? next : r)) : [next, ...records]);
     setOpen(false);
@@ -331,7 +327,7 @@ const TradeRecords = () => {
       const sub = rows.reduce(
         (a, r) => {
           a.buy += totalBuy(r);
-          a.sell += (r.sell_price || 0) * (r.bags || 0);
+          a.sell += totalSell(r);
           a.profit += profitOf(r);
           return a;
         },
@@ -343,30 +339,24 @@ const TradeRecords = () => {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Supplier</th><th>Description</th>
-              <th class="r">Packing</th><th>Unit</th><th class="r">Bags</th>
-              <th class="r">Buy Price</th><th class="r">Tax</th><th class="r">Sup. Comm.</th>
-              <th class="r">Total Buy</th><th class="r">Sell Price</th>
-              <th class="r">Brk. Comm.</th><th class="r">Exps</th><th class="r">Profit</th>
+              <th>Date</th><th>Supplier</th><th>Products</th>
+              <th class="r">Bags</th><th class="r">Total Buy</th>
+              <th class="r">Total Sell</th><th class="r">Exps</th><th class="r">Profit</th>
             </tr>
           </thead>
           <tbody>
             ${sorted.map((r) => {
-              const tb = totalBuy(r);
               const p = profitOf(r);
+              const itemsHtml = r.items.map((i) =>
+                `${esc(i.description || "—")} (${fmt(i.bags)} × ${fmt(i.buy_price)} → ${fmt(i.sell_price)})`
+              ).join("<br/>");
               return `<tr>
                 <td>${esc(r.date)}</td>
                 <td>${esc(r.supplier ?? "")}</td>
-                <td>${esc(r.description)}</td>
-                <td class="r">${fmt(r.packing)}</td>
-                <td>${esc(r.unit ?? "")}</td>
-                <td class="r">${fmt(r.bags ?? 0)}</td>
-                <td class="r">${fmt(r.buy_price)}</td>
-                <td class="r">${fmt(r.tax)}</td>
-                <td class="r">${fmt(r.supplier_commission)}</td>
-                <td class="r">${fmt(tb)}</td>
-                <td class="r">${fmt(r.sell_price)}</td>
-                <td class="r">${fmt(r.broker_commission)}</td>
+                <td>${itemsHtml}</td>
+                <td class="r">${fmt(totalBags(r))}</td>
+                <td class="r">${fmt(totalBuy(r))}</td>
+                <td class="r">${fmt(totalSell(r))}</td>
                 <td class="r">${fmt(r.expenses)}</td>
                 <td class="r ${p >= 0 ? "pos" : "neg"}">${fmt(p)}</td>
               </tr>`;
@@ -374,11 +364,10 @@ const TradeRecords = () => {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="9" class="r"><b>Subtotal</b></td>
+              <td colspan="4" class="r"><b>Subtotal</b></td>
               <td class="r"><b>${fmt(sub.buy)}</b></td>
+              <td class="r"><b>${fmt(sub.sell)}</b></td>
               <td class="r"></td>
-              <td class="r"></td>
-              <td class="r"><b>Turnover ${fmt(sub.sell)}</b></td>
               <td class="r ${sub.profit >= 0 ? "pos" : "neg"}"><b>${fmt(sub.profit)}</b></td>
             </tr>
           </tfoot>
@@ -396,9 +385,9 @@ const TradeRecords = () => {
     const brokerByContact = new Map<string, number>();
     const supplierBySupplier = new Map<string, number>();
     for (const r of filtered) {
-      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+      brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
       const sup = (r.supplier || "—").trim() || "—";
-      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+      supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
     }
     const brokerRows = [...brokerByContact.entries()]
       .filter(([, v]) => v !== 0)
