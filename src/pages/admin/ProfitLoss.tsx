@@ -158,9 +158,9 @@ export default function ProfitLoss() {
         allProducts = inputs!.allProducts;
         allVariants = inputs!.allVariants;
       } else {
-        const [{ data: ap }, { data: av }] = await Promise.all([
-          supabase.from('products').select('id, cost_price, local_charges, stock_quantity'),
-          supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id'),
+        const [ap, av] = await Promise.all([
+          fetchAllRows<any>(() => supabase.from('products').select('id, cost_price, local_charges, stock_quantity')),
+          fetchAllRows<any>(() => supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id')),
         ]);
         allProducts = ap;
         allVariants = av;
@@ -188,12 +188,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         stockAdjustments = inputs!.stockAdjustments;
       } else {
-        const r = await supabase
+        stockAdjustments = await fetchAllRows<any>(() => supabase
           .from('stock_adjustments')
           .select('quantity_change, product_id, variant_id, unit_cost, total_value')
           .gte('created_at', startDate)
-          .lte('created_at', endDate + 'T23:59:59');
-        stockAdjustments = r.data;
+          .lte('created_at', endDate + 'T23:59:59'));
       }
 
       // Calculate stock adjustment value (prefer stored total_value, fallback to cost prices)
@@ -236,11 +235,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futurePurchases = inputs!.futurePurchases;
       } else {
-        const r = await supabase
+        futurePurchases = await fetchAllRows<any>(() => supabase
           .from('purchases')
           .select('total_amount')
-          .gt('purchased_at', endDate + 'T23:59:59');
-        futurePurchases = r.data;
+          .gt('purchased_at', endDate + 'T23:59:59'));
       }
       
       const futurePurchasesTotal = futurePurchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
@@ -249,11 +247,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futureSales = inputs!.futureSales;
       } else {
-        const r = await supabase
+        futureSales = await fetchAllRows<any>(() => supabase
           .from('pos_transactions')
           .select('items')
-          .gt('created_at', endDate + 'T23:59:59');
-        futureSales = r.data;
+          .gt('created_at', endDate + 'T23:59:59'));
       }
 
       let futureCOGS = 0;
@@ -275,11 +272,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futureAdjustments = inputs!.futureAdjustments;
       } else {
-        const r = await supabase
+        futureAdjustments = await fetchAllRows<any>(() => supabase
           .from('stock_adjustments')
           .select('quantity_change, product_id, variant_id')
-          .gt('created_at', endDate + 'T23:59:59');
-        futureAdjustments = r.data;
+          .gt('created_at', endDate + 'T23:59:59'));
       }
 
       let futureAdjustmentValue = 0;
