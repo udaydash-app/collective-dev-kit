@@ -49,16 +49,18 @@ const emptyForm = {
 };
 
 const totalBuy = (r: { packing: number; buy_price: number; tax: number; supplier_commission: number; bags: number }) =>
-  ((r.buy_price || 0) * (r.bags || 0)) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0);
+  ((r.buy_price || 0) + (r.tax || 0) + (r.supplier_commission || 0) + (r.packing || 0)) * (r.bags || 0);
 
 const profitOf = (r: TradeRecord) =>
-  ((r.sell_price || 0) * (r.bags || 0))
-  - ((r.buy_price || 0) * (r.bags || 0))
-  + (r.tax || 0)
-  + (r.supplier_commission || 0)
-  + (r.broker_commission || 0)
-  + (r.expenses || 0)
-  - (r.packing || 0);
+  (
+    (r.sell_price || 0)
+    - (r.buy_price || 0)
+    + (r.tax || 0)
+    + (r.supplier_commission || 0)
+    + (r.broker_commission || 0)
+    + (r.expenses || 0)
+    - (r.packing || 0)
+  ) * (r.bags || 0);
 
 const fmt = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
@@ -624,7 +626,7 @@ const TradeRecords = () => {
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
             <div>
-              <Label>Packing</Label>
+              <Label>Packing (per bag)</Label>
               <Input type="number" step="0.01" value={form.packing} onChange={(e) => setForm({ ...form, packing: e.target.value })} />
             </div>
             <div>
@@ -644,11 +646,11 @@ const TradeRecords = () => {
             </div>
             {([
               ["buy_price", "Buy Price (per bag)"],
-              ["tax", "Tax"],
-              ["supplier_commission", "Supplier Commission"],
+              ["tax", "Tax (per bag)"],
+              ["supplier_commission", "Supplier Commission (per bag)"],
               ["sell_price", "Sell Price (per bag)"],
-              ["broker_commission", "Broker Commission"],
-              ["expenses", "Expenses"],
+              ["broker_commission", "Broker Commission (per bag)"],
+              ["expenses", "Expenses (per bag)"],
             ] as const).map(([key, label]) => (
               <div key={key}>
                 <Label>{label}</Label>
@@ -658,13 +660,15 @@ const TradeRecords = () => {
             <div className="col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex justify-between">
               <span>Total Buy: <b>{fmt(totalBuy({ packing: Number(form.packing)||0, buy_price: Number(form.buy_price)||0, tax: Number(form.tax)||0, supplier_commission: Number(form.supplier_commission)||0, bags: Number(form.bags)||0 }))}</b></span>
               <span>Profit: <b>{fmt(
-                ((Number(form.sell_price)||0) * (Number(form.bags)||0))
-                - ((Number(form.buy_price)||0) * (Number(form.bags)||0))
-                + (Number(form.tax)||0)
-                + (Number(form.supplier_commission)||0)
-                + (Number(form.broker_commission)||0)
-                + (Number(form.expenses)||0)
-                - (Number(form.packing)||0)
+                (
+                  (Number(form.sell_price)||0)
+                  - (Number(form.buy_price)||0)
+                  + (Number(form.tax)||0)
+                  + (Number(form.supplier_commission)||0)
+                  + (Number(form.broker_commission)||0)
+                  + (Number(form.expenses)||0)
+                  - (Number(form.packing)||0)
+                ) * (Number(form.bags)||0)
               )}</b></span>
             </div>
           </div>
