@@ -13,6 +13,7 @@ interface Contact { id: string; name: string; phone?: string; notes?: string }
 
 interface TradeItem {
   id: string;
+  supplier: string;
   description: string;
   packing: number;
   unit: string;
@@ -29,7 +30,6 @@ interface TradeRecord {
   date: string;
   contact_id: string;
   contact_name: string;
-  supplier: string;
   expenses: number;
   items: TradeItem[];
 }
@@ -39,6 +39,7 @@ const CONTACTS_KEY = "admin:trade-contacts";
 
 const emptyItem = (): TradeItem => ({
   id: crypto.randomUUID(),
+  supplier: "",
   description: "",
   packing: 0,
   unit: "kg",
@@ -53,7 +54,6 @@ const emptyItem = (): TradeItem => ({
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   contact_id: "",
-  supplier: "",
   expenses: "0",
   items: [emptyItem()] as TradeItem[],
 };
@@ -73,16 +73,23 @@ const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses ||
 
 // Migrate legacy single-product records to items[] shape
 const migrate = (raw: any): TradeRecord => {
-  if (raw && Array.isArray(raw.items)) return raw as TradeRecord;
+  if (raw && Array.isArray(raw.items)) {
+    // backfill supplier onto items if missing (older multi-item records)
+    const recSup = raw.supplier ?? "";
+    return {
+      ...raw,
+      items: raw.items.map((i: any) => ({ ...i, supplier: i.supplier ?? recSup })),
+    } as TradeRecord;
+  }
   return {
     id: raw.id ?? crypto.randomUUID(),
     date: raw.date,
     contact_id: raw.contact_id,
     contact_name: raw.contact_name ?? "",
-    supplier: raw.supplier ?? "",
     expenses: Number(raw.expenses) || 0,
     items: [{
       id: crypto.randomUUID(),
+      supplier: raw.supplier ?? "",
       description: raw.description ?? "",
       packing: Number(raw.packing) || 0,
       unit: raw.unit ?? "kg",
