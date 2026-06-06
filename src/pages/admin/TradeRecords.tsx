@@ -531,27 +531,33 @@ const TradeRecords = () => {
         </div>
       )}
       <header className="border-b border-border bg-card">
-        <div className="px-6 py-5 flex items-start justify-between gap-4">
+        <div className="px-4 md:px-6 py-4 md:py-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-xl font-semibold">Trade Records</h1>
-              <p className="text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Contact-wise trade ledger with profit tracking</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handlePrint}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
             </Button>
-            <Button variant="outline" onClick={() => setCommissionsOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setCommissionsOpen(true)}>
               <Receipt className="h-4 w-4 mr-2" />Commissions
             </Button>
-            <Button variant="outline" onClick={() => setContactsOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setContactsOpen(true)}>
               <Users className="h-4 w-4 mr-2" />Contacts
             </Button>
-            <Button onClick={openNew} disabled={!contacts.length}>
+            <Button variant="outline" size="sm" onClick={() => setChangePinOpen(true)}>
+              Change PIN
+            </Button>
+            <Button variant="outline" size="sm" onClick={lock}>
+              Lock
+            </Button>
+            <Button size="sm" onClick={openNew} disabled={!contacts.length}>
               <Plus className="h-4 w-4 mr-2" />New Record
             </Button>
           </div>
