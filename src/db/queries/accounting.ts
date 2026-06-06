@@ -67,8 +67,12 @@ export async function fetchAccountBalancesLocal(opts: {
            COALESCE(SUM(l.credit_amount), 0) AS total_credit
     FROM accounts a
     LEFT JOIN journal_entry_lines l ON l.account_id = a.id
-    LEFT JOIN journal_entries e ON e.id = l.journal_entry_id
-      AND ${lineDateClauses.join(' AND ')}
+      AND EXISTS (
+        SELECT 1
+        FROM journal_entries e
+        WHERE e.id = l.journal_entry_id
+          AND ${lineDateClauses.join(' AND ')}
+      )
     WHERE a.is_active = 1 ${typeFilter}
     GROUP BY a.id
     ORDER BY a.account_code
