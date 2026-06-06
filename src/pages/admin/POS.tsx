@@ -4127,17 +4127,22 @@ export default function POS() {
   };
 
   return (
-    <div className={cn("bg-background flex overflow-hidden", inDesktop ? "h-full w-full" : "h-screen")}>
+    <div className={cn(
+      "bg-background flex",
+      isMobile ? "flex-col h-screen overflow-y-auto overflow-x-hidden w-full" : "overflow-hidden",
+      !isMobile && (inDesktop ? "h-full w-full" : "h-screen"),
+    )}>
       {/* Left Sidebar - Cart */}
       <div 
         className={cn(
           "cart-container border-r flex flex-col bg-card shadow-lg transition-shadow relative",
           cartPosition && "absolute z-50 shadow-2xl",
-          isDragging && "cursor-move select-none"
+          isDragging && "cursor-move select-none",
+          isMobile && "w-full border-r-0 border-b shadow-none"
         )}
         style={{
-          width: `${cartWidth}px`,
-          ...(cartPosition && {
+          ...(isMobile ? {} : { width: `${cartWidth}px` }),
+          ...(!isMobile && cartPosition && {
             left: `${cartPosition.x}px`,
             top: `${cartPosition.y}px`,
             height: 'calc(100vh - 40px)',
