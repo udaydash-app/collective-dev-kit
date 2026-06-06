@@ -25,7 +25,7 @@ export default function BalanceSheet() {
       try {
         rows = await fetchAccountBalancesLocal({
           endDate: asOfDate,
-          accountTypes: ['asset', 'liability', 'equity'],
+          accountTypes: ['asset', 'liability', 'equity', 'revenue', 'expense'],
         });
       } catch (err) {
         console.warn('[balance-sheet] local fetch failed, falling back', err);
@@ -34,7 +34,7 @@ export default function BalanceSheet() {
         const { data: accounts, error } = await supabase
           .from('accounts')
           .select('*')
-          .in('account_type', ['asset', 'liability', 'equity'])
+          .in('account_type', ['asset', 'liability', 'equity', 'revenue', 'expense'])
           .eq('is_active', true)
           .order('account_code');
         if (error) throw error;
@@ -54,6 +54,14 @@ export default function BalanceSheet() {
           }),
         );
       }
+
+      const netIncome = rows.reduce((sum: number, account: any) => {
+        const totalDebit = account.total_debit || 0;
+        const totalCredit = account.total_credit || 0;
+        if (account.account_type === 'revenue') return sum + (totalCredit - totalDebit);
+        if (account.account_type === 'expense') return sum - (totalDebit - totalCredit);
+        return sum;
+      }, 0);
 
       const activeAccounts = rows
         .map((account: any) => {
@@ -205,7 +213,8 @@ export default function BalanceSheet() {
       const totalRetainedEarningsPositive = retainedEarningsPositive.reduce((sum, acc) => sum + acc.balance, 0);
       const totalEquity = totalCapitalPositive + totalReservesPositive + totalRetainedEarningsPositive;
 
-      const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
+      const unpostedDifference = totalAssets - (totalLiabilities + totalEquity + netIncome);
+      const totalLiabilitiesAndEquity = totalLiabilities + totalEquity + netIncome + unpostedDifference;
       const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.01;
 
       return {
@@ -242,6 +251,8 @@ export default function BalanceSheet() {
         totalReserves: totalReservesPositive,
         totalRetainedEarnings: totalRetainedEarningsPositive,
         totalEquity,
+        netIncome,
+        unpostedDifference,
         totalLiabilitiesAndEquity,
         isBalanced,
         // For display of negative items moved to opposite side
@@ -412,6 +423,32 @@ export default function BalanceSheet() {
                   </tr>
                 ))}
 
+                {balanceSheetData.netIncome !== 0 && (
+                  <tr className="border-b border-border/30">
+                    <td className="p-2 pl-6 border-r border-border font-medium">
+                      Current {balanceSheetData.netIncome >= 0 ? 'Profit' : 'Loss'}
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border">
+                      {formatCurrency(balanceSheetData.netIncome)}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                )}
+
+                {Math.abs(balanceSheetData.unpostedDifference) >= 0.01 && (
+                  <tr className="border-b border-border/30 bg-amber-50 dark:bg-amber-950/20">
+                    <td className="p-2 pl-6 border-r border-border font-medium text-amber-700 dark:text-amber-400">
+                      Suspense / Journal Difference
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border text-amber-700 dark:text-amber-400">
+                      {formatCurrency(balanceSheetData.unpostedDifference)}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                )}
+
                 {/* Fixed Assets on Right */}
                 {balanceSheetData.fixedAssets.map((acc, idx) => (
                   <tr key={`fixed-${acc.id}`} className="border-b border-border/30">
@@ -431,7 +468,7 @@ export default function BalanceSheet() {
                 <tr className="bg-muted/20 font-semibold">
                   <td className="p-2 text-right border-r border-border">Total Capital & Reserves</td>
                   <td className="p-2 text-right font-mono border-r border-border">
-                    {formatCurrency(balanceSheetData.totalEquity)}
+                    {formatCurrency(balanceSheetData.totalEquity + balanceSheetData.netIncome + balanceSheetData.unpostedDifference)}
                   </td>
                   <td className="p-2 text-right border-r border-border">Total Fixed Assets</td>
                   <td className="p-2 text-right font-mono">

@@ -48,6 +48,14 @@ export async function fetchAccountBalancesLocal(opts: {
   endDate?: string;
   accountTypes?: string[];
 } = {}): Promise<any[]> {
+  if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      return await fetchAccountBalancesRemote(opts);
+    } catch (e) {
+      console.warn('[account-balances] Supabase fetch failed, using local mirror', e);
+    }
+  }
+
   const typeFilter = opts.accountTypes && opts.accountTypes.length
     ? `AND a.account_type IN (${opts.accountTypes.map(() => '?').join(',')})`
     : '';
@@ -67,8 +75,12 @@ export async function fetchAccountBalancesLocal(opts: {
            COALESCE(SUM(l.credit_amount), 0) AS total_credit
     FROM accounts a
     LEFT JOIN journal_entry_lines l ON l.account_id = a.id
-    LEFT JOIN journal_entries e ON e.id = l.journal_entry_id
-      AND ${lineDateClauses.join(' AND ')}
+      AND EXISTS (
+        SELECT 1
+        FROM journal_entries e
+        WHERE e.id = l.journal_entry_id
+          AND ${lineDateClauses.join(' AND ')}
+      )
     WHERE a.is_active = 1 ${typeFilter}
     GROUP BY a.id
     ORDER BY a.account_code
@@ -77,6 +89,70 @@ export async function fetchAccountBalancesLocal(opts: {
   return rows.map((r: any) => ({
     ...r,
     is_active: toBool(r.is_active),
+    total_debit: Number(r.total_debit) || 0,
+    total_credit: Number(r.total_credit) || 0,
+  }));
+}
+
+export async function fetchAccountBalancesRemote(opts: {
+  startDate?: string;
+  endDate?: string;
+  accountTypes?: string[];
+} = {}): Promise<any[]> {
+  let accountQuery = supabase
+    .from('accounts')
+    .select('*')
+    .eq('is_active', true)
+    .order('account_code');
+  if (opts.accountTypes?.length) accountQuery = accountQuery.in('account_type', opts.accountTypes as any);
+
+  const { data: accounts, error: accountsError } = await accountQuery;
+  if (accountsError) throw accountsError;
+
+  const byId = new Map<string, any>();
+  (accounts ?? []).forEach((account: any) => {
+    byId.set(account.id, { ...account, total_debit: 0, total_credit: 0 });
+  });
+
+  const PAGE = 1000;
+  let offset = 0;
+  for (let guard = 0; guard < 1000; guard++) {
+    let lineQuery = supabase
+      .from('journal_entry_lines')
+      .select(`
+        account_id,
+        debit_amount,
+        credit_amount,
+        accounts!inner(*),
+        journal_entries!inner(status, entry_date)
+      `)
+      .eq('accounts.is_active', true)
+      .eq('journal_entries.status', 'posted')
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+
+    if (opts.accountTypes?.length) lineQuery = lineQuery.in('accounts.account_type', opts.accountTypes as any);
+    if (opts.startDate) lineQuery = lineQuery.gte('journal_entries.entry_date', opts.startDate);
+    if (opts.endDate) lineQuery = lineQuery.lte('journal_entries.entry_date', opts.endDate);
+
+    const { data, error } = await lineQuery;
+    if (error) throw error;
+    const lines = (data ?? []) as any[];
+    lines.forEach((line) => {
+      const account = line.accounts;
+      if (!account?.id) return;
+      const current = byId.get(account.id) ?? { ...account, total_debit: 0, total_credit: 0 };
+      current.total_debit += Number(line.debit_amount) || 0;
+      current.total_credit += Number(line.credit_amount) || 0;
+      byId.set(account.id, current);
+    });
+    if (lines.length < PAGE) break;
+    offset += PAGE;
+  }
+
+  return Array.from(byId.values()).map((r) => ({
+    ...r,
+    is_active: Boolean(r.is_active),
     total_debit: Number(r.total_debit) || 0,
     total_credit: Number(r.total_credit) || 0,
   }));

@@ -17,6 +17,21 @@ import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
+const fetchAllRows = async <T,>(makeQuery: () => any): Promise<T[]> => {
+  const PAGE = 1000;
+  const all: T[] = [];
+  let offset = 0;
+  for (let guard = 0; guard < 1000; guard++) {
+    const { data, error } = await makeQuery().range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    offset += PAGE;
+  }
+  return all;
+};
+
 export default function ProfitLoss() {
   usePageView('Admin - Profit & Loss');
   const [startDate, setStartDate] = useState(
@@ -27,13 +42,17 @@ export default function ProfitLoss() {
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],
     queryFn: async () => {
-      // Local-first: pull all P&L raw inputs from PowerSync mirror.
-      // Falls back to Supabase if local mirror has no data.
+      // Use authoritative Supabase data when online, with explicit pagination
+      // so sales/purchases over 1000 rows are not truncated by PostgREST.
+      // Offline still uses the local PowerSync mirror.
       let inputs: Awaited<ReturnType<typeof fetchProfitLossInputsLocal>> | null = null;
-      try {
-        inputs = await fetchProfitLossInputsLocal(startDate, endDate);
-      } catch (err) {
-        console.warn('[profit-loss] local inputs failed, falling back', err);
+      const preferRemote = typeof navigator === 'undefined' || navigator.onLine;
+      if (!preferRemote) {
+        try {
+          inputs = await fetchProfitLossInputsLocal(startDate, endDate);
+        } catch (err) {
+          console.warn('[profit-loss] local inputs failed, falling back', err);
+        }
       }
       const useLocal = !!inputs && (inputs.purchases.length + inputs.sales.length + inputs.allProducts.length) > 0;
 
@@ -41,12 +60,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         purchases = inputs!.purchases;
       } else {
-        const r = await supabase
+        purchases = await fetchAllRows<any>(() => supabase
           .from('purchases')
           .select('total_amount')
           .gte('purchased_at', startDate)
-          .lte('purchased_at', endDate + 'T23:59:59');
-        purchases = r.data;
+          .lte('purchased_at', endDate + 'T23:59:59'));
       }
 
       const totalPurchases = purchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
@@ -55,12 +73,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         sales = inputs!.sales;
       } else {
-        const r = await supabase
+        sales = await fetchAllRows<any>(() => supabase
           .from('pos_transactions')
           .select('subtotal, discount, items')
           .gte('created_at', startDate)
-          .lte('created_at', endDate + 'T23:59:59');
-        sales = r.data;
+          .lte('created_at', endDate + 'T23:59:59'));
       }
 
       const grossSales = sales?.reduce((sum, s) => sum + (s.subtotal || 0), 0) || 0;
@@ -141,9 +158,9 @@ export default function ProfitLoss() {
         allProducts = inputs!.allProducts;
         allVariants = inputs!.allVariants;
       } else {
-        const [{ data: ap }, { data: av }] = await Promise.all([
-          supabase.from('products').select('id, cost_price, local_charges, stock_quantity'),
-          supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id'),
+        const [ap, av] = await Promise.all([
+          fetchAllRows<any>(() => supabase.from('products').select('id, cost_price, local_charges, stock_quantity')),
+          fetchAllRows<any>(() => supabase.from('product_variants').select('id, cost_price, stock_quantity, product_id')),
         ]);
         allProducts = ap;
         allVariants = av;
@@ -171,12 +188,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         stockAdjustments = inputs!.stockAdjustments;
       } else {
-        const r = await supabase
+        stockAdjustments = await fetchAllRows<any>(() => supabase
           .from('stock_adjustments')
           .select('quantity_change, product_id, variant_id, unit_cost, total_value')
           .gte('created_at', startDate)
-          .lte('created_at', endDate + 'T23:59:59');
-        stockAdjustments = r.data;
+          .lte('created_at', endDate + 'T23:59:59'));
       }
 
       // Calculate stock adjustment value (prefer stored total_value, fallback to cost prices)
@@ -219,11 +235,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futurePurchases = inputs!.futurePurchases;
       } else {
-        const r = await supabase
+        futurePurchases = await fetchAllRows<any>(() => supabase
           .from('purchases')
           .select('total_amount')
-          .gt('purchased_at', endDate + 'T23:59:59');
-        futurePurchases = r.data;
+          .gt('purchased_at', endDate + 'T23:59:59'));
       }
       
       const futurePurchasesTotal = futurePurchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
@@ -232,11 +247,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futureSales = inputs!.futureSales;
       } else {
-        const r = await supabase
+        futureSales = await fetchAllRows<any>(() => supabase
           .from('pos_transactions')
           .select('items')
-          .gt('created_at', endDate + 'T23:59:59');
-        futureSales = r.data;
+          .gt('created_at', endDate + 'T23:59:59'));
       }
 
       let futureCOGS = 0;
@@ -258,11 +272,10 @@ export default function ProfitLoss() {
       if (useLocal) {
         futureAdjustments = inputs!.futureAdjustments;
       } else {
-        const r = await supabase
+        futureAdjustments = await fetchAllRows<any>(() => supabase
           .from('stock_adjustments')
           .select('quantity_change, product_id, variant_id')
-          .gt('created_at', endDate + 'T23:59:59');
-        futureAdjustments = r.data;
+          .gt('created_at', endDate + 'T23:59:59'));
       }
 
       let futureAdjustmentValue = 0;

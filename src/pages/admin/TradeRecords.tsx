@@ -38,7 +38,7 @@ const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
 const PIN_KEY = "admin:trade-records:pin";
 const UNLOCK_KEY = "admin:trade-records:unlocked";
-const DEFAULT_PIN = "1234";
+const DEFAULT_PIN = "1111";
 
 const emptyItem = (): TradeItem => ({
   id: crypto.randomUUID(),
@@ -160,6 +160,11 @@ const TradeRecords = () => {
   const [pinForm, setPinForm] = useState({ current: "", next: "", confirm: "" });
 
   const getStoredPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+
+  useEffect(() => {
+    const storedPin = localStorage.getItem(PIN_KEY);
+    if (!storedPin || storedPin === "1234") localStorage.setItem(PIN_KEY, DEFAULT_PIN);
+  }, []);
 
   const tryUnlock = (e?: React.FormEvent) => {
     e?.preventDefault();
