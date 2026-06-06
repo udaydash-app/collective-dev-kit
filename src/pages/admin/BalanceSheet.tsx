@@ -436,6 +436,19 @@ export default function BalanceSheet() {
                   </tr>
                 )}
 
+                {Math.abs(balanceSheetData.unpostedDifference) >= 0.01 && (
+                  <tr className="border-b border-border/30 bg-amber-50 dark:bg-amber-950/20">
+                    <td className="p-2 pl-6 border-r border-border font-medium text-amber-700 dark:text-amber-400">
+                      Suspense / Journal Difference
+                    </td>
+                    <td className="p-2 text-right font-mono border-r border-border text-amber-700 dark:text-amber-400">
+                      {formatCurrency(balanceSheetData.unpostedDifference)}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-2"></td>
+                  </tr>
+                )}
+
                 {/* Fixed Assets on Right */}
                 {balanceSheetData.fixedAssets.map((acc, idx) => (
                   <tr key={`fixed-${acc.id}`} className="border-b border-border/30">
@@ -455,7 +468,7 @@ export default function BalanceSheet() {
                 <tr className="bg-muted/20 font-semibold">
                   <td className="p-2 text-right border-r border-border">Total Capital & Reserves</td>
                   <td className="p-2 text-right font-mono border-r border-border">
-                    {formatCurrency(balanceSheetData.totalEquity + balanceSheetData.netIncome)}
+                    {formatCurrency(balanceSheetData.totalEquity + balanceSheetData.netIncome + balanceSheetData.unpostedDifference)}
                   </td>
                   <td className="p-2 text-right border-r border-border">Total Fixed Assets</td>
                   <td className="p-2 text-right font-mono">
