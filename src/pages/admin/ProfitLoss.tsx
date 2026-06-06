@@ -17,6 +17,21 @@ import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
+const fetchAllRows = async <T,>(makeQuery: () => any): Promise<T[]> => {
+  const PAGE = 1000;
+  const all: T[] = [];
+  let offset = 0;
+  for (let guard = 0; guard < 1000; guard++) {
+    const { data, error } = await makeQuery().range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    offset += PAGE;
+  }
+  return all;
+};
+
 export default function ProfitLoss() {
   usePageView('Admin - Profit & Loss');
   const [startDate, setStartDate] = useState(
@@ -27,13 +42,17 @@ export default function ProfitLoss() {
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],
     queryFn: async () => {
-      // Local-first: pull all P&L raw inputs from PowerSync mirror.
-      // Falls back to Supabase if local mirror has no data.
+      // Use authoritative Supabase data when online, with explicit pagination
+      // so sales/purchases over 1000 rows are not truncated by PostgREST.
+      // Offline still uses the local PowerSync mirror.
       let inputs: Awaited<ReturnType<typeof fetchProfitLossInputsLocal>> | null = null;
-      try {
-        inputs = await fetchProfitLossInputsLocal(startDate, endDate);
-      } catch (err) {
-        console.warn('[profit-loss] local inputs failed, falling back', err);
+      const preferRemote = typeof navigator === 'undefined' || navigator.onLine;
+      if (!preferRemote) {
+        try {
+          inputs = await fetchProfitLossInputsLocal(startDate, endDate);
+        } catch (err) {
+          console.warn('[profit-loss] local inputs failed, falling back', err);
+        }
       }
       const useLocal = !!inputs && (inputs.purchases.length + inputs.sales.length + inputs.allProducts.length) > 0;
 
@@ -41,12 +60,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         purchases = inputs!.purchases;
       } else {
-        const r = await supabase
+        purchases = await fetchAllRows<any>(() => supabase
           .from('purchases')
           .select('total_amount')
           .gte('purchased_at', startDate)
-          .lte('purchased_at', endDate + 'T23:59:59');
-        purchases = r.data;
+          .lte('purchased_at', endDate + 'T23:59:59'));
       }
 
       const totalPurchases = purchases?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0;
@@ -55,12 +73,11 @@ export default function ProfitLoss() {
       if (useLocal) {
         sales = inputs!.sales;
       } else {
-        const r = await supabase
+        sales = await fetchAllRows<any>(() => supabase
           .from('pos_transactions')
           .select('subtotal, discount, items')
           .gte('created_at', startDate)
-          .lte('created_at', endDate + 'T23:59:59');
-        sales = r.data;
+          .lte('created_at', endDate + 'T23:59:59'));
       }
 
       const grossSales = sales?.reduce((sum, s) => sum + (s.subtotal || 0), 0) || 0;
