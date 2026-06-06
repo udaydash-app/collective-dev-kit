@@ -105,6 +105,7 @@ import { offlineDB } from '@/lib/offlineDB';
 export default function POS() {
   const navigate = useNavigate();
   const inDesktop = useInDesktopWindow();
+  const isMobile = useIsMobile();
   const hideAdminMenu = true;
   const [searchParams] = useSearchParams();
   const location = useLocation();
