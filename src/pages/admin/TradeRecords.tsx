@@ -831,9 +831,9 @@ const TradeRecords = () => {
             const brokerByContact = new Map<string, number>();
             const supplierBySupplier = new Map<string, number>();
             for (const r of filtered) {
-              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + (r.broker_commission || 0));
+              brokerByContact.set(r.contact_id, (brokerByContact.get(r.contact_id) || 0) + totalBrokerComm(r));
               const sup = (r.supplier || "—").trim() || "—";
-              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + (r.supplier_commission || 0));
+              supplierBySupplier.set(sup, (supplierBySupplier.get(sup) || 0) + totalSupplierComm(r));
             }
             const brokerList = [...brokerByContact.entries()].filter(([, v]) => v !== 0)
               .sort((a, b) => contactName(a[0]).localeCompare(contactName(b[0])));
