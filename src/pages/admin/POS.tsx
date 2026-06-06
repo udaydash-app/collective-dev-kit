@@ -2567,11 +2567,13 @@ export default function POS() {
   useEffect(() => {
     const handlePaymentShortcut = (event: KeyboardEvent) => {
       if (!['F2', 'F3', 'F4'].includes(event.key)) return;
-      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
-
+      // Always block the browser default (e.g. F3 = Find) for these keys
+      // while POS is mounted, regardless of which dialog is open.
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+
+      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
 
       // Block re-entry while a payment is being processed / printed.
       // Without this, pressing F2/F3/F4 a second time before the cart
