@@ -626,7 +626,7 @@ const TradeRecords = () => {
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
             <div>
-              <Label>Packing</Label>
+              <Label>Packing (per bag)</Label>
               <Input type="number" step="0.01" value={form.packing} onChange={(e) => setForm({ ...form, packing: e.target.value })} />
             </div>
             <div>
