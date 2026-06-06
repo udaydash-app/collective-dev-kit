@@ -955,6 +955,35 @@ const TradeRecords = () => {
           <p className="text-xs text-muted-foreground">Based on the current contact filter and period.</p>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={changePinOpen} onOpenChange={setChangePinOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change PIN</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Current PIN</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.current}
+                onChange={(e) => setPinForm({ ...pinForm, current: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>New PIN (4-8 digits)</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.next}
+                onChange={(e) => setPinForm({ ...pinForm, next: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Confirm New PIN</Label>
+              <Input type="password" inputMode="numeric" value={pinForm.confirm}
+                onChange={(e) => setPinForm({ ...pinForm, confirm: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangePinOpen(false)}>Cancel</Button>
+            <Button onClick={saveNewPin}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
