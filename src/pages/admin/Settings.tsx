@@ -18,6 +18,39 @@ import { FolderOpen, Loader2 } from "lucide-react";
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey, clearCloudServiceRoleKey } from "@/lib/cloudSyncService";
 import { isUsingLocalSupabase } from "@/integrations/supabase/client";
 
+function LocalUpdateButton() {
+  const [busy, setBusy] = useState(false);
+  const isDesktop = typeof window !== 'undefined' && !!window.electron?.updateFromLocalFolder;
+
+  const handleClick = async () => {
+    if (!isDesktop) {
+      toast.info('Local folder updates are only available in the desktop app.');
+      return;
+    }
+    setBusy(true);
+    toast.loading('Selecting installer...', { id: 'local-update' });
+    try {
+      const result = await window.electron!.updateFromLocalFolder!();
+      if (result.success) {
+        toast.success(`Installing ${result.installer}. The app will close...`, { id: 'local-update' });
+      } else {
+        toast.error(result.error || 'Failed to install local update', { id: 'local-update' });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to install local update', { id: 'local-update' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Button onClick={handleClick} disabled={busy || !isDesktop} variant="secondary" size="sm" className="gap-2">
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderOpen className="h-4 w-4" />}
+      {busy ? 'Working...' : 'Update from Local Folder'}
+    </Button>
+  );
+}
+
 interface Settings {
   id: string;
   company_name: string;
