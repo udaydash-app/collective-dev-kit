@@ -2585,8 +2585,24 @@ export default function POS() {
   };
 
   useEffect(() => {
+    const getPaymentShortcutKey = (event: KeyboardEvent) => {
+      const key = event.key || event.code;
+      if (key === 'F2' || event.code === 'F2' || event.keyCode === 113) return 'F2';
+      if (key === 'F3' || event.code === 'F3' || event.keyCode === 114) return 'F3';
+      if (key === 'F4' || event.code === 'F4' || event.keyCode === 115) return 'F4';
+      return null;
+    };
+
+    const blockPaymentShortcutDefault = (event: KeyboardEvent) => {
+      if (!getPaymentShortcutKey(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+
     const handlePaymentShortcut = (event: KeyboardEvent) => {
-      if (!['F2', 'F3', 'F4'].includes(event.key)) return;
+      const shortcutKey = getPaymentShortcutKey(event);
+      if (!shortcutKey) return;
       // Always block the browser default (e.g. F3 = Find) for these keys
       // while POS is mounted, regardless of which dialog is open.
       event.preventDefault();
@@ -2611,20 +2627,24 @@ export default function POS() {
         return;
       }
 
-      if (event.key === 'F2') {
+      if (shortcutKey === 'F2') {
         // Open the quick payment confirmation dialog (same UX as F3/F4)
         quickPaymentActionRef.current('cash');
         return;
       }
-      if (event.key === 'F3') quickPaymentActionRef.current('mobile_money');
-      if (event.key === 'F4') quickPaymentActionRef.current('credit');
+      if (shortcutKey === 'F3') quickPaymentActionRef.current('mobile_money');
+      if (shortcutKey === 'F4') quickPaymentActionRef.current('credit');
     };
 
     window.addEventListener('keydown', handlePaymentShortcut, true);
     document.addEventListener('keydown', handlePaymentShortcut, true);
+    window.addEventListener('keyup', blockPaymentShortcutDefault, true);
+    document.addEventListener('keyup', blockPaymentShortcutDefault, true);
     return () => {
       window.removeEventListener('keydown', handlePaymentShortcut, true);
       document.removeEventListener('keydown', handlePaymentShortcut, true);
+      window.removeEventListener('keyup', blockPaymentShortcutDefault, true);
+      document.removeEventListener('keyup', blockPaymentShortcutDefault, true);
     };
   }, []);
 
