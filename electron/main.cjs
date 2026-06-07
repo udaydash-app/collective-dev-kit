@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { shell } = require('electron');
 const { execSync } = require('child_process');
 const { registerIpc: registerPgliteIpc } = require('./pglite-bridge.cjs');
 registerPgliteIpc();
