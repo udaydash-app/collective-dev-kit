@@ -328,12 +328,13 @@ export default function BarcodeManagement() {
   }
   .label:last-child { page-break-after: auto; break-after: auto; }
   .label svg { width: ${Math.max(opts.pageWidthMm - 4, 10)}mm !important; height: auto !important; max-height: ${Math.max(opts.pageHeightMm * 0.45, 8)}mm !important; display: block; }
-  .label p { margin: 0; padding: 0; }
+  .label p, .label div { margin: 0; padding: 0; text-align: center; }
+  .label > div, .label > p { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .product-name { font-size: ${productNameSize}pt; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: ${opts.pageWidthMm - 2}mm; text-align: center; }
   .variant-label { font-size: ${variantLabelSize}pt; line-height: 1.1; text-align: center; }
   .price-text { font-size: ${priceSize}pt; font-weight: 700; line-height: 1.1; text-align: center; }
   .details-text { font-size: ${detailsSize}pt; line-height: 1.15; text-align: center; width: 100%; }
-  .expiry-date { font-size: ${expirySize}pt; font-weight: 700; }
+  .expiry-date { font-size: ${expirySize}pt; font-weight: 700; text-align: center; }
   ${opts.extraCss || ''}
 </style></head><body>${node.innerHTML}</body></html>`;
     win.document.open();
@@ -872,67 +873,22 @@ export default function BarcodeManagement() {
             <CardContent>
               <style>
                 {`
-                  @media print {
-                    body {
-                      margin: 0;
-                      padding: 0;
-                    }
-                    .barcode-container {
-                      display: block !important;
-                    }
-                    .barcode-label {
-                      width: 40mm !important;
-                      height: 30mm !important;
-                      padding: 1mm !important;
-                      margin: 0 !important;
-                      box-sizing: border-box;
-                      display: flex !important;
-                      flex-direction: column;
-                      justify-content: center;
-                      align-items: center;
-                      page-break-after: always;
-                      gap: 0.5mm !important;
-                      overflow: hidden;
-                    }
-                    .barcode-label p {
-                      margin: 0 !important;
-                      padding: 0 !important;
-                    }
-                    .barcode-label svg {
-                      width: 36mm !important;
-                      height: auto !important;
-                      max-height: 14mm !important;
-                    }
-                    .product-name {
-                      font-size: ${productNameSize}pt !important;
-                      font-weight: bold !important;
-                      line-height: 1.1 !important;
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      max-width: 38mm;
-                    }
-                    .variant-label {
-                      font-size: ${variantLabelSize}pt !important;
-                      line-height: 1.1 !important;
-                    }
-                    .price-text {
-                      font-size: ${priceSize}pt !important;
-                      font-weight: bold !important;
-                      line-height: 1.1 !important;
-                    }
-                    .details-text {
-                      font-size: ${detailsSize}pt !important;
-                      line-height: 1.15 !important;
-                    }
-                    .expiry-date {
-                      font-size: ${expirySize}pt !important;
-                      font-weight: bold !important;
-                    }
+                  .barcode-label, .barcode-label * { text-align: center !important; }
+                  .barcode-label { box-sizing: border-box; }
+                  .barcode-label svg {
+                    width: ${Math.max(paperWidth - 4, 10)}mm !important;
+                    height: auto !important;
+                    max-height: ${Math.max(paperHeight * 0.45, 8)}mm !important;
+                    display: block;
+                    margin: 0 auto;
                   }
+                  .barcode-label p { margin: 0; padding: 0; }
                 `}
               </style>
-              <div ref={printRef} className="barcode-container flex flex-wrap gap-2">
+              <p className="text-xs text-muted-foreground mb-3">
+                This is a true-to-size preview of one label at {paperWidth}mm × {paperHeight}mm — what you see is what will print.
+              </p>
+              <div ref={printRef} className="barcode-container flex flex-wrap gap-2 justify-center">
                 {selectedItems.map((item) => {
                   const barcodeValues = getBarcodeValues(item);
                   const itemKey = `${item.type}-${item.id}`;
@@ -940,19 +896,51 @@ export default function BarcodeManagement() {
                   return (
                     <div
                       key={itemKey}
-                      className="barcode-label rounded border p-1 flex flex-col items-center justify-center gap-1"
-                      style={{ width: `${paperWidth}mm`, height: `${paperHeight}mm`, overflow: 'hidden' }}
+                      className="barcode-label rounded border flex flex-col items-center justify-center"
+                      style={{
+                        width: `${paperWidth}mm`,
+                        height: `${paperHeight}mm`,
+                        padding: '1mm',
+                        gap: '0.5mm',
+                        overflow: 'hidden',
+                        textAlign: 'center',
+                      }}
                     >
-                      <div className="w-full text-center">
+                      <div className="w-full" style={{ textAlign: 'center' }}>
                         {printProductName && (
-                          <p className="product-name font-bold leading-tight truncate">{item.name}</p>
+                          <p
+                            className="product-name"
+                            style={{
+                              fontSize: `${productNameSize}pt`,
+                              fontWeight: 700,
+                              lineHeight: 1.1,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: `${paperWidth - 2}mm`,
+                              textAlign: 'center',
+                              margin: '0 auto',
+                            }}
+                          >
+                            {item.name}
+                          </p>
                         )}
                         {printVariantLabel && item.variantLabel && (
-                          <p className="variant-label leading-tight truncate">{item.variantLabel}</p>
+                          <p
+                            className="variant-label"
+                            style={{
+                              fontSize: `${variantLabelSize}pt`,
+                              lineHeight: 1.1,
+                              textAlign: 'center',
+                              margin: '0 auto',
+                            }}
+                          >
+                            {item.variantLabel}
+                          </p>
                         )}
                       </div>
                       {printBarcode && barcodeValues.map((barcodeValue, index) => (
-                        <div key={index} className="flex justify-center w-full">
+                        <div key={index} className="flex justify-center w-full" style={{ textAlign: 'center' }}>
                           <Barcode
                             value={barcodeValue}
                             width={barcodeWidth}
@@ -964,18 +952,48 @@ export default function BarcodeManagement() {
                         </div>
                       ))}
                       {printPrice && (
-                        <p className="price-text font-bold">{formatCurrency(customPrice)}</p>
+                        <p
+                          className="price-text"
+                          style={{
+                            fontSize: `${priceSize}pt`,
+                            fontWeight: 700,
+                            lineHeight: 1.1,
+                            textAlign: 'center',
+                            margin: '0 auto',
+                          }}
+                        >
+                          {formatCurrency(customPrice)}
+                        </p>
                       )}
                       {details && (
-                        <div className="details-text leading-tight w-full text-center">
+                        <div
+                          className="details-text"
+                          style={{
+                            fontSize: `${detailsSize}pt`,
+                            lineHeight: 1.15,
+                            width: '100%',
+                            textAlign: 'center',
+                          }}
+                        >
                           {printBatch && details.batchNumber && (
-                            <p><span className="font-semibold">Batch:</span> {details.batchNumber}</p>
+                            <p style={{ textAlign: 'center', margin: 0 }}><span style={{ fontWeight: 600 }}>Batch:</span> {details.batchNumber}</p>
                           )}
                           {printManufacturingDate && details.manufacturingDate && (
-                            <p><span className="font-semibold">Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
+                            <p style={{ textAlign: 'center', margin: 0 }}><span style={{ fontWeight: 600 }}>Manufacturing Date:</span> {new Date(details.manufacturingDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {printExpiryDate && details.expiryDate && (
-                            <p className="expiry-date font-bold text-black"><span className="font-bold">Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}</p>
+                            <p
+                              className="expiry-date"
+                              style={{
+                                fontSize: `${expirySize}pt`,
+                                fontWeight: 700,
+                                color: '#000',
+                                textAlign: 'center',
+                                margin: 0,
+                              }}
+                            >
+                              <span style={{ fontWeight: 700 }}>Expiry Date:</span> {new Date(details.expiryDate).toLocaleDateString('en-GB')}
+                            </p>
                           )}
                         </div>
                       )}
