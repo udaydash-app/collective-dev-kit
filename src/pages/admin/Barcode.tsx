@@ -731,6 +731,28 @@ export default function BarcodeManagement() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
+                  <Label htmlFor="paper-width">Paper Width (mm)</Label>
+                  <Input
+                    id="paper-width"
+                    type="number"
+                    min="20"
+                    max="210"
+                    value={paperWidth}
+                    onChange={(e) => setPaperWidth(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="paper-height">Paper Height (mm)</Label>
+                  <Input
+                    id="paper-height"
+                    type="number"
+                    min="15"
+                    max="297"
+                    value={paperHeight}
+                    onChange={(e) => setPaperHeight(Number(e.target.value))}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="barcode-width">Barcode Width (1-10)</Label>
                   <Input
                     id="barcode-width"
