@@ -151,6 +151,16 @@ export default function POS() {
   const [expandedMetric, setExpandedMetric] = useState<'sales' | 'products' | 'customers' | null>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const productSearchRef = useRef<ProductSearchRef>(null);
+  const paymentInFlightRef = useRef(false);
+  const quickPaymentActionRef = useRef<(method: 'cash' | 'mobile_money' | 'credit') => void>(() => undefined);
+  const paymentShortcutStateRef = useRef({
+    showPayment: false,
+    showQuickPayment: false,
+    showHoldTicket: false,
+    showCashIn: false,
+    showCashOut: false,
+    variantSelectorOpen: false,
+  });
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
