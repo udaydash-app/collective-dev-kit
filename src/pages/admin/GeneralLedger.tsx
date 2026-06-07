@@ -28,8 +28,6 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn, formatDate } from '@/lib/utils';
-import { isPWAorElectron } from '@/lib/runtimeMode';
-import { Navigate } from 'react-router-dom';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
@@ -47,9 +45,6 @@ import {
 
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
-  if (isPWAorElectron()) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
   useRealtimeSync();
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
