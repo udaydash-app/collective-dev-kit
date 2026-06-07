@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { Barcode as BarcodeIcon, Printer, Save, RefreshCw, Tag } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { useReactToPrint } from 'react-to-print';
 import { formatCurrency } from '@/lib/utils';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
