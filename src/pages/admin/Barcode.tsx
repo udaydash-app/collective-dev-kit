@@ -302,11 +302,6 @@ export default function BarcodeManagement() {
       toast.error('Nothing to print');
       return;
     }
-    const win = window.open('', '_blank', 'width=800,height=600');
-    if (!win) {
-      toast.error('Popup blocked — please allow popups to print');
-      return;
-    }
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${opts.title}</title>
 <style>
   @page { size: ${opts.pageWidthMm}mm ${opts.pageHeightMm}mm; margin: 0; }
@@ -337,15 +332,46 @@ export default function BarcodeManagement() {
   .expiry-date { font-size: ${expirySize}pt; font-weight: 700; text-align: center; }
   ${opts.extraCss || ''}
 </style></head><body>${node.innerHTML}</body></html>`;
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+
+    // Use a hidden iframe instead of window.open() to avoid popup blockers.
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      setTimeout(() => {
+        try { document.body.removeChild(iframe); } catch {}
+      }, 1000);
+    };
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      toast.error('Unable to prepare print frame');
+      cleanup();
+      return;
+    }
+    doc.open();
+    doc.write(html);
+    doc.close();
+
     const trigger = () => {
-      try { win.focus(); win.print(); } catch (e) { console.warn(e); }
-      setTimeout(() => { try { win.close(); } catch {} }, 500);
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.warn(e);
+      }
+      cleanup();
     };
     // Give browser a tick to lay out SVG barcodes
-    setTimeout(trigger, 300);
+    setTimeout(trigger, 400);
   };
 
   const handlePrint = () => {
