@@ -36,7 +36,13 @@ export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => yesButtonRef.current?.focus(), 0);
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title ?? `Complete ${getPaymentMethodLabel()} Payment`}</DialogTitle>
           <DialogDescription>
@@ -57,6 +63,7 @@ export const QuickPaymentDialog = ({ isOpen, onClose, onConfirm, paymentMethod, 
           <Button
             ref={yesButtonRef}
             variant="default"
+            autoFocus
             onClick={() => {
               onConfirm(true);
               onClose();
