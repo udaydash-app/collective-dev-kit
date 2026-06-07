@@ -14,8 +14,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UpdateButton } from "@/components/UpdateButton";
 import { APP_VERSION } from "@/config/version";
+import { FolderOpen, Loader2 } from "lucide-react";
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey, clearCloudServiceRoleKey } from "@/lib/cloudSyncService";
 import { isUsingLocalSupabase } from "@/integrations/supabase/client";
+
+function LocalUpdateButton() {
+  const [busy, setBusy] = useState(false);
+  const isDesktop = typeof window !== 'undefined' && !!window.electron?.updateFromLocalFolder;
+
+  const handleClick = async () => {
+    if (!isDesktop) {
+      toast.info('Local folder updates are only available in the desktop app.');
+      return;
+    }
+    setBusy(true);
+    toast.loading('Selecting installer...', { id: 'local-update' });
+    try {
+      const result = await window.electron!.updateFromLocalFolder!();
+      if (result.success) {
+        toast.success(`Installing ${result.installer}. The app will close...`, { id: 'local-update' });
+      } else {
+        toast.error(result.error || 'Failed to install local update', { id: 'local-update' });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to install local update', { id: 'local-update' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Button onClick={handleClick} disabled={busy || !isDesktop} variant="secondary" size="sm" className="gap-2">
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderOpen className="h-4 w-4" />}
+      {busy ? 'Working...' : 'Update from Local Folder'}
+    </Button>
+  );
+}
 
 interface Settings {
   id: string;
@@ -397,13 +431,22 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="text-sm font-medium">Current Version</p>
                 <p className="text-2xl font-bold text-primary">v{APP_VERSION}</p>
               </div>
-              <UpdateButton />
+              <div className="flex items-center gap-2 flex-wrap">
+                <UpdateButton />
+                <LocalUpdateButton />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              "Update from Local Folder" lets you pick a folder containing the
+              installer file (.exe / .dmg / .AppImage). The most recent installer
+              for your platform will be launched and the app will close to install it.
+              Only available in the desktop app.
+            </p>
           </CardContent>
         </Card>
 

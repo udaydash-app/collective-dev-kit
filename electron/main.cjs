@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { shell } = require('electron');
 const { execSync } = require('child_process');
 const { registerIpc: registerPgliteIpc } = require('./pglite-bridge.cjs');
 registerPgliteIpc();
@@ -419,6 +421,86 @@ ipcMain.handle('check-for-updates', async () => {
     }
   } else {
     return { success: false, error: 'Updates disabled in development mode' };
+  }
+});
+
+// IPC handler: install update from a local release folder.
+// User picks a folder containing the installer (.exe / .dmg / .AppImage / .zip).
+// We find the most recently modified installer matching the current platform,
+// launch it with the OS, and quit the app so the installer can replace it.
+ipcMain.handle('update:from-local-folder', async () => {
+  try {
+    const win = BrowserWindow.getAllWindows()[0];
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select Release Folder',
+      message: 'Choose the folder that contains the new installer',
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || !result.filePaths?.[0]) {
+      return { success: false, error: 'No folder selected' };
+    }
+    const folder = result.filePaths[0];
+
+    const platform = process.platform;
+    const extByPlatform = {
+      win32: ['.exe', '.msi'],
+      darwin: ['.dmg', '.pkg', '.zip'],
+      linux: ['.AppImage', '.deb', '.rpm'],
+    };
+    const allowed = extByPlatform[platform] || [];
+
+    let entries;
+    try {
+      entries = fs.readdirSync(folder).map((name) => {
+        const fullPath = path.join(folder, name);
+        const stat = fs.statSync(fullPath);
+        return { name, fullPath, mtime: stat.mtimeMs, isFile: stat.isFile() };
+      });
+    } catch (e) {
+      return { success: false, error: `Cannot read folder: ${e.message}` };
+    }
+
+    const candidates = entries
+      .filter((e) => e.isFile && allowed.some((ext) => e.name.toLowerCase().endsWith(ext.toLowerCase())))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    if (candidates.length === 0) {
+      return {
+        success: false,
+        error: `No installer found in folder. Expected one of: ${allowed.join(', ')}`,
+      };
+    }
+
+    const installer = candidates[0];
+    console.log('[LOCAL-UPDATE] Launching installer:', installer.fullPath);
+
+    const confirm = await dialog.showMessageBox(win, {
+      type: 'question',
+      title: 'Install Local Update',
+      message: `Install ${installer.name}?`,
+      detail: `Current version: ${app.getVersion()}\n\nThe app will close so the installer can run.`,
+      buttons: ['Install Now', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (confirm.response !== 0) {
+      return { success: false, error: 'Cancelled' };
+    }
+
+    // Launch installer with the OS default handler, then quit so files aren't locked.
+    const err = await shell.openPath(installer.fullPath);
+    if (err) {
+      return { success: false, error: `Failed to launch installer: ${err}` };
+    }
+
+    setTimeout(() => {
+      app.quit();
+    }, 1500);
+
+    return { success: true, installer: installer.name };
+  } catch (error) {
+    console.error('[LOCAL-UPDATE] Error:', error);
+    return { success: false, error: error.message };
   }
 });
 

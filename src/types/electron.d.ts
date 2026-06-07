@@ -8,6 +8,11 @@ interface Window {
       updateInfo?: any;
       error?: string;
     }>;
+    updateFromLocalFolder: () => Promise<{
+      success: boolean;
+      installer?: string;
+      error?: string;
+    }>;
     onDownloadProgress: (callback: (progress: {
       bytesPerSecond: number;
       percent: number;
