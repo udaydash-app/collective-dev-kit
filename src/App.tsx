@@ -4,6 +4,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import { isPWAorElectron } from "@/lib/runtimeMode";
+
+const BrowserOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  if (isPWAorElectron()) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return <>{children}</>;
+};
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import Categories from "./pages/Categories";
@@ -321,7 +330,7 @@ const AppContent = () => {
           <Route path="/admin/stock-adjustment" element={<AdminRoute><AdminStockAdjustment /></AdminRoute>} />
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
-          <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
+          <Route path="/admin/general-ledger" element={<BrowserOnlyRoute><AdminRoute><AdminGeneralLedger /></AdminRoute></BrowserOnlyRoute>} />
           <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
           <Route path="/admin/production" element={<AdminRoute><Production /></AdminRoute>} />
           <Route path="/admin/profit-margin-analysis" element={<AdminRoute><ProfitMarginAnalysis /></AdminRoute>} />
