@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UpdateButton } from "@/components/UpdateButton";
 import { APP_VERSION } from "@/config/version";
+import { FolderOpen, Loader2 } from "lucide-react";
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey, clearCloudServiceRoleKey } from "@/lib/cloudSyncService";
 import { isUsingLocalSupabase } from "@/integrations/supabase/client";
 
@@ -397,13 +398,22 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="text-sm font-medium">Current Version</p>
                 <p className="text-2xl font-bold text-primary">v{APP_VERSION}</p>
               </div>
-              <UpdateButton />
+              <div className="flex items-center gap-2 flex-wrap">
+                <UpdateButton />
+                <LocalUpdateButton />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              "Update from Local Folder" lets you pick a folder containing the
+              installer file (.exe / .dmg / .AppImage). The most recent installer
+              for your platform will be launched and the app will close to install it.
+              Only available in the desktop app.
+            </p>
           </CardContent>
         </Card>
 
