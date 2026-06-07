@@ -44,6 +44,8 @@ export default function BarcodeManagement() {
   // Customization settings — persisted to localStorage so last-used values are the default
   const BARCODE_PREFS_KEY = 'barcode-customization-prefs-v2-40x30mm';
   const defaultPrefs = {
+    paperWidth: 40,
+    paperHeight: 30,
     barcodeWidth: 1.4,
     barcodeHeight: 40,
     productNameSize: 9,
@@ -68,6 +70,8 @@ export default function BarcodeManagement() {
       return defaultPrefs;
     }
   })();
+  const [paperWidth, setPaperWidth] = useState<number>(loadedPrefs.paperWidth ?? 40);
+  const [paperHeight, setPaperHeight] = useState<number>(loadedPrefs.paperHeight ?? 30);
   const [barcodeWidth, setBarcodeWidth] = useState(loadedPrefs.barcodeWidth);
   const [barcodeHeight, setBarcodeHeight] = useState(loadedPrefs.barcodeHeight);
   const [productNameSize, setProductNameSize] = useState(loadedPrefs.productNameSize);
@@ -89,6 +93,8 @@ export default function BarcodeManagement() {
       localStorage.setItem(
         BARCODE_PREFS_KEY,
         JSON.stringify({
+          paperWidth,
+          paperHeight,
           barcodeWidth,
           barcodeHeight,
           productNameSize,
@@ -109,7 +115,7 @@ export default function BarcodeManagement() {
     } catch {
       /* ignore quota errors */
     }
-  }, [barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice, printProductName, printVariantLabel, printBarcode, printPrice, printBatch, printManufacturingDate, printExpiryDate]);
+  }, [paperWidth, paperHeight, barcodeWidth, barcodeHeight, productNameSize, variantLabelSize, priceSize, detailsSize, expirySize, customPrice, printProductName, printVariantLabel, printBarcode, printPrice, printBatch, printManufacturingDate, printExpiryDate]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -292,26 +298,89 @@ export default function BarcodeManagement() {
     }
   };
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: 'Product Barcodes',
-    pageStyle: `@page { size: 40mm 30mm; margin: 0; } body { margin: 0; padding: 0; }`,
-    onAfterPrint: () => toast.success('Barcodes sent to printer'),
-  });
+  const printNodeInPopup = (node: HTMLElement | null, opts: { pageWidthMm: number; pageHeightMm: number; title: string; extraCss?: string }) => {
+    if (!node) {
+      toast.error('Nothing to print');
+      return;
+    }
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if (!win) {
+      toast.error('Popup blocked — please allow popups to print');
+      return;
+    }
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${opts.title}</title>
+<style>
+  @page { size: ${opts.pageWidthMm}mm ${opts.pageHeightMm}mm; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .label {
+    width: ${opts.pageWidthMm}mm;
+    height: ${opts.pageHeightMm}mm;
+    padding: 1mm;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5mm;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+  }
+  .label:last-child { page-break-after: auto; break-after: auto; }
+  .label svg { width: ${Math.max(opts.pageWidthMm - 4, 10)}mm !important; height: auto !important; max-height: ${Math.max(opts.pageHeightMm * 0.45, 8)}mm !important; display: block; }
+  .label p { margin: 0; padding: 0; }
+  .product-name { font-size: ${productNameSize}pt; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: ${opts.pageWidthMm - 2}mm; text-align: center; }
+  .variant-label { font-size: ${variantLabelSize}pt; line-height: 1.1; text-align: center; }
+  .price-text { font-size: ${priceSize}pt; font-weight: 700; line-height: 1.1; text-align: center; }
+  .details-text { font-size: ${detailsSize}pt; line-height: 1.15; text-align: center; width: 100%; }
+  .expiry-date { font-size: ${expirySize}pt; font-weight: 700; }
+  ${opts.extraCss || ''}
+</style></head><body>${node.innerHTML}</body></html>`;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    const trigger = () => {
+      try { win.focus(); win.print(); } catch (e) { console.warn(e); }
+      setTimeout(() => { try { win.close(); } catch {} }, 500);
+    };
+    // Give browser a tick to lay out SVG barcodes
+    setTimeout(trigger, 300);
+  };
 
-  const handlePrintPriceTags = useReactToPrint({
-    contentRef: priceTagPrintRef,
-    documentTitle: 'Price Tags',
-    pageStyle: `@page { size: 7cm 5cm; margin: 0; } body { margin: 0; padding: 0; }`,
-    onAfterPrint: () => toast.success('Price tags sent to printer'),
-  });
+  const handlePrint = () => {
+    printNodeInPopup(printRef.current, {
+      pageWidthMm: paperWidth,
+      pageHeightMm: paperHeight,
+      title: 'Product Barcodes',
+    });
+    toast.success('Opening print dialog...');
+  };
 
-  const handlePrintAllStockPriceTags = useReactToPrint({
-    contentRef: allStockPriceTagRef,
-    documentTitle: 'All In-Stock Price Tags',
-    pageStyle: `@page { size: 7cm 5cm; margin: 0; } body { margin: 0; padding: 0; }`,
-    onAfterPrint: () => toast.success('Price tags sent to printer'),
-  });
+  const priceTagExtraCss = `
+    .price-tag-label { width: 70mm !important; height: 50mm !important; padding: 2mm !important; border: none !important; display: flex; flex-direction: column; justify-content: center; align-items: center; page-break-after: always; overflow: hidden; }
+    .price-tag-label:last-child { page-break-after: auto; }
+    .price-tag-name { font-size: 10pt; font-weight: 700; text-align: center; line-height: 1.2; margin-bottom: 2mm; word-break: break-word; }
+    .price-tag-price { font-size: 14pt; font-weight: 700; text-align: center; }
+  `;
+  const handlePrintPriceTags = () => {
+    printNodeInPopup(priceTagPrintRef.current, {
+      pageWidthMm: 70,
+      pageHeightMm: 50,
+      title: 'Price Tags',
+      extraCss: priceTagExtraCss,
+    });
+    toast.success('Opening print dialog...');
+  };
+  const handlePrintAllStockPriceTags = () => {
+    printNodeInPopup(allStockPriceTagRef.current, {
+      pageWidthMm: 70,
+      pageHeightMm: 50,
+      title: 'All In-Stock Price Tags',
+      extraCss: priceTagExtraCss,
+    });
+    toast.success('Opening print dialog...');
+  };
 
   const handlePrintAllInStock = async () => {
     setLoadingAllStock(true);
