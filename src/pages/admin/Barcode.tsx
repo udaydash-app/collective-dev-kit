@@ -328,12 +328,13 @@ export default function BarcodeManagement() {
   }
   .label:last-child { page-break-after: auto; break-after: auto; }
   .label svg { width: ${Math.max(opts.pageWidthMm - 4, 10)}mm !important; height: auto !important; max-height: ${Math.max(opts.pageHeightMm * 0.45, 8)}mm !important; display: block; }
-  .label p { margin: 0; padding: 0; }
+  .label p, .label div { margin: 0; padding: 0; text-align: center; }
+  .label > div, .label > p { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .product-name { font-size: ${productNameSize}pt; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: ${opts.pageWidthMm - 2}mm; text-align: center; }
   .variant-label { font-size: ${variantLabelSize}pt; line-height: 1.1; text-align: center; }
   .price-text { font-size: ${priceSize}pt; font-weight: 700; line-height: 1.1; text-align: center; }
   .details-text { font-size: ${detailsSize}pt; line-height: 1.15; text-align: center; width: 100%; }
-  .expiry-date { font-size: ${expirySize}pt; font-weight: 700; }
+  .expiry-date { font-size: ${expirySize}pt; font-weight: 700; text-align: center; }
   ${opts.extraCss || ''}
 </style></head><body>${node.innerHTML}</body></html>`;
     win.document.open();
