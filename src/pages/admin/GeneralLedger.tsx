@@ -47,6 +47,9 @@ import {
 
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
+  if (isPWAorElectron()) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
   useRealtimeSync();
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
