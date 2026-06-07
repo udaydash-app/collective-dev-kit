@@ -941,7 +941,7 @@ export default function BarcodeManagement() {
                     <div
                       key={itemKey}
                       className="barcode-label rounded border p-1 flex flex-col items-center justify-center gap-1"
-                      style={{ width: '40mm', height: '30mm', overflow: 'hidden' }}
+                      style={{ width: `${paperWidth}mm`, height: `${paperHeight}mm`, overflow: 'hidden' }}
                     >
                       <div className="w-full text-center">
                         {printProductName && (
