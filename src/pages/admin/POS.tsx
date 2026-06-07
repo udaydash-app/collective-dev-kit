@@ -151,6 +151,16 @@ export default function POS() {
   const [expandedMetric, setExpandedMetric] = useState<'sales' | 'products' | 'customers' | null>(null);
   const lastReceiptRef = useRef<HTMLDivElement>(null);
   const productSearchRef = useRef<ProductSearchRef>(null);
+  const paymentInFlightRef = useRef(false);
+  const quickPaymentActionRef = useRef<(method: 'cash' | 'mobile_money' | 'credit') => void>(() => undefined);
+  const paymentShortcutStateRef = useRef({
+    showPayment: false,
+    showQuickPayment: false,
+    showHoldTicket: false,
+    showCashIn: false,
+    showCashOut: false,
+    variantSelectorOpen: false,
+  });
   const [showLastReceiptOptions, setShowLastReceiptOptions] = useState(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [keypadMode, setKeypadMode] = useState<'qty' | 'discount' | 'price' | 'cartDiscount' | null>(null);
@@ -2564,17 +2574,50 @@ export default function POS() {
     setQuickPaymentMethod(method);
     setShowQuickPayment(true);
   }, [cart.length, selectedCustomer]);
+  quickPaymentActionRef.current = openQuickPaymentDialog;
+  paymentShortcutStateRef.current = {
+    showPayment,
+    showQuickPayment,
+    showHoldTicket,
+    showCashIn,
+    showCashOut,
+    variantSelectorOpen,
+  };
 
   useEffect(() => {
+    const getPaymentShortcutKey = (event: KeyboardEvent) => {
+      const key = event.key || event.code;
+      if (key === 'F2' || event.code === 'F2' || event.keyCode === 113) return 'F2';
+      if (key === 'F3' || event.code === 'F3' || event.keyCode === 114) return 'F3';
+      if (key === 'F4' || event.code === 'F4' || event.keyCode === 115) return 'F4';
+      return null;
+    };
+
+    const blockPaymentShortcutDefault = (event: KeyboardEvent) => {
+      if (!getPaymentShortcutKey(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+
     const handlePaymentShortcut = (event: KeyboardEvent) => {
-      if (!['F2', 'F3', 'F4'].includes(event.key)) return;
+      const shortcutKey = getPaymentShortcutKey(event);
+      if (!shortcutKey) return;
       // Always block the browser default (e.g. F3 = Find) for these keys
       // while POS is mounted, regardless of which dialog is open.
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      if (showPayment || showQuickPayment || showHoldTicket || showCashIn || showCashOut || variantSelectorOpen) return;
+      const shortcutState = paymentShortcutStateRef.current;
+      if (
+        shortcutState.showPayment ||
+        shortcutState.showQuickPayment ||
+        shortcutState.showHoldTicket ||
+        shortcutState.showCashIn ||
+        shortcutState.showCashOut ||
+        shortcutState.variantSelectorOpen
+      ) return;
 
       // Block re-entry while a payment is being processed / printed.
       // Without this, pressing F2/F3/F4 a second time before the cart
@@ -2584,18 +2627,26 @@ export default function POS() {
         return;
       }
 
-      if (event.key === 'F2') {
+      if (shortcutKey === 'F2') {
         // Open the quick payment confirmation dialog (same UX as F3/F4)
-        openQuickPaymentDialog('cash');
+        quickPaymentActionRef.current('cash');
         return;
       }
-      if (event.key === 'F3') openQuickPaymentDialog('mobile_money');
-      if (event.key === 'F4') openQuickPaymentDialog('credit');
+      if (shortcutKey === 'F3') quickPaymentActionRef.current('mobile_money');
+      if (shortcutKey === 'F4') quickPaymentActionRef.current('credit');
     };
 
-    window.addEventListener('keydown', handlePaymentShortcut, { capture: true });
-    return () => window.removeEventListener('keydown', handlePaymentShortcut, { capture: true });
-  }, [openQuickPaymentDialog, showPayment, showQuickPayment, showHoldTicket, showCashIn, showCashOut, variantSelectorOpen, cart.length, total]);
+    window.addEventListener('keydown', handlePaymentShortcut, true);
+    document.addEventListener('keydown', handlePaymentShortcut, true);
+    window.addEventListener('keyup', blockPaymentShortcutDefault, true);
+    document.addEventListener('keyup', blockPaymentShortcutDefault, true);
+    return () => {
+      window.removeEventListener('keydown', handlePaymentShortcut, true);
+      document.removeEventListener('keydown', handlePaymentShortcut, true);
+      window.removeEventListener('keyup', blockPaymentShortcutDefault, true);
+      document.removeEventListener('keyup', blockPaymentShortcutDefault, true);
+    };
+  }, []);
 
   // POS Keyboard Shortcuts
   const posShortcuts: KeyboardShortcut[] = [
@@ -3227,7 +3278,6 @@ export default function POS() {
   // Guard so a fast double-tap of F2/F3/F4 (or a press right after a sale
   // completes) does not re-trigger handlePaymentConfirm and open a second
   // print dialog. Reset on a short cooldown after each invocation.
-  const paymentInFlightRef = useRef(false);
 
   const handleLastReceiptClick = async () => {
     try {
