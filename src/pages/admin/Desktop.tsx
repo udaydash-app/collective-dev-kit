@@ -234,6 +234,31 @@ export default function Desktop() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* External PIN prompt */}
+      <Dialog open={!!pinPromptFor} onOpenChange={(o) => { if (!o) { setPinPromptFor(null); setPinInput(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter PIN to unlock External</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submitPin(); }}
+              placeholder="••••"
+              maxLength={8}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => { setPinPromptFor(null); setPinInput(''); }}>Cancel</Button>
+              <Button onClick={submitPin}>Unlock</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
