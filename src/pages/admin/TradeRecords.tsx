@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Contact { id: string; name: string; phone?: string; notes?: string }
 
@@ -36,6 +37,7 @@ interface TradeRecord {
 
 const STORAGE_KEY = "admin:trade-records";
 const CONTACTS_KEY = "admin:trade-contacts";
+const MIGRATED_KEY = "admin:trade-records:cloud-migrated-v1";
 const PIN_KEY = "admin:trade-records:pin";
 const UNLOCK_KEY = "admin:trade-records:unlocked";
 const DEFAULT_PIN = "1111";
@@ -194,6 +196,7 @@ const TradeRecords = () => {
   };
 
   useEffect(() => {
+    // Show local cache instantly, then refresh from cloud.
     try {
       const raw = localStorage.getItem(CONTACTS_KEY);
       setContacts(raw ? JSON.parse(raw) : []);
@@ -203,7 +206,78 @@ const TradeRecords = () => {
       const parsed = raw ? JSON.parse(raw) : [];
       setRecords(Array.isArray(parsed) ? parsed.map(migrate) : []);
     } catch { setRecords([]); }
+    void loadFromCloud();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadFromCloud = async () => {
+    try {
+      const [{ data: cData, error: cErr }, { data: rData, error: rErr }] = await Promise.all([
+        supabase.from("trade_contacts" as any).select("*").order("name", { ascending: true }),
+        supabase.from("trade_records" as any).select("*").order("record_date", { ascending: false }),
+      ]);
+      if (cErr) throw cErr;
+      if (rErr) throw rErr;
+
+      const cloudContacts: Contact[] = (cData ?? []).map((c: any) => ({
+        id: c.id, name: c.name, phone: c.phone ?? undefined, notes: c.notes ?? undefined,
+      }));
+      const cloudRecords: TradeRecord[] = (rData ?? []).map((r: any) => ({
+        id: r.id,
+        date: r.record_date,
+        contact_id: r.contact_id ?? "",
+        contact_name: r.contact_name ?? "",
+        expenses: Number(r.expenses) || 0,
+        items: Array.isArray(r.items) ? r.items : [],
+      }));
+
+      // One-time migration: push local data up if cloud is empty and we haven't migrated yet.
+      if (!localStorage.getItem(MIGRATED_KEY) && cloudContacts.length === 0 && cloudRecords.length === 0) {
+        await migrateLocalToCloud();
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return loadFromCloud();
+      }
+
+      setContacts(cloudContacts);
+      setRecords(cloudRecords);
+      localStorage.setItem(CONTACTS_KEY, JSON.stringify(cloudContacts));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudRecords));
+      localStorage.setItem(MIGRATED_KEY, "1");
+    } catch (e: any) {
+      console.warn("[TradeRecords] cloud load failed, using local cache:", e?.message ?? e);
+    }
+  };
+
+  const migrateLocalToCloud = async () => {
+    try {
+      const rawC = localStorage.getItem(CONTACTS_KEY);
+      const rawR = localStorage.getItem(STORAGE_KEY);
+      const localContacts: Contact[] = rawC ? JSON.parse(rawC) : [];
+      const localRecords: TradeRecord[] = rawR ? (JSON.parse(rawR) as any[]).map(migrate) : [];
+      if (localContacts.length) {
+        await supabase.from("trade_contacts" as any).insert(
+          localContacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone ?? null, notes: c.notes ?? null }))
+        );
+      }
+      if (localRecords.length) {
+        await supabase.from("trade_records" as any).insert(
+          localRecords.map((r) => ({
+            id: r.id,
+            record_date: r.date,
+            contact_id: r.contact_id || null,
+            contact_name: r.contact_name ?? "",
+            expenses: r.expenses ?? 0,
+            items: r.items ?? [],
+          }))
+        );
+      }
+      if (localContacts.length || localRecords.length) {
+        toast.success("Trade records synced to cloud");
+      }
+    } catch (e: any) {
+      console.warn("[TradeRecords] migration failed:", e?.message ?? e);
+    }
+  };
 
   const persist = (next: TradeRecord[]) => {
     setRecords(next);
@@ -241,6 +315,15 @@ const TradeRecords = () => {
     persistContacts(updated.sort((a, b) => a.name.localeCompare(b.name)));
     setContactDialogOpen(false);
     toast.success(editingContact ? "Contact updated" : "Contact added");
+    // Cloud sync
+    void supabase.from("trade_contacts" as any).upsert({
+      id: next.id,
+      name: next.name,
+      phone: next.phone ?? null,
+      notes: next.notes ?? null,
+    }).then(({ error }) => {
+      if (error) toast.error("Cloud sync failed: " + error.message);
+    });
   };
 
   const removeContact = (id: string) => {
@@ -248,6 +331,9 @@ const TradeRecords = () => {
     if (used && !confirm("This contact has trade records. Delete anyway? Records will keep the contact name.")) return;
     if (!used && !confirm("Delete this contact?")) return;
     persistContacts(contacts.filter((c) => c.id !== id));
+    void supabase.from("trade_contacts" as any).delete().eq("id", id).then(({ error }) => {
+      if (error) toast.error("Cloud sync failed: " + error.message);
+    });
   };
 
   const { from: rangeFrom, to: rangeTo } = useMemo(
@@ -341,11 +427,25 @@ const TradeRecords = () => {
     persist(editing ? records.map((r) => (r.id === editing.id ? next : r)) : [next, ...records]);
     setOpen(false);
     toast.success(editing ? "Record updated" : "Record added");
+    // Cloud sync
+    void supabase.from("trade_records" as any).upsert({
+      id: next.id,
+      record_date: next.date,
+      contact_id: next.contact_id || null,
+      contact_name: next.contact_name ?? "",
+      expenses: next.expenses ?? 0,
+      items: next.items ?? [],
+    }).then(({ error }) => {
+      if (error) toast.error("Cloud sync failed: " + error.message);
+    });
   };
 
   const remove = (id: string) => {
     if (!confirm("Delete this record?")) return;
     persist(records.filter((r) => r.id !== id));
+    void supabase.from("trade_records" as any).delete().eq("id", id).then(({ error }) => {
+      if (error) toast.error("Cloud sync failed: " + error.message);
+    });
   };
 
   const contactName = (id: string) =>

@@ -3462,6 +3462,74 @@ export type Database = {
           },
         ]
       }
+      trade_contacts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trade_records: {
+        Row: {
+          contact_id: string | null
+          contact_name: string
+          created_at: string
+          expenses: number
+          id: string
+          items: Json
+          record_date: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          contact_name?: string
+          created_at?: string
+          expenses?: number
+          id?: string
+          items?: Json
+          record_date: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          contact_name?: string
+          created_at?: string
+          expenses?: number
+          id?: string
+          items?: Json
+          record_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "trade_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trading_quote_items: {
         Row: {
           bank_details: string | null
