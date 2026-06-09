@@ -34,6 +34,8 @@ const GROUP_META: Record<AppGroup, { icon: LucideIcon; color: string }> = {
 export default function Desktop() {
   const [query, setQuery] = useState('');
   const [openGroup, setOpenGroup] = useState<AppGroup | null>(null);
+  const [pinPromptFor, setPinPromptFor] = useState<AppGroup | null>(null);
+  const [pinInput, setPinInput] = useState('');
   const { windows } = useWindowStore();
   const navigate = useNavigate();
 
@@ -66,6 +68,31 @@ export default function Desktop() {
   const handleOpen = (id: string) => {
     windowActions.openApp(id);
     setOpenGroup(null);
+  };
+
+  const EXTERNAL_PIN = '1111';
+  const isExternalUnlocked = () => sessionStorage.getItem('external_group_unlocked') === '1';
+
+  const requestOpenGroup = (g: AppGroup) => {
+    if (g === 'External' && !isExternalUnlocked()) {
+      setPinInput('');
+      setPinPromptFor(g);
+      return;
+    }
+    setOpenGroup(g);
+  };
+
+  const submitPin = () => {
+    if (pinInput === EXTERNAL_PIN) {
+      sessionStorage.setItem('external_group_unlocked', '1');
+      const g = pinPromptFor;
+      setPinPromptFor(null);
+      setPinInput('');
+      if (g) setOpenGroup(g);
+    } else {
+      toast.error('Incorrect PIN');
+      setPinInput('');
+    }
   };
 
   const handleShowDesktop = () => {
@@ -150,8 +177,8 @@ export default function Desktop() {
                   return (
                     <button
                       key={g}
-                      onClick={() => setOpenGroup(g)}
-                      onDoubleClick={() => setOpenGroup(g)}
+                      onClick={() => requestOpenGroup(g)}
+                      onDoubleClick={() => requestOpenGroup(g)}
                       className="group flex flex-col items-center gap-3 p-3 rounded-xl hover:bg-slate-100 focus-visible:bg-slate-200 focus:outline-none transition-colors w-[120px]"
                     >
                       <div className={`h-28 w-28 rounded-3xl bg-gradient-to-br ${meta.color} shadow-xl flex items-center justify-center text-white group-hover:scale-105 group-active:scale-95 transition-transform`}>
@@ -204,6 +231,31 @@ export default function Desktop() {
             {groupApps.map((app) => (
               <AppTile key={app.id} app={app} onOpen={handleOpen} variant="panel" />
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* External PIN prompt */}
+      <Dialog open={!!pinPromptFor} onOpenChange={(o) => { if (!o) { setPinPromptFor(null); setPinInput(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter PIN to unlock External</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submitPin(); }}
+              placeholder="••••"
+              maxLength={8}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => { setPinPromptFor(null); setPinInput(''); }}>Cancel</Button>
+              <Button onClick={submitPin}>Unlock</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
