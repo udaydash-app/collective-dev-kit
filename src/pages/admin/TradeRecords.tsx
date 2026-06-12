@@ -156,7 +156,8 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
-  const [unlocked, setUnlocked] = useState<boolean>(() => sessionStorage.getItem(UNLOCK_KEY) === "1");
+  // Internal PIN gate removed — the entire External folder is PIN-locked at the Desktop level.
+  const [unlocked, setUnlocked] = useState<boolean>(true);
   const [pinInput, setPinInput] = useState("");
   const [changePinOpen, setChangePinOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ current: "", next: "", confirm: "" });

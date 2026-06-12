@@ -420,6 +420,42 @@ export type Database = {
           },
         ]
       }
+      cash_register_entries: {
+        Row: {
+          amount: number
+          counterparty: string | null
+          created_at: string
+          description: string | null
+          entry_date: string
+          id: string
+          payment_method: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          counterparty?: string | null
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          id?: string
+          payment_method?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          counterparty?: string | null
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          id?: string
+          payment_method?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cash_sessions: {
         Row: {
           cash_difference: number | null
