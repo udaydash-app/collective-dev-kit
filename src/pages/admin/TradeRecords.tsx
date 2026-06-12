@@ -74,7 +74,7 @@ const totalBags = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + (i.ba
 const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((s, x) => s + (f(x) || 0), 0);
 const totalBrokerComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.broker_commission || 0) * (i.bags || 0));
 const totalSupplierComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.supplier_commission || 0) * (i.bags || 0));
-const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses || 0);
+const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - totalBrokerComm(r) - (r.expenses || 0);
 
 // Migrate legacy single-product records to items[] shape
 const migrate = (raw: any): TradeRecord => {
