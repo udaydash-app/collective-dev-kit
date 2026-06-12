@@ -618,29 +618,93 @@ const TradeRecords = () => {
     [records, selectedId]
   );
 
-  const printSingleRecord = (r: TradeRecord) => {
+  const printSingleRecord = (r: TradeRecord, section: "full" | "buy" | "sell" = "full") => {
     const esc = (s: string) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
     const p = profitOf(r);
-    const itemsHtml = r.items.map((i, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${esc(i.description || "—")}</td>
-        <td>${esc(i.supplier || "—")}</td>
-        <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
-        <td class="r">${fmt(i.packing)}</td>
-        <td class="r">${fmt(i.buy_price)}</td>
-        <td class="r">${fmt(i.tax)}</td>
-        <td class="r">${fmt(i.supplier_commission)}</td>
-        <td class="r">${fmt(i.broker_commission)}</td>
-        <td class="r">${fmt(i.sell_price)}</td>
-        <td class="r">${fmt(itemBuy(i))}</td>
-        <td class="r">${fmt(itemSell(i))}</td>
-      </tr>`).join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Record ${esc(r.date)}</title>
+    const showBuy = section === "full" || section === "buy";
+    const showSell = section === "full" || section === "sell";
+    const title = section === "buy" ? "Purchase Record" : section === "sell" ? "Sales Record" : "Trade Record";
+
+    const buyTable = `
+      <h2>Purchase Details</h2>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Product</th><th>Supplier</th>
+          <th class="r">Bags</th><th class="r">Packing</th>
+          <th class="r">Buy /bag</th><th class="r">Tax</th>
+          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
+          <th class="r">Total Buy</th>
+        </tr></thead>
+        <tbody>${r.items.map((i, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${esc(i.description || "—")}</td>
+            <td>${esc(i.supplier || "—")}</td>
+            <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+            <td class="r">${fmt(i.packing)}</td>
+            <td class="r">${fmt(i.buy_price)}</td>
+            <td class="r">${fmt(i.tax)}</td>
+            <td class="r">${fmt(i.supplier_commission)}</td>
+            <td class="r">${fmt(i.broker_commission)}</td>
+            <td class="r">${fmt(itemBuy(i))}</td>
+          </tr>`).join("")}</tbody>
+        <tfoot><tr>
+          <td colspan="3" class="r"><b>Totals</b></td>
+          <td class="r"><b>${fmt(totalBags(r))}</b></td>
+          <td colspan="5"></td>
+          <td class="r"><b>${fmt(totalBuy(r))}</b></td>
+        </tr></tfoot>
+      </table>`;
+
+    const sellTable = `
+      <h2>Sales Details</h2>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Product</th>
+          <th class="r">Bags</th><th class="r">Packing</th>
+          <th class="r">Sell /bag</th><th class="r">Total Sell</th>
+        </tr></thead>
+        <tbody>${r.items.map((i, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${esc(i.description || "—")}</td>
+            <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+            <td class="r">${fmt(i.packing)}</td>
+            <td class="r">${fmt(i.sell_price)}</td>
+            <td class="r">${fmt(itemSell(i))}</td>
+          </tr>`).join("")}</tbody>
+        <tfoot><tr>
+          <td colspan="2" class="r"><b>Totals</b></td>
+          <td class="r"><b>${fmt(totalBags(r))}</b></td>
+          <td colspan="2"></td>
+          <td class="r"><b>${fmt(totalSell(r))}</b></td>
+        </tr></tfoot>
+      </table>`;
+
+    const totalsHtml = section === "buy" ? `
+      <div class="totals">
+        <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+      </div>`
+    : section === "sell" ? `
+      <div class="totals">
+        <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+      </div>`
+    : `
+      <div class="totals">
+        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+        <div>Expenses: <b>${fmt(r.expenses)}</b></div>
+        <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
+      </div>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} ${esc(r.date)}</title>
       <style>
         body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
         h1 { margin:0 0 4px; font-size:20px; }
+        h2 { margin:20px 0 6px; font-size:14px; border-bottom:1px solid #999; padding-bottom:3px; }
         .meta { color:#555; font-size:11px; margin-bottom:16px; }
         .meta span { margin-right:16px; }
         table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
@@ -651,35 +715,15 @@ const TradeRecords = () => {
         .totals { margin-top:16px; padding:10px 12px; border:1px solid #ccc; background:#f7f7f7; display:flex; gap:24px; flex-wrap:wrap; }
         @media print { body { margin:12mm; } }
       </style></head><body>
-      <h1>Trade Record</h1>
+      <h1>${esc(title)}</h1>
       <div class="meta">
         <span><b>Date:</b> ${esc(r.date)}</span>
         <span><b>Contact:</b> ${esc(contactName(r.contact_id))}</span>
         <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
       </div>
-      <table>
-        <thead><tr>
-          <th>#</th><th>Product</th><th>Supplier</th>
-          <th class="r">Bags</th><th class="r">Packing</th>
-          <th class="r">Buy</th><th class="r">Tax</th>
-          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
-          <th class="r">Sell</th><th class="r">Total Buy</th><th class="r">Total Sell</th>
-        </tr></thead>
-        <tbody>${itemsHtml}</tbody>
-        <tfoot><tr>
-          <td colspan="3" class="r"><b>Totals</b></td>
-          <td class="r"><b>${fmt(totalBags(r))}</b></td>
-          <td colspan="6"></td>
-          <td class="r"><b>${fmt(totalBuy(r))}</b></td>
-          <td class="r"><b>${fmt(totalSell(r))}</b></td>
-        </tr></tfoot>
-      </table>
-      <div class="totals">
-        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
-        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
-        <div>Expenses: <b>${fmt(r.expenses)}</b></div>
-        <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
-      </div>
+      ${showBuy ? buyTable : ""}
+      ${showSell ? sellTable : ""}
+      ${totalsHtml}
       <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
       </body></html>`;
     const w = window.open("", "_blank");
@@ -1185,70 +1229,142 @@ const TradeRecords = () => {
       </Dialog>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Trade Record Details</DialogTitle>
           </DialogHeader>
           {selectedRecord && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Date: </span><span className="font-medium">{selectedRecord.date}</span></div>
-                <div><span className="text-muted-foreground">Contact: </span><span className="font-medium">{contactName(selectedRecord.contact_id)}</span></div>
-                <div><span className="text-muted-foreground">Expenses: </span><span className="font-medium">{fmt(selectedRecord.expenses)}</span></div>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead className="text-right">Bags</TableHead>
-                      <TableHead className="text-right">Buy</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Sup. Comm</TableHead>
-                      <TableHead className="text-right">Brk. Comm</TableHead>
-                      <TableHead className="text-right">Sell</TableHead>
-                      <TableHead className="text-right">Total Buy</TableHead>
-                      <TableHead className="text-right">Total Sell</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedRecord.items.map((i, idx) => (
-                      <TableRow key={i.id}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell>{i.description || "—"}</TableCell>
-                        <TableCell>{i.supplier || "—"}</TableCell>
-                        <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
-                        <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.tax)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
-                        <TableCell className="text-right font-medium">{fmt(itemBuy(i))}</TableCell>
-                        <TableCell className="text-right font-medium">{fmt(itemSell(i))}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm border-t pt-3">
-                <div><span className="text-muted-foreground">Total Buy: </span><span className="font-semibold">{fmt(totalBuy(selectedRecord))}</span></div>
-                <div><span className="text-muted-foreground">Turnover: </span><span className="font-semibold">{fmt(totalSell(selectedRecord))}</span></div>
-                <div><span className="text-muted-foreground">Expenses: </span><span className="font-semibold">{fmt(selectedRecord.expenses)}</span></div>
+            <div className="space-y-5">
+              {/* Header summary */}
+              <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Profit: </span>
-                  <span className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Date</div>
+                  <div className="font-semibold mt-0.5">{selectedRecord.date}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Contact</div>
+                  <div className="font-semibold mt-0.5">{contactName(selectedRecord.contact_id)}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Products</div>
+                  <div className="font-semibold mt-0.5">{selectedRecord.items.length} · {fmt(totalBags(selectedRecord))} bags</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Profit</div>
+                  <div className={"font-semibold mt-0.5 " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
                     {fmt(profitOf(selectedRecord))}
-                  </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buy section */}
+              <div className="rounded-lg border overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 dark:bg-red-950/30 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    <span className="font-semibold text-sm">Purchase (Buy)</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalBuy(selectedRecord))}</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "buy")}>
+                    <FileText className="h-4 w-4 mr-1.5" />PDF Buy Only
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">#</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead className="text-right">Bags</TableHead>
+                        <TableHead className="text-right">Buy /bag</TableHead>
+                        <TableHead className="text-right">Tax</TableHead>
+                        <TableHead className="text-right">Sup. Comm</TableHead>
+                        <TableHead className="text-right">Brk. Comm</TableHead>
+                        <TableHead className="text-right">Total Buy</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedRecord.items.map((i, idx) => (
+                        <TableRow key={i.id}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{i.description || "—"}</TableCell>
+                          <TableCell>{i.supplier || "—"}</TableCell>
+                          <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
+                          <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.tax)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
+                          <TableCell className="text-right font-semibold">{fmt(itemBuy(i))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Sell section */}
+              <div className="rounded-lg border overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-green-50 dark:bg-green-950/30 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="font-semibold text-sm">Sales (Sell)</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalSell(selectedRecord))}</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "sell")}>
+                    <FileText className="h-4 w-4 mr-1.5" />PDF Sell Only
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">#</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Bags</TableHead>
+                        <TableHead className="text-right">Sell /bag</TableHead>
+                        <TableHead className="text-right">Total Sell</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedRecord.items.map((i, idx) => (
+                        <TableRow key={i.id}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{i.description || "—"}</TableCell>
+                          <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
+                          <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
+                          <TableCell className="text-right font-semibold">{fmt(itemSell(i))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Bottom totals */}
+              <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
+                <div><div className="text-xs text-muted-foreground">Total Buy</div><div className="font-semibold">{fmt(totalBuy(selectedRecord))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Turnover</div><div className="font-semibold">{fmt(totalSell(selectedRecord))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Expenses</div><div className="font-semibold">{fmt(selectedRecord.expenses)}</div></div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Profit</div>
+                  <div className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
+                    {fmt(profitOf(selectedRecord))}
+                  </div>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
-            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord)}>
-              <FileText className="h-4 w-4 mr-2" />Create PDF
+            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "buy")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Buy
+            </Button>
+            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "sell")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Sell
+            </Button>
+            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord, "full")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Full
             </Button>
           </DialogFooter>
         </DialogContent>
