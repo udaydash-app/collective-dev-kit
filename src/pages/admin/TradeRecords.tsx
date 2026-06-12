@@ -1229,70 +1229,142 @@ const TradeRecords = () => {
       </Dialog>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Trade Record Details</DialogTitle>
           </DialogHeader>
           {selectedRecord && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Date: </span><span className="font-medium">{selectedRecord.date}</span></div>
-                <div><span className="text-muted-foreground">Contact: </span><span className="font-medium">{contactName(selectedRecord.contact_id)}</span></div>
-                <div><span className="text-muted-foreground">Expenses: </span><span className="font-medium">{fmt(selectedRecord.expenses)}</span></div>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead className="text-right">Bags</TableHead>
-                      <TableHead className="text-right">Buy</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Sup. Comm</TableHead>
-                      <TableHead className="text-right">Brk. Comm</TableHead>
-                      <TableHead className="text-right">Sell</TableHead>
-                      <TableHead className="text-right">Total Buy</TableHead>
-                      <TableHead className="text-right">Total Sell</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedRecord.items.map((i, idx) => (
-                      <TableRow key={i.id}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell>{i.description || "—"}</TableCell>
-                        <TableCell>{i.supplier || "—"}</TableCell>
-                        <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
-                        <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.tax)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
-                        <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
-                        <TableCell className="text-right font-medium">{fmt(itemBuy(i))}</TableCell>
-                        <TableCell className="text-right font-medium">{fmt(itemSell(i))}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm border-t pt-3">
-                <div><span className="text-muted-foreground">Total Buy: </span><span className="font-semibold">{fmt(totalBuy(selectedRecord))}</span></div>
-                <div><span className="text-muted-foreground">Turnover: </span><span className="font-semibold">{fmt(totalSell(selectedRecord))}</span></div>
-                <div><span className="text-muted-foreground">Expenses: </span><span className="font-semibold">{fmt(selectedRecord.expenses)}</span></div>
+            <div className="space-y-5">
+              {/* Header summary */}
+              <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Profit: </span>
-                  <span className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Date</div>
+                  <div className="font-semibold mt-0.5">{selectedRecord.date}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Contact</div>
+                  <div className="font-semibold mt-0.5">{contactName(selectedRecord.contact_id)}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Products</div>
+                  <div className="font-semibold mt-0.5">{selectedRecord.items.length} · {fmt(totalBags(selectedRecord))} bags</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Profit</div>
+                  <div className={"font-semibold mt-0.5 " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
                     {fmt(profitOf(selectedRecord))}
-                  </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buy section */}
+              <div className="rounded-lg border overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 dark:bg-red-950/30 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    <span className="font-semibold text-sm">Purchase (Buy)</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalBuy(selectedRecord))}</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "buy")}>
+                    <FileText className="h-4 w-4 mr-1.5" />PDF Buy Only
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">#</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead className="text-right">Bags</TableHead>
+                        <TableHead className="text-right">Buy /bag</TableHead>
+                        <TableHead className="text-right">Tax</TableHead>
+                        <TableHead className="text-right">Sup. Comm</TableHead>
+                        <TableHead className="text-right">Brk. Comm</TableHead>
+                        <TableHead className="text-right">Total Buy</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedRecord.items.map((i, idx) => (
+                        <TableRow key={i.id}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{i.description || "—"}</TableCell>
+                          <TableCell>{i.supplier || "—"}</TableCell>
+                          <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
+                          <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.tax)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
+                          <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
+                          <TableCell className="text-right font-semibold">{fmt(itemBuy(i))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Sell section */}
+              <div className="rounded-lg border overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-green-50 dark:bg-green-950/30 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="font-semibold text-sm">Sales (Sell)</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalSell(selectedRecord))}</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "sell")}>
+                    <FileText className="h-4 w-4 mr-1.5" />PDF Sell Only
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">#</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Bags</TableHead>
+                        <TableHead className="text-right">Sell /bag</TableHead>
+                        <TableHead className="text-right">Total Sell</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedRecord.items.map((i, idx) => (
+                        <TableRow key={i.id}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{i.description || "—"}</TableCell>
+                          <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
+                          <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
+                          <TableCell className="text-right font-semibold">{fmt(itemSell(i))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Bottom totals */}
+              <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
+                <div><div className="text-xs text-muted-foreground">Total Buy</div><div className="font-semibold">{fmt(totalBuy(selectedRecord))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Turnover</div><div className="font-semibold">{fmt(totalSell(selectedRecord))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Expenses</div><div className="font-semibold">{fmt(selectedRecord.expenses)}</div></div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Profit</div>
+                  <div className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
+                    {fmt(profitOf(selectedRecord))}
+                  </div>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
-            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord)}>
-              <FileText className="h-4 w-4 mr-2" />Create PDF
+            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "buy")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Buy
+            </Button>
+            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "sell")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Sell
+            </Button>
+            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord, "full")}>
+              <FileText className="h-4 w-4 mr-2" />PDF Full
             </Button>
           </DialogFooter>
         </DialogContent>
