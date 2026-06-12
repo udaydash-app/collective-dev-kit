@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -156,6 +156,8 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
   // Internal PIN gate removed — the entire External folder is PIN-locked at the Desktop level.
   const [unlocked, setUnlocked] = useState<boolean>(true);
   const [pinInput, setPinInput] = useState("");
