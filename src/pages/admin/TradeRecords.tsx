@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -156,6 +156,8 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
   // Internal PIN gate removed — the entire External folder is PIN-locked at the Desktop level.
   const [unlocked, setUnlocked] = useState<boolean>(true);
   const [pinInput, setPinInput] = useState("");
@@ -611,6 +613,80 @@ const TradeRecords = () => {
     w.document.close();
   };
 
+  const selectedRecord = useMemo(
+    () => records.find((r) => r.id === selectedId) ?? null,
+    [records, selectedId]
+  );
+
+  const printSingleRecord = (r: TradeRecord) => {
+    const esc = (s: string) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+    const p = profitOf(r);
+    const itemsHtml = r.items.map((i, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${esc(i.description || "—")}</td>
+        <td>${esc(i.supplier || "—")}</td>
+        <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+        <td class="r">${fmt(i.packing)}</td>
+        <td class="r">${fmt(i.buy_price)}</td>
+        <td class="r">${fmt(i.tax)}</td>
+        <td class="r">${fmt(i.supplier_commission)}</td>
+        <td class="r">${fmt(i.broker_commission)}</td>
+        <td class="r">${fmt(i.sell_price)}</td>
+        <td class="r">${fmt(itemBuy(i))}</td>
+        <td class="r">${fmt(itemSell(i))}</td>
+      </tr>`).join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Record ${esc(r.date)}</title>
+      <style>
+        body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
+        h1 { margin:0 0 4px; font-size:20px; }
+        .meta { color:#555; font-size:11px; margin-bottom:16px; }
+        .meta span { margin-right:16px; }
+        table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
+        th, td { border:1px solid #ddd; padding:4px 6px; }
+        th { background:#f1f1f1; text-align:left; }
+        .r { text-align:right; }
+        .pos { color:#15803d; } .neg { color:#b91c1c; }
+        .totals { margin-top:16px; padding:10px 12px; border:1px solid #ccc; background:#f7f7f7; display:flex; gap:24px; flex-wrap:wrap; }
+        @media print { body { margin:12mm; } }
+      </style></head><body>
+      <h1>Trade Record</h1>
+      <div class="meta">
+        <span><b>Date:</b> ${esc(r.date)}</span>
+        <span><b>Contact:</b> ${esc(contactName(r.contact_id))}</span>
+        <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Product</th><th>Supplier</th>
+          <th class="r">Bags</th><th class="r">Packing</th>
+          <th class="r">Buy</th><th class="r">Tax</th>
+          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
+          <th class="r">Sell</th><th class="r">Total Buy</th><th class="r">Total Sell</th>
+        </tr></thead>
+        <tbody>${itemsHtml}</tbody>
+        <tfoot><tr>
+          <td colspan="3" class="r"><b>Totals</b></td>
+          <td class="r"><b>${fmt(totalBags(r))}</b></td>
+          <td colspan="6"></td>
+          <td class="r"><b>${fmt(totalBuy(r))}</b></td>
+          <td class="r"><b>${fmt(totalSell(r))}</b></td>
+        </tr></tfoot>
+      </table>
+      <div class="totals">
+        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+        <div>Expenses: <b>${fmt(r.expenses)}</b></div>
+        <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
+      </div>
+      <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow popups to print"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {!unlocked && (
@@ -648,6 +724,12 @@ const TradeRecords = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" disabled={!selectedRecord} onClick={() => setViewOpen(true)}>
+              <Eye className="h-4 w-4 mr-2" />View Selected
+            </Button>
+            <Button variant="outline" size="sm" disabled={!selectedRecord} onClick={() => selectedRecord && printSingleRecord(selectedRecord)}>
+              <FileText className="h-4 w-4 mr-2" />PDF Selected
+            </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
             </Button>
@@ -744,6 +826,7 @@ const TradeRecords = () => {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Supplier(s)</TableHead>
@@ -758,12 +841,22 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const profit = profitOf(r);
                 const suppliers = Array.from(new Set(r.items.map(i => (i.supplier || "").trim()).filter(Boolean))).join(", ") || "—";
                 return (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} data-state={selectedId === r.id ? "selected" : undefined}>
+                    <TableCell className="w-10">
+                      <input
+                        type="radio"
+                        name="trade-record-select"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        checked={selectedId === r.id}
+                        onChange={() => setSelectedId(r.id)}
+                        aria-label={`Select record ${r.date}`}
+                      />
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate" title={suppliers}>{suppliers}</TableCell>
@@ -1087,6 +1180,76 @@ const TradeRecords = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setChangePinOpen(false)}>Cancel</Button>
             <Button onClick={saveNewPin}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Trade Record Details</DialogTitle>
+          </DialogHeader>
+          {selectedRecord && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Date: </span><span className="font-medium">{selectedRecord.date}</span></div>
+                <div><span className="text-muted-foreground">Contact: </span><span className="font-medium">{contactName(selectedRecord.contact_id)}</span></div>
+                <div><span className="text-muted-foreground">Expenses: </span><span className="font-medium">{fmt(selectedRecord.expenses)}</span></div>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead className="text-right">Bags</TableHead>
+                      <TableHead className="text-right">Buy</TableHead>
+                      <TableHead className="text-right">Tax</TableHead>
+                      <TableHead className="text-right">Sup. Comm</TableHead>
+                      <TableHead className="text-right">Brk. Comm</TableHead>
+                      <TableHead className="text-right">Sell</TableHead>
+                      <TableHead className="text-right">Total Buy</TableHead>
+                      <TableHead className="text-right">Total Sell</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedRecord.items.map((i, idx) => (
+                      <TableRow key={i.id}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{i.description || "—"}</TableCell>
+                        <TableCell>{i.supplier || "—"}</TableCell>
+                        <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
+                        <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
+                        <TableCell className="text-right">{fmt(i.tax)}</TableCell>
+                        <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
+                        <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
+                        <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
+                        <TableCell className="text-right font-medium">{fmt(itemBuy(i))}</TableCell>
+                        <TableCell className="text-right font-medium">{fmt(itemSell(i))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm border-t pt-3">
+                <div><span className="text-muted-foreground">Total Buy: </span><span className="font-semibold">{fmt(totalBuy(selectedRecord))}</span></div>
+                <div><span className="text-muted-foreground">Turnover: </span><span className="font-semibold">{fmt(totalSell(selectedRecord))}</span></div>
+                <div><span className="text-muted-foreground">Expenses: </span><span className="font-semibold">{fmt(selectedRecord.expenses)}</span></div>
+                <div>
+                  <span className="text-muted-foreground">Profit: </span>
+                  <span className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
+                    {fmt(profitOf(selectedRecord))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord)}>
+              <FileText className="h-4 w-4 mr-2" />Create PDF
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
