@@ -64,7 +64,7 @@ const emptyForm = {
 };
 
 const itemBuy = (i: TradeItem) =>
-  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0) + (i.broker_commission || 0)) * (i.bags || 0);
+  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0)) * (i.bags || 0);
 
 const itemSell = (i: TradeItem) => (i.sell_price || 0) * (i.bags || 0);
 
@@ -74,7 +74,7 @@ const totalBags = (r: TradeRecord) => (r.items || []).reduce((s, i) => s + (i.ba
 const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((s, x) => s + (f(x) || 0), 0);
 const totalBrokerComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.broker_commission || 0) * (i.bags || 0));
 const totalSupplierComm = (r: TradeRecord) => sumBy(r.items || [], (i) => (i.supplier_commission || 0) * (i.bags || 0));
-const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - (r.expenses || 0);
+const profitOf = (r: TradeRecord) => totalSell(r) - totalBuy(r) - totalBrokerComm(r) - (r.expenses || 0);
 
 // Migrate legacy single-product records to items[] shape
 const migrate = (raw: any): TradeRecord => {
@@ -633,7 +633,7 @@ const TradeRecords = () => {
           <th>#</th><th>Product</th><th>Supplier</th>
           <th class="r">Bags</th><th class="r">Packing</th>
           <th class="r">Buy /bag</th><th class="r">Tax</th>
-          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
+          <th class="r">Sup. Comm</th>
           <th class="r">Total Buy</th>
         </tr></thead>
         <tbody>${r.items.map((i, idx) => `
@@ -646,13 +646,12 @@ const TradeRecords = () => {
             <td class="r">${fmt(i.buy_price)}</td>
             <td class="r">${fmt(i.tax)}</td>
             <td class="r">${fmt(i.supplier_commission)}</td>
-            <td class="r">${fmt(i.broker_commission)}</td>
             <td class="r">${fmt(itemBuy(i))}</td>
           </tr>`).join("")}</tbody>
         <tfoot><tr>
           <td colspan="3" class="r"><b>Totals</b></td>
           <td class="r"><b>${fmt(totalBags(r))}</b></td>
-          <td colspan="5"></td>
+          <td colspan="4"></td>
           <td class="r"><b>${fmt(totalBuy(r))}</b></td>
         </tr></tfoot>
       </table>`;
@@ -663,7 +662,7 @@ const TradeRecords = () => {
         <thead><tr>
           <th>#</th><th>Product</th>
           <th class="r">Bags</th><th class="r">Packing</th>
-          <th class="r">Sell /bag</th><th class="r">Total Sell</th>
+          <th class="r">Sell /bag</th><th class="r">Comm. Paid</th><th class="r">Total Sell</th>
         </tr></thead>
         <tbody>${r.items.map((i, idx) => `
           <tr>
@@ -672,12 +671,14 @@ const TradeRecords = () => {
             <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
             <td class="r">${fmt(i.packing)}</td>
             <td class="r">${fmt(i.sell_price)}</td>
+            <td class="r">${fmt((i.broker_commission || 0) * (i.bags || 0))}</td>
             <td class="r">${fmt(itemSell(i))}</td>
           </tr>`).join("")}</tbody>
         <tfoot><tr>
           <td colspan="2" class="r"><b>Totals</b></td>
           <td class="r"><b>${fmt(totalBags(r))}</b></td>
           <td colspan="2"></td>
+          <td class="r"><b>${fmt(totalBrokerComm(r))}</b></td>
           <td class="r"><b>${fmt(totalSell(r))}</b></td>
         </tr></tfoot>
       </table>`;
@@ -1280,7 +1281,6 @@ const TradeRecords = () => {
                         <TableHead className="text-right">Buy /bag</TableHead>
                         <TableHead className="text-right">Tax</TableHead>
                         <TableHead className="text-right">Sup. Comm</TableHead>
-                        <TableHead className="text-right">Brk. Comm</TableHead>
                         <TableHead className="text-right">Total Buy</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1294,7 +1294,6 @@ const TradeRecords = () => {
                           <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
                           <TableCell className="text-right">{fmt(i.tax)}</TableCell>
                           <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
-                          <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
                           <TableCell className="text-right font-semibold">{fmt(itemBuy(i))}</TableCell>
                         </TableRow>
                       ))}
@@ -1323,6 +1322,7 @@ const TradeRecords = () => {
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Bags</TableHead>
                         <TableHead className="text-right">Sell /bag</TableHead>
+                        <TableHead className="text-right">Comm. Paid</TableHead>
                         <TableHead className="text-right">Total Sell</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1333,6 +1333,7 @@ const TradeRecords = () => {
                           <TableCell className="font-medium">{i.description || "—"}</TableCell>
                           <TableCell className="text-right">{fmt(i.bags)} {i.unit}</TableCell>
                           <TableCell className="text-right">{fmt(i.sell_price)}</TableCell>
+                          <TableCell className="text-right">{fmt((i.broker_commission || 0) * (i.bags || 0))}</TableCell>
                           <TableCell className="text-right font-semibold">{fmt(itemSell(i))}</TableCell>
                         </TableRow>
                       ))}
