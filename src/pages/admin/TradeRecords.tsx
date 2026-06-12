@@ -734,9 +734,12 @@ const TradeRecords = () => {
     w.document.open(); w.document.write(html); w.document.close();
   };
 
-  const printSelectedRecords = (rows: TradeRecord[]) => {
+  const printSelectedRecords = (rows: TradeRecord[], section: "full" | "buy" | "sell" = "full") => {
     const esc = (s: string) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+    const showBuy = section === "full" || section === "buy";
+    const showSell = section === "full" || section === "sell";
+    const docTitle = section === "buy" ? "Selected Purchase Records" : section === "sell" ? "Selected Sales Records" : "Selected Trade Records";
 
     const recordHtml = (r: TradeRecord) => {
       const p = profitOf(r);
@@ -805,11 +808,22 @@ const TradeRecords = () => {
           <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
         </div>`;
 
+      const sectionTotals = section === "buy" ? `
+        <div class="totals">
+          <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+          <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+        </div>`
+      : section === "sell" ? `
+        <div class="totals">
+          <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+          <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+        </div>`
+      : totalsHtml;
       return `
         <div style="page-break-inside:avoid; margin-bottom:24px;">
-          ${buyTable}
-          ${sellTable}
-          ${totalsHtml}
+          ${showBuy ? buyTable : ""}
+          ${showSell ? sellTable : ""}
+          ${sectionTotals}
         </div>
       `;
     };
@@ -819,7 +833,25 @@ const TradeRecords = () => {
     const grandExp = rows.reduce((s, r) => s + (r.expenses || 0), 0);
     const grandProfit = rows.reduce((s, r) => s + profitOf(r), 0);
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Selected Trade Records</title>
+    const grandHtml = section === "buy" ? `
+      <div class="grand">
+        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
+        <div>Records: <b>${rows.length}</b></div>
+      </div>`
+    : section === "sell" ? `
+      <div class="grand">
+        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
+        <div>Records: <b>${rows.length}</b></div>
+      </div>`
+    : `
+      <div class="grand">
+        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
+        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
+        <div>Grand Expenses: <b>${fmt(grandExp)}</b></div>
+        <div>Grand Profit: <b class="${grandProfit >= 0 ? "pos" : "neg"}">${fmt(grandProfit)}</b></div>
+      </div>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(docTitle)}</title>
       <style>
         body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
         h1 { margin:0 0 8px; font-size:20px; }
@@ -834,15 +866,10 @@ const TradeRecords = () => {
         .grand { margin-top:20px; padding:12px 14px; border:2px solid #999; background:#f1f1f1; display:flex; gap:28px; flex-wrap:wrap; font-size:13px; }
         @media print { body { margin:12mm; } }
       </style></head><body>
-      <h1>Selected Trade Records</h1>
+      <h1>${esc(docTitle)}</h1>
       <div class="meta">Records: ${rows.length} · Printed: ${new Date().toLocaleString()}</div>
       ${rows.map(recordHtml).join("")}
-      <div class="grand">
-        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
-        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
-        <div>Grand Expenses: <b>${fmt(grandExp)}</b></div>
-        <div>Grand Profit: <b class="${grandProfit >= 0 ? "pos" : "neg"}">${fmt(grandProfit)}</b></div>
-      </div>
+      ${grandHtml}
       <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
       </body></html>`;
     const w = window.open("", "_blank");
@@ -887,11 +914,8 @@ const TradeRecords = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" disabled={selectedRecords.length !== 1} onClick={() => setViewOpen(true)}>
-              <Eye className="h-4 w-4 mr-2" />View Selected
-            </Button>
-            <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => printSelectedRecords(selectedRecords)}>
-              <FileText className="h-4 w-4 mr-2" />PDF Selected
+            <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => setViewOpen(true)}>
+              <Eye className="h-4 w-4 mr-2" />View Selected{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
@@ -1369,28 +1393,37 @@ const TradeRecords = () => {
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Trade Record Details</DialogTitle>
+            <DialogTitle>
+              {selectedRecords.length > 1 ? `Trade Record Details (${selectedRecords.length})` : "Trade Record Details"}
+            </DialogTitle>
           </DialogHeader>
-          {selectedRecord && (
-            <div className="space-y-5">
+          {selectedRecords.length > 0 && (
+            <div className="space-y-8">
+              {selectedRecords.map((rec, recIdx) => (
+                <div key={rec.id} className="space-y-5">
+                  {selectedRecords.length > 1 && (
+                    <div className="flex items-center gap-2 pt-2 border-t first:border-t-0 first:pt-0">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Record {recIdx + 1} of {selectedRecords.length}</span>
+                    </div>
+                  )}
               {/* Header summary */}
               <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Date</div>
-                  <div className="font-semibold mt-0.5">{selectedRecord.date}</div>
+                  <div className="font-semibold mt-0.5">{rec.date}</div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Contact</div>
-                  <div className="font-semibold mt-0.5">{contactName(selectedRecord.contact_id)}</div>
+                  <div className="font-semibold mt-0.5">{contactName(rec.contact_id)}</div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Products</div>
-                  <div className="font-semibold mt-0.5">{selectedRecord.items.length} · {fmt(totalBags(selectedRecord))} bags</div>
+                  <div className="font-semibold mt-0.5">{rec.items.length} · {fmt(totalBags(rec))} bags</div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Profit</div>
-                  <div className={"font-semibold mt-0.5 " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
-                    {fmt(profitOf(selectedRecord))}
+                  <div className={"font-semibold mt-0.5 " + (profitOf(rec) >= 0 ? "text-green-600" : "text-red-600")}>
+                    {fmt(profitOf(rec))}
                   </div>
                 </div>
               </div>
@@ -1401,9 +1434,9 @@ const TradeRecords = () => {
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-red-500" />
                     <span className="font-semibold text-sm">Purchase (Buy)</span>
-                    <span className="text-xs text-muted-foreground">Total {fmt(totalBuy(selectedRecord))}</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalBuy(rec))}</span>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "buy")}>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(rec, "buy")}>
                     <FileText className="h-4 w-4 mr-1.5" />PDF Buy Only
                   </Button>
                 </div>
@@ -1422,7 +1455,7 @@ const TradeRecords = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedRecord.items.map((i, idx) => (
+                      {rec.items.map((i, idx) => (
                         <TableRow key={i.id}>
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell className="font-medium">{i.description || "—"}</TableCell>
@@ -1445,9 +1478,9 @@ const TradeRecords = () => {
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-green-500" />
                     <span className="font-semibold text-sm">Sales (Sell)</span>
-                    <span className="text-xs text-muted-foreground">Total {fmt(totalSell(selectedRecord))}</span>
+                    <span className="text-xs text-muted-foreground">Total {fmt(totalSell(rec))}</span>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(selectedRecord, "sell")}>
+                  <Button size="sm" variant="outline" onClick={() => printSingleRecord(rec, "sell")}>
                     <FileText className="h-4 w-4 mr-1.5" />PDF Sell Only
                   </Button>
                 </div>
@@ -1464,7 +1497,7 @@ const TradeRecords = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedRecord.items.map((i, idx) => (
+                      {rec.items.map((i, idx) => (
                         <TableRow key={i.id}>
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell className="font-medium">{i.description || "—"}</TableCell>
@@ -1481,27 +1514,44 @@ const TradeRecords = () => {
 
               {/* Bottom totals */}
               <div className="rounded-lg border bg-muted/40 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
-                <div><div className="text-xs text-muted-foreground">Total Buy</div><div className="font-semibold">{fmt(totalBuy(selectedRecord))}</div></div>
-                <div><div className="text-xs text-muted-foreground">Turnover</div><div className="font-semibold">{fmt(totalSell(selectedRecord))}</div></div>
-                <div><div className="text-xs text-muted-foreground">Expenses</div><div className="font-semibold">{fmt(selectedRecord.expenses)}</div></div>
+                <div><div className="text-xs text-muted-foreground">Total Buy</div><div className="font-semibold">{fmt(totalBuy(rec))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Turnover</div><div className="font-semibold">{fmt(totalSell(rec))}</div></div>
+                <div><div className="text-xs text-muted-foreground">Expenses</div><div className="font-semibold">{fmt(rec.expenses)}</div></div>
                 <div>
                   <div className="text-xs text-muted-foreground">Profit</div>
-                  <div className={"font-semibold " + (profitOf(selectedRecord) >= 0 ? "text-green-600" : "text-red-600")}>
-                    {fmt(profitOf(selectedRecord))}
+                  <div className={"font-semibold " + (profitOf(rec) >= 0 ? "text-green-600" : "text-red-600")}>
+                    {fmt(profitOf(rec))}
                   </div>
                 </div>
               </div>
+                </div>
+              ))}
+
+              {selectedRecords.length > 1 && (
+                <div className="rounded-lg border-2 bg-primary/5 p-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
+                  <div><div className="text-xs text-muted-foreground uppercase">Grand Buy</div><div className="font-semibold text-base">{fmt(selectedRecords.reduce((s, r) => s + totalBuy(r), 0))}</div></div>
+                  <div><div className="text-xs text-muted-foreground uppercase">Grand Turnover</div><div className="font-semibold text-base">{fmt(selectedRecords.reduce((s, r) => s + totalSell(r), 0))}</div></div>
+                  <div><div className="text-xs text-muted-foreground uppercase">Grand Expenses</div><div className="font-semibold text-base">{fmt(selectedRecords.reduce((s, r) => s + (r.expenses || 0), 0))}</div></div>
+                  <div>
+                    <div className="text-xs text-muted-foreground uppercase">Grand Profit</div>
+                    {(() => {
+                      const gp = selectedRecords.reduce((s, r) => s + profitOf(r), 0);
+                      return <div className={"font-semibold text-base " + (gp >= 0 ? "text-green-600" : "text-red-600")}>{fmt(gp)}</div>;
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
-            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "buy")}>
+            <Button variant="outline" disabled={selectedRecords.length === 0} onClick={() => printSelectedRecords(selectedRecords, "buy")}>
               <FileText className="h-4 w-4 mr-2" />PDF Buy
             </Button>
-            <Button variant="outline" onClick={() => selectedRecord && printSingleRecord(selectedRecord, "sell")}>
+            <Button variant="outline" disabled={selectedRecords.length === 0} onClick={() => printSelectedRecords(selectedRecords, "sell")}>
               <FileText className="h-4 w-4 mr-2" />PDF Sell
             </Button>
-            <Button onClick={() => selectedRecord && printSingleRecord(selectedRecord, "full")}>
+            <Button disabled={selectedRecords.length === 0} onClick={() => printSelectedRecords(selectedRecords, "full")}>
               <FileText className="h-4 w-4 mr-2" />PDF Full
             </Button>
           </DialogFooter>
