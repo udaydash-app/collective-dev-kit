@@ -734,9 +734,12 @@ const TradeRecords = () => {
     w.document.open(); w.document.write(html); w.document.close();
   };
 
-  const printSelectedRecords = (rows: TradeRecord[]) => {
+  const printSelectedRecords = (rows: TradeRecord[], section: "full" | "buy" | "sell" = "full") => {
     const esc = (s: string) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+    const showBuy = section === "full" || section === "buy";
+    const showSell = section === "full" || section === "sell";
+    const docTitle = section === "buy" ? "Selected Purchase Records" : section === "sell" ? "Selected Sales Records" : "Selected Trade Records";
 
     const recordHtml = (r: TradeRecord) => {
       const p = profitOf(r);
@@ -805,11 +808,22 @@ const TradeRecords = () => {
           <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
         </div>`;
 
+      const sectionTotals = section === "buy" ? `
+        <div class="totals">
+          <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+          <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+        </div>`
+      : section === "sell" ? `
+        <div class="totals">
+          <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+          <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+        </div>`
+      : totalsHtml;
       return `
         <div style="page-break-inside:avoid; margin-bottom:24px;">
-          ${buyTable}
-          ${sellTable}
-          ${totalsHtml}
+          ${showBuy ? buyTable : ""}
+          ${showSell ? sellTable : ""}
+          ${sectionTotals}
         </div>
       `;
     };
@@ -819,7 +833,25 @@ const TradeRecords = () => {
     const grandExp = rows.reduce((s, r) => s + (r.expenses || 0), 0);
     const grandProfit = rows.reduce((s, r) => s + profitOf(r), 0);
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Selected Trade Records</title>
+    const grandHtml = section === "buy" ? `
+      <div class="grand">
+        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
+        <div>Records: <b>${rows.length}</b></div>
+      </div>`
+    : section === "sell" ? `
+      <div class="grand">
+        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
+        <div>Records: <b>${rows.length}</b></div>
+      </div>`
+    : `
+      <div class="grand">
+        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
+        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
+        <div>Grand Expenses: <b>${fmt(grandExp)}</b></div>
+        <div>Grand Profit: <b class="${grandProfit >= 0 ? "pos" : "neg"}">${fmt(grandProfit)}</b></div>
+      </div>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(docTitle)}</title>
       <style>
         body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
         h1 { margin:0 0 8px; font-size:20px; }
@@ -834,15 +866,10 @@ const TradeRecords = () => {
         .grand { margin-top:20px; padding:12px 14px; border:2px solid #999; background:#f1f1f1; display:flex; gap:28px; flex-wrap:wrap; font-size:13px; }
         @media print { body { margin:12mm; } }
       </style></head><body>
-      <h1>Selected Trade Records</h1>
+      <h1>${esc(docTitle)}</h1>
       <div class="meta">Records: ${rows.length} · Printed: ${new Date().toLocaleString()}</div>
       ${rows.map(recordHtml).join("")}
-      <div class="grand">
-        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
-        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
-        <div>Grand Expenses: <b>${fmt(grandExp)}</b></div>
-        <div>Grand Profit: <b class="${grandProfit >= 0 ? "pos" : "neg"}">${fmt(grandProfit)}</b></div>
-      </div>
+      ${grandHtml}
       <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
       </body></html>`;
     const w = window.open("", "_blank");
