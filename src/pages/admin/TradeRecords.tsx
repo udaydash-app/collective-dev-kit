@@ -618,29 +618,93 @@ const TradeRecords = () => {
     [records, selectedId]
   );
 
-  const printSingleRecord = (r: TradeRecord) => {
+  const printSingleRecord = (r: TradeRecord, section: "full" | "buy" | "sell" = "full") => {
     const esc = (s: string) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
     const p = profitOf(r);
-    const itemsHtml = r.items.map((i, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${esc(i.description || "—")}</td>
-        <td>${esc(i.supplier || "—")}</td>
-        <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
-        <td class="r">${fmt(i.packing)}</td>
-        <td class="r">${fmt(i.buy_price)}</td>
-        <td class="r">${fmt(i.tax)}</td>
-        <td class="r">${fmt(i.supplier_commission)}</td>
-        <td class="r">${fmt(i.broker_commission)}</td>
-        <td class="r">${fmt(i.sell_price)}</td>
-        <td class="r">${fmt(itemBuy(i))}</td>
-        <td class="r">${fmt(itemSell(i))}</td>
-      </tr>`).join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Trade Record ${esc(r.date)}</title>
+    const showBuy = section === "full" || section === "buy";
+    const showSell = section === "full" || section === "sell";
+    const title = section === "buy" ? "Purchase Record" : section === "sell" ? "Sales Record" : "Trade Record";
+
+    const buyTable = `
+      <h2>Purchase Details</h2>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Product</th><th>Supplier</th>
+          <th class="r">Bags</th><th class="r">Packing</th>
+          <th class="r">Buy /bag</th><th class="r">Tax</th>
+          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
+          <th class="r">Total Buy</th>
+        </tr></thead>
+        <tbody>${r.items.map((i, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${esc(i.description || "—")}</td>
+            <td>${esc(i.supplier || "—")}</td>
+            <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+            <td class="r">${fmt(i.packing)}</td>
+            <td class="r">${fmt(i.buy_price)}</td>
+            <td class="r">${fmt(i.tax)}</td>
+            <td class="r">${fmt(i.supplier_commission)}</td>
+            <td class="r">${fmt(i.broker_commission)}</td>
+            <td class="r">${fmt(itemBuy(i))}</td>
+          </tr>`).join("")}</tbody>
+        <tfoot><tr>
+          <td colspan="3" class="r"><b>Totals</b></td>
+          <td class="r"><b>${fmt(totalBags(r))}</b></td>
+          <td colspan="5"></td>
+          <td class="r"><b>${fmt(totalBuy(r))}</b></td>
+        </tr></tfoot>
+      </table>`;
+
+    const sellTable = `
+      <h2>Sales Details</h2>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Product</th>
+          <th class="r">Bags</th><th class="r">Packing</th>
+          <th class="r">Sell /bag</th><th class="r">Total Sell</th>
+        </tr></thead>
+        <tbody>${r.items.map((i, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${esc(i.description || "—")}</td>
+            <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+            <td class="r">${fmt(i.packing)}</td>
+            <td class="r">${fmt(i.sell_price)}</td>
+            <td class="r">${fmt(itemSell(i))}</td>
+          </tr>`).join("")}</tbody>
+        <tfoot><tr>
+          <td colspan="2" class="r"><b>Totals</b></td>
+          <td class="r"><b>${fmt(totalBags(r))}</b></td>
+          <td colspan="2"></td>
+          <td class="r"><b>${fmt(totalSell(r))}</b></td>
+        </tr></tfoot>
+      </table>`;
+
+    const totalsHtml = section === "buy" ? `
+      <div class="totals">
+        <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+      </div>`
+    : section === "sell" ? `
+      <div class="totals">
+        <div>Total Bags: <b>${fmt(totalBags(r))}</b></div>
+        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+      </div>`
+    : `
+      <div class="totals">
+        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+        <div>Expenses: <b>${fmt(r.expenses)}</b></div>
+        <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
+      </div>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} ${esc(r.date)}</title>
       <style>
         body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
         h1 { margin:0 0 4px; font-size:20px; }
+        h2 { margin:20px 0 6px; font-size:14px; border-bottom:1px solid #999; padding-bottom:3px; }
         .meta { color:#555; font-size:11px; margin-bottom:16px; }
         .meta span { margin-right:16px; }
         table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
@@ -651,35 +715,15 @@ const TradeRecords = () => {
         .totals { margin-top:16px; padding:10px 12px; border:1px solid #ccc; background:#f7f7f7; display:flex; gap:24px; flex-wrap:wrap; }
         @media print { body { margin:12mm; } }
       </style></head><body>
-      <h1>Trade Record</h1>
+      <h1>${esc(title)}</h1>
       <div class="meta">
         <span><b>Date:</b> ${esc(r.date)}</span>
         <span><b>Contact:</b> ${esc(contactName(r.contact_id))}</span>
         <span><b>Printed:</b> ${new Date().toLocaleString()}</span>
       </div>
-      <table>
-        <thead><tr>
-          <th>#</th><th>Product</th><th>Supplier</th>
-          <th class="r">Bags</th><th class="r">Packing</th>
-          <th class="r">Buy</th><th class="r">Tax</th>
-          <th class="r">Sup. Comm</th><th class="r">Brk. Comm</th>
-          <th class="r">Sell</th><th class="r">Total Buy</th><th class="r">Total Sell</th>
-        </tr></thead>
-        <tbody>${itemsHtml}</tbody>
-        <tfoot><tr>
-          <td colspan="3" class="r"><b>Totals</b></td>
-          <td class="r"><b>${fmt(totalBags(r))}</b></td>
-          <td colspan="6"></td>
-          <td class="r"><b>${fmt(totalBuy(r))}</b></td>
-          <td class="r"><b>${fmt(totalSell(r))}</b></td>
-        </tr></tfoot>
-      </table>
-      <div class="totals">
-        <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
-        <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
-        <div>Expenses: <b>${fmt(r.expenses)}</b></div>
-        <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
-      </div>
+      ${showBuy ? buyTable : ""}
+      ${showSell ? sellTable : ""}
+      ${totalsHtml}
       <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
       </body></html>`;
     const w = window.open("", "_blank");
