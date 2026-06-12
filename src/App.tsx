@@ -72,6 +72,7 @@ import AdminPurchaseOrders from "./pages/admin/PurchaseOrders";
 import AdminTaxCollectionReport from "./pages/admin/TaxCollectionReport";
 import AdminTradingAccount from "./pages/admin/TradingAccount";
 import AdminTradeRecords from "./pages/admin/TradeRecords";
+import AdminCashRegister from "./pages/admin/CashRegister";
 import AdminProfitLossAnalysis from "./pages/admin/ProfitLossAnalysis";
 import DashboardModern from "./pages/admin/DashboardModern";
 import Desktop from "./pages/admin/Desktop";
