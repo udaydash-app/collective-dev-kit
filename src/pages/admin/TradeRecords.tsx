@@ -826,6 +826,7 @@ const TradeRecords = () => {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Supplier(s)</TableHead>
@@ -840,12 +841,22 @@ const TradeRecords = () => {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-10">No records yet</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const profit = profitOf(r);
                 const suppliers = Array.from(new Set(r.items.map(i => (i.supplier || "").trim()).filter(Boolean))).join(", ") || "—";
                 return (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} data-state={selectedId === r.id ? "selected" : undefined}>
+                    <TableCell className="w-10">
+                      <input
+                        type="radio"
+                        name="trade-record-select"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        checked={selectedId === r.id}
+                        onChange={() => setSelectedId(r.id)}
+                        aria-label={`Select record ${r.date}`}
+                      />
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                     <TableCell className="whitespace-nowrap">{contactName(r.contact_id)}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate" title={suppliers}>{suppliers}</TableCell>
