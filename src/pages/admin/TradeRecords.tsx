@@ -662,7 +662,7 @@ const TradeRecords = () => {
         <thead><tr>
           <th>#</th><th>Product</th>
           <th class="r">Bags</th><th class="r">Packing</th>
-          <th class="r">Sell /bag</th><th class="r">Total Sell</th>
+          <th class="r">Sell /bag</th><th class="r">Comm. Paid</th><th class="r">Total Sell</th>
         </tr></thead>
         <tbody>${r.items.map((i, idx) => `
           <tr>
@@ -671,12 +671,14 @@ const TradeRecords = () => {
             <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
             <td class="r">${fmt(i.packing)}</td>
             <td class="r">${fmt(i.sell_price)}</td>
+            <td class="r">${fmt((i.broker_commission || 0) * (i.bags || 0))}</td>
             <td class="r">${fmt(itemSell(i))}</td>
           </tr>`).join("")}</tbody>
         <tfoot><tr>
           <td colspan="2" class="r"><b>Totals</b></td>
           <td class="r"><b>${fmt(totalBags(r))}</b></td>
           <td colspan="2"></td>
+          <td class="r"><b>${fmt(totalBrokerComm(r))}</b></td>
           <td class="r"><b>${fmt(totalSell(r))}</b></td>
         </tr></tfoot>
       </table>`;
