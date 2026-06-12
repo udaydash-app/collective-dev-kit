@@ -170,6 +170,8 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/TradingQuote')) },
   { id: 'trade-records', path: '/admin/trade-records', title: 'Trade Records', icon: FileText, group: 'External', color: 'from-indigo-600 to-blue-700',
     component: L(() => import('@/pages/admin/TradeRecords')) },
+  { id: 'cash-register', path: '/admin/cash-register', title: 'Cash Register', icon: Wallet, group: 'External', color: 'from-amber-600 to-orange-700',
+    component: L(() => import('@/pages/admin/CashRegister')) },
 
   // Utilities
   { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',
