@@ -157,7 +157,7 @@ const TradeRecords = () => {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [commissionsOpen, setCommissionsOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewOpen, setViewOpen] = useState(false);
   // Internal PIN gate removed — the entire External folder is PIN-locked at the Desktop level.
   const [unlocked, setUnlocked] = useState<boolean>(true);
