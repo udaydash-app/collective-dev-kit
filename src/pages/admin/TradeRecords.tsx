@@ -64,7 +64,7 @@ const emptyForm = {
 };
 
 const itemBuy = (i: TradeItem) =>
-  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0) + (i.broker_commission || 0)) * (i.bags || 0);
+  ((i.buy_price || 0) + (i.tax || 0) + (i.supplier_commission || 0)) * (i.bags || 0);
 
 const itemSell = (i: TradeItem) => (i.sell_price || 0) * (i.bags || 0);
 
