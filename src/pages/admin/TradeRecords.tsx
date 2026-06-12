@@ -1281,7 +1281,6 @@ const TradeRecords = () => {
                         <TableHead className="text-right">Buy /bag</TableHead>
                         <TableHead className="text-right">Tax</TableHead>
                         <TableHead className="text-right">Sup. Comm</TableHead>
-                        <TableHead className="text-right">Brk. Comm</TableHead>
                         <TableHead className="text-right">Total Buy</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1295,7 +1294,6 @@ const TradeRecords = () => {
                           <TableCell className="text-right">{fmt(i.buy_price)}</TableCell>
                           <TableCell className="text-right">{fmt(i.tax)}</TableCell>
                           <TableCell className="text-right">{fmt(i.supplier_commission)}</TableCell>
-                          <TableCell className="text-right">{fmt(i.broker_commission)}</TableCell>
                           <TableCell className="text-right font-semibold">{fmt(itemBuy(i))}</TableCell>
                         </TableRow>
                       ))}
