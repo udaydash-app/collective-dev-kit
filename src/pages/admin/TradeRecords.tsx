@@ -614,10 +614,11 @@ const TradeRecords = () => {
     w.document.close();
   };
 
-  const selectedRecord = useMemo(
-    () => records.find((r) => r.id === selectedId) ?? null,
-    [records, selectedId]
+  const selectedRecords = useMemo(
+    () => records.filter((r) => selectedIds.has(r.id)),
+    [records, selectedIds]
   );
+  const selectedRecord = selectedRecords[0] ?? null;
 
   const printSingleRecord = (r: TradeRecord, section: "full" | "buy" | "sell" = "full") => {
     const esc = (s: string) =>
