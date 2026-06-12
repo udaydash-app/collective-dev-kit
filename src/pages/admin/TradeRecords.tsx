@@ -914,11 +914,8 @@ const TradeRecords = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" disabled={selectedRecords.length !== 1} onClick={() => setViewOpen(true)}>
-              <Eye className="h-4 w-4 mr-2" />View Selected
-            </Button>
-            <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => printSelectedRecords(selectedRecords)}>
-              <FileText className="h-4 w-4 mr-2" />PDF Selected
+            <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => setViewOpen(true)}>
+              <Eye className="h-4 w-4 mr-2" />View Selected{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
