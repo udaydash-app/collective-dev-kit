@@ -893,14 +893,18 @@ const TradeRecords = () => {
                 const profit = profitOf(r);
                 const suppliers = Array.from(new Set(r.items.map(i => (i.supplier || "").trim()).filter(Boolean))).join(", ") || "—";
                 return (
-                  <TableRow key={r.id} data-state={selectedId === r.id ? "selected" : undefined}>
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
                     <TableCell className="w-10">
-                      <input
-                        type="radio"
-                        name="trade-record-select"
-                        className="h-4 w-4 cursor-pointer accent-primary"
-                        checked={selectedId === r.id}
-                        onChange={() => setSelectedId(r.id)}
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(r.id);
+                            else next.delete(r.id);
+                            return next;
+                          });
+                        }}
                         aria-label={`Select record ${r.date}`}
                       />
                     </TableCell>
