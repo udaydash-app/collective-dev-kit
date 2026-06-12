@@ -989,7 +989,22 @@ const TradeRecords = () => {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))}
+                    onCheckedChange={(checked) => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        filtered.forEach((r) => {
+                          if (checked) next.add(r.id);
+                          else next.delete(r.id);
+                        });
+                        return next;
+                      });
+                    }}
+                    aria-label="Select all records"
+                  />
+                </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Supplier(s)</TableHead>
