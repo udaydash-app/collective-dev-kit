@@ -734,6 +734,122 @@ const TradeRecords = () => {
     w.document.open(); w.document.write(html); w.document.close();
   };
 
+  const printSelectedRecords = (rows: TradeRecord[]) => {
+    const esc = (s: string) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+
+    const recordHtml = (r: TradeRecord) => {
+      const p = profitOf(r);
+      const buyTable = `
+        <h2 style="margin-top:0">Purchase Details — ${esc(r.date)} · ${esc(contactName(r.contact_id))}</h2>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Product</th><th>Supplier</th>
+            <th class="r">Bags</th><th class="r">Packing</th>
+            <th class="r">Buy /bag</th><th class="r">Tax</th>
+            <th class="r">Sup. Comm</th>
+            <th class="r">Total Buy</th>
+          </tr></thead>
+          <tbody>${r.items.map((i, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${esc(i.description || "—")}</td>
+              <td>${esc(i.supplier || "—")}</td>
+              <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+              <td class="r">${fmt(i.packing)}</td>
+              <td class="r">${fmt(i.buy_price)}</td>
+              <td class="r">${fmt(i.tax)}</td>
+              <td class="r">${fmt(i.supplier_commission)}</td>
+              <td class="r">${fmt(itemBuy(i))}</td>
+            </tr>`).join("")}</tbody>
+          <tfoot><tr>
+            <td colspan="3" class="r"><b>Totals</b></td>
+            <td class="r"><b>${fmt(totalBags(r))}</b></td>
+            <td colspan="4"></td>
+            <td class="r"><b>${fmt(totalBuy(r))}</b></td>
+          </tr></tfoot>
+        </table>`;
+
+      const sellTable = `
+        <h2>Sales Details — ${esc(r.date)} · ${esc(contactName(r.contact_id))}</h2>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Product</th>
+            <th class="r">Bags</th><th class="r">Packing</th>
+            <th class="r">Sell /bag</th><th class="r">Comm. Paid</th><th class="r">Total Sell</th>
+          </tr></thead>
+          <tbody>${r.items.map((i, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${esc(i.description || "—")}</td>
+              <td class="r">${fmt(i.bags)} ${esc(i.unit)}</td>
+              <td class="r">${fmt(i.packing)}</td>
+              <td class="r">${fmt(i.sell_price)}</td>
+              <td class="r">${fmt((i.broker_commission || 0) * (i.bags || 0))}</td>
+              <td class="r">${fmt(itemSell(i))}</td>
+            </tr>`).join("")}</tbody>
+          <tfoot><tr>
+            <td colspan="2" class="r"><b>Totals</b></td>
+            <td class="r"><b>${fmt(totalBags(r))}</b></td>
+            <td colspan="2"></td>
+            <td class="r"><b>${fmt(totalBrokerComm(r))}</b></td>
+            <td class="r"><b>${fmt(totalSell(r))}</b></td>
+          </tr></tfoot>
+        </table>`;
+
+      const totalsHtml = `
+        <div class="totals">
+          <div>Total Buy: <b>${fmt(totalBuy(r))}</b></div>
+          <div>Turnover: <b>${fmt(totalSell(r))}</b></div>
+          <div>Expenses: <b>${fmt(r.expenses)}</b></div>
+          <div>Profit: <b class="${p >= 0 ? "pos" : "neg"}">${fmt(p)}</b></div>
+        </div>`;
+
+      return `
+        <div style="page-break-inside:avoid; margin-bottom:24px;">
+          ${buyTable}
+          ${sellTable}
+          ${totalsHtml}
+        </div>
+      `;
+    };
+
+    const grandBuy = rows.reduce((s, r) => s + totalBuy(r), 0);
+    const grandSell = rows.reduce((s, r) => s + totalSell(r), 0);
+    const grandExp = rows.reduce((s, r) => s + (r.expenses || 0), 0);
+    const grandProfit = rows.reduce((s, r) => s + profitOf(r), 0);
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Selected Trade Records</title>
+      <style>
+        body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
+        h1 { margin:0 0 8px; font-size:20px; }
+        h2 { margin:16px 0 6px; font-size:14px; border-bottom:1px solid #999; padding-bottom:3px; }
+        .meta { color:#555; font-size:11px; margin-bottom:16px; }
+        table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
+        th, td { border:1px solid #ddd; padding:4px 6px; }
+        th { background:#f1f1f1; text-align:left; }
+        .r { text-align:right; }
+        .pos { color:#15803d; } .neg { color:#b91c1c; }
+        .totals { margin-top:12px; padding:10px 12px; border:1px solid #ccc; background:#f7f7f7; display:flex; gap:24px; flex-wrap:wrap; }
+        .grand { margin-top:20px; padding:12px 14px; border:2px solid #999; background:#f1f1f1; display:flex; gap:28px; flex-wrap:wrap; font-size:13px; }
+        @media print { body { margin:12mm; } }
+      </style></head><body>
+      <h1>Selected Trade Records</h1>
+      <div class="meta">Records: ${rows.length} · Printed: ${new Date().toLocaleString()}</div>
+      ${rows.map(recordHtml).join("")}
+      <div class="grand">
+        <div>Grand Buy: <b>${fmt(grandBuy)}</b></div>
+        <div>Grand Turnover: <b>${fmt(grandSell)}</b></div>
+        <div>Grand Expenses: <b>${fmt(grandExp)}</b></div>
+        <div>Grand Profit: <b class="${grandProfit >= 0 ? "pos" : "neg"}">${fmt(grandProfit)}</b></div>
+      </div>
+      <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow popups to print"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {!unlocked && (
