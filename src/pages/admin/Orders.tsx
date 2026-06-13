@@ -1874,7 +1874,7 @@ export default function AdminOrders() {
               </div>
             ) : orders && orders.length > 0 ? (
               <div className="pb-4">
-                <Table fixedScroll>
+                <Table fixedScroll className="text-xs">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">
