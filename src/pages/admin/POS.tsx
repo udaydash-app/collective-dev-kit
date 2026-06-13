@@ -4227,39 +4227,6 @@ export default function POS() {
                   <X className="h-3 w-3 text-muted-foreground" />
                 </Button>
               )}
-              <div className="text-[10px] text-muted-foreground px-2 py-1 border rounded bg-muted/30" title="F2: Cash Payment | F3: Mobile Money | F4: Credit Sales | F5-F12: Quick Actions | Arrow keys: Navigate | Enter: Edit | Delete: Remove | Esc: Cancel | Ctrl+Enter: Pay | Ctrl+N: New sale | Ctrl+C: Customer">
-                Keyboard: F2-F12 + ↑↓←→
-              </div>
-              <WalkieTalkieButton />
-              <POSChatRoom />
-              {(() => {
-                try {
-                  const s = localStorage.getItem('offline_pos_session');
-                  const parsed = s ? JSON.parse(s) : null;
-                  if ((parsed?.full_name || '').toLowerCase() !== 'admin') return null;
-                } catch { return null; }
-                return (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/admin/dashboard-modern')}
-                    title="Dashboard"
-                    className="h-7 w-7 p-0"
-                  >
-                    <LayoutDashboard className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                );
-              })()}
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleLogout}
-                title="Logout"
-                className="h-7 w-7 p-0"
-              >
-                <LogOut className="h-3 w-3 text-muted-foreground" />
-              </Button>
-              <Settings className="h-3 w-3 text-muted-foreground" />
             </div>
           </div>
           
