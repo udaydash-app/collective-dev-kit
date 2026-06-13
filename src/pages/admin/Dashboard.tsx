@@ -116,7 +116,7 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage your Global Market operations</p>
+            <p className="text-muted-foreground">Manage your Global Indian Mart operations</p>
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />

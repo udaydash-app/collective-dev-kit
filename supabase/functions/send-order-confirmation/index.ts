@@ -52,7 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send confirmation email
     const emailResponse = await resend.emails.send({
-      from: "Global Market <orders@yourdomain.com>",
+      from: "Global Indian Mart <orders@yourdomain.com>",
       to: [profile?.full_name || "customer@example.com"],
       subject: `Order Confirmation - ${order.order_number}`,
       html: `

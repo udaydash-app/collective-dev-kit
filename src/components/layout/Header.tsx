@@ -22,7 +22,7 @@ export const Header = () => {
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Select location");
   const [companyLogo, setCompanyLogo] = useState(logo);
-  const [companyName, setCompanyName] = useState("Global Market");
+  const [companyName, setCompanyName] = useState("Global Indian Mart");
   const isHomePage = location.pathname === "/";
 
   useEffect(() => {

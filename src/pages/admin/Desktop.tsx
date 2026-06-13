@@ -117,7 +117,7 @@ export default function Desktop() {
       <header className="h-12 shrink-0 px-3 flex items-center justify-between bg-white/70 backdrop-blur-xl border-b border-slate-200 text-slate-800">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <div className="h-6 w-6 rounded bg-gradient-to-br from-emerald-400 to-cyan-500 shadow" />
-          Global Market Desktop
+          Global Indian Mart Desktop
         </div>
 
         <div className="relative w-72 max-w-[40vw]">
