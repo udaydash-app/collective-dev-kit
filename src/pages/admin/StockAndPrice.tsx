@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
+import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 
 type EditedPrices = {
   [key: string]: {
@@ -376,7 +377,7 @@ export default function StockAndPrice() {
           <Button variant="outline" onClick={() => setBulkSellOpen(true)}>
             Bulk Sell Price Update
           </Button>
-          <ReturnToPOSButton inline />
+          <ReturnToPOSButton inline hideDashboard />
         </div>
       </div>
 
@@ -441,354 +442,150 @@ export default function StockAndPrice() {
 
       {/* Products Display */}
       {viewMode === 'list' ? (
-        <Card>
-          <Table fixedScroll>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product Name</TableHead>
-                <TableHead>Barcode</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Store</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="text-right">Cost Price</TableHead>
-                <TableHead className="text-right">Retail Price</TableHead>
-                <TableHead className="text-right">Wholesale</TableHead>
-                <TableHead className="text-right">VIP Price</TableHead>
-                <TableHead className="text-right">Margin %</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {productsLoading ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8">
-                    Loading products...
-                  </TableCell>
-                </TableRow>
-              ) : filteredProducts?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8">
-                    No products found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredProducts?.flatMap((product) => {
-                  // If product has variants, show each variant as a separate row
-                  if (product.product_variants && product.product_variants.length > 0) {
-                    // Filter variants based on stock filter
-                    return product.product_variants
-                      .filter((variant: any) => stockMatchesFilter(variant.stock_quantity ?? 0))
-                      .map((variant: any) => (
-                      <TableRow key={`${product.id}-${variant.id}`}>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">{product.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">({variant.label})</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {variant.barcode || product.barcode || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {product.categories?.name || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {product.stores?.name || '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(() => {
-                            const stock = variant.stock_quantity ?? 0;
-                            const isNegative = stock < 0;
-                            const isPositive = stock > 0;
-                            return (
-                              <span 
-                                className={`font-semibold ${
-                                  isNegative 
-                                    ? 'text-red-600' 
-                                    : isPositive 
-                                    ? 'text-green-600' 
-                                    : 'text-muted-foreground'
-                                }`}
-                              >
-                                {isNegative ? '-' : ''}{Math.abs(stock)}
-                              </span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(variant.id, 'costPrice', variant.cost_price ?? product.cost_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                variant.id,
-                                'costPrice',
-                                e.target.value,
-                                true,
-                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
-                              )}
-                            />
-                          ) : (() => {
-                            const base = variant.cost_price ?? product.cost_price ?? 0;
-                            const lc = Number(product.local_charges) || 0;
-                            const total = (Number(base) || 0) + lc;
-                            return total ? formatCurrency(total) : '-';
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(variant.id, 'retailPrice', variant.price ?? product.price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                variant.id,
-                                'retailPrice',
-                                e.target.value,
-                                true,
-                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            variant.price ? formatCurrency(variant.price) : 
-                            product.price ? formatCurrency(product.price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-blue-600">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(variant.id, 'wholesalePrice', variant.wholesale_price ?? product.wholesale_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                variant.id,
-                                'wholesalePrice',
-                                e.target.value,
-                                true,
-                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            variant.wholesale_price ? formatCurrency(variant.wholesale_price) : 
-                            product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-purple-600">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(variant.id, 'vipPrice', variant.vip_price ?? product.vip_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                variant.id,
-                                'vipPrice',
-                                e.target.value,
-                                true,
-                                { costPrice: variant.cost_price ?? product.cost_price, retailPrice: variant.price ?? product.price, wholesalePrice: variant.wholesale_price ?? product.wholesale_price, vipPrice: variant.vip_price ?? product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            variant.vip_price ? formatCurrency(variant.vip_price) : 
-                            product.vip_price ? formatCurrency(product.vip_price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(() => {
-                            const price = variant.price || product.price;
-                            const baseCost = variant.cost_price || product.cost_price || 0;
-                            const cost = Number(baseCost) + (Number(product.local_charges) || 0);
-                            return price && cost ? (
-                              <Badge variant="outline">
-                                {calculateMargin(price, cost)}%
-                              </Badge>
-                            ) : '-';
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={product.is_available ? 'default' : 'secondary'}>
-                            {product.is_available ? 'Available' : 'Unavailable'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {!bulkEditMode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditPrices(
-                                product.id,
-                                product.name,
-                                variant.cost_price ?? product.cost_price,
-                                variant.wholesale_price ?? product.wholesale_price,
-                                variant.vip_price ?? product.vip_price,
-                                variant.id,
-                                variant.label
-                              )}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  } else {
-                    // Product has no variants, show product-level data
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <span className="font-medium">{product.name}</span>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {product.barcode || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {product.categories?.name || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {product.stores?.name || '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(() => {
-                            const stock = product.stock_quantity ?? 0;
-                            const isNegative = stock < 0;
-                            const isPositive = stock > 0;
-                            return (
-                              <span 
-                                className={`font-semibold ${
-                                  isNegative 
-                                    ? 'text-red-600' 
-                                    : isPositive 
-                                    ? 'text-green-600' 
-                                    : 'text-muted-foreground'
-                                }`}
-                              >
-                                {isNegative ? '-' : ''}{Math.abs(stock)}
-                              </span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(product.id, 'costPrice', product.cost_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                product.id,
-                                'costPrice',
-                                e.target.value,
-                                false,
-                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
-                              )}
-                            />
-                          ) : (() => {
-                            const total = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
-                            return total ? formatCurrency(total) : '-';
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(product.id, 'retailPrice', product.price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                product.id,
-                                'retailPrice',
-                                e.target.value,
-                                false,
-                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            product.price ? formatCurrency(product.price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-blue-600">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(product.id, 'wholesalePrice', product.wholesale_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                product.id,
-                                'wholesalePrice',
-                                e.target.value,
-                                false,
-                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-purple-600">
-                          {bulkEditMode ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="w-20 h-8 text-right"
-                              value={getEditedPrice(product.id, 'vipPrice', product.vip_price) ?? ''}
-                              onChange={(e) => handleBulkPriceChange(
-                                product.id,
-                                'vipPrice',
-                                e.target.value,
-                                false,
-                                { costPrice: product.cost_price, retailPrice: product.price, wholesalePrice: product.wholesale_price, vipPrice: product.vip_price }
-                              )}
-                            />
-                          ) : (
-                            product.vip_price ? formatCurrency(product.vip_price) : '-'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(() => {
-                            const cost = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
-                            return product.price && cost ? (
-                              <Badge variant="outline">
-                                {calculateMargin(product.price, cost)}%
-                              </Badge>
-                            ) : '-';
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={product.is_available ? 'default' : 'secondary'}>
-                            {product.is_available ? 'Available' : 'Unavailable'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {!bulkEditMode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditPrices(
-                                product.id,
-                                product.name,
-                                product.cost_price,
-                                product.wholesale_price,
-                                product.vip_price
-                              )}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+        (() => {
+          type Row = {
+            id: string;
+            product: any;
+            variant: any | null;
+            name: string;
+            barcode: string;
+            category: string;
+            store: string;
+            stock: number;
+            costTotal: number;
+            retail: number | null;
+            wholesale: number | null;
+            vip: number | null;
+            available: boolean;
+          };
+          const rows: Row[] = [];
+          (filteredProducts || []).forEach((product: any) => {
+            const lc = Number(product.local_charges) || 0;
+            if (product.product_variants && product.product_variants.length > 0) {
+              product.product_variants
+                .filter((v: any) => stockMatchesFilter(v.stock_quantity ?? 0))
+                .forEach((v: any) => {
+                  const base = Number(v.cost_price ?? product.cost_price ?? 0);
+                  rows.push({
+                    id: `${product.id}-${v.id}`,
+                    product, variant: v,
+                    name: `${product.name} (${v.label})`,
+                    barcode: v.barcode || product.barcode || '-',
+                    category: product.categories?.name || '-',
+                    store: product.stores?.name || '-',
+                    stock: v.stock_quantity ?? 0,
+                    costTotal: base + lc,
+                    retail: v.price ?? product.price ?? null,
+                    wholesale: v.wholesale_price ?? product.wholesale_price ?? null,
+                    vip: v.vip_price ?? product.vip_price ?? null,
+                    available: !!product.is_available,
+                  });
+                });
+            } else {
+              const base = Number(product.cost_price ?? 0);
+              rows.push({
+                id: product.id,
+                product, variant: null,
+                name: product.name,
+                barcode: product.barcode || '-',
+                category: product.categories?.name || '-',
+                store: product.stores?.name || '-',
+                stock: product.stock_quantity ?? 0,
+                costTotal: base + lc,
+                retail: product.price ?? null,
+                wholesale: product.wholesale_price ?? null,
+                vip: product.vip_price ?? null,
+                available: !!product.is_available,
+              });
+            }
+          });
+
+          const stockCell = (s: number) => {
+            const cls = s < 0 ? 'text-red-600' : s > 0 ? 'text-green-600' : 'text-muted-foreground';
+            return <span className={`font-semibold ${cls}`}>{s < 0 ? '-' : ''}{Math.abs(s)}</span>;
+          };
+
+          const priceInput = (
+            row: Row,
+            field: 'costPrice' | 'retailPrice' | 'wholesalePrice' | 'vipPrice',
+            current: number | null,
+          ) => {
+            const id = row.variant ? row.variant.id : row.product.id;
+            const isVariant = !!row.variant;
+            const v = row.variant;
+            const p = row.product;
+            const currentPrices = {
+              costPrice: v?.cost_price ?? p.cost_price,
+              retailPrice: v?.price ?? p.price,
+              wholesalePrice: v?.wholesale_price ?? p.wholesale_price,
+              vipPrice: v?.vip_price ?? p.vip_price,
+            };
+            return (
+              <Input
+                type="number" step="0.01"
+                className="w-full h-6 text-right text-xs px-1"
+                value={getEditedPrice(id, field, current) ?? ''}
+                onChange={(e) => handleBulkPriceChange(id, field, e.target.value, isVariant, currentPrices)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            );
+          };
+
+          const columns: ExcelColumn<Row>[] = [
+            { key: 'name', label: 'Product', width: 240, render: r => <span className="font-medium truncate" title={r.name}>{r.name}</span> },
+            { key: 'barcode', label: 'Barcode', width: 130, render: r => <span className="text-muted-foreground">{r.barcode}</span> },
+            { key: 'category', label: 'Category', width: 130, render: r => <span className="text-muted-foreground">{r.category}</span> },
+            { key: 'store', label: 'Store', width: 110, render: r => <span className="text-muted-foreground">{r.store}</span> },
+            { key: 'stock', label: 'Stock', width: 70, align: 'right', render: r => stockCell(r.stock) },
+            { key: 'cost', label: 'Cost', width: 100, align: 'right', render: r => bulkEditMode
+              ? priceInput(r, 'costPrice', (r.variant?.cost_price ?? r.product.cost_price) ?? null)
+              : <>{r.costTotal ? formatCurrency(r.costTotal) : '-'}</> },
+            { key: 'retail', label: 'Retail', width: 110, align: 'right', render: r => bulkEditMode
+              ? priceInput(r, 'retailPrice', r.retail)
+              : <span className="font-medium">{r.retail != null ? formatCurrency(r.retail) : '-'}</span> },
+            { key: 'wholesale', label: 'Wholesale', width: 110, align: 'right', render: r => bulkEditMode
+              ? priceInput(r, 'wholesalePrice', r.wholesale)
+              : <span className="text-blue-600">{r.wholesale != null ? formatCurrency(r.wholesale) : '-'}</span> },
+            { key: 'vip', label: 'VIP', width: 110, align: 'right', render: r => bulkEditMode
+              ? priceInput(r, 'vipPrice', r.vip)
+              : <span className="text-purple-600">{r.vip != null ? formatCurrency(r.vip) : '-'}</span> },
+            { key: 'margin', label: 'Margin %', width: 90, align: 'right', render: r => {
+              if (!r.retail || !r.costTotal) return '-';
+              const m = calculateMargin(r.retail, r.costTotal);
+              return m != null ? <Badge variant="outline" className="text-[10px] h-5">{m}%</Badge> : '-';
+            } },
+            { key: 'status', label: 'Status', width: 90, render: r => (
+              <span className={r.available ? 'text-emerald-600 font-semibold' : 'text-muted-foreground'}>
+                {r.available ? 'Yes' : 'No'}
+              </span>
+            ) },
+            { key: 'actions', label: 'Edit', width: 60, align: 'center', render: r => !bulkEditMode && (
+              <button
+                className="inline-flex items-center justify-center h-6 w-6 hover:text-primary"
+                onClick={(e) => { e.stopPropagation(); handleEditPrices(
+                  r.product.id, r.product.name,
+                  r.variant?.cost_price ?? r.product.cost_price,
+                  r.variant?.wholesale_price ?? r.product.wholesale_price,
+                  r.variant?.vip_price ?? r.product.vip_price,
+                  r.variant?.id, r.variant?.label
+                ); }}
+                title="Edit prices">
+                <Pencil className="h-3 w-3" />
+              </button>
+            ) },
+          ];
+
+          return (
+            <ExcelTable
+              storageKey="stock_price_table_cols_v1"
+              columns={columns}
+              rows={rows}
+              getRowId={r => r.id}
+              loading={!!productsLoading}
+              empty="No products found"
+            />
+          );
+        })()
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {productsLoading ? (
