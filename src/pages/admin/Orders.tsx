@@ -1699,65 +1699,67 @@ export default function AdminOrders() {
     <div className="min-h-screen bg-background pb-20">
       <Header />
       
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link to="/admin/pos">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-bold">Order Management</h1>
-            <p className="text-muted-foreground">View and fulfill customer orders</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link to="/admin/offline-sync">
-              <Button variant="outline">
-                <Database className="h-4 w-4 mr-2" />
-                Offline Sync
-              </Button>
-            </Link>
-            <ReturnToPOSButton inline hideDashboard />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="pb-4 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                All Orders
-              </h2>
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link to="/admin/pos">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold">Order Management</h1>
+                <p className="text-muted-foreground text-xs">
+                  {orders?.length || 0} orders
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <ReturnToPOSButton inline hideDashboard />
+              <Link to="/admin/offline-sync">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Database className="h-3 w-3" />
+                  Offline Sync
+                </Button>
+              </Link>
               {selectedOrders.size > 0 && (
-                <div className="flex items-center gap-2">
+                <>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="gap-2"
                     onClick={() => setConvertToQuoteDialogOpen(true)}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="h-3 w-3" />
                     Convert to Quote ({selectedOrders.size})
                   </Button>
                   <Button
                     variant="destructive"
                     size="sm"
+                    className="gap-2"
                     onClick={() => setDeleteSelectedDialogOpen(true)}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Selected ({selectedOrders.size})
+                    <Trash2 className="h-3 w-3" />
+                    Delete ({selectedOrders.size})
                   </Button>
-                </div>
+                </>
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-3">
             <div className="flex flex-wrap gap-2 mt-2">
               <Input
                 placeholder="Search orders (all time)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[240px] min-w-[160px]"
+                className="w-[240px] min-w-[160px] h-8 text-xs"
               />
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[140px] h-8 text-xs">
                   <SelectValue placeholder="Filter by period" />
                 </SelectTrigger>
                 <SelectContent>
