@@ -1825,7 +1825,7 @@ export default function AdminOrders() {
           </div>
           <div>
             {/* Payment Method-wise Totals Summary */}
-            {orders && orders.length > 0 && (() => {
+            {false && orders && orders.length > 0 && (() => {
               const paymentTotals = orders.reduce((acc, o) => {
                 const method = o.payment_method || 'unknown';
                 if (!acc[method]) {
@@ -1874,51 +1874,52 @@ export default function AdminOrders() {
                 Loading orders...
               </div>
             ) : orders && orders.length > 0 ? (
-              <div className="pb-4">
-                <Table fixedScroll className="text-xs">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
+              <div className="border rounded-md bg-card overflow-auto max-h-[calc(100vh-260px)] font-mono">
+                <Table fixedScroll className="text-xs border-collapse">
+                  <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-9 border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">
                         <Checkbox
                           checked={orders && selectedOrders.size === orders.length && orders.length > 0}
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Store</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment Method</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-9 border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight"></TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Order #</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Customer</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Store</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Items</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Total</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Status</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Payment</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Date</TableHead>
+                      <TableHead className="px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order: any) => (
                       <Fragment key={order.id}>
-                        <TableRow>
-                          <TableCell>
+                        <TableRow className="border-b border-border/60 hover:bg-accent/40">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Checkbox
                               checked={selectedOrders.has(order.id)}
                               onCheckedChange={() => toggleOrderSelection(order.id)}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-6 w-6 p-0"
                               onClick={() => toggleOrderExpanded(order.id)}
                             >
-                              <ShoppingCart className="h-4 w-4" />
+                              <ShoppingCart className="h-3 w-3" />
                             </Button>
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-medium">
                             {order.order_number}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="space-y-0.5">
                               {order.type === 'pos' ? (
                                 <>
@@ -1938,41 +1939,41 @@ export default function AdminOrders() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             {order.stores?.name || 'Unknown'}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Badge variant="outline">
                               {order.items?.length || 0} items
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-semibold">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
                             {formatCurrency(Number(order.total))}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
                               {order.type === 'online' ? (
                                 <>
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
+                                  <Badge variant="secondary" className="w-fit text-[10px] h-5">
                                     Online Sale
                                   </Badge>
                                   {getStatusBadge(order.status)}
                                 </>
                               ) : (
-                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 w-fit">
+                                <Badge variant="secondary" className="w-fit text-[10px] h-5">
                                   POS Sale
                                 </Badge>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-sm capitalize">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
+                            <span className="capitalize">
                               {order.type === 'online' 
                                 ? (order.payment_method || order.payment_methods?.label || order.payment_methods?.type || 'Not set')
                                 : (order.payment_method || 'N/A')}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             {formatDate(order.created_at)}
                             <br />
                             <span className="text-xs text-muted-foreground">
@@ -1987,11 +1988,13 @@ export default function AdminOrders() {
                               </>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
+                          <TableCell className="px-2 py-1 text-xs">
+                            <div className="flex justify-end gap-0.5">
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="View"
                                 onClick={async () => {
                                   let freshView = { ...order };
                                   // For online orders, fetch fresh items from DB
@@ -2019,24 +2022,25 @@ export default function AdminOrders() {
                                   setViewDialogOpen(true);
                                 }}
                               >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
+                                <Eye className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="Edit"
                                 onClick={() => handleEditOrder(order)}
                               >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
+                                <Edit className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="Print"
                                 onClick={() => handleReceiptClick(order.id)}
                               >
-                                <Printer className="h-4 w-4 mr-1" />
-                                Print
+                                <Printer className="h-3 w-3" />
                               </Button>
                               {order.type !== 'pos' && (
                                 <>
