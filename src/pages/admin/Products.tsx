@@ -1272,7 +1272,7 @@ export default function Products() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <ReturnToPOSButton inline />
+              <ReturnToPOSButton inline hideDashboard />
               <Button
                 onClick={handleAdd}
                 size="sm"
