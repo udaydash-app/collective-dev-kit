@@ -1272,7 +1272,7 @@ export default function Products() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <ReturnToPOSButton inline />
+              <ReturnToPOSButton inline hideDashboard />
               <Button
                 onClick={handleAdd}
                 size="sm"
@@ -1494,25 +1494,25 @@ export default function Products() {
 
         {/* Products Display - Table or Grid */}
         {viewMode === "list" ? (
-          <Card className="shadow-sm">
+          <Card className="shadow-sm [&_td]:border [&_th]:border [&_td]:border-border/60 [&_th]:border-border/60 [&_td]:px-2 [&_th]:px-2 [&_td]:py-1 [&_tr]:even:bg-muted/20 [&_img]:hidden [&_.product-thumb]:hidden font-mono">
             <Table fixedScroll>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-10 h-9">
+                <TableRow className="hover:bg-transparent bg-muted/60">
+                  <TableHead className="w-8 h-7">
                     <Checkbox 
                       checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Product</TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Barcode</TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Category</TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Supplier</TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Store</TableHead>
-                  <TableHead className="text-right text-xs font-semibold h-9">Stock</TableHead>
-                  <TableHead className="text-right text-xs font-semibold h-9">Price</TableHead>
-                  <TableHead className="text-xs font-semibold h-9">Status</TableHead>
-                  <TableHead className="text-right text-xs font-semibold h-9 w-24">Actions</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Product</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Barcode</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Category</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Supplier</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Store</TableHead>
+                  <TableHead className="text-right text-[11px] font-bold h-7 uppercase tracking-tight">Stock</TableHead>
+                  <TableHead className="text-right text-[11px] font-bold h-7 uppercase tracking-tight">Price</TableHead>
+                  <TableHead className="text-[11px] font-bold h-7 uppercase tracking-tight">Status</TableHead>
+                  <TableHead className="text-right text-[11px] font-bold h-7 uppercase tracking-tight w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1564,7 +1564,7 @@ export default function Products() {
                                     className="w-8 h-8 rounded object-cover"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                                  <div className="product-thumb w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                     📦
                                   </div>
                                  )}
@@ -1703,7 +1703,7 @@ export default function Products() {
                                 className="w-8 h-8 rounded object-cover"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                              <div className="product-thumb w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                 📦
                               </div>
                              )}
