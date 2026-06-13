@@ -398,7 +398,6 @@ export default function JournalEntries() {
           <p className="text-muted-foreground">Record manual accounting transactions</p>
         </div>
         <div className="flex gap-2">
-          <ReturnToPOSButton inline />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleClose}>
