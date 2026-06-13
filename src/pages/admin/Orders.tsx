@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
@@ -1717,17 +1717,17 @@ export default function AdminOrders() {
                 Offline Sync
               </Button>
             </Link>
-            <ReturnToPOSButton inline />
+            <ReturnToPOSButton inline hideDashboard />
           </div>
         </div>
 
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="space-y-4">
+          <div className="pb-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <CardTitle className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 All Orders
-              </CardTitle>
+              </h2>
               {selectedOrders.size > 0 && (
                 <div className="flex items-center gap-2">
                   <Button
@@ -1821,8 +1821,8 @@ export default function AdminOrders() {
                 </SelectContent>
               </Select>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div>
             {/* Payment Method-wise Totals Summary */}
             {orders && orders.length > 0 && (() => {
               const paymentTotals = orders.reduce((acc, o) => {
@@ -1852,16 +1852,16 @@ export default function AdminOrders() {
               };
               
               return (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">Total Sales</p>
-                    <p className="text-2xl font-bold">{formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                  <div className="bg-muted/50 rounded p-2">
+                    <p className="text-xs text-muted-foreground">Total Sales</p>
+                    <p className="text-lg font-bold">{formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
                     <p className="text-xs text-muted-foreground">{orders.length} orders</p>
                   </div>
                   {Object.entries(paymentTotals).map(([method, data]: [string, { count: number; total: number }]) => (
-                    <div key={method} className={`rounded-lg p-4 ${methodColors[method] || methodColors.unknown}`}>
-                      <p className="text-sm opacity-80">{methodLabels[method] || method}</p>
-                      <p className="text-2xl font-bold">{formatCurrency(data.total)}</p>
+                    <div key={method} className={`rounded p-2 ${methodColors[method] || methodColors.unknown}`}>
+                      <p className="text-xs opacity-80">{methodLabels[method] || method}</p>
+                      <p className="text-lg font-bold">{formatCurrency(data.total)}</p>
                       <p className="text-xs opacity-70">{data.count} orders</p>
                     </div>
                   ))}
@@ -1874,7 +1874,7 @@ export default function AdminOrders() {
               </div>
             ) : orders && orders.length > 0 ? (
               <div className="pb-4">
-                <Table fixedScroll>
+                <Table fixedScroll className="text-xs">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">
@@ -2357,8 +2357,8 @@ export default function AdminOrders() {
                 No orders found
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
 
       <BottomNav />
