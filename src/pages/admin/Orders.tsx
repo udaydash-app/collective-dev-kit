@@ -1727,7 +1727,7 @@ export default function AdminOrders() {
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 All Orders
-              </CardTitle>
+              </h2>
               {selectedOrders.size > 0 && (
                 <div className="flex items-center gap-2">
                   <Button
