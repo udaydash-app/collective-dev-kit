@@ -10,6 +10,7 @@ import { Package, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
+import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 
 export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -53,11 +54,6 @@ export default function StockAdjustment() {
     queryKey: ['stock-products', selectedStoreId, selectedCategoryId, searchQuery],
     queryFn: async () => {
       if (!selectedStoreId) return [];
-      
-      // Only load if user has filtered by category or searched
-      if (selectedCategoryId === 'all' && !searchQuery.trim()) {
-        return [];
-      }
 
       let query = supabase
         .from('products')
@@ -69,7 +65,7 @@ export default function StockAdjustment() {
         .eq('store_id', selectedStoreId)
         .eq('is_available', true)
         .order('name')
-        .limit(100);
+        .limit(1000);
 
       if (selectedCategoryId !== 'all') {
         query = query.eq('category_id', selectedCategoryId);
@@ -82,7 +78,7 @@ export default function StockAdjustment() {
       const { data } = await query;
       return data || [];
     },
-    enabled: !!selectedStoreId && (selectedCategoryId !== 'all' || !!searchQuery.trim()),
+    enabled: !!selectedStoreId,
   });
 
   const updateStockMutation = useMutation({
@@ -474,7 +470,7 @@ export default function StockAdjustment() {
           <h1 className="text-3xl font-bold">Stock Adjustment</h1>
           <p className="text-muted-foreground">View and adjust inventory after physical verification</p>
         </div>
-        <ReturnToPOSButton />
+        <ReturnToPOSButton hideDashboard />
       </div>
 
       {/* Filters */}
@@ -535,19 +531,6 @@ export default function StockAdjustment() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search by name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -578,335 +561,177 @@ export default function StockAdjustment() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Products ({filteredProducts?.length || 0})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table fixedScroll>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="h-10 text-left">Product Name</TableHead>
-                    <TableHead className="h-10 text-left">Category</TableHead>
-                    <TableHead className="h-10 text-left">Barcode</TableHead>
-                    <TableHead className="h-10 text-left">Variant</TableHead>
-                    <TableHead className="text-right h-10">System Stock</TableHead>
-                    <TableHead className="text-right h-10">Current Stock</TableHead>
-                    <TableHead className="text-right h-10">Difference</TableHead>
-                    <TableHead className="text-right h-10">Cost Price</TableHead>
-                    <TableHead className="text-right h-10">Unit Cost</TableHead>
-                    <TableHead className="h-10 text-left">Reason</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts?.map((product) => {
-                    const hasVariants = product.product_variants && product.product_variants.length > 0;
+        <>
+          <div className="text-sm text-muted-foreground mb-2">Products ({filteredProducts?.length || 0})</div>
+          {(() => {
+            type Row = {
+              id: string;
+              key: string;
+              product: any;
+              variant: any | null;
+              isFirstOfProduct: boolean;
+              systemStock: number;
+            };
+            const rows: Row[] = [];
+            (filteredProducts || []).forEach((product: any) => {
+              const hasVariants = product.product_variants && product.product_variants.length > 0;
+              if (!hasVariants) {
+                rows.push({
+                  id: product.id,
+                  key: `product-${product.id}`,
+                  product, variant: null, isFirstOfProduct: true,
+                  systemStock: product.stock_quantity || 0,
+                });
+              } else {
+                product.product_variants.forEach((v: any, idx: number) => {
+                  rows.push({
+                    id: `${product.id}-${v.id}`,
+                    key: `variant-${v.id}`,
+                    product, variant: v, isFirstOfProduct: idx === 0,
+                    systemStock: v.stock_quantity || 0,
+                  });
+                });
+              }
+            });
 
-                    if (!hasVariants) {
-                      const systemStock = product.stock_quantity || 0;
-                      const key = `product-${product.id}`;
-                      const difference = calculateDifference(key, systemStock);
-                      const suggested = suggestedCosts[key];
+            const stockClass = (s: number) =>
+              s < 0 ? 'text-red-600' : s > 0 ? 'text-green-600' : 'text-muted-foreground';
 
-                      return (
-                        <TableRow key={product.id} className="h-12">
-                          <TableCell className="font-medium py-2 text-left">{product.name}</TableCell>
-                          <TableCell className="py-2 text-left">
-                            <Select
-                              value={categoryInputs[product.id] || product.category_id || 'none'}
-                              onValueChange={(value) => {
-                                setCategoryInputs({ ...categoryInputs, [product.id]: value });
-                                handleCategoryUpdate(product.id, product.category_id, value);
-                              }}
-                            >
-                              <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent text-left">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">No Category</SelectItem>
-                                {categories?.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Input
-                              type="text"
-                              value={barcodeInputs[key] !== undefined ? barcodeInputs[key] : (product.barcode || '')}
-                              onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [key]: e.target.value })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleBarcodeUpdate(key, product.barcode || '', product.id);
-                                }
-                              }}
-                              onBlur={() => handleBarcodeUpdate(key, product.barcode || '', product.id)}
-                              className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                            />
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Input
-                              type="text"
-                              placeholder="Add variant"
-                              value={variantInputs[key] || ''}
-                              onChange={(e) => setVariantInputs({ ...variantInputs, [key]: e.target.value })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleVariantCreate(key, product.id, product.price || 0);
-                                }
-                              }}
-                              onBlur={() => handleVariantCreate(key, product.id, product.price || 0)}
-                              className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                            />
-                          </TableCell>
-                          <TableCell className={`text-right py-2 font-semibold ${
-                            systemStock < 0 
-                              ? 'text-red-600' 
-                              : systemStock > 0 
-                              ? 'text-green-600' 
-                              : 'text-muted-foreground'
-                          }`}>
-                            {systemStock < 0 ? '-' : ''}{Math.abs(systemStock)}
-                          </TableCell>
-                          <TableCell className="text-right py-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={stockInputs[key] || ''}
-                              data-key={key}
-                              onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleStockUpdate(key, systemStock, product.id);
-                                }
-                              }}
-                              onBlur={() => handleStockUpdate(key, systemStock, product.id)}
-                              className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                            />
-                          </TableCell>
-                          <TableCell className={`text-right font-semibold py-2 ${
-                            difference === null ? '' : 
-                            difference > 0 ? 'text-green-600' : 
-                            difference < 0 ? 'text-red-600' : 
-                            'text-muted-foreground'
-                          }`}>
-                            {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right py-2 text-muted-foreground">
-                            {product.cost_price ? formatCurrency(product.cost_price) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right py-2">
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                placeholder={suggested?.weighted_avg_cost?.toFixed(2) || '0.00'}
-                                value={costInputs[key] || ''}
-                                onChange={(e) => setCostInputs({ ...costInputs, [key]: e.target.value })}
-                                onFocus={() => !suggested && fetchSuggestedCost(product.id)}
-                                className="w-24 text-right border-0 focus-visible:ring-1 bg-transparent h-8 px-2"
-                                disabled={difference !== null && difference <= 0}
-                              />
-                              {suggested && (
-                                <span 
-                                  className="text-xs text-muted-foreground"
-                                  title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'}`}
-                                >
-                                  FCFA
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Select
-                              value={reasonInputs[key] || 'count'}
-                              onValueChange={(value) => setReasonInputs({ ...reasonInputs, [key]: value })}
-                            >
-                              <SelectTrigger className="w-32 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="count">Physical Count</SelectItem>
-                                <SelectItem value="damage">Damage</SelectItem>
-                                <SelectItem value="loss">Loss/Theft</SelectItem>
-                                <SelectItem value="found">Found</SelectItem>
-                                <SelectItem value="correction">Correction</SelectItem>
-                                <SelectItem value="return">Return</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    } else {
-                      return product.product_variants.map((variant: any, index: number) => {
-                        const systemStock = variant.stock_quantity || 0;
-                        const key = `variant-${variant.id}`;
-                        const difference = calculateDifference(key, systemStock);
-                        const suggested = suggestedCosts[key];
+            const columns: ExcelColumn<Row>[] = [
+              { key: 'name', label: 'Product Name', width: 220, render: r => (
+                <span className="font-medium truncate" title={r.product.name}>
+                  {r.isFirstOfProduct ? r.product.name : ''}
+                </span>
+              ) },
+              { key: 'category', label: 'Category', width: 160, render: r => r.isFirstOfProduct ? (
+                <Select
+                  value={categoryInputs[r.product.id] || r.product.category_id || 'none'}
+                  onValueChange={(value) => {
+                    setCategoryInputs({ ...categoryInputs, [r.product.id]: value });
+                    handleCategoryUpdate(r.product.id, r.product.category_id, value);
+                  }}
+                >
+                  <SelectTrigger className="w-full h-6 border-0 focus:ring-0 bg-transparent text-xs px-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Category</SelectItem>
+                    {categories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null },
+              { key: 'barcode', label: 'Barcode', width: 140, render: r => {
+                const bcKey = r.variant ? r.key : `product-${r.product.id}`;
+                const original = r.variant ? (r.variant.barcode || '') : (r.product.barcode || '');
+                return (
+                  <Input
+                    type="text"
+                    value={barcodeInputs[bcKey] !== undefined ? barcodeInputs[bcKey] : original}
+                    onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [bcKey]: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeUpdate(bcKey, original, r.product.id, r.variant?.id); }}
+                    onBlur={() => handleBarcodeUpdate(bcKey, original, r.product.id, r.variant?.id)}
+                    className="w-full h-6 px-1 text-xs border-0 focus-visible:ring-1 bg-transparent"
+                  />
+                );
+              } },
+              { key: 'variant', label: 'Variant', width: 140, render: r => {
+                if (r.variant) {
+                  return (
+                    <Input
+                      type="text"
+                      value={variantInputs[r.key] !== undefined ? variantInputs[r.key] : r.variant.label}
+                      onChange={(e) => setVariantInputs({ ...variantInputs, [r.key]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleVariantUpdate(r.key, r.variant.label, r.variant.id); }}
+                      onBlur={() => handleVariantUpdate(r.key, r.variant.label, r.variant.id)}
+                      className="w-full h-6 px-1 text-xs border-0 focus-visible:ring-1 bg-transparent"
+                    />
+                  );
+                }
+                return (
+                  <Input
+                    type="text" placeholder="Add variant"
+                    value={variantInputs[r.key] || ''}
+                    onChange={(e) => setVariantInputs({ ...variantInputs, [r.key]: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleVariantCreate(r.key, r.product.id, r.product.price || 0); }}
+                    onBlur={() => handleVariantCreate(r.key, r.product.id, r.product.price || 0)}
+                    className="w-full h-6 px-1 text-xs border-0 focus-visible:ring-1 bg-transparent"
+                  />
+                );
+              } },
+              { key: 'sysstock', label: 'System Stock', width: 90, align: 'right', render: r => (
+                <span className={`font-semibold ${stockClass(r.systemStock)}`}>
+                  {r.systemStock < 0 ? '-' : ''}{Math.abs(r.systemStock)}
+                </span>
+              ) },
+              { key: 'curstock', label: 'Current Stock', width: 100, align: 'right', render: r => (
+                <Input
+                  type="number" min="0"
+                  value={stockInputs[r.key] || ''}
+                  data-key={r.key}
+                  onChange={(e) => setStockInputs({ ...stockInputs, [r.key]: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleStockUpdate(r.key, r.systemStock, r.product.id, r.variant?.id); }}
+                  onBlur={() => handleStockUpdate(r.key, r.systemStock, r.product.id, r.variant?.id)}
+                  className="w-full h-6 px-1 text-xs text-right border-0 focus-visible:ring-1 bg-transparent"
+                />
+              ) },
+              { key: 'diff', label: 'Difference', width: 90, align: 'right', render: r => {
+                const d = calculateDifference(r.key, r.systemStock);
+                const cls = d === null ? '' : d > 0 ? 'text-green-600' : d < 0 ? 'text-red-600' : 'text-muted-foreground';
+                return <span className={`font-semibold ${cls}`}>{d !== null ? (d > 0 ? `+${d}` : d) : '-'}</span>;
+              } },
+              { key: 'costprice', label: 'Cost Price', width: 100, align: 'right', render: r => {
+                const c = r.variant?.cost_price ?? r.product.cost_price;
+                return <span className="text-muted-foreground">{c ? formatCurrency(c) : '-'}</span>;
+              } },
+              { key: 'unitcost', label: 'Unit Cost', width: 110, align: 'right', render: r => {
+                const suggested = suggestedCosts[r.key];
+                const d = calculateDifference(r.key, r.systemStock);
+                return (
+                  <Input
+                    type="number" step="0.01" min="0"
+                    placeholder={suggested?.weighted_avg_cost?.toFixed(2) || '0.00'}
+                    value={costInputs[r.key] || ''}
+                    onChange={(e) => setCostInputs({ ...costInputs, [r.key]: e.target.value })}
+                    onFocus={() => !suggested && fetchSuggestedCost(r.product.id, r.variant?.id)}
+                    className="w-full h-6 px-1 text-xs text-right border-0 focus-visible:ring-1 bg-transparent"
+                    disabled={d !== null && d <= 0}
+                  />
+                );
+              } },
+              { key: 'reason', label: 'Reason', width: 130, render: r => (
+                <Select
+                  value={reasonInputs[r.key] || 'count'}
+                  onValueChange={(value) => setReasonInputs({ ...reasonInputs, [r.key]: value })}
+                >
+                  <SelectTrigger className="w-full h-6 border-0 focus:ring-0 bg-transparent text-xs px-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="count">Physical Count</SelectItem>
+                    <SelectItem value="damage">Damage</SelectItem>
+                    <SelectItem value="loss">Loss/Theft</SelectItem>
+                    <SelectItem value="found">Found</SelectItem>
+                    <SelectItem value="correction">Correction</SelectItem>
+                    <SelectItem value="return">Return</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) },
+            ];
 
-                        return (
-                          <TableRow key={variant.id} className="h-12">
-                            <TableCell className="font-medium py-2 text-left">
-                              {index === 0 ? product.name : ''}
-                            </TableCell>
-                            <TableCell className="py-2 text-left">
-                              {index === 0 ? (
-                                <Select
-                                  value={categoryInputs[product.id] || product.category_id || 'none'}
-                                  onValueChange={(value) => {
-                                    setCategoryInputs({ ...categoryInputs, [product.id]: value });
-                                    handleCategoryUpdate(product.id, product.category_id, value);
-                                  }}
-                                >
-                                  <SelectTrigger className="w-40 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent text-left">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">No Category</SelectItem>
-                                    {categories?.map((category) => (
-                                      <SelectItem key={category.id} value={category.id}>
-                                        {category.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : ''}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <div className="space-y-1">
-                                {index === 0 && (
-                                  <Input
-                                    type="text"
-                                    value={barcodeInputs[`product-${product.id}`] !== undefined ? barcodeInputs[`product-${product.id}`] : (product.barcode || '')}
-                                    onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [`product-${product.id}`]: e.target.value })}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleBarcodeUpdate(`product-${product.id}`, product.barcode || '', product.id);
-                                      }
-                                    }}
-                                    onBlur={() => handleBarcodeUpdate(`product-${product.id}`, product.barcode || '', product.id)}
-                                    className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                                    placeholder="Product barcode"
-                                  />
-                                )}
-                                <Input
-                                  type="text"
-                                  value={barcodeInputs[key] !== undefined ? barcodeInputs[key] : (variant.barcode || '')}
-                                  onChange={(e) => setBarcodeInputs({ ...barcodeInputs, [key]: e.target.value })}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleBarcodeUpdate(key, variant.barcode || '', product.id, variant.id);
-                                    }
-                                  }}
-                                  onBlur={() => handleBarcodeUpdate(key, variant.barcode || '', product.id, variant.id)}
-                                  className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                                  placeholder="Variant barcode"
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <Input
-                                type="text"
-                                value={variantInputs[key] !== undefined ? variantInputs[key] : variant.label}
-                                onChange={(e) => setVariantInputs({ ...variantInputs, [key]: e.target.value })}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleVariantUpdate(key, variant.label, variant.id);
-                                  }
-                                }}
-                                onBlur={() => handleVariantUpdate(key, variant.label, variant.id)}
-                                className="w-32 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                              />
-                            </TableCell>
-                            <TableCell className={`text-right py-2 font-semibold ${
-                              systemStock < 0 
-                                ? 'text-red-600' 
-                                : systemStock > 0 
-                                ? 'text-green-600' 
-                                : 'text-muted-foreground'
-                            }`}>
-                              {systemStock < 0 ? '-' : ''}{Math.abs(systemStock)}
-                            </TableCell>
-                            <TableCell className="text-right py-2">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={stockInputs[key] || ''}
-                                data-key={key}
-                                onChange={(e) => setStockInputs({ ...stockInputs, [key]: e.target.value })}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleStockUpdate(key, systemStock, product.id, variant.id);
-                                  }
-                                }}
-                                onBlur={() => handleStockUpdate(key, systemStock, product.id, variant.id)}
-                                className="w-24 text-right border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-8 px-2"
-                              />
-                            </TableCell>
-                            <TableCell className={`text-right font-semibold py-2 ${
-                              difference === null ? '' : 
-                              difference > 0 ? 'text-green-600' : 
-                              difference < 0 ? 'text-red-600' : 
-                              'text-muted-foreground'
-                            }`}>
-                              {difference !== null ? (difference > 0 ? `+${difference}` : difference) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right py-2 text-muted-foreground">
-                              {variant.cost_price ? formatCurrency(variant.cost_price) : (product.cost_price ? formatCurrency(product.cost_price) : '-')}
-                            </TableCell>
-                            <TableCell className="text-right py-2">
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder={suggested?.weighted_avg_cost?.toFixed(2) || '0.00'}
-                                  value={costInputs[key] || ''}
-                                  onChange={(e) => setCostInputs({ ...costInputs, [key]: e.target.value })}
-                                  onFocus={() => !suggested && fetchSuggestedCost(product.id, variant.id)}
-                                  className="w-24 text-right border-0 focus-visible:ring-1 bg-transparent h-8 px-2"
-                                  disabled={difference !== null && difference <= 0}
-                                />
-                                {suggested && (
-                                  <span 
-                                    className="text-xs text-muted-foreground"
-                                    title={`Last: ${suggested.last_purchase_cost ? formatCurrency(suggested.last_purchase_cost) : 'N/A'} | Avg: ${suggested.weighted_avg_cost ? formatCurrency(suggested.weighted_avg_cost) : 'N/A'}`}
-                                  >
-                                    FCFA
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <Select
-                                value={reasonInputs[key] || 'count'}
-                                onValueChange={(value) => setReasonInputs({ ...reasonInputs, [key]: value })}
-                              >
-                                <SelectTrigger className="w-32 h-8 border-0 focus:ring-0 focus:ring-offset-0 bg-transparent">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="count">Physical Count</SelectItem>
-                                  <SelectItem value="damage">Damage</SelectItem>
-                                  <SelectItem value="loss">Loss/Theft</SelectItem>
-                                  <SelectItem value="found">Found</SelectItem>
-                                  <SelectItem value="correction">Correction</SelectItem>
-                                  <SelectItem value="return">Return</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      });
-                    }
-                  })}
-                </TableBody>
-              </Table>
-          </CardContent>
-        </Card>
+            return (
+              <ExcelTable
+                storageKey="stock_adjustment_cols_v1"
+                columns={columns}
+                rows={rows}
+                getRowId={r => r.id}
+                loading={isLoading}
+                empty="No products found matching your filters"
+              />
+            );
+          })()}
+        </>
       )}
     </div>
   );
