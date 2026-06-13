@@ -191,7 +191,7 @@ export default function AdminCategories() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Manage Categories</h1>
           <div className="flex gap-2">
-            <ReturnToPOSButton inline />
+            <ReturnToPOSButton inline hideDashboard />
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={handleAdd}>
@@ -320,73 +320,52 @@ export default function AdminCategories() {
           />
         </div>
 
-        {filteredCategories.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <p className="text-muted-foreground">No categories found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {filteredCategories.map((category) => (
-              <Card key={category.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
-                        {category.icon || "📦"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg">{category.name}</h3>
-                          {!category.is_active && (
-                            <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          /{category.slug}
-                        </p>
-                        {category.description && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {category.description}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Display Order: {category.display_order ?? 0}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleActive(category)}
-                      >
-                        {category.is_active ? "Hide" : "Show"}
+        <div className="border rounded-md bg-card overflow-auto max-h-[calc(100vh-220px)] font-mono">
+          <table className="text-xs border-collapse w-full">
+            <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+              <tr>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-left w-12">Icon</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-left">Name</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-left">Slug</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-left">Description</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-right w-16">Order</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-center w-20">Active</th>
+                <th className="border border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-right w-28">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCategories.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No categories found</td></tr>
+              ) : filteredCategories.map((c) => (
+                <tr key={c.id} className="border-b border-border/60 hover:bg-accent/40 cursor-pointer" onClick={() => handleEdit(c)}>
+                  <td className="border border-border/60 px-2 py-1 text-center">{c.icon || "📦"}</td>
+                  <td className="border border-border/60 px-2 py-1 font-medium">{c.name}</td>
+                  <td className="border border-border/60 px-2 py-1 text-muted-foreground">/{c.slug}</td>
+                  <td className="border border-border/60 px-2 py-1 text-muted-foreground truncate max-w-[300px]" title={c.description || ""}>{c.description || "-"}</td>
+                  <td className="border border-border/60 px-2 py-1 text-right">{c.display_order ?? 0}</td>
+                  <td className="border border-border/60 px-2 py-1 text-center">
+                    <span className={c.is_active ? "text-emerald-600 font-semibold" : "text-muted-foreground"}>
+                      {c.is_active ? "Yes" : "No"}
+                    </span>
+                  </td>
+                  <td className="border border-border/60 px-2 py-1 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => handleToggleActive(c)}>
+                        {c.is_active ? "Hide" : "Show"}
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(category)}
-                      >
-                        <Pencil className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEdit(c)} title="Edit">
+                        <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(category.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:text-destructive" onClick={() => handleDelete(c.id)} title="Delete">
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </main>
 
       <BottomNav />
