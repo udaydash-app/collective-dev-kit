@@ -7,9 +7,10 @@ import { windowActions } from "@/store/windowStore";
 interface ReturnToPOSButtonProps {
   inline?: boolean;
   className?: string;
+  hideDashboard?: boolean;
 }
 
-export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPOSButtonProps) => {
+export const ReturnToPOSButton = ({ inline = false, className = "", hideDashboard = false }: ReturnToPOSButtonProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const desktopWindowId = useDesktopWindowId();
@@ -35,7 +36,7 @@ export const ReturnToPOSButton = ({ inline = false, className = "" }: ReturnToPO
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {isAdminUser && location.pathname !== "/admin/dashboard-modern" && (
+      {!hideDashboard && isAdminUser && location.pathname !== "/admin/dashboard-modern" && (
         <Button
           onClick={() => navigate("/admin/dashboard-modern")}
           variant="outline"
