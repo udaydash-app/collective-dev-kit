@@ -1822,7 +1822,7 @@ export default function AdminOrders() {
               </Select>
             </div>
           </div>
-          <CardContent>
+          <div>
             {/* Payment Method-wise Totals Summary */}
             {orders && orders.length > 0 && (() => {
               const paymentTotals = orders.reduce((acc, o) => {
