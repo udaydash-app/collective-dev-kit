@@ -1564,7 +1564,7 @@ export default function Products() {
                                     className="w-8 h-8 rounded object-cover"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                                  <div className="product-thumb w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                     📦
                                   </div>
                                  )}
@@ -1703,7 +1703,7 @@ export default function Products() {
                                 className="w-8 h-8 rounded object-cover"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
+                              <div className="product-thumb w-8 h-8 rounded bg-muted flex items-center justify-center text-sm">
                                 📦
                               </div>
                              )}
