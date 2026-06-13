@@ -1852,16 +1852,16 @@ export default function AdminOrders() {
               };
               
               return (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">Total Sales</p>
-                    <p className="text-2xl font-bold">{formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                  <div className="bg-muted/50 rounded p-2">
+                    <p className="text-xs text-muted-foreground">Total Sales</p>
+                    <p className="text-lg font-bold">{formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
                     <p className="text-xs text-muted-foreground">{orders.length} orders</p>
                   </div>
                   {Object.entries(paymentTotals).map(([method, data]: [string, { count: number; total: number }]) => (
-                    <div key={method} className={`rounded-lg p-4 ${methodColors[method] || methodColors.unknown}`}>
-                      <p className="text-sm opacity-80">{methodLabels[method] || method}</p>
-                      <p className="text-2xl font-bold">{formatCurrency(data.total)}</p>
+                    <div key={method} className={`rounded p-2 ${methodColors[method] || methodColors.unknown}`}>
+                      <p className="text-xs opacity-80">{methodLabels[method] || method}</p>
+                      <p className="text-lg font-bold">{formatCurrency(data.total)}</p>
                       <p className="text-xs opacity-70">{data.count} orders</p>
                     </div>
                   ))}
