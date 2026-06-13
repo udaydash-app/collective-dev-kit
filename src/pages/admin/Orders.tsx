@@ -1717,7 +1717,7 @@ export default function AdminOrders() {
                 Offline Sync
               </Button>
             </Link>
-            <ReturnToPOSButton inline />
+            <ReturnToPOSButton inline hideDashboard />
           </div>
         </div>
 
