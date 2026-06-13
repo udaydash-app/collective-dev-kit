@@ -61,7 +61,7 @@ export default function PWAInstall() {
               <Smartphone className="h-10 w-10 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Install Global Market POS</CardTitle>
+          <CardTitle className="text-2xl">Install Global Indian Mart POS</CardTitle>
           <CardDescription>
             Install our app for the best offline experience
           </CardDescription>
