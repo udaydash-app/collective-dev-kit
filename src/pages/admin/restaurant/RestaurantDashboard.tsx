@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { RestaurantOrderViewDialog } from '@/components/restaurant/RestaurantOrderViewDialog';
 import {
-  UtensilsCrossed, Users, Receipt, TrendingUp, Flame, Clock,
+  UtensilsCrossed, Users, Receipt, TrendingUp, Flame,
   ShoppingBag, Bike, Settings as SettingsIcon, ChefHat, Menu as MenuIcon,
   ArrowRight, CircleDollarSign,
 } from 'lucide-react';
