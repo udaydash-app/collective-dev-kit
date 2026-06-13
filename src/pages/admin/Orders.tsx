@@ -1724,7 +1724,7 @@ export default function AdminOrders() {
         <div className="space-y-4">
           <div className="pb-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <CardTitle className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 All Orders
               </CardTitle>
