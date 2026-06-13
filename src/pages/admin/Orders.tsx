@@ -1721,7 +1721,7 @@ export default function AdminOrders() {
           </div>
         </div>
 
-        <Card>
+        <div className="space-y-4">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <CardTitle className="flex items-center gap-2">
