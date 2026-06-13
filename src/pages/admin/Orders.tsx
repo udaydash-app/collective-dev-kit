@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
+import { Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
 import { SearchAllSalesDialog } from "@/components/pos/SearchAllSalesDialog";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
