@@ -51,7 +51,7 @@ import {
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface JournalLine {
