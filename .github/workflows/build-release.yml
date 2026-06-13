@@ -39,6 +39,8 @@ jobs:
 
       - name: Build app
         run: npm run build
+        env:
+          BUILD_TARGET: electron
 
       - name: Build & publish Electron app to GitHub Release
         run: npx electron-builder --win --publish always
@@ -80,6 +82,8 @@ jobs:
 
       - name: Build app
         run: npm run build
+        env:
+          BUILD_TARGET: electron
 
       - name: Build & publish Electron app to GitHub Release
         run: npx electron-builder --mac --publish always
