@@ -1494,7 +1494,7 @@ export default function Products() {
 
         {/* Products Display - Table or Grid */}
         {viewMode === "list" ? (
-          <Card className="shadow-sm [&_td]:border [&_th]:border [&_td]:border-border/60 [&_th]:border-border/60 [&_td]:px-2 [&_th]:px-2 [&_tr]:even:bg-muted/30 font-mono">
+          <Card className="shadow-sm [&_td]:border [&_th]:border [&_td]:border-border/60 [&_th]:border-border/60 [&_td]:px-2 [&_th]:px-2 [&_td]:py-1 [&_tr]:even:bg-muted/20 [&_img]:hidden [&_.product-thumb]:hidden font-mono">
             <Table fixedScroll>
               <TableHeader>
                 <TableRow className="hover:bg-transparent bg-muted/60">
