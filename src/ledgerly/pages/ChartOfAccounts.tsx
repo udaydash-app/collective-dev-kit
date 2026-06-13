@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/ledgerly/contexts/CompanyContext";
+import { ExcelTable, ExcelColumn } from "@/components/admin/ExcelTable";
 
 type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 interface Account {
@@ -52,12 +52,6 @@ const ChartOfAccounts = () => {
     (!search || r.name.toLowerCase().includes(search.toLowerCase()) || (r.code ?? "").includes(search))
   ), [rows, search, typeFilter]);
 
-  const grouped = useMemo(() => {
-    const g: Record<AccountType, Account[]> = { asset: [], liability: [], equity: [], income: [], expense: [] };
-    filtered.forEach((r) => g[r.type].push(r));
-    return g;
-  }, [filtered]);
-
   const openNew = () => {
     setEditing(null);
     setForm({ code: "", name: "", type: "asset", parent_id: "none", description: "" });
@@ -97,6 +91,29 @@ const ChartOfAccounts = () => {
 
   const parentOptions = rows.filter((r) => r.type === form.type && r.id !== editing?.id);
 
+  const columns: ExcelColumn<Account>[] = [
+    { key: "code", label: "Code", width: 90, render: (a) => <span className="num">{a.code ?? ""}</span> },
+    { key: "name", label: "Name", width: 280, render: (a) => (
+      <span className="font-medium">
+        {a.name}
+        {a.is_system && <Badge variant="secondary" className="ml-2 text-[10px]">system</Badge>}
+      </span>
+    ) },
+    { key: "type", label: "Type", width: 110, render: (a) => (
+      <Badge className={TYPE_BADGE[a.type]} variant="secondary">{a.type}</Badge>
+    ) },
+    { key: "description", label: "Description", width: 320, render: (a) => (
+      <span className="text-muted-foreground">{a.description ?? ""}</span>
+    ) },
+    { key: "active", label: "Active", width: 70, align: "center", render: (a) => (a.is_active ? "Yes" : "No") },
+    { key: "actions", label: "Actions", width: 110, align: "right", render: (a) => (
+      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(a)} disabled={a.is_system}><Trash2 className="h-3.5 w-3.5" /></Button>
+      </div>
+    ) },
+  ];
+
   return (
     <>
       <PageHeader
@@ -123,39 +140,15 @@ const ChartOfAccounts = () => {
           </Select>
         </div>
 
-        <Card className="shadow-[var(--shadow-card)] overflow-hidden">
-          <div className="divide-y divide-border">
-            {(["asset","liability","equity","income","expense"] as AccountType[]).map((t) => (
-              grouped[t].length > 0 && (
-                <div key={t}>
-                  <div className="px-5 py-2.5 bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                    {({ asset: "Assets", liability: "Liabilities", equity: "Equity", income: "Income", expense: "Expenses" } as const)[t]}
-                  </div>
-                  {grouped[t].map((a) => (
-                    <div key={a.id} className="px-5 py-3 flex items-center gap-4 hover:bg-muted/30">
-                      <div className="w-20 text-sm text-muted-foreground num">{a.code}</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-foreground">
-                          {a.name}
-                          {a.is_system && <Badge variant="secondary" className="ml-2 text-[10px]">system</Badge>}
-                        </div>
-                        {a.description && <div className="text-xs text-muted-foreground mt-0.5">{a.description}</div>}
-                      </div>
-                      <Badge className={TYPE_BADGE[a.type]} variant="secondary">{a.type}</Badge>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(a)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(a)} disabled={a.is_system}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ))}
-            {!loading && filtered.length === 0 && (
-              <div className="p-10 text-center text-sm text-muted-foreground">No accounts found.</div>
-            )}
-          </div>
-        </Card>
+        <ExcelTable<Account>
+          storageKey="ledgerly_chart_of_accounts_cols_v1"
+          columns={columns}
+          rows={filtered}
+          getRowId={(a) => a.id}
+          onRowClick={(a) => openEdit(a)}
+          loading={loading}
+          empty="No accounts found."
+        />
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
