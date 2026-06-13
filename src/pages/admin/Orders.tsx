@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -48,7 +49,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
 import { SearchAllSalesDialog } from "@/components/pos/SearchAllSalesDialog";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
@@ -1696,24 +1698,17 @@ export default function AdminOrders() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-            <div className="flex items-center gap-2 min-w-0">
-              <Link to="/admin/pos">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold">Order Management</h1>
-                <p className="text-muted-foreground text-xs">
-                  {orders?.length || 0} orders
-                </p>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold">Order Management</h1>
+              <p className="text-muted-foreground text-xs">
+                {orders?.length || 0} orders
+              </p>
             </div>
             <div className="flex gap-2 flex-wrap">
               <ReturnToPOSButton inline hideDashboard />
@@ -1750,78 +1745,82 @@ export default function AdminOrders() {
         </div>
 
         <div className="space-y-3">
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 mt-2">
+          <div className="mb-4 space-y-3">
+            <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Period</Label>
+                    <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Filter by period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="yesterday">Yesterday</SelectItem>
+                        <SelectItem value="this_week">This Week</SelectItem>
+                        <SelectItem value="this_month">This Month</SelectItem>
+                        <SelectItem value="custom">Custom Range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {periodFilter === 'custom' && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Date Range</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="h-9 w-full justify-start text-left text-sm font-normal">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {startDate && endDate ? `${formatDate(startDate)} - ${formatDate(endDate)}` : <span>Pick date range</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-4 space-y-4">
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">Start Date</label>
+                              <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">End Date</label>
+                              <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} disabled={(date) => startDate ? date < startDate : false} />
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Orders</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                        <SelectItem value="completed">Completed (POS)</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search orders (all time)..."
+                type="search"
+                placeholder="Search orders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[240px] min-w-[160px] h-8 text-xs"
+                className="pl-9 h-9 text-sm"
               />
-              <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <SelectValue placeholder="Filter by period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="this_week">This Week</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="custom">Custom Range</SelectItem>
-                </SelectContent>
-              </Select>
-              {periodFilter === 'custom' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal shrink-0">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {startDate && endDate ? (
-                        `${formatDate(startDate)} - ${formatDate(endDate)}`
-                      ) : (
-                        <span>Pick date range</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-4 space-y-4">
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Start Date</label>
-                        <CalendarComponent
-                          mode="single"
-                          selected={startDate}
-                          onSelect={setStartDate}
-                          initialFocus
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">End Date</label>
-                        <CalendarComponent
-                          mode="single"
-                          selected={endDate}
-                          onSelect={setEndDate}
-                          disabled={(date) => startDate ? date < startDate : false}
-                        />
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Orders</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="completed">Completed (POS)</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <div>
