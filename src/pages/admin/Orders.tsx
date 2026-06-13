@@ -1899,26 +1899,27 @@ export default function AdminOrders() {
                   <TableBody>
                     {orders.map((order: any) => (
                       <Fragment key={order.id}>
-                        <TableRow>
-                          <TableCell>
+                        <TableRow className="border-b border-border/60 hover:bg-accent/40">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Checkbox
                               checked={selectedOrders.has(order.id)}
                               onCheckedChange={() => toggleOrderSelection(order.id)}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-6 w-6 p-0"
                               onClick={() => toggleOrderExpanded(order.id)}
                             >
-                              <ShoppingCart className="h-4 w-4" />
+                              <ShoppingCart className="h-3 w-3" />
                             </Button>
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-medium">
                             {order.order_number}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="space-y-0.5">
                               {order.type === 'pos' ? (
                                 <>
@@ -1938,15 +1939,15 @@ export default function AdminOrders() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             {order.stores?.name || 'Unknown'}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <Badge variant="outline">
                               {order.items?.length || 0} items
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-semibold">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
                             {formatCurrency(Number(order.total))}
                           </TableCell>
                           <TableCell>
