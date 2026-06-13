@@ -24,6 +24,7 @@ import { ExportProductsDialog } from "@/components/admin/ExportProductsDialog";
 import { formatCurrency } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
+import { ResizableProductsTable } from "@/components/admin/ResizableProductsTable";
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
