@@ -1825,7 +1825,7 @@ export default function AdminOrders() {
           </div>
           <div>
             {/* Payment Method-wise Totals Summary */}
-            {orders && orders.length > 0 && (() => {
+            {false && orders && orders.length > 0 && (() => {
               const paymentTotals = orders.reduce((acc, o) => {
                 const method = o.payment_method || 'unknown';
                 if (!acc[method]) {
@@ -1874,26 +1874,26 @@ export default function AdminOrders() {
                 Loading orders...
               </div>
             ) : orders && orders.length > 0 ? (
-              <div className="pb-4">
-                <Table fixedScroll className="text-xs">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
+              <div className="border rounded-md bg-card overflow-auto max-h-[calc(100vh-260px)] font-mono">
+                <Table fixedScroll className="text-xs border-collapse">
+                  <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-9 border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">
                         <Checkbox
                           checked={orders && selectedOrders.size === orders.length && orders.length > 0}
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Store</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment Method</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-9 border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight"></TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Order #</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Customer</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Store</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Items</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Total</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Status</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Payment</TableHead>
+                      <TableHead className="border-r border-border/60 px-2 py-1 text-[11px] font-bold uppercase tracking-tight">Date</TableHead>
+                      <TableHead className="px-2 py-1 text-[11px] font-bold uppercase tracking-tight text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
