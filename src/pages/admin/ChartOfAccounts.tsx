@@ -38,6 +38,7 @@ import { MergeAccountsDialog } from '@/components/admin/MergeAccountsDialog';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 
 interface Account {
   id: string;
@@ -432,7 +433,7 @@ export default function ChartOfAccounts() {
           <p className="text-muted-foreground">Manage your accounting structure</p>
         </div>
         <div className="flex gap-2">
-          <ReturnToPOSButton inline />
+          <ReturnToPOSButton inline hideDashboard />
           <Button onClick={handleExport} variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
