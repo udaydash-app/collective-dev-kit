@@ -2357,8 +2357,8 @@ export default function AdminOrders() {
                 No orders found
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
 
       <BottomNav />
