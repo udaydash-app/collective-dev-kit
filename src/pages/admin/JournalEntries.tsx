@@ -51,7 +51,7 @@ import {
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface JournalLine {
@@ -398,7 +398,6 @@ export default function JournalEntries() {
           <p className="text-muted-foreground">Record manual accounting transactions</p>
         </div>
         <div className="flex gap-2">
-          <ReturnToPOSButton inline />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleClose}>
@@ -740,96 +739,42 @@ export default function JournalEntries() {
       </Card>
 
       {/* Entries List */}
-      <Card>
-        <Table fixedScroll>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Entry #</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredEntries?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  {startDate || endDate || searchQuery ? 'No journal entries found for the selected filters' : 'No journal entries found'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredEntries?.map((entry: any) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-mono">{entry.entry_number}</TableCell>
-                  <TableCell>{formatDate(entry.entry_date)}</TableCell>
-                  <TableCell>{entry.description}</TableCell>
-                  <TableCell>{entry.reference || '-'}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(entry.transaction_amount || entry.total_debit)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={entry.status === 'posted' ? 'default' : 'secondary'}
-                    >
-                      {entry.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedEntry(entry);
-                          setViewDialogOpen(true);
-                        }}
-                        title="View details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(entry)}
-                        title="Edit entry"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(entry)}
-                        title="Delete entry"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                      {entry.status === 'draft' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => postMutation.mutate(entry.id)}
-                          title="Post entry"
-                        >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <ExcelTable<any>
+        storageKey="admin_journal_entries_cols_v1"
+        columns={[
+          { key: 'entry_number', label: 'Entry #', width: 120, render: (r) => <span className="font-mono">{r.entry_number}</span> },
+          { key: 'date', label: 'Date', width: 110, render: (r) => formatDate(r.entry_date) },
+          { key: 'description', label: 'Description', width: 280, render: (r) => r.description },
+          { key: 'reference', label: 'Reference', width: 120, render: (r) => r.reference || '-' },
+          { key: 'amount', label: 'Amount', width: 120, align: 'right', render: (r) => <span className="font-mono">{formatCurrency(r.transaction_amount || r.total_debit)}</span> },
+          { key: 'status', label: 'Status', width: 90, render: (r) => (
+            <Badge variant={r.status === 'posted' ? 'default' : 'secondary'}>{r.status}</Badge>
+          )},
+          { key: 'actions', label: 'Actions', width: 160, align: 'right', render: (r) => (
+            <div className="flex justify-end gap-1">
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setSelectedEntry(r); setViewDialogOpen(true); }} title="View details">
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEdit(r); }} title="Edit entry">
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDelete(r); }} title="Delete entry">
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+              {r.status === 'draft' && (
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); postMutation.mutate(r.id); }} title="Post entry">
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                </Button>
+              )}
+            </div>
+          )},
+        ]}
+        rows={filteredEntries || []}
+        getRowId={(r) => r.id}
+        onRowClick={(r) => { setSelectedEntry(r); setViewDialogOpen(true); }}
+        loading={isLoading}
+        empty={startDate || endDate || searchQuery ? 'No journal entries found for the selected filters' : 'No journal entries found'}
+      />
 
       {/* Pagination */}
       {!searchQuery.trim() && !startDate && !endDate && totalPages > 1 && (
