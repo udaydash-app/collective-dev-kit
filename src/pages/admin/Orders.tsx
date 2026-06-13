@@ -1821,7 +1821,7 @@ export default function AdminOrders() {
                 </SelectContent>
               </Select>
             </div>
-          </CardHeader>
+          </div>
           <CardContent>
             {/* Payment Method-wise Totals Summary */}
             {orders && orders.length > 0 && (() => {
