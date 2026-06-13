@@ -12,7 +12,7 @@ import { cacheEssentialData } from '@/lib/cacheData';
 import { shouldUseLocalData, isLocalMode, isLocalSupabase, checkLocalSupabaseReachable } from '@/lib/localModeHelper';
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey } from '@/lib/cloudSyncService';
 import { isElectronLocalDb, localRows } from '@/integrations/db/localSql';
-import logo from '@/assets/logo.png';
+import defaultLogo from '@/assets/logo.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
@@ -32,6 +32,52 @@ export default function POSLogin() {
   const autoLoginTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Branding from settings table (company name, logo, favicon)
+  const [branding, setBranding] = useState<{ name: string; logo: string; favicon: string | null }>({
+    name: 'POS System',
+    logo: defaultLogo,
+    favicon: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('settings')
+          .select('company_name, logo_url, favicon_url')
+          .limit(1)
+          .maybeSingle();
+        if (cancelled || !data) return;
+        const next = {
+          name: data.company_name || 'POS System',
+          logo: data.logo_url || defaultLogo,
+          favicon: data.favicon_url || data.logo_url || null,
+        };
+        setBranding(next);
+        // Update favicon + document title from settings
+        if (next.name) document.title = next.name;
+        if (next.favicon) {
+          const setIcon = (rel: string) => {
+            let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = rel;
+              document.head.appendChild(link);
+            }
+            link.href = next.favicon!;
+          };
+          setIcon('icon');
+          setIcon('apple-touch-icon');
+          setIcon('shortcut icon');
+        }
+      } catch (e) {
+        console.warn('[POSLogin] Could not load branding from settings:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Load current server config on mount
   useEffect(() => {
@@ -632,16 +678,10 @@ export default function POSLogin() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
           <div className="flex items-center justify-center mx-auto -mt-12 -mb-20">
-            <img src={logo} alt="Global Market" className="h-64 w-64 object-contain" />
+            <img src={branding.logo} alt={branding.name} className="h-64 w-64 object-contain" />
           </div>
-          <CardTitle className="text-3xl">POS System</CardTitle>
+          <CardTitle className="text-3xl">{branding.name}</CardTitle>
           <CardDescription>
-            Enter your PIN to access the Point of Sale
-            {isStandalone && (
-              <span className="block mt-2 text-primary font-semibold">
-                📱 Running as Installed App
-              </span>
-            )}
             {isOffline && (
               <span className="block mt-2 text-amber-600 font-semibold">
                 ⚠️ Offline Mode {!dbInitialized && '- Initializing...'}
@@ -683,17 +723,6 @@ export default function POSLogin() {
             </div>
           )}
 
-          {/* Show online status when online */}
-          {!isOffline && cacheStatus && (cacheStatus.products > 0 || cacheStatus.users > 0) && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Database className="h-4 w-4" />
-                <span>
-                  Offline cache: {cacheStatus.users} user{cacheStatus.users === 1 ? '' : 's'}, {cacheStatus.products} products
-                </span>
-              </div>
-            </div>
-          )}
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -769,19 +798,6 @@ export default function POSLogin() {
               className="h-16 text-xl font-semibold shadow-glow"
             >
               Enter
-            </Button>
-          </div>
-
-          {/* Server Config Button - Always visible */}
-          <div className="pt-4 mt-4 border-t-2 border-primary">
-            <Button
-              variant="default"
-              size="lg"
-              onClick={() => setShowServerConfig(true)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Server className="h-5 w-5 mr-2" />
-              Configure Local Server
             </Button>
           </div>
         </CardContent>
