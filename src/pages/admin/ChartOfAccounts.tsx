@@ -636,108 +636,68 @@ export default function ChartOfAccounts() {
       </Card>
 
       {/* Accounts Table */}
-      <Card>
-        <Table fixedScroll>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12"></TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Account Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Parent Account</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredAccounts?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  No accounts found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredAccounts?.map((account) => (
-                <TableRow 
-                  key={account.id}
-                  className={duplicateAccountIds.includes(account.id) ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}
-                >
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={selectedAccounts.includes(account.id)}
-                      onChange={() => handleToggleAccount(account.id)}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                  </TableCell>
-                  <TableCell className="font-mono">{account.account_code}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{account.account_name}</p>
-                      {getEnglishName(account.account_name) && getEnglishName(account.account_name) !== account.account_name && (
-                        <p className="text-xs text-primary/70 font-medium">
-                          {getEnglishName(account.account_name)}
-                        </p>
-                      )}
-                      {account.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {account.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={accountTypeColors[account.account_type]}>
-                      {account.account_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {getParentAccountName(account.parent_account_id)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(account.current_balance)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={account.is_active ? 'default' : 'secondary'}>
-                      {account.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(account)}
-                        title="Edit account"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(account.id, account.account_name)}
-                        disabled={account.current_balance !== 0}
-                        title={account.current_balance !== 0 ? "Cannot delete account with balance" : "Delete account"}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      {(() => {
+        const columns: ExcelColumn<Account>[] = [
+          { key: 'select', label: '', width: 36, align: 'center', render: (a) => (
+            <input
+              type="checkbox"
+              checked={selectedAccounts.includes(a.id)}
+              onChange={(e) => { e.stopPropagation(); handleToggleAccount(a.id); }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-3.5 w-3.5 rounded border-border"
+            />
+          ) },
+          { key: 'code', label: 'Code', width: 90, render: (a) => <span className="font-mono">{a.account_code}</span> },
+          { key: 'name', label: 'Account Name', width: 280, render: (a) => {
+            const en = getEnglishName(a.account_name);
+            return (
+              <div className="truncate">
+                <span className="font-medium">{a.account_name}</span>
+                {en && en !== a.account_name && <span className="text-primary/70 ml-1">· {en}</span>}
+              </div>
+            );
+          } },
+          { key: 'type', label: 'Type', width: 100, render: (a) => (
+            <Badge className={accountTypeColors[a.account_type]}>{a.account_type}</Badge>
+          ) },
+          { key: 'parent', label: 'Parent', width: 220, render: (a) => (
+            <span className="text-muted-foreground">{getParentAccountName(a.parent_account_id)}</span>
+          ) },
+          { key: 'balance', label: 'Balance', width: 130, align: 'right', render: (a) => (
+            <span className="font-mono">{formatCurrency(a.current_balance)}</span>
+          ) },
+          { key: 'status', label: 'Status', width: 80, align: 'center', render: (a) => (
+            <Badge variant={a.is_active ? 'default' : 'secondary'}>{a.is_active ? 'Active' : 'Inactive'}</Badge>
+          ) },
+          { key: 'actions', label: 'Actions', width: 100, align: 'right', render: (a) => (
+            <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(a)} title="Edit">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleDelete(a.id, a.account_name)}
+                disabled={a.current_balance !== 0}
+                title={a.current_balance !== 0 ? 'Cannot delete account with balance' : 'Delete'}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ) },
+        ];
+        return (
+          <ExcelTable<Account>
+            storageKey="admin_chart_of_accounts_cols_v1"
+            columns={columns}
+            rows={filteredAccounts || []}
+            getRowId={(a) => a.id}
+            loading={isLoading}
+            empty="No accounts found"
+          />
+        );
+      })()}
 
       <MergeAccountsDialog
         open={mergeDialogOpen}
