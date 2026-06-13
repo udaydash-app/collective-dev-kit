@@ -1,0 +1,1 @@
+UPDATE public.stores SET name = 'Global Indian Mart' WHERE name = 'Global Market';
