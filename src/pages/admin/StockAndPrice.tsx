@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
+import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 
 type EditedPrices = {
   [key: string]: {
@@ -376,7 +377,7 @@ export default function StockAndPrice() {
           <Button variant="outline" onClick={() => setBulkSellOpen(true)}>
             Bulk Sell Price Update
           </Button>
-          <ReturnToPOSButton inline />
+          <ReturnToPOSButton inline hideDashboard />
         </div>
       </div>
 
