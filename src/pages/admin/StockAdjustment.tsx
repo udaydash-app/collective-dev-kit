@@ -10,6 +10,7 @@ import { Package, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
+import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 
 export default function StockAdjustment() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -53,11 +54,6 @@ export default function StockAdjustment() {
     queryKey: ['stock-products', selectedStoreId, selectedCategoryId, searchQuery],
     queryFn: async () => {
       if (!selectedStoreId) return [];
-      
-      // Only load if user has filtered by category or searched
-      if (selectedCategoryId === 'all' && !searchQuery.trim()) {
-        return [];
-      }
 
       let query = supabase
         .from('products')
@@ -69,7 +65,7 @@ export default function StockAdjustment() {
         .eq('store_id', selectedStoreId)
         .eq('is_available', true)
         .order('name')
-        .limit(100);
+        .limit(1000);
 
       if (selectedCategoryId !== 'all') {
         query = query.eq('category_id', selectedCategoryId);
@@ -82,7 +78,7 @@ export default function StockAdjustment() {
       const { data } = await query;
       return data || [];
     },
-    enabled: !!selectedStoreId && (selectedCategoryId !== 'all' || !!searchQuery.trim()),
+    enabled: !!selectedStoreId,
   });
 
   const updateStockMutation = useMutation({
@@ -474,7 +470,7 @@ export default function StockAdjustment() {
           <h1 className="text-3xl font-bold">Stock Adjustment</h1>
           <p className="text-muted-foreground">View and adjust inventory after physical verification</p>
         </div>
-        <ReturnToPOSButton />
+        <ReturnToPOSButton hideDashboard />
       </div>
 
       {/* Filters */}
