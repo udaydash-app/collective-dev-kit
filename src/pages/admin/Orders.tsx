@@ -1950,30 +1950,30 @@ export default function AdminOrders() {
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
                             {formatCurrency(Number(order.total))}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
                               {order.type === 'online' ? (
                                 <>
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
+                                  <Badge variant="secondary" className="w-fit text-[10px] h-5">
                                     Online Sale
                                   </Badge>
                                   {getStatusBadge(order.status)}
                                 </>
                               ) : (
-                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 w-fit">
+                                <Badge variant="secondary" className="w-fit text-[10px] h-5">
                                   POS Sale
                                 </Badge>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-sm capitalize">
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
+                            <span className="capitalize">
                               {order.type === 'online' 
                                 ? (order.payment_method || order.payment_methods?.label || order.payment_methods?.type || 'Not set')
                                 : (order.payment_method || 'N/A')}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             {formatDate(order.created_at)}
                             <br />
                             <span className="text-xs text-muted-foreground">
@@ -1988,11 +1988,13 @@ export default function AdminOrders() {
                               </>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
+                          <TableCell className="px-2 py-1 text-xs">
+                            <div className="flex justify-end gap-0.5">
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="View"
                                 onClick={async () => {
                                   let freshView = { ...order };
                                   // For online orders, fetch fresh items from DB
@@ -2020,24 +2022,25 @@ export default function AdminOrders() {
                                   setViewDialogOpen(true);
                                 }}
                               >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
+                                <Eye className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="Edit"
                                 onClick={() => handleEditOrder(order)}
                               >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
+                                <Edit className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                title="Print"
                                 onClick={() => handleReceiptClick(order.id)}
                               >
-                                <Printer className="h-4 w-4 mr-1" />
-                                Print
+                                <Printer className="h-3 w-3" />
                               </Button>
                               {order.type !== 'pos' && (
                                 <>
