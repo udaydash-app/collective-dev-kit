@@ -270,37 +270,41 @@ export default function RestaurantDashboard() {
       </div>
 
       {/* Recent orders (compact) */}
-      <Card className="p-3 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-white/40">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold text-sm flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-orange-500" /> Recent Orders</h2>
-          <Link to="/admin/restaurant/pos" className="text-[11px] text-orange-600 flex items-center gap-1 hover:underline">POS <ArrowRight className="h-3 w-3" /></Link>
+      <Card className="border-border/50 bg-card shadow-sm">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-sm font-bold">Recent Orders</h2>
+            <p className="text-xs text-muted-foreground">{recent.length} paid orders</p>
+          </div>
+          <Link to="/admin/restaurant/pos" className="text-xs text-primary flex items-center gap-1 hover:underline">POS <ArrowRight className="h-3 w-3" /></Link>
         </div>
-        <ScrollArea className="max-h-[180px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5 pr-2">
+        <ScrollArea className="max-h-[260px]">
+          <div className="min-w-[720px] text-xs">
+            <div className="grid grid-cols-[1.1fr_0.9fr_1fr_1fr_1fr] border-b border-border bg-muted/40 px-4 py-2 font-semibold text-muted-foreground">
+              <div>Order #</div>
+              <div>Type</div>
+              <div>Table</div>
+              <div>Status / Time</div>
+              <div className="text-right">Total</div>
+            </div>
             {recent.slice(0, 9).map(o => {
               const tbl = tables.find(t => t.id === o.table_id);
               const TypeIcon = o.type === 'dine_in' ? Users : o.type === 'takeaway' ? ShoppingBag : Bike;
               return (
                 <button key={o.id}
                   onClick={() => setViewOrderId(o.id)}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:border-orange-200 border border-transparent transition text-left">
-                  <div className="h-7 w-7 shrink-0 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white">
+                  className="grid w-full grid-cols-[1.1fr_0.9fr_1fr_1fr_1fr] items-center border-b border-border/70 px-4 py-2 text-left hover:bg-muted/50">
+                  <div className="font-semibold">#{o.order_no}</div>
+                  <div className="flex items-center gap-1.5 capitalize text-muted-foreground">
                     <TypeIcon className="h-3.5 w-3.5" />
+                    {o.type.replace('_', ' ')}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs">#{o.order_no}</span>
-                      {tbl && <Badge variant="outline" className="text-[9px] h-3.5 px-1">T{tbl.name}</Badge>}
-                      <Badge className={`text-[9px] h-3.5 px-1 border-0 ${
-                        o.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                        o.status === 'open' ? 'bg-sky-100 text-sky-700' :
-                        o.status === 'sent' ? 'bg-amber-100 text-amber-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>{o.status}</Badge>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground truncate">{new Date(o.created_at).toLocaleTimeString()}</div>
+                  <div>{tbl ? <Badge variant="outline" className="h-5 text-[10px]">T{tbl.name}</Badge> : <span className="text-muted-foreground">—</span>}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="h-5 text-[10px] capitalize">{o.status}</Badge>
+                    <span className="text-muted-foreground">{new Date(o.created_at).toLocaleTimeString()}</span>
                   </div>
-                  <div className="font-black text-xs text-orange-600 dark:text-orange-400 shrink-0">{fmt(o.total)}</div>
+                  <div className="text-right font-bold">{fmt(o.total)}</div>
                 </button>
               );
             })}
