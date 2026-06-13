@@ -206,12 +206,12 @@ export default function POS() {
     const offlineSession = localStorage.getItem('offline_pos_session');
     if (offlineSession) {
       const sessionData = JSON.parse(offlineSession);
-      if (sessionData.store_id) return [{ id: sessionData.store_id, name: 'Global Market' }];
+      if (sessionData.store_id) return [{ id: sessionData.store_id, name: 'Global Indian Mart' }];
     }
 
     const cachedProducts = await offlineDB.getProducts() as any[];
     const firstStoreId = cachedProducts.find((product: any) => product.store_id)?.store_id;
-    return firstStoreId ? [{ id: firstStoreId, name: 'Global Market' }] : [];
+    return firstStoreId ? [{ id: firstStoreId, name: 'Global Indian Mart' }] : [];
   }, []);
 
   const getCachedOpenCashSession = useCallback(async (storeId: string) => {
@@ -713,11 +713,12 @@ export default function POS() {
     staleTime: 60 * 1000,
   });
 
-  // Set "Global Market" as default store
+  // Set "Global Indian Mart" as default store
   useEffect(() => {
     if (stores && stores.length > 0 && !selectedStoreId) {
-      const globalMarket = stores.find(store => store.name.toLowerCase().includes('global market'));
-      const defaultStore = globalMarket || stores[0];
+      const preferred = stores.find(store => store.name.toLowerCase().includes('global indian mart'))
+        || stores.find(store => store.name.toLowerCase().includes('global market'));
+      const defaultStore = preferred || stores[0];
       setSelectedStoreId(defaultStore.id);
       console.log('Default store selected:', defaultStore.name);
     }
