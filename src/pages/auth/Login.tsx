@@ -87,10 +87,10 @@ export default function Login() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mx-auto -mt-12 -mb-20">
-              <img src={logo} alt="Global Market" className="h-64 w-64 object-contain" />
+              <img src={logo} alt="Global Indian Mart" className="h-64 w-64 object-contain" />
             </div>
             <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your Global Market account</CardDescription>
+            <CardDescription>Sign in to your Global Indian Mart account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
