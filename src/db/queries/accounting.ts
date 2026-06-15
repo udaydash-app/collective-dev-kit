@@ -248,6 +248,19 @@ export function getPosAdminSession(): { posUserId: string; pin: string } | null 
 }
 
 export async function fetchContactsForLedgerLocal(): Promise<any[]> {
+  if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, is_customer, is_supplier, customer_ledger_account_id, supplier_ledger_account_id, opening_balance, supplier_opening_balance')
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    } catch (e) {
+      console.warn('[contacts-for-ledger] Supabase fetch failed, using local mirror', e);
+    }
+  }
+
   const rows = await queryRows(
     `SELECT id, name, is_customer, is_supplier,
             customer_ledger_account_id, supplier_ledger_account_id,
@@ -262,6 +275,23 @@ export async function fetchContactsForLedgerLocal(): Promise<any[]> {
 }
 
 export async function fetchAccountsWithParentLocal(): Promise<any[]> {
+  if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select(`
+          *,
+          parent:parent_account_id(account_name, account_code)
+        `)
+        .eq('is_active', true)
+        .order('account_code');
+      if (error) throw error;
+      return data ?? [];
+    } catch (e) {
+      console.warn('[accounts-with-parent] Supabase fetch failed, using local mirror', e);
+    }
+  }
+
   const rows = await queryRows(
     `SELECT a.*, p.account_name AS parent_account_name, p.account_code AS parent_account_code
      FROM accounts a
