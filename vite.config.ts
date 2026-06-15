@@ -32,7 +32,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     // mode === "development" && componentTagger(), // Disabled for local builds
-    VitePWA({
+    // Skip PWA/service worker in Electron — file:// can't host a service worker
+    // and the auto-injected registration script crashes the app (blank window).
+    process.env.BUILD_TARGET !== 'electron' && VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
       includeAssets: ["favicon.ico", "icon-192x192.png", "icon-512x512.png"],
