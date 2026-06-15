@@ -242,6 +242,19 @@ const TradeRecords = () => {
         return loadFromCloud();
       }
 
+      // Guard: if cloud returned empty but we already have a populated local cache,
+      // assume RLS blocked the read (e.g. PIN-only session without JWT role) and
+      // keep the local cache instead of wiping it to zero.
+      try {
+        const localRaw = localStorage.getItem(STORAGE_KEY);
+        const localCount = localRaw ? (JSON.parse(localRaw) as any[]).length : 0;
+        if (cloudRecords.length === 0 && localCount > 0) {
+          console.warn("[TradeRecords] cloud returned 0 records but local cache has", localCount, "— keeping local cache (likely RLS / missing role).");
+          toast.warning("Trade records: cloud sync blocked, showing offline cache");
+          return;
+        }
+      } catch { /* ignore */ }
+
       setContacts(cloudContacts);
       setRecords(cloudRecords);
       localStorage.setItem(CONTACTS_KEY, JSON.stringify(cloudContacts));
