@@ -3911,6 +3911,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_pos_accounting_user: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       mark_guest_messages_read: {
         Args: { p_conversation_id: string; p_session_token: string }
         Returns: undefined
