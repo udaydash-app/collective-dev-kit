@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Minus, Maximize2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { createPortal } from "react-dom";
 
 interface PurchaseOrderDialogProps {
   open: boolean;
@@ -44,6 +45,12 @@ export function PurchaseOrderDialog({
   const [items, setItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+
+  // Reset minimized state whenever the dialog is fully closed by the parent
+  useEffect(() => {
+    if (!open) setMinimized(false);
+  }, [open]);
 
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -281,12 +288,54 @@ export function PurchaseOrderDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      {open && minimized && typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-lg">
+            <span className="text-sm font-medium truncate max-w-[220px]">
+              {purchaseOrder ? "Edit Purchase Order" : "New Purchase Order"}
+              {supplierName ? ` — ${supplierName}` : ""}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setMinimized(false)}
+              aria-label="Restore dialog"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>,
+          document.body
+        )}
+    <Dialog open={open && !minimized} onOpenChange={(v) => { if (!v && !minimized) onOpenChange(false); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {purchaseOrder ? "Edit Purchase Order" : "New Purchase Order"}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>
+              {purchaseOrder ? "Edit Purchase Order" : "New Purchase Order"}
+            </DialogTitle>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 mr-6"
+              onClick={() => setMinimized(true)}
+              aria-label="Minimize"
+              title="Minimize"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -470,5 +519,6 @@ export function PurchaseOrderDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

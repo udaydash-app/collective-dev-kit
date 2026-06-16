@@ -175,7 +175,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     
     try {
       const canvas = await html2canvas(receiptRef.current, {
-        scale: 1.5,
+        scale: 2,
         backgroundColor: '#ffffff',
         logging: false,
       });
@@ -184,12 +184,16 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
         orientation: 'portrait',
         unit: 'mm',
         format: [80, 297],
+        compress: true,
       });
       
       const imgWidth = 80;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+
+      // Use JPEG (quality 0.85) + FAST compression to keep receipts well under 1MB
+      // while preserving visual sharpness from the 2x render scale.
+      const jpegData = canvas.toDataURL('image/jpeg', 0.85);
+      pdf.addImage(jpegData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
       pdf.save(`receipt-${transactionData?.transactionNumber || 'unknown'}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
