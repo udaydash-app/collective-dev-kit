@@ -18,7 +18,8 @@
     "public/favicon.png",
     "!**/node_modules/@esbuild/**",
     "!**/node_modules/@rollup/**",
-    "!**/node_modules/@swc/**"
+    "!**/node_modules/@swc/**",
+    "!**/node_modules/@img/**"
   ],
   "extraResources": [
     {
