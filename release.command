@@ -76,6 +76,35 @@ npx vite build
 # -------- 6. Package desktop apps (Win + Mac) --------
 echo ""
 echo "[6/7] Packaging Windows + macOS apps (unsigned)..."
+
+# Workaround: electron-builder scans every @esbuild/@rollup/@swc optional
+# platform package even though npm only installs the one for your OS.
+# Create empty stub directories so the scan doesn't ENOENT.
+echo "Creating stub dirs for missing optional platform packages..."
+for scope in @esbuild @rollup @swc; do
+  if [ -d "node_modules/$scope" ]; then
+    # Read optionalDependencies of the main package (esbuild/rollup/swc core)
+    node -e "
+      const fs=require('fs'),path=require('path');
+      const scope='$scope';
+      const core=scope==='@esbuild'?'esbuild':scope==='@rollup'?'rollup':'@swc/core';
+      try {
+        const pkg=require(path.resolve('node_modules',core,'package.json'));
+        const opt=pkg.optionalDependencies||{};
+        for (const name of Object.keys(opt)) {
+          if (!name.startsWith(scope+'/')) continue;
+          const dir=path.resolve('node_modules',name);
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir,{recursive:true});
+            fs.writeFileSync(path.join(dir,'package.json'),
+              JSON.stringify({name,version:opt[name].replace(/^[\^~]/,'')||'0.0.0'},null,2));
+          }
+        }
+      } catch(e) { /* core pkg not installed, skip */ }
+    "
+  fi
+done
+
 export CSC_IDENTITY_AUTO_DISCOVERY=false
 npx electron-builder --mac --win --arm64 --x64
 
