@@ -16,7 +16,8 @@ import {
   fetchPurchasesLocal,
 } from '@/db/queries/accounting';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter } from 'lucide-react';
+import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter, Minus, Maximize2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format as formatDateFns } from 'date-fns';
@@ -94,6 +95,7 @@ export default function Purchases() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showNewPurchase, setShowNewPurchase] = useState(false);
+  const [newPurchaseMinimized, setNewPurchaseMinimized] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('pending');
