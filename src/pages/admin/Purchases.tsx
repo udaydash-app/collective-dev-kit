@@ -1123,17 +1123,15 @@ export default function Purchases() {
         }}
       >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
-          <Button
+          <button
             type="button"
-            size="sm"
-            variant="ghost"
-            className="absolute right-14 top-4 h-8 w-8 p-0 z-50"
+            className="absolute right-14 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-0 bg-transparent border-none cursor-pointer z-50"
             onClick={() => setNewPurchaseMinimized(true)}
             aria-label="Minimize"
             title="Minimize"
           >
             <Minus className="h-4 w-4" />
-          </Button>
+          </button>
           <DialogHeader>
             <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
           </DialogHeader>
