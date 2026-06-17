@@ -15,7 +15,10 @@
     "dist/**/*",
     "electron/**/*",
     "public/icon-*.png",
-    "public/favicon.png"
+    "public/favicon.png",
+    "!**/node_modules/@esbuild/**",
+    "!**/node_modules/@rollup/**",
+    "!**/node_modules/@swc/**"
   ],
   "extraResources": [
     {
