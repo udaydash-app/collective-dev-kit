@@ -1123,21 +1123,19 @@ export default function Purchases() {
         }}
       >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="absolute right-14 top-4 h-8 w-8 p-0 z-50"
+            onClick={() => setNewPurchaseMinimized(true)}
+            aria-label="Minimize"
+            title="Minimize"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
           <DialogHeader>
-            <div className="flex items-center justify-between gap-2">
-              <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 mr-14"
-                onClick={() => setNewPurchaseMinimized(true)}
-                aria-label="Minimize"
-                title="Minimize"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-            </div>
+            <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
