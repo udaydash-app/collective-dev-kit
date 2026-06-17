@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import type { ComponentType } from 'react';
 
 export interface WindowState {
   id: string;            // unique window id
@@ -14,11 +15,20 @@ export interface WindowState {
   prev?: { x: number; y: number; width: number; height: number };
 }
 
+export interface MinimizedDialogEntry {
+  id: string;
+  title: string;
+  icon?: ComponentType<{ className?: string }>;
+  onRestore: () => void;
+  onClose: () => void;
+}
+
 const STORAGE_KEY = 'desktop_windows_v1';
 
 interface StoreState {
   windows: WindowState[];
   topZ: number;
+  minimizedDialogs: MinimizedDialogEntry[];
 }
 
 const load = (): StoreState => {
@@ -26,17 +36,20 @@ const load = (): StoreState => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed.windows)) return parsed;
+      if (Array.isArray(parsed.windows)) return { ...parsed, minimizedDialogs: [] };
     }
   } catch {}
-  return { windows: [], topZ: 10 };
+  return { windows: [], topZ: 10, minimizedDialogs: [] };
 };
 
 let state: StoreState = load();
 const listeners = new Set<() => void>();
 
 const persist = () => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  try {
+    const { minimizedDialogs: _omit, ...rest } = state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  } catch {}
 };
 
 const set = (updater: (s: StoreState) => StoreState) => {
@@ -85,7 +98,7 @@ export const windowActions = {
         minimized: false,
         maximized: true,
       };
-      return { topZ, windows: [...s.windows, newWin] };
+      return { ...s, topZ, windows: [...s.windows, newWin] };
     });
   },
   close(id: string) {
@@ -101,6 +114,7 @@ export const windowActions = {
     set((s) => {
       const topZ = s.topZ + 1;
       return {
+        ...s,
         topZ,
         windows: s.windows.map((w) =>
           w.id === id ? { ...w, minimized: false, zIndex: topZ } : w,
@@ -130,6 +144,7 @@ export const windowActions = {
       if (!w || w.zIndex === s.topZ) return s;
       const topZ = s.topZ + 1;
       return {
+        ...s,
         topZ,
         windows: s.windows.map((x) => (x.id === id ? { ...x, zIndex: topZ } : x)),
       };
@@ -152,6 +167,21 @@ export const windowActions = {
     }));
   },
   closeAll() {
-    set(() => ({ windows: [], topZ: 10 }));
+    set((s) => ({ windows: [], topZ: 10, minimizedDialogs: s.minimizedDialogs }));
+  },
+  registerMinimizedDialog(entry: MinimizedDialogEntry) {
+    set((s) => ({
+      ...s,
+      minimizedDialogs: [...s.minimizedDialogs.filter((d) => d.id !== entry.id), entry],
+    }));
+  },
+  updateMinimizedDialog(id: string, patch: Partial<MinimizedDialogEntry>) {
+    set((s) => ({
+      ...s,
+      minimizedDialogs: s.minimizedDialogs.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+    }));
+  },
+  unregisterMinimizedDialog(id: string) {
+    set((s) => ({ ...s, minimizedDialogs: s.minimizedDialogs.filter((d) => d.id !== id) }));
   },
 };

@@ -16,8 +16,8 @@ import {
   fetchPurchasesLocal,
 } from '@/db/queries/accounting';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter, Minus, Maximize2 } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter, ShoppingBag } from 'lucide-react';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format as formatDateFns } from 'date-fns';
@@ -95,7 +95,6 @@ export default function Purchases() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showNewPurchase, setShowNewPurchase] = useState(false);
-  const [newPurchaseMinimized, setNewPurchaseMinimized] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('pending');
@@ -1099,42 +1098,17 @@ export default function Purchases() {
       </main>
 
       {/* New Purchase Dialog */}
-      {showNewPurchase && newPurchaseMinimized && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 bg-background border rounded-lg shadow-lg px-3 py-2">
-          <span className="text-sm font-medium">Create New Purchase</span>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setNewPurchaseMinimized(false)} aria-label="Restore" title="Restore">
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setNewPurchaseMinimized(false); setShowNewPurchase(false); clearPurchaseFormState(); }} aria-label="Discard" title="Discard">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>,
-        document.body
-      )}
-      <Dialog
-        open={showNewPurchase && !newPurchaseMinimized}
+      <MinimizableDialog
+        open={showNewPurchase}
         onOpenChange={(open) => {
-          if (!open && newPurchaseMinimized) return;
           setShowNewPurchase(open);
-          if (!open) {
-            setNewPurchaseMinimized(false);
-            clearPurchaseFormState();
-          }
+          if (!open) clearPurchaseFormState();
         }}
+        title="Create New Purchase"
+        icon={ShoppingBag}
+        onDiscard={clearPurchaseFormState}
+        className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col"
       >
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
-          <button
-            type="button"
-            className="absolute right-14 top-4 z-50 inline-flex h-4 w-4 items-center justify-center rounded-sm bg-transparent p-0 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            onClick={() => setNewPurchaseMinimized(true)}
-            aria-label="Minimize"
-            title="Minimize"
-          >
-            <Minus className="h-4 w-4 shrink-0" />
-          </button>
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
-          </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
             {/* Header Info Card */}
@@ -1364,8 +1338,7 @@ export default function Purchases() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Edit Purchase Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => {
