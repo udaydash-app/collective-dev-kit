@@ -640,8 +640,7 @@ export default function JournalEntries() {
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 
