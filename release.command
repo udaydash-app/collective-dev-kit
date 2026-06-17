@@ -71,6 +71,7 @@ fi
 # -------- 5. Build frontend --------
 echo ""
 echo "[5/7] Building frontend (Vite)..."
+export BUILD_TARGET=electron
 npx vite build
 
 # -------- 6. Package desktop apps (Win + Mac) --------
