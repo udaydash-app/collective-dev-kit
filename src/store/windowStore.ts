@@ -98,7 +98,7 @@ export const windowActions = {
         minimized: false,
         maximized: true,
       };
-      return { topZ, windows: [...s.windows, newWin] };
+      return { ...s, topZ, windows: [...s.windows, newWin] };
     });
   },
   close(id: string) {
@@ -114,6 +114,7 @@ export const windowActions = {
     set((s) => {
       const topZ = s.topZ + 1;
       return {
+        ...s,
         topZ,
         windows: s.windows.map((w) =>
           w.id === id ? { ...w, minimized: false, zIndex: topZ } : w,
@@ -143,6 +144,7 @@ export const windowActions = {
       if (!w || w.zIndex === s.topZ) return s;
       const topZ = s.topZ + 1;
       return {
+        ...s,
         topZ,
         windows: s.windows.map((x) => (x.id === id ? { ...x, zIndex: topZ } : x)),
       };
