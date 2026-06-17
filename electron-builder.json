@@ -1,6 +1,7 @@
 {
   "appId": "com.globalmarket.pos",
   "productName": "Global Market POS",
+  "npmRebuild": false,
   "asarUnpack": [
     "node_modules/@huggingface/**/*",
     "node_modules/@emnapi/**/*",
