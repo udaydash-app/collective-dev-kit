@@ -1099,19 +1099,45 @@ export default function Purchases() {
       </main>
 
       {/* New Purchase Dialog */}
-      <Dialog 
-        open={showNewPurchase} 
+      {showNewPurchase && newPurchaseMinimized && typeof document !== 'undefined' && createPortal(
+        <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 bg-background border rounded-lg shadow-lg px-3 py-2">
+          <span className="text-sm font-medium">Create New Purchase</span>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setNewPurchaseMinimized(false)} aria-label="Restore" title="Restore">
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setNewPurchaseMinimized(false); setShowNewPurchase(false); clearPurchaseFormState(); }} aria-label="Discard" title="Discard">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>,
+        document.body
+      )}
+      <Dialog
+        open={showNewPurchase && !newPurchaseMinimized}
         onOpenChange={(open) => {
+          if (!open && newPurchaseMinimized) return;
           setShowNewPurchase(open);
-          // Clear saved state if dialog is being closed
           if (!open) {
+            setNewPurchaseMinimized(false);
             clearPurchaseFormState();
           }
         }}
       >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="text-2xl">Create New Purchase</DialogTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 mr-6"
+                onClick={() => setNewPurchaseMinimized(true)}
+                aria-label="Minimize"
+                title="Minimize"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
