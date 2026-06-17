@@ -1338,8 +1338,7 @@ export default function Purchases() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Edit Purchase Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => {
