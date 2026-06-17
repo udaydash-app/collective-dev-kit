@@ -1130,7 +1130,7 @@ export default function Purchases() {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 mr-6"
+                className="h-8 w-8 p-0 mr-14"
                 onClick={() => setNewPurchaseMinimized(true)}
                 aria-label="Minimize"
                 title="Minimize"
