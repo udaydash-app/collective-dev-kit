@@ -82,13 +82,13 @@ echo "[6/7] Packaging Windows + macOS apps (unsigned)..."
 # platform package even though npm only installs the one for your OS.
 # Create empty stub directories so the scan doesn't ENOENT.
 echo "Creating stub dirs for missing optional platform packages..."
-for scope in @esbuild @rollup @swc; do
+for scope in @esbuild @rollup @swc @img; do
   if [ -d "node_modules/$scope" ]; then
     # Read optionalDependencies of the main package (esbuild/rollup/swc core)
     node -e "
       const fs=require('fs'),path=require('path');
       const scope='$scope';
-      const core=scope==='@esbuild'?'esbuild':scope==='@rollup'?'rollup':'@swc/core';
+      const core=scope==='@esbuild'?'esbuild':scope==='@rollup'?'rollup':scope==='@swc'?'@swc/core':'sharp';
       try {
         const pkg=require(path.resolve('node_modules',core,'package.json'));
         const opt=pkg.optionalDependencies||{};
