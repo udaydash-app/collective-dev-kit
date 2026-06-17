@@ -13,6 +13,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
+import { ScrollText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -398,18 +400,17 @@ export default function JournalEntries() {
           <p className="text-muted-foreground">Record manual accounting transactions</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleClose}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Entry
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingEntry ? 'Edit Journal Entry' : 'Create Journal Entry'}</DialogTitle>
-            </DialogHeader>
-
+          <Button onClick={() => { handleClose(); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Entry
+          </Button>
+          <MinimizableDialog
+            open={open}
+            onOpenChange={setOpen}
+            title={editingEntry ? 'Edit Journal Entry' : 'Create Journal Entry'}
+            icon={ScrollText}
+            className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          >
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
