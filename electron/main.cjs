@@ -8,6 +8,29 @@ registerPgliteIpc();
 
 const isDev = process.env.ELECTRON_DEV || false;
 
+// macOS: strip Apple quarantine attributes so Gatekeeper does not block
+// unsigned builds (especially after auto-update).
+function stripMacQuarantine(targetPath, label = 'path') {
+  if (process.platform !== 'darwin' || !targetPath) return;
+  try {
+    execSync(`xattr -dr com.apple.quarantine "${targetPath}" 2>/dev/null || true`, { stdio: 'ignore' });
+    execSync(`xattr -cr "${targetPath}" 2>/dev/null || true`, { stdio: 'ignore' });
+    console.log(`[MAC-GATEKEEPER] Cleared quarantine on ${label}: ${targetPath}`);
+  } catch (e) {
+    console.warn(`[MAC-GATEKEEPER] Failed to clear quarantine on ${label}:`, e.message);
+  }
+}
+
+// Strip quarantine from the currently-running app bundle on every launch.
+if (process.platform === 'darwin') {
+  try {
+    const appBundlePath = path.resolve(app.getAppPath(), '..', '..');
+    stripMacQuarantine(appBundlePath, 'current app bundle');
+  } catch (e) {
+    console.warn('[MAC-GATEKEEPER] startup strip failed:', e.message);
+  }
+}
+
 // Try to load electron-updater, but don't crash if it's not available
 let autoUpdater = null;
 try {
@@ -337,12 +360,27 @@ if (autoUpdater) {
       downloadProgressWindow = null;
     }
 
-    // Remove Apple quarantine attributes on macOS so the update installs without Gatekeeper blocking it
+    // Remove Apple quarantine attributes on macOS so the update installs
+    // without Gatekeeper blocking it. Clean BOTH the current bundle and the
+    // downloaded update payload (zip/dmg/extracted app) before quitAndInstall.
     if (process.platform === 'darwin') {
       try {
         const appBundlePath = path.resolve(app.getAppPath(), '..', '..');
-        execSync(`xattr -cr "${appBundlePath}"`, { stdio: 'ignore' });
-        console.log('[AUTO-UPDATE] Removed quarantine attributes from app bundle:', appBundlePath);
+        stripMacQuarantine(appBundlePath, 'current app bundle');
+
+        if (info && info.downloadedFile) {
+          stripMacQuarantine(info.downloadedFile, 'downloaded update file');
+          // Also clean the staging directory the updater extracts into.
+          stripMacQuarantine(path.dirname(info.downloadedFile), 'update staging dir');
+        }
+
+        // electron-updater on mac stages updates under ~/Library/Caches/<appId>-updater
+        try {
+          const cacheDir = path.join(app.getPath('home'), 'Library', 'Caches', `${app.getName()}-updater`);
+          if (fs.existsSync(cacheDir)) {
+            stripMacQuarantine(cacheDir, 'updater cache');
+          }
+        } catch {}
       } catch (e) {
         console.warn('[AUTO-UPDATE] Failed to remove quarantine:', e.message);
       }

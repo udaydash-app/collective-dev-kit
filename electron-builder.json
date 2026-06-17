@@ -49,7 +49,11 @@
     ],
     "category": "public.app-category.business",
     "icon": "public/icon-512x512.png",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "identity": null,
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "type": "distribution"
   },
   "dmg": {
     "contents": [
