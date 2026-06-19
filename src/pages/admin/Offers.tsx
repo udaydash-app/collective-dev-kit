@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -666,14 +667,13 @@ export default function AdminOffers() {
         </div>
       </div>
 
-      <Dialog open={specialDialogOpen} onOpenChange={setSpecialDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingSpecial ? 'Edit Special Offer' : 'New Special Offer'}</DialogTitle>
-            <DialogDescription>
-              Triggered automatically at checkout when cart subtotal matches the threshold.
-            </DialogDescription>
-          </DialogHeader>
+      <MinimizableDialog
+        open={specialDialogOpen}
+        onOpenChange={setSpecialDialogOpen}
+        title={editingSpecial ? 'Edit Special Offer' : 'New Special Offer'}
+        description="Triggered automatically at checkout when cart subtotal matches the threshold."
+        className="max-w-lg"
+      >
           <form onSubmit={handleSubmitSpecial} className="space-y-4">
             <div>
               <Label htmlFor="sp-name">Name *</Label>
@@ -749,8 +749,7 @@ export default function AdminOffers() {
               <Button type="submit">{editingSpecial ? 'Update' : 'Create'}</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }

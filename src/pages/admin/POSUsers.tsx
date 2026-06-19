@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Users, Hash } from 'lucide-react';
@@ -210,17 +211,17 @@ export default function POSUsers() {
         </div>
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
-          <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleClose}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-            </DialogHeader>
+          <MinimizableDialog
+            open={open}
+            onOpenChange={setOpen}
+            title={editingUser ? 'Edit User' : 'Add New User'}
+            trigger={
+              <Button onClick={handleClose}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            }
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="full_name">Full Name *</Label>
@@ -309,8 +310,7 @@ export default function POSUsers() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 

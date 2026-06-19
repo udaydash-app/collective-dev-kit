@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, TrendingUp, Users, Printer, Receipt, X, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -1113,9 +1114,12 @@ const TradeRecords = () => {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} Trade Record</DialogTitle></DialogHeader>
+      <MinimizableDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`${editing ? "Edit" : "New"} Trade Record`}
+        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+      >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1244,8 +1248,7 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editing ? "Update" : "Add"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <Dialog open={contactsOpen} onOpenChange={setContactsOpen}>
         <DialogContent className="max-w-2xl">
@@ -1287,9 +1290,12 @@ const TradeRecords = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editingContact ? "Edit" : "New"} Contact</DialogTitle></DialogHeader>
+      <MinimizableDialog
+        open={contactDialogOpen}
+        onOpenChange={setContactDialogOpen}
+        title={`${editingContact ? "Edit" : "New"} Contact`}
+        className="max-w-md"
+      >
           <div className="space-y-3">
             <div>
               <Label>Name *</Label>
@@ -1308,8 +1314,7 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
             <Button onClick={saveContact}>{editingContact ? "Update" : "Add"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <Dialog open={commissionsOpen} onOpenChange={setCommissionsOpen}>
         <DialogContent className="max-w-3xl">

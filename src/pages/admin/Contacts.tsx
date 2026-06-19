@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import {
   Table,
   TableBody,
@@ -343,19 +344,18 @@ export default function Contacts() {
             <Upload className="h-4 w-4 mr-2" />
             Import Contacts
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
+          <MinimizableDialog
+            open={open}
+            onOpenChange={setOpen}
+            title={editingContact ? 'Edit Contact' : 'Add New Contact'}
+            className="max-w-2xl max-h-[90vh] overflow-y-auto"
+            trigger={
               <Button onClick={handleClose}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Contact
               </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingContact ? 'Edit Contact' : 'Add New Contact'}
-              </DialogTitle>
-            </DialogHeader>
+            }
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -631,8 +631,7 @@ export default function Contacts() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 

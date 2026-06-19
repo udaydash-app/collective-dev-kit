@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { RestaurantNavButtons } from '@/components/layout/RestaurantNavButtons';
 import { Plus, Trash2, Receipt, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
@@ -153,9 +154,13 @@ export default function RestaurantPurchases() {
         </table>
       </Card>
 
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>{editingId ? 'Edit Purchase' : 'New Ingredient Purchase'}</DialogTitle></DialogHeader>
+      <MinimizableDialog
+        open={open}
+        onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
+        title={editingId ? 'Edit Purchase' : 'New Ingredient Purchase'}
+        icon={Receipt}
+        className="max-w-3xl"
+      >
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Supplier name (optional)" value={supplier} onChange={e => setSupplier(e.target.value)} />
@@ -196,8 +201,7 @@ export default function RestaurantPurchases() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editingId ? 'Update Purchase' : 'Save Purchase'}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
         <DialogContent>

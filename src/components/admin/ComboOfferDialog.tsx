@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -215,13 +216,12 @@ export function ComboOfferDialog({ open, onOpenChange, editingCombo }: ComboOffe
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {editingCombo ? 'Edit Combo Offer' : 'Create Combo Offer'}
-          </DialogTitle>
-        </DialogHeader>
+    <MinimizableDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editingCombo ? 'Edit Combo Offer' : 'Create Combo Offer'}
+      className="max-w-2xl max-h-[90vh] overflow-y-auto"
+    >
 
         <div className="space-y-4">
           <div>
@@ -365,7 +365,6 @@ export function ComboOfferDialog({ open, onOpenChange, editingCombo }: ComboOffe
             {saveMutation.isPending ? 'Saving...' : editingCombo ? 'Update' : 'Create'}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </MinimizableDialog>
   );
 }

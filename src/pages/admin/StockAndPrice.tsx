@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Search, Grid, List, Pencil, Save, X } from 'lucide-react';
@@ -704,18 +705,11 @@ export default function StockAndPrice() {
       )}
 
       {/* Edit Prices Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Edit Prices - {editingItem?.name}
-              {editingItem?.variantLabel && (
-                <span className="text-muted-foreground text-sm ml-2">
-                  ({editingItem.variantLabel})
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        title={`Edit Prices - ${editingItem?.name ?? ''}${editingItem?.variantLabel ? ` (${editingItem.variantLabel})` : ''}`}
+      >
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="costPrice">Cost Price</Label>
@@ -765,8 +759,7 @@ export default function StockAndPrice() {
               {updatePricesMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Plus, Pencil, Trash2, Send, Upload, FileText, X } from 'lucide-react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -558,11 +559,12 @@ export default function TradingQuote() {
       </div>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Item' : 'Add Item'}</DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingId ? 'Edit Item' : 'Add Item'}
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label>Brand *</Label>
@@ -636,8 +638,7 @@ export default function TradingQuote() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave}>{editingId ? 'Update' : 'Save'}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Send / Client name dialog */}
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>

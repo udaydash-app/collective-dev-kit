@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -202,22 +203,23 @@ export default function AdminAnnouncements() {
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
-            <Dialog open={dialogOpen} onOpenChange={(open) => {
-              setDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
+            <MinimizableDialog
+              open={dialogOpen}
+              onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) resetForm();
+              }}
+              title={editingAnnouncement ? "Edit Announcement" : "Create New Announcement"}
+              icon={Megaphone}
+              onDiscard={resetForm}
+              className="max-w-2xl max-h-[90vh] overflow-y-auto"
+              trigger={
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Announcement
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingAnnouncement ? "Edit Announcement" : "Create New Announcement"}
-                </DialogTitle>
-              </DialogHeader>
+              }
+            >
               <form onSubmit={handleSubmit} className="space-y-4 pr-2">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title</Label>
@@ -387,8 +389,7 @@ export default function AdminAnnouncements() {
                   </Button>
                 </div>
               </form>
-            </DialogContent>
-          </Dialog>
+            </MinimizableDialog>
           </div>
         </div>
 

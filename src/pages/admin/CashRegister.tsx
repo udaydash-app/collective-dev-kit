@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowDownCircle, ArrowUpCircle, Plus, Pencil, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -219,11 +220,13 @@ export default function CashRegister() {
         </div>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Entry" : form.type === "in" ? "Cash In (Received)" : "Cash Out (Paid)"}</DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingId ? "Edit Entry" : form.type === "in" ? "Cash In (Received)" : "Cash Out (Paid)"}
+        icon={Wallet}
+        className="max-w-md"
+      >
           <div className="space-y-3">
             <div>
               <Label>Type</Label>
@@ -269,8 +272,7 @@ export default function CashRegister() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editingId ? "Update" : "Save"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }

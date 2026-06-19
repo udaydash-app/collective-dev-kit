@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -1658,16 +1659,14 @@ export default function Products() {
           </div>
         )}
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">
-                {isAddingNew ? 'Add Product' : 'Edit Product'}
-              </DialogTitle>
-              <p className="text-xs text-muted-foreground">
-                {isAddingNew ? 'Fill in product details' : 'Update product information'}
-              </p>
-            </DialogHeader>
+        <MinimizableDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          title={isAddingNew ? 'Add Product' : 'Edit Product'}
+          description={isAddingNew ? 'Fill in product details' : 'Update product information'}
+          icon={Package}
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        >
             {editingProduct && (
               <form onSubmit={handleSave} className="space-y-4 mt-4">
                 {/* Basic Information Section */}
@@ -2206,8 +2205,7 @@ export default function Products() {
                 </div>
               </form>
             )}
-          </DialogContent>
-        </Dialog>
+        </MinimizableDialog>
       </main>
 
       <MergeProductsDialog

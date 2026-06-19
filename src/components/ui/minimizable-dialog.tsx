@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { windowActions } from "@/store/windowStore";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,10 @@ interface MinimizableDialogProps {
   className?: string;
   /** Optional explicit header — if omitted, a default DialogHeader/DialogTitle is rendered. */
   hideDefaultHeader?: boolean;
+  /** Optional trigger element (rendered via DialogTrigger asChild). */
+  trigger?: React.ReactNode;
+  /** Optional description rendered under the default title. */
+  description?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -37,6 +42,8 @@ export function MinimizableDialog({
   onDiscard,
   className,
   hideDefaultHeader,
+  trigger,
+  description,
   children,
 }: MinimizableDialogProps) {
   const [minimized, setMinimized] = React.useState(false);
@@ -81,6 +88,7 @@ export function MinimizableDialog({
 
   return (
     <Dialog open={open && !minimized} onOpenChange={handleOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className={cn(className)}>
         <button
           type="button"
@@ -94,6 +102,9 @@ export function MinimizableDialog({
         {!hideDefaultHeader && (
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
+            {description ? (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            ) : null}
           </DialogHeader>
         )}
         {children}

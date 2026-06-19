@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import {
   Table,
   TableBody,
@@ -456,19 +457,18 @@ export default function ChartOfAccounts() {
               Merge ({selectedAccounts.length})
             </Button>
           )}
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
+          <MinimizableDialog
+            open={open}
+            onOpenChange={setOpen}
+            title={editingAccount ? 'Edit Account' : 'Add New Account'}
+            className="max-w-xl"
+            trigger={
               <Button onClick={handleClose}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Account
               </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingAccount ? 'Edit Account' : 'Add New Account'}
-              </DialogTitle>
-            </DialogHeader>
+            }
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -617,8 +617,7 @@ export default function ChartOfAccounts() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 

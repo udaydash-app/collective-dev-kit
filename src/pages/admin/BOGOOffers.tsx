@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { Plus, Pencil, Trash2, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -410,16 +411,14 @@ export default function BOGOOffers() {
         </Table>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingOffer ? "Edit BOGO Offer" : "Create New BOGO Offer"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure buy X get Y offer details
-            </DialogDescription>
-          </DialogHeader>
+      <MinimizableDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingOffer ? "Edit BOGO Offer" : "Create New BOGO Offer"}
+        description="Configure buy X get Y offer details"
+        icon={Gift}
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+      >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Offer Name *</Label>
@@ -683,8 +682,7 @@ export default function BOGOOffers() {
               </Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }
