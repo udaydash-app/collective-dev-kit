@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -192,20 +193,19 @@ export default function AdminCategories() {
           <h1 className="text-2xl font-bold">Manage Categories</h1>
           <div className="flex gap-2">
             <ReturnToPOSButton inline hideDashboard />
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
+            <MinimizableDialog
+              open={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              title={editingCategory?.id ? "Edit Category" : "Add Category"}
+              className="max-w-md max-h-[90vh] overflow-y-auto"
+              trigger={
                 <Button onClick={handleAdd}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Category
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingCategory?.id ? "Edit Category" : "Add Category"}
-                </DialogTitle>
-              </DialogHeader>
-              
+              }
+            >
+
               {editingCategory && (
                 <div className="space-y-4">
                   <div className="space-y-2">
