@@ -108,8 +108,11 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Prevent external links from opening in Electron
+  // Prevent external links from opening in Electron, but allow about:blank popups for printing
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === 'about:blank' || !url) {
+      return { action: 'allow' };
+    }
     require('electron').shell.openExternal(url);
     return { action: 'deny' };
   });
