@@ -304,8 +304,7 @@ export default function AdminCategories() {
                   </div>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </MinimizableDialog>
           </div>
         </div>
 
