@@ -1341,18 +1341,23 @@ export default function Purchases() {
       </MinimizableDialog>
 
       {/* Edit Purchase Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={(open) => {
-        setShowEditDialog(open);
-        if (!open) {
+      <MinimizableDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) {
+            resetForm();
+            setSelectedPurchase(null);
+          }
+        }}
+        title="Edit Purchase"
+        icon={ShoppingBag}
+        onDiscard={() => {
           resetForm();
           setSelectedPurchase(null);
-        }
-      }}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Edit Purchase</DialogTitle>
-          </DialogHeader>
-
+        }}
+        className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col"
+      >
           <div className="flex-1 overflow-y-auto space-y-6 pr-2">
             {/* Header Info Card */}
             <Card>
@@ -1569,8 +1574,7 @@ export default function Purchases() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Product Search Dialog */}
       <Dialog open={showProductSearch} onOpenChange={setShowProductSearch}>
