@@ -31,6 +31,7 @@ npx vite build
 
 # 5. Package mac (dmg + zip for arm64 + x64)
 echo "[5/5] Packaging macOS app (unsigned)..."
+node scripts/create-electron-builder-optional-stubs.mjs
 npx electron-builder --mac --arm64 --x64
 
 # 6. Strip Apple quarantine attributes from every produced artifact so
