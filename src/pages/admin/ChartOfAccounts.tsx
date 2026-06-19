@@ -617,8 +617,7 @@ export default function ChartOfAccounts() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 
