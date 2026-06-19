@@ -389,8 +389,7 @@ export default function AdminAnnouncements() {
                   </Button>
                 </div>
               </form>
-            </DialogContent>
-          </Dialog>
+            </MinimizableDialog>
           </div>
         </div>
 
