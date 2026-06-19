@@ -891,6 +891,123 @@ const TradeRecords = () => {
     w.document.open(); w.document.write(html); w.document.close();
   };
 
+  const createPurchaseOrder = (rows: TradeRecord[]) => {
+    if (!rows.length) { toast.error("Select at least one record"); return; }
+    const esc = (s: string) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as any)[c]);
+
+    // Group items by supplier across all selected records
+    type POLine = { description: string; unit: string; packing: number; bags: number; buy_price: number; tax: number; supplier_commission: number; date: string; contact: string };
+    const bySupplier = new Map<string, POLine[]>();
+    for (const r of rows) {
+      for (const i of r.items) {
+        const sup = (i.supplier || "").trim() || "Unspecified Supplier";
+        if (!bySupplier.has(sup)) bySupplier.set(sup, []);
+        bySupplier.get(sup)!.push({
+          description: i.description || "—",
+          unit: i.unit || "kg",
+          packing: i.packing || 0,
+          bags: i.bags || 0,
+          buy_price: i.buy_price || 0,
+          tax: i.tax || 0,
+          supplier_commission: i.supplier_commission || 0,
+          date: r.date,
+          contact: contactName(r.contact_id),
+        });
+      }
+    }
+
+    const poNo = `PO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const supplierBlocks = [...bySupplier.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([sup, lines], idx) => {
+      const subBags = lines.reduce((s, l) => s + l.bags, 0);
+      const subTotal = lines.reduce((s, l) => s + (l.buy_price + l.tax + l.supplier_commission) * l.bags, 0);
+      const breakBefore = idx > 0 ? "page-break-before: always;" : "";
+      return `
+      <section style="${breakBefore}">
+        <div class="po-head">
+          <div>
+            <h1>PURCHASE ORDER</h1>
+            <div class="meta-row"><span><b>PO No:</b> ${esc(poNo)}-${idx + 1}</span> <span><b>Date:</b> ${esc(today)}</span></div>
+          </div>
+          <div class="supplier-box">
+            <div class="lbl">Supplier</div>
+            <div class="sup">${esc(sup)}</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th style="width:34px">#</th>
+            <th>Product</th>
+            <th class="r">Packing</th>
+            <th class="r">Qty (Bags)</th>
+            <th>Unit</th>
+            <th class="r">Rate /bag</th>
+            <th class="r">Tax /bag</th>
+            <th class="r">Comm. /bag</th>
+            <th class="r">Line Total</th>
+          </tr></thead>
+          <tbody>${lines.map((l, i) => {
+            const line = (l.buy_price + l.tax + l.supplier_commission) * l.bags;
+            return `<tr>
+              <td>${i + 1}</td>
+              <td>${esc(l.description)}<div class="small">Ref: ${esc(l.date)} · ${esc(l.contact)}</div></td>
+              <td class="r">${fmt(l.packing)}</td>
+              <td class="r">${fmt(l.bags)}</td>
+              <td>${esc(l.unit)}</td>
+              <td class="r">${fmt(l.buy_price)}</td>
+              <td class="r">${fmt(l.tax)}</td>
+              <td class="r">${fmt(l.supplier_commission)}</td>
+              <td class="r">${fmt(line)}</td>
+            </tr>`;
+          }).join("")}</tbody>
+          <tfoot><tr>
+            <td colspan="3" class="r"><b>Totals</b></td>
+            <td class="r"><b>${fmt(subBags)}</b></td>
+            <td colspan="4"></td>
+            <td class="r"><b>${fmt(subTotal)}</b></td>
+          </tr></tfoot>
+        </table>
+        <div class="grand">Order Total: <b>${fmt(subTotal)}</b></div>
+        <div class="sign-row">
+          <div class="sign"><div class="sign-line"></div>Authorised Signature</div>
+          <div class="sign"><div class="sign-line"></div>Supplier Acknowledgement</div>
+        </div>
+      </section>`;
+    }).join("");
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(poNo)}</title>
+      <style>
+        body { font: 12px/1.4 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:24px; }
+        h1 { margin:0; font-size:22px; letter-spacing:1px; }
+        .po-head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:10px; margin-bottom:14px; }
+        .meta-row { font-size:11px; color:#555; margin-top:4px; }
+        .meta-row span { margin-right:14px; }
+        .supplier-box { border:1px solid #999; padding:8px 12px; min-width:220px; }
+        .supplier-box .lbl { font-size:10px; text-transform:uppercase; color:#666; }
+        .supplier-box .sup { font-size:14px; font-weight:600; }
+        table { width:100%; border-collapse:collapse; font-size:11px; }
+        th, td { border:1px solid #ccc; padding:5px 6px; vertical-align:top; }
+        th { background:#f1f1f1; text-align:left; }
+        .r { text-align:right; }
+        .small { font-size:9px; color:#777; margin-top:2px; }
+        tfoot td { background:#fafafa; }
+        .grand { margin-top:10px; padding:10px 14px; border:2px solid #111; background:#f7f7f7; text-align:right; font-size:14px; }
+        .sign-row { display:flex; gap:40px; margin-top:48px; }
+        .sign { flex:1; font-size:11px; color:#555; text-align:center; }
+        .sign-line { border-top:1px solid #333; margin-bottom:4px; height:1px; }
+        @media print { body { margin:12mm; } section { page-break-inside:auto; } tr { page-break-inside:avoid; } }
+      </style></head><body>
+      ${supplierBlocks}
+      <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow pop-ups to create Purchase Order PDF"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    toast.success(`Purchase Order generated for ${bySupplier.size} supplier${bySupplier.size === 1 ? "" : "s"}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {!unlocked && (
@@ -930,6 +1047,9 @@ const TradeRecords = () => {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => setViewOpen(true)}>
               <Eye className="h-4 w-4 mr-2" />View Selected{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
+            </Button>
+            <Button variant="outline" size="sm" disabled={selectedRecords.length === 0} onClick={() => createPurchaseOrder(selectedRecords)}>
+              <FileText className="h-4 w-4 mr-2" />Create Purchase Order{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />Print / PDF
