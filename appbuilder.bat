@@ -55,6 +55,13 @@ if errorlevel 1 (
 )
 
 :: Run electron-builder for Windows only
+call node scripts/create-electron-builder-optional-stubs.mjs
+if errorlevel 1 (
+    echo       ERROR: Optional native dependency preparation failed.
+    pause
+    exit /b 1
+)
+
 call npx electron-builder --win
 if errorlevel 1 (
     echo       ERROR: Electron builder failed.

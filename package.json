@@ -15,7 +15,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "electron:dev": "cross-env ELECTRON_DEV=true electron electron/main.cjs",
-    "electron:build": "cross-env BUILD_TARGET=electron tsc && cross-env BUILD_TARGET=electron vite build && electron-builder",
+    "electron:build": "cross-env BUILD_TARGET=electron tsc && cross-env BUILD_TARGET=electron vite build && node scripts/create-electron-builder-optional-stubs.mjs && electron-builder",
     "db:bundle": "node scripts/build-local-db.mjs"
   },
   "dependencies": {
