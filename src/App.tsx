@@ -100,7 +100,7 @@ import PaymentMethods from "./pages/profile/PaymentMethods";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { OrderStatusNotifications } from "./components/OrderStatusNotifications";
-import { OverdueCreditsMonitor } from "./components/OverdueCreditsMonitor";
+
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { KeyboardShortcutsDialog } from "./components/layout/KeyboardShortcutsDialog";
 import { useGlobalShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -286,7 +286,7 @@ const AppContent = () => {
         <POSSessionKeeper />
         <ChatNotifications />
         <ChatWidget />
-        <OverdueCreditsMonitor />
+        
         
         <RouteErrorBoundary>
         <Routes>
