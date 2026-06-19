@@ -1248,8 +1248,7 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editing ? "Update" : "Add"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <Dialog open={contactsOpen} onOpenChange={setContactsOpen}>
         <DialogContent className="max-w-2xl">
@@ -1315,8 +1314,7 @@ const TradeRecords = () => {
             <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
             <Button onClick={saveContact}>{editingContact ? "Update" : "Add"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <Dialog open={commissionsOpen} onOpenChange={setCommissionsOpen}>
         <DialogContent className="max-w-3xl">

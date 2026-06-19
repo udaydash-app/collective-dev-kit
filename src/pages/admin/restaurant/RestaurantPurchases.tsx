@@ -201,9 +201,7 @@ export default function RestaurantPurchases() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editingId ? 'Update Purchase' : 'Save Purchase'}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* placeholder */}
+      </MinimizableDialog>
 
       <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
         <DialogContent>
