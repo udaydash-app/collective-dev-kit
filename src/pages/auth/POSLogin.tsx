@@ -36,7 +36,7 @@ export default function POSLogin() {
   // Branding from settings table (company name, logo, favicon)
   const [branding, setBranding] = useState<{ name: string; logo: string; favicon: string | null }>({
     name: 'POS System',
-    logo: defaultLogo,
+    logo: '',
     favicon: null,
   });
 
@@ -52,7 +52,7 @@ export default function POSLogin() {
         if (cancelled || !data) return;
         const next = {
           name: data.company_name || 'POS System',
-          logo: data.logo_url || defaultLogo,
+          logo: data.logo_url || defaultLogo || '',
           favicon: data.favicon_url || data.logo_url || null,
         };
         setBranding(next);
@@ -74,6 +74,7 @@ export default function POSLogin() {
         }
       } catch (e) {
         console.warn('[POSLogin] Could not load branding from settings:', e);
+        setBranding(prev => ({ ...prev, logo: defaultLogo }));
       }
     })();
     return () => { cancelled = true; };
@@ -677,9 +678,11 @@ export default function POSLogin() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-0">
-          <div className="flex items-center justify-center mx-auto -mt-8">
-            <img src={branding.logo} alt={branding.name} className="h-56 w-56 object-contain" />
-          </div>
+          {branding.logo && (
+            <div className="flex items-center justify-center mx-auto -mt-8">
+              <img src={branding.logo} alt={branding.name} className="h-56 w-56 object-contain" />
+            </div>
+          )}
           <CardTitle className="text-3xl mt-1">{branding.name}</CardTitle>
           <CardDescription>
             {isOffline && (
