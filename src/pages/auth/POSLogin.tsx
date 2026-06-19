@@ -74,6 +74,7 @@ export default function POSLogin() {
         }
       } catch (e) {
         console.warn('[POSLogin] Could not load branding from settings:', e);
+        setBranding(prev => ({ ...prev, logo: defaultLogo }));
       }
     })();
     return () => { cancelled = true; };
