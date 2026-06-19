@@ -631,8 +631,7 @@ export default function Contacts() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 
