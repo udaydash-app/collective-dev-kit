@@ -36,7 +36,7 @@ export default function POSLogin() {
   // Branding from settings table (company name, logo, favicon)
   const [branding, setBranding] = useState<{ name: string; logo: string; favicon: string | null }>({
     name: 'POS System',
-    logo: defaultLogo,
+    logo: '',
     favicon: null,
   });
 
