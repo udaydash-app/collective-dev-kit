@@ -677,9 +677,11 @@ export default function POSLogin() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-0">
-          <div className="flex items-center justify-center mx-auto -mt-8">
-            <img src={branding.logo} alt={branding.name} className="h-56 w-56 object-contain" />
-          </div>
+          {branding.logo && (
+            <div className="flex items-center justify-center mx-auto -mt-8">
+              <img src={branding.logo} alt={branding.name} className="h-56 w-56 object-contain" />
+            </div>
+          )}
           <CardTitle className="text-3xl mt-1">{branding.name}</CardTitle>
           <CardDescription>
             {isOffline && (
