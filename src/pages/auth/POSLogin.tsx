@@ -52,7 +52,7 @@ export default function POSLogin() {
         if (cancelled || !data) return;
         const next = {
           name: data.company_name || 'POS System',
-          logo: data.logo_url || defaultLogo,
+          logo: data.logo_url || defaultLogo || '',
           favicon: data.favicon_url || data.logo_url || null,
         };
         setBranding(next);
