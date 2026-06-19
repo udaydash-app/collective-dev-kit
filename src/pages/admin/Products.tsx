@@ -2205,8 +2205,7 @@ export default function Products() {
                 </div>
               </form>
             )}
-          </DialogContent>
-        </Dialog>
+        </MinimizableDialog>
       </main>
 
       <MergeProductsDialog
