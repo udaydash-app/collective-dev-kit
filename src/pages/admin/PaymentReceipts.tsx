@@ -771,8 +771,7 @@ export default function PaymentReceipts() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

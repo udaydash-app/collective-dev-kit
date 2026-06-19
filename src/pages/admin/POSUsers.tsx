@@ -310,8 +310,7 @@ export default function POSUsers() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </MinimizableDialog>
         </div>
       </div>
 

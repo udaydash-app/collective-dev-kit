@@ -749,8 +749,7 @@ export default function AdminOffers() {
               <Button type="submit">{editingSpecial ? 'Update' : 'Create'}</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }

@@ -967,8 +967,7 @@ export default function Quotations() {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+            </MinimizableDialog>
           </div>
         </div>
 

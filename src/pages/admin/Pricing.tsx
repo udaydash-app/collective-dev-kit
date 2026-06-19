@@ -1024,8 +1024,7 @@ export default function Pricing() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Import from Bills Dialog */}
       <Dialog open={showImportBillsDialog} onOpenChange={setShowImportBillsDialog}>

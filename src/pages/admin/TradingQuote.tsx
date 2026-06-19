@@ -638,8 +638,7 @@ export default function TradingQuote() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave}>{editingId ? 'Update' : 'Save'}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Send / Client name dialog */}
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>

@@ -272,8 +272,7 @@ export default function CashRegister() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={save}>{editingId ? "Update" : "Save"}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }

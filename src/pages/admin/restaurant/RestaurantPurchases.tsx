@@ -203,6 +203,7 @@ export default function RestaurantPurchases() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* placeholder */}
 
       <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
         <DialogContent>

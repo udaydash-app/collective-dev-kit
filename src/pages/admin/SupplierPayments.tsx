@@ -570,8 +570,7 @@ export default function SupplierPayments() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

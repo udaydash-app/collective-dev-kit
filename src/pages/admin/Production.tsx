@@ -737,8 +737,7 @@ export default function Production() {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteProductionId} onOpenChange={() => setDeleteProductionId(null)}>

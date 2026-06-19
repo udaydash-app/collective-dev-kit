@@ -759,8 +759,7 @@ export default function StockAndPrice() {
               {updatePricesMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </MinimizableDialog>
     </div>
   );
 }
