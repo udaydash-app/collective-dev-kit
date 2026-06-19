@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownCircle, ArrowUpCircle, Plus, Pencil, Trash2, Wallet } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowDownCircle, ArrowUpCircle, Plus, Pencil, Trash2, Wallet, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -44,6 +45,7 @@ export default function CashRegister() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [filterMethod, setFilterMethod] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -115,6 +117,70 @@ export default function CashRegister() {
     return entries.filter((e) => (e.payment_method || "Cash") === filterMethod);
   }, [entries, filterMethod]);
 
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      if (filtered.length > 0 && filtered.every((e) => prev.has(e.id))) {
+        const n = new Set(prev);
+        filtered.forEach((e) => n.delete(e.id));
+        return n;
+      }
+      const n = new Set(prev);
+      filtered.forEach((e) => n.add(e.id));
+      return n;
+    });
+  };
+
+  const sendSelectedPDF = () => {
+    const rows = filtered.filter((e) => selectedIds.has(e.id));
+    if (rows.length === 0) { toast.error("Select at least one entry"); return; }
+    const esc = (s: any) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+    const tIn = rows.filter((r) => r.type === "in").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const tOut = rows.filter((r) => r.type === "out").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const bal = tIn - tOut;
+    const body = rows.map((r) => `
+      <tr>
+        <td>${fmtDate(r.entry_date)}</td>
+        <td>${r.type === "in" ? "In" : "Out"}</td>
+        <td>${esc(r.counterparty || "-")}</td>
+        <td>${esc(r.description || "-")}</td>
+        <td>${esc(r.payment_method || "Cash")}</td>
+        <td style="text-align:right;color:${r.type === "in" ? "#059669" : "#dc2626"}">${r.type === "in" ? "+" : "-"}${formatCurrency(Number(r.amount || 0))}</td>
+      </tr>`).join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Cash Register Entries</title>
+      <style>
+        body{font-family:Arial,sans-serif;margin:16px;color:#111}
+        h2{margin:0 0 6px}
+        .meta{color:#666;font-size:12px;margin-bottom:10px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
+        th{background:#f5f5f5}
+        .totals{margin-top:10px;display:flex;gap:18px;font-size:13px}
+        .totals div b{display:block;font-size:11px;color:#666;font-weight:600;text-transform:uppercase}
+        @media print { body { margin:12mm; } tr { page-break-inside:avoid; } }
+      </style></head><body>
+      <h2>Cash Register — Selected Entries</h2>
+      <div class="meta">Records: ${rows.length} · Printed: ${new Date().toLocaleString()}</div>
+      <table><thead><tr><th>Date</th><th>Type</th><th>Counterparty</th><th>Description</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody>${body}</tbody></table>
+      <div class="totals">
+        <div><b>Total In</b>${formatCurrency(tIn)}</div>
+        <div><b>Total Out</b>${formatCurrency(tOut)}</div>
+        <div><b>Balance</b>${formatCurrency(bal)}</div>
+      </div>
+      <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow popups to create PDF"); return; }
+    w.document.write(html); w.document.close();
+  };
+
   const methods = useMemo(() => {
     const s = new Set<string>();
     entries.forEach((e) => s.add(e.payment_method || "Cash"));
@@ -135,6 +201,13 @@ export default function CashRegister() {
           <p className="text-sm text-muted-foreground">Track payments received and paid to know your cash in hand.</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={selectedIds.size === 0}
+            onClick={sendSelectedPDF}
+          >
+            <FileText className="h-4 w-4 mr-1" /> Send PDF{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </Button>
           <Button onClick={() => openNew("in")} className="bg-emerald-600 hover:bg-emerald-700">
             <ArrowDownCircle className="h-4 w-4 mr-1" /> Cash In
           </Button>
@@ -177,6 +250,13 @@ export default function CashRegister() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filtered.length > 0 && filtered.every((e) => selectedIds.has(e.id))}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Counterparty</TableHead>
@@ -188,13 +268,20 @@ export default function CashRegister() {
             </TableHeader>
             <TableBody>
               {loading && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
               )}
               {!loading && filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No entries yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No entries yet</TableCell></TableRow>
               )}
               {filtered.map((e) => (
-                <TableRow key={e.id}>
+                <TableRow key={e.id} data-state={selectedIds.has(e.id) ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(e.id)}
+                      onCheckedChange={() => toggleOne(e.id)}
+                      aria-label="Select row"
+                    />
+                  </TableCell>
                   <TableCell>{fmtDate(e.entry_date)}</TableCell>
                   <TableCell>
                     {e.type === "in" ? (
