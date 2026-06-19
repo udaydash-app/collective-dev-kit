@@ -19,7 +19,9 @@
     "!**/node_modules/@esbuild/**",
     "!**/node_modules/@rollup/**",
     "!**/node_modules/@swc/**",
-    "!**/node_modules/@img/**"
+    "!**/node_modules/@img/**",
+    "!**/node_modules/@napi-rs/**",
+    "!**/node_modules/sharp/**"
   ],
   "extraResources": [
     {
