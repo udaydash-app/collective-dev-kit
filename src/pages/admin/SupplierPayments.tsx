@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -413,11 +414,13 @@ export default function SupplierPayments() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingPayment ? 'Edit Supplier Payment' : 'New Supplier Payment'}</DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={editingPayment ? 'Edit Supplier Payment' : 'New Supplier Payment'}
+        icon={DollarSign}
+        className="max-w-2xl"
+      >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

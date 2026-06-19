@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -737,17 +738,19 @@ export default function Quotations() {
               <Receipt className="w-4 h-4 mr-2" />
               From Bill
             </Button>
-            <Dialog open={showNewQuotation} onOpenChange={setShowNewQuotation}>
-              <DialogTrigger asChild>
+            <MinimizableDialog
+              open={showNewQuotation}
+              onOpenChange={setShowNewQuotation}
+              title={editingQuotation ? 'Edit Quotation' : 'Create New Quotation'}
+              icon={FileText}
+              className="max-w-5xl max-h-[90vh] overflow-y-auto"
+              trigger={
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
                   New Quotation
                 </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingQuotation ? 'Edit Quotation' : 'Create New Quotation'}</DialogTitle>
-              </DialogHeader>
+              }
+            >
 
               <div className="space-y-4">
                 {/* Customer Selection */}

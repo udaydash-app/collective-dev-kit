@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -970,11 +971,12 @@ export default function Pricing() {
       </Dialog>
 
       {/* Edit Standard Price Dialog */}
-      <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Prices - {editingProduct?.name}</DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={!!editingProduct}
+        onOpenChange={(o) => { if (!o) setEditingProduct(null); }}
+        title={`Edit Prices - ${editingProduct?.name ?? ''}`}
+        className="max-w-lg"
+      >
           <div className="space-y-4">
             <div>
               <Label>Cost Price</Label>

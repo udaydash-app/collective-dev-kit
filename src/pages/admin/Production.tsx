@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Plus, Trash2, Factory, Edit, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MinimizableDialog } from "@/components/ui/minimizable-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { offlineDB } from "@/lib/offlineDB";
@@ -578,12 +579,14 @@ export default function Production() {
       </Dialog>
 
       {/* View / Edit Details Dialog */}
-      <Dialog open={!!viewingProduction} onOpenChange={(open) => { if (!open) { setViewingProduction(null); setIsEditing(false); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Edit Production" : "Production Details"}</DialogTitle>
-            <DialogDescription>{viewingProduction?.production_number}</DialogDescription>
-          </DialogHeader>
+      <MinimizableDialog
+        open={!!viewingProduction}
+        onOpenChange={(open) => { if (!open) { setViewingProduction(null); setIsEditing(false); } }}
+        title={isEditing ? "Edit Production" : "Production Details"}
+        description={viewingProduction?.production_number}
+        icon={Factory}
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
 
           {viewingProduction && !isEditing && (
             <div className="space-y-4">

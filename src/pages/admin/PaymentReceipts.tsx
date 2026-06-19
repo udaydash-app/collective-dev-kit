@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -590,11 +591,13 @@ export default function PaymentReceipts() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingReceipt ? 'Edit Payment Receipt' : 'New Payment Receipt'}</DialogTitle>
-          </DialogHeader>
+      <MinimizableDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={editingReceipt ? 'Edit Payment Receipt' : 'New Payment Receipt'}
+        icon={Receipt}
+        className="max-w-2xl"
+      >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
