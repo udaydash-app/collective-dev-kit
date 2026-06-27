@@ -328,12 +328,12 @@ export default function POS() {
   
   useEffect(() => {
     const orderId = searchParams.get('orderId');
-    if (orderId && orderId !== loadedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+    if (orderId && orderId !== loadedOrderRef.current && !isLoadingOrder) {
       loadedOrderRef.current = orderId;
       setIsLoadingOrder(true);
       loadOrderToPOS(orderId);
     }
-  }, [searchParams, isLoadingOrder, cart.length]);
+  }, [searchParams, isLoadingOrder]);
 
   // Keep Supabase connection warm to avoid slow first scan after idle.
   // Cold TLS/DNS handshakes can add 1-3s latency to the first query after inactivity.
@@ -367,17 +367,23 @@ export default function POS() {
   // Load order for editing from localStorage
   useEffect(() => {
     const editOrderId = searchParams.get('editOrder');
-    if (editOrderId && editOrderId !== editedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+    if (editOrderId && editOrderId !== editedOrderRef.current && !isLoadingOrder) {
       editedOrderRef.current = editOrderId;
       setIsLoadingOrder(true);
       loadEditOrderToPOS(editOrderId);
     }
-  }, [searchParams, isLoadingOrder, cart.length]);
+  }, [searchParams, isLoadingOrder]);
 
   const loadOrderToPOS = async (orderId: string) => {
     try {
       // Set flag to indicate we're loading an online order
       setIsLoadingTransaction(true);
+      // Clear any pre-existing cart/customer so the loaded order is clean
+      clearCart();
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setCartDiscountItem(null);
+      setSpecialOfferApplied(null);
       
       // Fetch the order with its items
       const { data: order, error: orderError } = await supabase
@@ -467,6 +473,12 @@ export default function POS() {
     try {
       // Set flag to prevent price re-application
       setIsLoadingTransaction(true);
+      // Clear any pre-existing cart/customer so the edited order is loaded cleanly
+      clearCart();
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setCartDiscountItem(null);
+      setSpecialOfferApplied(null);
       
       // Get order data from localStorage
       const storedData = localStorage.getItem('pos-edit-order');
@@ -552,11 +564,14 @@ export default function POS() {
           
           if (customerError) {
             console.error('🔧 Error loading customer:', customerError);
+            // Fallback so the customer remains attached to the edit
+            setSelectedCustomer({ id: orderData.customerId, name: orderData.customer || 'Customer' });
           } else if (customer) {
             setSelectedCustomer(customer);
             console.log(`🔧 Customer loaded: ${customer.name}`);
           } else {
             console.warn('🔧 Customer not found with ID:', orderData.customerId);
+            setSelectedCustomer({ id: orderData.customerId, name: orderData.customer || 'Customer' });
           }
         } else {
           console.log('🔧 No customer ID in order data');
