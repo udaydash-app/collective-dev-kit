@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
@@ -54,6 +54,7 @@ export default function GeneralLedger() {
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
 
   // Set selected account from URL parameter
   useEffect(() => {
@@ -703,7 +704,21 @@ export default function GeneralLedger() {
     const isDualRole = (ledgerData.account as any).isDualRole;
     const isContactAccount = (ledgerData.account as any).isContactAccount;
     
-    return ledgerData.lines.map((line: any) => {
+    const chronologicalLines = [...ledgerData.lines].sort((a: any, b: any) => {
+      const dateCompare = String(a.journal_entries?.entry_date || '').localeCompare(
+        String(b.journal_entries?.entry_date || '')
+      );
+      if (dateCompare !== 0) return dateCompare;
+
+      const entryCompare = String(a.journal_entries?.entry_number || '').localeCompare(
+        String(b.journal_entries?.entry_number || '')
+      );
+      if (entryCompare !== 0) return entryCompare;
+
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+
+    return chronologicalLines.map((line: any) => {
       // For unified accounts
       if (accountType === 'unified') {
         // Unified view: Balance = A/R - A/P
@@ -752,7 +767,10 @@ export default function GeneralLedger() {
     });
   };
 
-  const ledgerEntries = calculateRunningBalance();
+  const chronologicalLedgerEntries = calculateRunningBalance();
+  const ledgerEntries = dateSort === 'desc'
+    ? [...chronologicalLedgerEntries].reverse()
+    : chronologicalLedgerEntries;
 
   // Calculate total debits and credits from all lines
   // For unified accounts, sum customer debits/credits and supplier debits/credits separately
@@ -802,6 +820,52 @@ export default function GeneralLedger() {
   }
 
   const netChange = totalDebit - totalCredit;
+
+  const hasOpeningBalance =
+    (ledgerData?.account as any)?.opening_balance !== undefined &&
+    (ledgerData?.account as any)?.opening_balance !== null &&
+    Number((ledgerData?.account as any)?.opening_balance) !== 0;
+
+  const hasCurrentBalanceRow =
+    !!ledgerData?.account &&
+    (ledgerData?.account as any)?.current_balance !== undefined &&
+    ledgerEntries.length > 0;
+
+  const renderOpeningBalanceRow = () => {
+    if (!hasOpeningBalance) return null;
+
+    return (
+      <TableRow className="bg-muted/50">
+        <TableCell colSpan={5} className="font-semibold">
+          Opening Balance (as of {startDate})
+        </TableCell>
+        <TableCell className="text-right">-</TableCell>
+        <TableCell className="text-right">-</TableCell>
+        <TableCell className="text-right font-mono font-bold">
+          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
+          {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderCurrentBalanceRow = () => {
+    if (!hasCurrentBalanceRow) return null;
+
+    return (
+      <TableRow className="bg-primary/10 font-bold">
+        <TableCell colSpan={5} className="font-semibold">
+          Current Balance (as of {endDate})
+        </TableCell>
+        <TableCell className="text-right">-</TableCell>
+        <TableCell className="text-right">-</TableCell>
+        <TableCell className="text-right font-mono font-bold text-primary">
+          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
+          {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   const handleExport = async () => {
     if (!ledgerData?.account || !ledgerEntries.length) {
@@ -1098,7 +1162,18 @@ export default function GeneralLedger() {
           <Table fixedScroll>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead className="w-28">
+                  <button
+                    type="button"
+                    onClick={() => setDateSort((current) => (current === 'desc' ? 'asc' : 'desc'))}
+                    className="inline-flex h-8 items-center gap-1 rounded-md px-2 font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Sort by date ${dateSort === 'desc' ? 'ascending' : 'descending'}`}
+                    title={`Date sort: ${dateSort === 'desc' ? 'newest first' : 'oldest first'}`}
+                  >
+                    <span>Date</span>
+                    {dateSort === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                  </button>
+                </TableHead>
                 <TableHead>Entry #</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Reference</TableHead>
@@ -1117,22 +1192,7 @@ export default function GeneralLedger() {
                 </TableRow>
               ) : (
                 <>
-                  {/* Opening Balance Row */}
-                  {(ledgerData?.account as any)?.opening_balance !== undefined && 
-                   (ledgerData?.account as any)?.opening_balance !== null && 
-                   Number((ledgerData?.account as any)?.opening_balance) !== 0 && (
-                    <TableRow className="bg-muted/50">
-                      <TableCell colSpan={5} className="font-semibold">
-                        Opening Balance (as of {startDate})
-                      </TableCell>
-                      <TableCell className="text-right">-</TableCell>
-                      <TableCell className="text-right">-</TableCell>
-                      <TableCell className="text-right font-mono font-bold">
-                        {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
-                        {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  {dateSort === 'desc' ? renderCurrentBalanceRow() : renderOpeningBalanceRow()}
                   
                   {/* Transaction Rows */}
                   {ledgerEntries.length === 0 ? (
@@ -1182,21 +1242,7 @@ export default function GeneralLedger() {
                     ))
                   )}
                   
-                  {/* Current Balance Row */}
-                  {ledgerData?.account && (ledgerData?.account as any)?.current_balance !== undefined && 
-                   ledgerEntries.length > 0 && (
-                    <TableRow className="bg-primary/10 font-bold">
-                      <TableCell colSpan={5} className="font-semibold">
-                        Current Balance (as of {endDate})
-                      </TableCell>
-                      <TableCell className="text-right">-</TableCell>
-                      <TableCell className="text-right">-</TableCell>
-                      <TableCell className="text-right font-mono font-bold text-primary">
-                        {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
-                        {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  {dateSort === 'desc' ? renderOpeningBalanceRow() : renderCurrentBalanceRow()}
                 </>
               )}
             </TableBody>
