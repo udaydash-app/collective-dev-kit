@@ -63,6 +63,7 @@ const GeneralLedger = () => {
   const [openingBalance, setOpeningBalance] = useState(0);
   const [lines, setLines] = useState<LineRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Load accounts
   useEffect(() => {
