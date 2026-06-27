@@ -331,7 +331,7 @@ const AppContent = () => {
           <Route path="/admin/stock-adjustment" element={<AdminRoute><AdminStockAdjustment /></AdminRoute>} />
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
-          <Route path="/admin/general-ledger" element={<BrowserOnlyRoute><AdminRoute><AdminGeneralLedger /></AdminRoute></BrowserOnlyRoute>} />
+          <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
           <Route path="/admin/cogs-analysis" element={<AdminRoute><COGSAnalysis /></AdminRoute>} />
           <Route path="/admin/production" element={<AdminRoute><Production /></AdminRoute>} />
           <Route path="/admin/profit-margin-analysis" element={<AdminRoute><ProfitMarginAnalysis /></AdminRoute>} />
