@@ -467,6 +467,12 @@ export default function POS() {
     try {
       // Set flag to prevent price re-application
       setIsLoadingTransaction(true);
+      // Clear any pre-existing cart/customer so the edited order is loaded cleanly
+      clearCart();
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setCartDiscountItem(null);
+      setSpecialOfferApplied(null);
       
       // Get order data from localStorage
       const storedData = localStorage.getItem('pos-edit-order');
