@@ -226,7 +226,7 @@ export default function POSLogin() {
 
   const storePOSSession = async (
     sessionType: 'offline' | 'local' | 'cloud' | 'electron' | 'auth_fallback',
-    data: { posUserId: string | null; userId: string | null; fullName: string },
+    data: { posUserId: string | null; userId: string | null; fullName: string; authEmail?: string | null },
     pinValue: string
   ) => {
     const cachedSessions = await offlineDB.getCashSessions().catch(() => []);
@@ -237,6 +237,7 @@ export default function POSLogin() {
     localStorage.setItem('offline_pos_session', JSON.stringify({
       pos_user_id: data.posUserId,
       user_id: data.userId,
+      auth_email: data.authEmail ?? null,
       full_name: data.fullName,
       cash_session_id: activeCashSession?.id,
       store_id: activeCashSession?.store_id,
@@ -555,6 +556,7 @@ export default function POSLogin() {
       
       // Cloud Supabase - ensure the PIN user is linked to Supabase Auth before reading admin data
       let authEmail = `pos-${userData.pos_user_id}@pos.globalmarket.app`;
+      let ensuredAuthUserId: string | null = userData.user_id ?? null;
       const authPassword = `PIN${pinValue.padStart(6, '0')}`;
       const { data: ensuredAuth, error: ensureAuthError } = await supabase.functions.invoke('ensure-pos-auth', {
         body: { pos_user_id: userData.pos_user_id, pin: pinValue },
@@ -564,6 +566,7 @@ export default function POSLogin() {
         console.error('Failed to prepare POS auth:', ensureAuthError);
       } else if ((ensuredAuth as any)?.auth_email) {
         authEmail = (ensuredAuth as any).auth_email;
+        ensuredAuthUserId = (ensuredAuth as any)?.auth_user_id ?? ensuredAuthUserId;
       }
       
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -575,7 +578,7 @@ export default function POSLogin() {
         console.error('Auth error (falling back to PIN-only session):', authError);
         // PIN was verified by DB — auth password is just out of sync.
         // Use offline_pos_session so the user can still work.
-        await storePOSSession('auth_fallback', { posUserId, userId, fullName }, pinValue);
+        await storePOSSession('auth_fallback', { posUserId, userId: ensuredAuthUserId ?? userId, fullName, authEmail }, pinValue);
 
         // Try to refresh the auth password in background via manage-pos-user edge function
         const { data: { session: adminSession } } = await supabase.auth.getSession();
@@ -593,6 +596,7 @@ export default function POSLogin() {
       
       const authSession = authData?.session;
       if (authSession?.user) {
+        userId = authSession.user.id;
         // Set session in cache immediately
         queryClient.setQueryData(['session'], authSession);
         
@@ -615,7 +619,7 @@ export default function POSLogin() {
       }
       
       toast.success(`Welcome, ${userData.full_name}!`);
-      await storePOSSession('cloud', { posUserId, userId, fullName }, pinValue);
+      await storePOSSession('cloud', { posUserId, userId: userId ?? ensuredAuthUserId, fullName, authEmail }, pinValue);
       
       // Navigate immediately, cache data in background
       navigate('/admin/desktop');

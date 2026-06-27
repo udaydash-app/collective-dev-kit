@@ -155,8 +155,31 @@ const POSSessionKeeper = () => {
           const pin = sessionStorage.getItem('current_pos_pin');
           if (!rawSession) return;
 
-          const posSession = JSON.parse(rawSession);
+          let posSession = JSON.parse(rawSession);
           if (posSession?.local || posSession?.offline) return;
+
+          let posAuthUserId = posSession?.user_id ?? null;
+          let authEmail = posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`;
+          if (pin && (!posSession.auth_email || !posAuthUserId)) {
+            try {
+              const { data } = await supabase.functions.invoke('ensure-pos-auth', {
+                body: { pos_user_id: posSession.pos_user_id, pin },
+              });
+              if ((data as any)?.auth_email) {
+                authEmail = (data as any).auth_email;
+                posAuthUserId = (data as any)?.auth_user_id ?? posAuthUserId;
+                posSession = {
+                  ...posSession,
+                  user_id: posAuthUserId,
+                  auth_email: authEmail,
+                };
+                localStorage.setItem('offline_pos_session', JSON.stringify(posSession));
+                window.dispatchEvent(new Event('offline-pos-session-changed'));
+              }
+            } catch (ensureError) {
+              console.warn('[POSSessionKeeper] Could not refresh POS auth email:', ensureError);
+            }
+          }
 
           let session: any = null;
           try {
@@ -164,6 +187,13 @@ const POSSessionKeeper = () => {
             session = result.data.session;
           } catch (sessionError) {
             console.warn('[POSSessionKeeper] Stored auth session expired, restoring from PIN session:', sessionError);
+          }
+
+          if (session?.user) {
+            if (posAuthUserId && session.user.id !== posAuthUserId) {
+              await supabase.auth.signOut();
+              session = null;
+            }
           }
 
           if (session?.user) {
@@ -185,10 +215,10 @@ const POSSessionKeeper = () => {
           if (!pin) return;
 
           await supabase.auth.signInWithPassword({
-            email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
+            email: authEmail,
             password: `PIN${pin.padStart(6, '0')}`,
           });
-          queryClient.invalidateQueries({ queryKey: ['session'] });
+          queryClient.invalidateQueries();
           console.log('[POSSessionKeeper] Restored POS database session');
         } catch (error) {
           console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
