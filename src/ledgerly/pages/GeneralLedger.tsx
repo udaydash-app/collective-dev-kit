@@ -133,7 +133,7 @@ const GeneralLedger = () => {
     })();
   }, [accountId, from, to]);
 
-  // Compute running balance and totals (reverse so newest is on top)
+  // Compute running balance and totals (chronologically for correctness, then order by sortDir)
   const { rows, totalDebit, totalCredit, closingBalance } = useMemo(() => {
     const debitNatural = account ? isDebitNatural(account.type) : true;
     let bal = openingBalance;
@@ -149,13 +149,18 @@ const GeneralLedger = () => {
         return a.id.localeCompare(b.id);
       })
       .map((l) => {
-      const d = Number(l.debit), c = Number(l.credit);
-      bal += debitNatural ? (d - c) : (c - d);
-      td += d; tc += c;
-      return { ...l, running: bal };
-    });
-    return { rows: [...chronological].reverse(), totalDebit: td, totalCredit: tc, closingBalance: bal };
-  }, [lines, openingBalance, account]);
+        const d = Number(l.debit), c = Number(l.credit);
+        bal += debitNatural ? (d - c) : (c - d);
+        td += d; tc += c;
+        return { ...l, running: bal };
+      });
+    return {
+      rows: sortDir === "desc" ? [...chronological].reverse() : chronological,
+      totalDebit: td,
+      totalCredit: tc,
+      closingBalance: bal,
+    };
+  }, [lines, openingBalance, account, sortDir]);
 
   // Display the opening balance with sign based on natural side
   const openingDisplay = useMemo(() => {
