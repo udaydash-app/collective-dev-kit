@@ -378,6 +378,12 @@ export default function POS() {
     try {
       // Set flag to indicate we're loading an online order
       setIsLoadingTransaction(true);
+      // Clear any pre-existing cart/customer so the loaded order is clean
+      clearCart();
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setCartDiscountItem(null);
+      setSpecialOfferApplied(null);
       
       // Fetch the order with its items
       const { data: order, error: orderError } = await supabase
