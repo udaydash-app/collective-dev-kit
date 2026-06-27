@@ -26,6 +26,7 @@ interface LineRow {
   debit: number;
   credit: number;
   description: string | null;
+  created_at: string | null;
   entry: {
     id: string;
     entry_date: string;
@@ -84,32 +85,48 @@ const GeneralLedger = () => {
     (async () => {
       setLoading(true);
       // Opening balance: sum of all journal_lines for this account with entry_date < from
-      const { data: opening, error: oErr } = await supabase
-        .from("journal_lines")
-        .select("debit, credit, entry:journal_entries!inner(entry_date)")
-        .eq("account_id", accountId)
-        .lt("entry.entry_date", from);
-      if (oErr) { toast.error(oErr.message); setLoading(false); return; }
+      const PAGE_SIZE = 1000;
+      const opening: Array<{ debit: number; credit: number }> = [];
+      for (let offset = 0; offset < 100000; offset += PAGE_SIZE) {
+        const { data, error: oErr } = await supabase
+          .from("journal_lines")
+          .select("debit, credit, entry:journal_entries!inner(entry_date)")
+          .eq("account_id", accountId)
+          .lt("entry.entry_date", from)
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (oErr) { toast.error(oErr.message); setLoading(false); return; }
+        const rows = (data ?? []) as Array<{ debit: number; credit: number }>;
+        opening.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
       const opSum = (opening ?? []).reduce(
         (s, r) => s + (Number(r.debit) - Number(r.credit)), 0,
       );
       setOpeningBalance(opSum);
 
-      // Period lines
-      const { data, error } = await supabase
-        .from("journal_lines")
-        .select(`
-          id, debit, credit, description,
-          entry:journal_entries!inner(id, entry_date, reference, narration, source_type, source_id),
-          contact:contacts(name)
-        `)
-        .eq("account_id", accountId)
-        .gte("entry.entry_date", from)
-        .lte("entry.entry_date", to)
-        .order("entry_date", { foreignTable: "journal_entries", ascending: true })
-        .order("created_at", { ascending: true });
-      if (error) { toast.error(error.message); setLoading(false); return; }
-      setLines((data ?? []) as unknown as LineRow[]);
+      // Period lines: page through every row, newest first, then sort again client-side
+      // before computing balances so Supabase's 1000-row default can never hide the latest entries.
+      const periodLines: LineRow[] = [];
+      for (let offset = 0; offset < 100000; offset += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("journal_lines")
+          .select(`
+            id, debit, credit, description, created_at,
+            entry:journal_entries!inner(id, entry_date, reference, narration, source_type, source_id),
+            contact:contacts(name)
+          `)
+          .eq("account_id", accountId)
+          .gte("entry.entry_date", from)
+          .lte("entry.entry_date", to)
+          .order("entry_date", { foreignTable: "journal_entries", ascending: false })
+          .order("created_at", { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (error) { toast.error(error.message); setLoading(false); return; }
+        const rows = (data ?? []) as unknown as LineRow[];
+        periodLines.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
+      setLines(periodLines);
       setLoading(false);
     })();
   }, [accountId, from, to]);
@@ -119,7 +136,17 @@ const GeneralLedger = () => {
     const debitNatural = account ? isDebitNatural(account.type) : true;
     let bal = openingBalance;
     let td = 0, tc = 0;
-    const chronological = lines.map((l) => {
+    const chronological = [...lines]
+      .sort((a, b) => {
+        const dateA = a.entry?.entry_date ?? "";
+        const dateB = b.entry?.entry_date ?? "";
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        const createdA = a.created_at ?? "";
+        const createdB = b.created_at ?? "";
+        if (createdA !== createdB) return createdA.localeCompare(createdB);
+        return a.id.localeCompare(b.id);
+      })
+      .map((l) => {
       const d = Number(l.debit), c = Number(l.credit);
       bal += debitNatural ? (d - c) : (c - d);
       td += d; tc += c;
