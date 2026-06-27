@@ -564,11 +564,14 @@ export default function POS() {
           
           if (customerError) {
             console.error('🔧 Error loading customer:', customerError);
+            // Fallback so the customer remains attached to the edit
+            setSelectedCustomer({ id: orderData.customerId, name: orderData.customer || 'Customer' });
           } else if (customer) {
             setSelectedCustomer(customer);
             console.log(`🔧 Customer loaded: ${customer.name}`);
           } else {
             console.warn('🔧 Customer not found with ID:', orderData.customerId);
+            setSelectedCustomer({ id: orderData.customerId, name: orderData.customer || 'Customer' });
           }
         } else {
           console.log('🔧 No customer ID in order data');
