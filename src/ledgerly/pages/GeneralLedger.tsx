@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/ledgerly/integrations/supabase/client";
 import { PageHeader } from "@/ledgerly/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +63,7 @@ const GeneralLedger = () => {
   const [openingBalance, setOpeningBalance] = useState(0);
   const [lines, setLines] = useState<LineRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Load accounts
   useEffect(() => {
@@ -131,7 +133,7 @@ const GeneralLedger = () => {
     })();
   }, [accountId, from, to]);
 
-  // Compute running balance and totals (reverse so newest is on top)
+  // Compute running balance and totals (chronologically for correctness, then order by sortDir)
   const { rows, totalDebit, totalCredit, closingBalance } = useMemo(() => {
     const debitNatural = account ? isDebitNatural(account.type) : true;
     let bal = openingBalance;
@@ -147,13 +149,18 @@ const GeneralLedger = () => {
         return a.id.localeCompare(b.id);
       })
       .map((l) => {
-      const d = Number(l.debit), c = Number(l.credit);
-      bal += debitNatural ? (d - c) : (c - d);
-      td += d; tc += c;
-      return { ...l, running: bal };
-    });
-    return { rows: [...chronological].reverse(), totalDebit: td, totalCredit: tc, closingBalance: bal };
-  }, [lines, openingBalance, account]);
+        const d = Number(l.debit), c = Number(l.credit);
+        bal += debitNatural ? (d - c) : (c - d);
+        td += d; tc += c;
+        return { ...l, running: bal };
+      });
+    return {
+      rows: sortDir === "desc" ? [...chronological].reverse() : chronological,
+      totalDebit: td,
+      totalCredit: tc,
+      closingBalance: bal,
+    };
+  }, [lines, openingBalance, account, sortDir]);
 
   // Display the opening balance with sign based on natural side
   const openingDisplay = useMemo(() => {
@@ -226,7 +233,12 @@ const GeneralLedger = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">Date</TableHead>
+                <TableHead className="w-28 cursor-pointer select-none" onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}>
+                  <span className="inline-flex items-center gap-1">
+                    Date
+                    {sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                  </span>
+                </TableHead>
                 <TableHead>Reference / Narration</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead className="w-24">Source</TableHead>
@@ -236,6 +248,14 @@ const GeneralLedger = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {sortDir === "asc" && (
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground italic">Opening balance as of {from}</TableCell>
+                  <TableCell className={`text-right num font-medium ${balanceTone(openingDisplay)}`}>
+                    {formatMoney(openingDisplay)}
+                  </TableCell>
+                </TableRow>
+              )}
               {rows.map((r) => {
                 const link = sourceLink(r.entry?.source_type ?? null, r.entry?.source_id ?? null);
                 const display = account && !isDebitNatural(account.type) ? -r.running : r.running;
@@ -266,12 +286,14 @@ const GeneralLedger = () => {
               {loading && (
                 <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">Loading…</TableCell></TableRow>
               )}
-              <TableRow className="bg-muted/30">
-                <TableCell colSpan={6} className="text-sm text-muted-foreground italic">Opening balance as of {from}</TableCell>
-                <TableCell className={`text-right num font-medium ${balanceTone(openingDisplay)}`}>
-                  {formatMoney(openingDisplay)}
-                </TableCell>
-              </TableRow>
+              {sortDir === "desc" && (
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground italic">Opening balance as of {from}</TableCell>
+                  <TableCell className={`text-right num font-medium ${balanceTone(openingDisplay)}`}>
+                    {formatMoney(openingDisplay)}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Card>
