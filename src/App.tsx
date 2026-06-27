@@ -155,8 +155,31 @@ const POSSessionKeeper = () => {
           const pin = sessionStorage.getItem('current_pos_pin');
           if (!rawSession) return;
 
-          const posSession = JSON.parse(rawSession);
+          let posSession = JSON.parse(rawSession);
           if (posSession?.local || posSession?.offline) return;
+
+          let posAuthUserId = posSession?.user_id ?? null;
+          let authEmail = posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`;
+          if (pin && (!posSession.auth_email || !posAuthUserId)) {
+            try {
+              const { data } = await supabase.functions.invoke('ensure-pos-auth', {
+                body: { pos_user_id: posSession.pos_user_id, pin },
+              });
+              if ((data as any)?.auth_email) {
+                authEmail = (data as any).auth_email;
+                posAuthUserId = (data as any)?.auth_user_id ?? posAuthUserId;
+                posSession = {
+                  ...posSession,
+                  user_id: posAuthUserId,
+                  auth_email: authEmail,
+                };
+                localStorage.setItem('offline_pos_session', JSON.stringify(posSession));
+                window.dispatchEvent(new Event('offline-pos-session-changed'));
+              }
+            } catch (ensureError) {
+              console.warn('[POSSessionKeeper] Could not refresh POS auth email:', ensureError);
+            }
+          }
 
           let session: any = null;
           try {
@@ -167,7 +190,6 @@ const POSSessionKeeper = () => {
           }
 
           if (session?.user) {
-            const posAuthUserId = posSession?.user_id ?? null;
             if (posAuthUserId && session.user.id !== posAuthUserId) {
               await supabase.auth.signOut();
               session = null;
@@ -191,26 +213,6 @@ const POSSessionKeeper = () => {
           }
 
           if (!pin) return;
-
-          let authEmail = posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`;
-          if (!posSession.auth_email) {
-            try {
-              const { data } = await supabase.functions.invoke('ensure-pos-auth', {
-                body: { pos_user_id: posSession.pos_user_id, pin },
-              });
-              if ((data as any)?.auth_email) {
-                authEmail = (data as any).auth_email;
-                localStorage.setItem('offline_pos_session', JSON.stringify({
-                  ...posSession,
-                  user_id: (data as any)?.auth_user_id ?? posSession.user_id,
-                  auth_email: authEmail,
-                }));
-                window.dispatchEvent(new Event('offline-pos-session-changed'));
-              }
-            } catch (ensureError) {
-              console.warn('[POSSessionKeeper] Could not refresh POS auth email:', ensureError);
-            }
-          }
 
           await supabase.auth.signInWithPassword({
             email: authEmail,
