@@ -118,7 +118,7 @@ serve(async (req) => {
       .upsert({ user_id: authUserId, role }, { onConflict: 'user_id,role' });
     if (roleError) throw roleError;
 
-    return new Response(JSON.stringify({ success: true, auth_email: authEmail, role }), {
+    return new Response(JSON.stringify({ success: true, auth_email: authEmail, auth_user_id: authUserId, role }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {

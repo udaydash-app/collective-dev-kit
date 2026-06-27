@@ -167,6 +167,14 @@ const POSSessionKeeper = () => {
           }
 
           if (session?.user) {
+            const posAuthUserId = posSession?.user_id ?? null;
+            if (posAuthUserId && session.user.id !== posAuthUserId) {
+              await supabase.auth.signOut();
+              session = null;
+            }
+          }
+
+          if (session?.user) {
             const expiresSoon = session.expires_at ? session.expires_at * 1000 - Date.now() < 10 * 60 * 1000 : true;
             if (reason === 'wake' || expiresSoon) {
               const { data, error } = await supabase.auth.refreshSession();
@@ -185,7 +193,7 @@ const POSSessionKeeper = () => {
           if (!pin) return;
 
           await supabase.auth.signInWithPassword({
-            email: `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
+            email: posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
             password: `PIN${pin.padStart(6, '0')}`,
           });
           queryClient.invalidateQueries({ queryKey: ['session'] });
