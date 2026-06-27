@@ -192,8 +192,28 @@ const POSSessionKeeper = () => {
 
           if (!pin) return;
 
+          let authEmail = posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`;
+          if (!posSession.auth_email) {
+            try {
+              const { data } = await supabase.functions.invoke('ensure-pos-auth', {
+                body: { pos_user_id: posSession.pos_user_id, pin },
+              });
+              if ((data as any)?.auth_email) {
+                authEmail = (data as any).auth_email;
+                localStorage.setItem('offline_pos_session', JSON.stringify({
+                  ...posSession,
+                  user_id: (data as any)?.auth_user_id ?? posSession.user_id,
+                  auth_email: authEmail,
+                }));
+                window.dispatchEvent(new Event('offline-pos-session-changed'));
+              }
+            } catch (ensureError) {
+              console.warn('[POSSessionKeeper] Could not refresh POS auth email:', ensureError);
+            }
+          }
+
           await supabase.auth.signInWithPassword({
-            email: posSession.auth_email || `pos-${posSession.pos_user_id}@pos.globalmarket.app`,
+            email: authEmail,
             password: `PIN${pin.padStart(6, '0')}`,
           });
           queryClient.invalidateQueries({ queryKey: ['session'] });
