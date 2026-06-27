@@ -114,18 +114,18 @@ const GeneralLedger = () => {
     })();
   }, [accountId, from, to]);
 
-  // Compute running balance and totals
+  // Compute running balance and totals (reverse so newest is on top)
   const { rows, totalDebit, totalCredit, closingBalance } = useMemo(() => {
     const debitNatural = account ? isDebitNatural(account.type) : true;
     let bal = openingBalance;
     let td = 0, tc = 0;
-    const rows = lines.map((l) => {
+    const chronological = lines.map((l) => {
       const d = Number(l.debit), c = Number(l.credit);
       bal += debitNatural ? (d - c) : (c - d);
       td += d; tc += c;
       return { ...l, running: bal };
     });
-    return { rows, totalDebit: td, totalCredit: tc, closingBalance: bal };
+    return { rows: [...chronological].reverse(), totalDebit: td, totalCredit: tc, closingBalance: bal };
   }, [lines, openingBalance, account]);
 
   // Display the opening balance with sign based on natural side
