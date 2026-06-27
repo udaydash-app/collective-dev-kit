@@ -209,12 +209,6 @@ const GeneralLedger = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="bg-muted/30">
-                <TableCell colSpan={6} className="text-sm text-muted-foreground italic">Opening balance as of {from}</TableCell>
-                <TableCell className={`text-right num font-medium ${balanceTone(openingDisplay)}`}>
-                  {formatMoney(openingDisplay)}
-                </TableCell>
-              </TableRow>
               {rows.map((r) => {
                 const link = sourceLink(r.entry?.source_type ?? null, r.entry?.source_id ?? null);
                 const display = account && !isDebitNatural(account.type) ? -r.running : r.running;
@@ -245,6 +239,12 @@ const GeneralLedger = () => {
               {loading && (
                 <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">Loading…</TableCell></TableRow>
               )}
+              <TableRow className="bg-muted/30">
+                <TableCell colSpan={6} className="text-sm text-muted-foreground italic">Opening balance as of {from}</TableCell>
+                <TableCell className={`text-right num font-medium ${balanceTone(openingDisplay)}`}>
+                  {formatMoney(openingDisplay)}
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </Card>
