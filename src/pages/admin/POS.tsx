@@ -328,12 +328,12 @@ export default function POS() {
   
   useEffect(() => {
     const orderId = searchParams.get('orderId');
-    if (orderId && orderId !== loadedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+    if (orderId && orderId !== loadedOrderRef.current && !isLoadingOrder) {
       loadedOrderRef.current = orderId;
       setIsLoadingOrder(true);
       loadOrderToPOS(orderId);
     }
-  }, [searchParams, isLoadingOrder, cart.length]);
+  }, [searchParams, isLoadingOrder]);
 
   // Keep Supabase connection warm to avoid slow first scan after idle.
   // Cold TLS/DNS handshakes can add 1-3s latency to the first query after inactivity.
@@ -367,12 +367,12 @@ export default function POS() {
   // Load order for editing from localStorage
   useEffect(() => {
     const editOrderId = searchParams.get('editOrder');
-    if (editOrderId && editOrderId !== editedOrderRef.current && !isLoadingOrder && cart.length === 0) {
+    if (editOrderId && editOrderId !== editedOrderRef.current && !isLoadingOrder) {
       editedOrderRef.current = editOrderId;
       setIsLoadingOrder(true);
       loadEditOrderToPOS(editOrderId);
     }
-  }, [searchParams, isLoadingOrder, cart.length]);
+  }, [searchParams, isLoadingOrder]);
 
   const loadOrderToPOS = async (orderId: string) => {
     try {
