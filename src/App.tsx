@@ -218,7 +218,7 @@ const POSSessionKeeper = () => {
             email: authEmail,
             password: `PIN${pin.padStart(6, '0')}`,
           });
-          queryClient.invalidateQueries({ queryKey: ['session'] });
+          queryClient.invalidateQueries();
           console.log('[POSSessionKeeper] Restored POS database session');
         } catch (error) {
           console.warn('[POSSessionKeeper] Could not restore POS database session:', error);
