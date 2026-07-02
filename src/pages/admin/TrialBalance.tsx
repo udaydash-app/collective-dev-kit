@@ -18,13 +18,17 @@ import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
+import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');
   const _fp = readFiscalPeriodBoundsSync();
   const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
   const [groupFilter, setGroupFilter] = useState('all');
+  useEffect(() => {
+    const c = clampToFiscal(asOfDate);
+    if (c !== asOfDate) setAsOfDate(c);
+  }, [asOfDate]);
 
   const { data: trialBalanceData, isLoading } = useQuery({
     queryKey: ['trial-balance', asOfDate],
@@ -163,7 +167,9 @@ export default function TrialBalance() {
               id="as-of-date"
               type="date"
               value={asOfDate}
-              onChange={(e) => setAsOfDate(e.target.value)}
+              min={_fp.effectiveFrom ?? undefined}
+              max={_fp.effectiveTo ?? undefined}
+              onChange={(e) => setAsOfDate(clampToFiscal(e.target.value))}
             />
           </div>
           <div className="flex-1 max-w-xs">
