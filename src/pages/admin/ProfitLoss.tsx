@@ -34,10 +34,11 @@ const fetchAllRows = async <T,>(makeQuery: () => any): Promise<T[]> => {
 
 export default function ProfitLoss() {
   usePageView('Admin - Profit & Loss');
+  const _fp = readFiscalPeriodBoundsSync();
   const [startDate, setStartDate] = useState(
-    new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
+    _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
 
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],

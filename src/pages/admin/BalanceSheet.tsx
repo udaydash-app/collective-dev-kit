@@ -14,7 +14,8 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 export default function BalanceSheet() {
   usePageView('Admin - Balance Sheet');
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
+  const _fp = readFiscalPeriodBoundsSync();
+  const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
 
   const { data: balanceSheetData, isLoading } = useQuery({
     queryKey: ['balance-sheet', asOfDate],
