@@ -18,6 +18,7 @@ import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');

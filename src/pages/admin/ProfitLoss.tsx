@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAccountBalancesLocal, fetchProfitLossInputsLocal } from '@/db/queries/accounting';
