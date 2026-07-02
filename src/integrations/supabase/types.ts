@@ -1212,6 +1212,7 @@ export type Database = {
           entry_date: string
           entry_number: string
           id: string
+          is_opening: boolean
           notes: string | null
           posted_at: string | null
           posted_by: string | null
@@ -1229,6 +1230,7 @@ export type Database = {
           entry_date?: string
           entry_number?: string
           id?: string
+          is_opening?: boolean
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -1246,6 +1248,7 @@ export type Database = {
           entry_date?: string
           entry_number?: string
           id?: string
+          is_opening?: boolean
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -3199,6 +3202,7 @@ export type Database = {
       }
       settings: {
         Row: {
+          active_period: string
           company_address: string | null
           company_email: string | null
           company_name: string
@@ -3207,6 +3211,7 @@ export type Database = {
           currency: string | null
           favicon_url: string | null
           id: string
+          incorporation_date: string
           language: string | null
           logo_url: string | null
           primary_color: string | null
@@ -3215,6 +3220,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_period?: string
           company_address?: string | null
           company_email?: string | null
           company_name?: string
@@ -3223,6 +3229,7 @@ export type Database = {
           currency?: string | null
           favicon_url?: string | null
           id?: string
+          incorporation_date?: string
           language?: string | null
           logo_url?: string | null
           primary_color?: string | null
@@ -3231,6 +3238,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_period?: string
           company_address?: string | null
           company_email?: string | null
           company_name?: string
@@ -3239,6 +3247,7 @@ export type Database = {
           currency?: string | null
           favicon_url?: string | null
           id?: string
+          incorporation_date?: string
           language?: string | null
           logo_url?: string | null
           primary_color?: string | null
@@ -3736,6 +3745,13 @@ export type Database = {
           id: string
           name: string
           similarity: number
+        }[]
+      }
+      generate_opening_balances: {
+        Args: { p_cutoff: string }
+        Returns: {
+          entry_id: string
+          lines_created: number
         }[]
       }
       generate_order_number: { Args: never; Returns: string }

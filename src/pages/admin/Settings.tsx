@@ -17,6 +17,7 @@ import { APP_VERSION } from "@/config/version";
 import { FolderOpen, Loader2 } from "lucide-react";
 import { cloudSyncService, setCloudServiceRoleKey, hasCloudServiceRoleKey, clearCloudServiceRoleKey } from "@/lib/cloudSyncService";
 import { isUsingLocalSupabase } from "@/integrations/supabase/client";
+import { FiscalPeriodCard } from "@/components/admin/FiscalPeriodCard";
 
 function LocalUpdateButton() {
   const [busy, setBusy] = useState(false);
@@ -231,6 +232,9 @@ export default function AdminSettings() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Fiscal Period */}
+          <FiscalPeriodCard />
+
           {/* Company Information */}
           <Card>
             <CardHeader>

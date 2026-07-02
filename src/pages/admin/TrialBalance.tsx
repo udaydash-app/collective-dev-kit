@@ -18,10 +18,12 @@ import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
+  const _fp = readFiscalPeriodBoundsSync();
+  const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
   const [groupFilter, setGroupFilter] = useState('all');
 
   const { data: trialBalanceData, isLoading } = useQuery({
