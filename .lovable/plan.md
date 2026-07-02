@@ -1,48 +1,61 @@
-# Minimize all dialogs to desktop taskbar
 
-## Goals
-1. Add a minimize button (aligned with the X) to all major create/edit dialogs.
-2. When minimized, the dialog appears as a taskbar entry next to Purchase/POS app windows — not a floating chip.
-3. Right-click any taskbar entry (dialog or app) to get **Restore / Maximize** and **Close**.
-4. Restoring re-opens the dialog with all form state preserved (it stays mounted while minimized).
+# Fiscal Period Toggle — Start of Business 01/Jul/2026
 
-## Approach
+## Goal
+Set 01/Jul/2026 as the official start of the current fiscal period. Add a period switcher (F12 inside Company Settings) that flips the entire accounting UI between:
+- **Before Incorporation** — everything up to and including 30/Jun/2026
+- **Current** — from 01/Jul/2026 onward, with previous balances shown as a single "Opening Balance" line per account
 
-### 1. New "minimized dialogs" registry in `windowStore`
-Extend `src/store/windowStore.ts` with a second list dedicated to minimized dialogs:
-- `minimizedDialogs: { id, title, icon, onRestore, onClose }[]`
-- Actions: `registerMinimizedDialog`, `unregisterMinimizedDialog`.
-- Stored in memory only (not localStorage — callbacks aren't serializable).
+## 1. Settings & storage
+- Add two fields to `settings` (single-row config): `incorporation_date` (default `2026-07-01`) and `active_period` (`'current' | 'before'`, default `'current'`).
+- Store user-selected period in `localStorage` (`fiscalPeriod`) so it persists per device; falls back to settings default.
+- New tiny context `FiscalPeriodContext` exposes `{ period, setPeriod, incorporationDate, effectiveFrom, effectiveTo }`.
+  - `current`: `from = 2026-07-01`, `to = null` (open)
+  - `before`: `from = null`, `to = 2026-06-30`
 
-### 2. Reusable `<MinimizableDialog>` wrapper
-New file `src/components/ui/minimizable-dialog.tsx` wrapping shadcn `Dialog`:
-- Props: `open`, `onOpenChange`, `title`, `icon?`, `onDiscard?`, plus children/className passthrough.
-- Internal `minimized` state. When `true`:
-  - Renders nothing visible; registers entry in `windowStore.minimizedDialogs` with `onRestore = () => setMinimized(false)` and `onClose = () => { setMinimized(false); onOpenChange(false); onDiscard?.(); }`.
-- When `false`: renders `<Dialog open={open && !minimized} ...>` with a `<DialogContent>` that auto-injects the minimize button at `absolute right-14 top-4` matching the X button exactly.
-- Guards `onOpenChange(false)` while minimized so clicking the chip area or pressing ESC elsewhere doesn't close it.
+## 2. Company Settings — F12 dropdown
+- On `/admin/company-settings` (or equivalent), bind a global `keydown` for `F12` that opens a Select dropdown with two options.
+- Cashiers **and** admins can toggle. Selection saved immediately, triggers `queryClient.invalidateQueries()` so all reports refetch.
+- Small badge shown at top of settings page: "Active period: Current (from 01/07/2026)".
 
-### 3. Taskbar shows dialogs + supports right-click
-Update `src/components/desktop/Taskbar.tsx`:
-- Render `minimizedDialogs` entries after the app windows, with the same styling (muted background to indicate minimized).
-- Wrap each taskbar button (both app windows and dialogs) in a shadcn `ContextMenu` with:
-  - **Restore / Maximize** → `windowActions.restore` (app) or `entry.onRestore()` (dialog).
-  - **Close** → `windowActions.close` (app) or `entry.onClose()` (dialog).
+## 3. Opening balances — real journal entry
+- One-time migration + admin action "Generate Opening Balances":
+  - Sums each account's net (debit − credit) for all lines with `entry_date <= 2026-06-30`.
+  - Inserts one journal entry dated `2026-06-30` with reference `OPENING-2026-07-01`, one line per non-zero account, balanced against retained-earnings account (SYSCOHADA 1301/1101).
+- The opening entry is **tagged** with `is_opening = true` (new boolean column on `journal_entries`) so filters can include/exclude it.
+- Rules used by report queries:
+  - **Current view**: include lines where `entry_date >= 2026-07-01` **OR** `is_opening = true`. Opening line displays as "Opening Balance" per account at 01/07/2026.
+  - **Before view**: include lines where `entry_date <= 2026-06-30` **AND** `is_opening = false`.
 
-### 4. Migrate dialogs to `<MinimizableDialog>`
-Replace `<Dialog>` + `<DialogContent>` usage with the new wrapper for:
-- **Ledgerly forms** (`src/ledgerly/pages/`): `JournalForm`, `BillForm`, `InvoiceForm`, `Payments`, `Expenses` (their create/edit dialogs).
-- **Admin dialogs** (`src/components/admin/`): `PurchaseOrderDialog`, `PurchasePaymentDialog`, `PurchaseUploadDialog`, `ComboOfferDialog`, `MultiProductBOGODialog`, `MergeAccountsDialog`, `MergeProductsDialog`, `ConvertToPurchaseDialog`, `CreateQuotationFromBillDialog`, `QuoteReviewDialog`, `PendingBillsDialog`, `BulkSellPriceUpdateDialog`, `ExportProductsDialog`.
-- **POS dialogs** (`src/components/pos/`): `PaymentModal`, `RefundDialog`, `HoldTicketDialog`, `OrderViewDialog`, `CustomPriceDialog`, `SearchAllSalesDialog`, `AssignBarcodeDialog`, `JournalEntryViewDialog`.
-- Each migration is just swapping the `<Dialog>` shell and passing `title` — internal content untouched.
-- The existing inline minimize button in `src/pages/admin/Purchases.tsx` (lines 1101–1134) is removed; the wrapper handles it.
+## 4. Reports affected
+All read the same period context and pass `from`/`to` filters:
+- General Ledger (`src/pages/admin/GeneralLedger.tsx` + `src/ledgerly/pages/GeneralLedger.tsx`)
+- Trial Balance (`src/ledgerly/pages/TrialBalance.tsx`)
+- P&L (`src/ledgerly/pages/ProfitLoss.tsx`)
+- Balance Sheet (`src/ledgerly/pages/BalanceSheet.tsx`)
+- Journal Entries listing
+- Stock reports / dashboards showing opening qty (virtual — computed by summing stock movements up to `effectiveFrom - 1`)
+
+Date pickers on each report default to the period bounds but remain overridable within that period.
+
+## 5. Stock (virtual opening only)
+- No new stock snapshot table. Existing `inventory_layers` / stock movement history is queried with the period bounds.
+- "Opening Stock" column = sum of movements before `effectiveFrom`; "Current Stock" = opening + movements in period.
+- Stock deduction triggers are untouched.
+
+## 6. Safety & audit
+- Opening entry can only be generated once (unique constraint on `reference = 'OPENING-2026-07-01'`).
+- Admin-only "Regenerate opening" action requires PIN + explicit confirm; deletes prior opening entry and rebuilds.
+- All changes respect existing RLS (POS admin/cashier roles).
+
+## 7. Rollout
+1. Migration: add `incorporation_date`, `active_period` to `settings`; add `is_opening bool default false` to `journal_entries`; unique index on opening reference.
+2. Backend RPC `generate_opening_balances(p_cutoff date)` — computes and inserts atomically.
+3. `FiscalPeriodContext` + F12 handler in Company Settings.
+4. Update the 4 report pages + GL to consume the context.
+5. Update stock dashboard queries.
+6. Admin one-click "Generate opening balances" button in Company Settings (runs the RPC).
 
 ## Technical notes
-- Wrapper keeps children mounted (`open && !minimized` controls Dialog visibility, but the parent's `open` prop stays true, so form state lives in the parent).
-- Right-click uses shadcn `ContextMenu` already in `src/components/ui/`.
-- Icon registry: pass `icon` per dialog (e.g. `ShoppingCart` for purchase, `Receipt` for payment) — falls back to a generic `FileText`.
-- No changes to business logic, queries, or DB — purely UI plumbing.
-
-## Out of scope
-- "Move to taskbar / desktop" toggle and "Keep on top" (not selected).
-- Smaller utility dialogs (alerts, confirm prompts) — only large create/edit dialogs are migrated.
+- Files touched: `settings` schema, `src/contexts/FiscalPeriodContext.tsx` (new), `src/pages/admin/CompanySettings.tsx` (or `RestaurantSettings.tsx` equivalent), all report pages listed above, `src/ledgerly/lib/fetchAllJournalLines.ts` (accept opening-inclusion flag).
+- No changes to POS transaction posting logic — triggers keep writing entries with real dates; the period filter is a read-side concern only.
