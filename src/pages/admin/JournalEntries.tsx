@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,11 +120,16 @@ export default function JournalEntries() {
   const { data: journalResult, isLoading } = useQuery({
     queryKey: ['journal-entries', startDate?.toISOString(), endDate?.toISOString(), searchQuery, page],
     queryFn: async () => {
+      const fp = readFiscalPeriodBoundsSync();
+      const fpFrom = fp.effectiveFrom ? new Date(fp.effectiveFrom + 'T00:00:00') : null;
+      const fpTo = fp.effectiveTo ? new Date(fp.effectiveTo + 'T23:59:59') : null;
+      const effStart = fpFrom && (!startDate || startDate < fpFrom) ? fpFrom : startDate;
+      const effEnd = fpTo && (!endDate || endDate > fpTo) ? fpTo : endDate;
       try {
         const { fetchJournalEntriesLocal } = await import('@/db/queries/accounting');
         return await fetchJournalEntriesLocal({
-          start: startDate ?? null,
-          end: endDate ?? null,
+          start: effStart ?? null,
+          end: effEnd ?? null,
           searchQuery,
           page,
           pageSize,
@@ -131,7 +137,7 @@ export default function JournalEntries() {
       } catch (e) {
         console.warn('[journal-entries] local fetch failed, falling back to Supabase', e);
       }
-      const isSearching = !!(searchQuery.trim() || startDate || endDate);
+      const isSearching = !!(searchQuery.trim() || effStart || effEnd);
 
       let query = supabase
         .from('journal_entries')
@@ -145,11 +151,11 @@ export default function JournalEntries() {
         .order('created_at', { ascending: false });
 
       // Server-side date filtering
-      if (startDate) {
-        query = query.gte('entry_date', startOfDay(startDate).toISOString().split('T')[0]);
+      if (effStart) {
+        query = query.gte('entry_date', startOfDay(effStart).toISOString().split('T')[0]);
       }
-      if (endDate) {
-        query = query.lte('entry_date', endOfDay(endDate).toISOString().split('T')[0]);
+      if (effEnd) {
+        query = query.lte('entry_date', endOfDay(effEnd).toISOString().split('T')[0]);
       }
 
       // Server-side search
