@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
+import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAccountBalancesLocal, fetchProfitLossInputsLocal } from '@/db/queries/accounting';
@@ -40,6 +40,12 @@ export default function ProfitLoss() {
     _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
+  useEffect(() => {
+    const cs = clampToFiscal(startDate);
+    const ce = clampToFiscal(endDate);
+    if (cs !== startDate) setStartDate(cs);
+    if (ce !== endDate) setEndDate(ce);
+  }, [startDate, endDate]);
 
   const { data: plData, isLoading } = useQuery({
     queryKey: ['profit-loss', startDate, endDate],
@@ -466,7 +472,9 @@ export default function ProfitLoss() {
                 id="start-date"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                min={_fp.effectiveFrom ?? undefined}
+                max={_fp.effectiveTo ?? undefined}
+                onChange={(e) => setStartDate(clampToFiscal(e.target.value))}
               />
             </div>
             <div>
@@ -475,7 +483,9 @@ export default function ProfitLoss() {
                 id="end-date"
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                min={_fp.effectiveFrom ?? undefined}
+                max={_fp.effectiveTo ?? undefined}
+                onChange={(e) => setEndDate(clampToFiscal(e.target.value))}
               />
             </div>
           </div>
