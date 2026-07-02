@@ -50,10 +50,11 @@ export default function GeneralLedger() {
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const _fp = readFiscalPeriodBoundsSync();
   const [startDate, setStartDate] = useState(
-    new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
+    _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
 
   // Set selected account from URL parameter
