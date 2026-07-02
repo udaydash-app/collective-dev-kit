@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 import {
   Table,
   TableBody,
