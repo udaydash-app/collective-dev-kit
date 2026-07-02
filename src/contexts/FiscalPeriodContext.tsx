@@ -90,3 +90,13 @@ export function readFiscalPeriodBoundsSync(): { period: FiscalPeriodValue; effec
   const incorp = DEFAULT_INCORP;
   return { period, incorporationDate: incorp, ...computeBounds(period, incorp) };
 }
+
+/** Clamp a yyyy-mm-dd date string into the active fiscal window. */
+export function clampToFiscal(date: string | null | undefined): string {
+  const { effectiveFrom, effectiveTo } = readFiscalPeriodBoundsSync();
+  const today = new Date().toISOString().slice(0, 10);
+  let d = (date && date.length >= 10) ? date : today;
+  if (effectiveFrom && d < effectiveFrom) d = effectiveFrom;
+  if (effectiveTo && d > effectiveTo) d = effectiveTo;
+  return d;
+}
