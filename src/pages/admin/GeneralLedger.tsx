@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
-import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
+import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
 import {
   Table,
   TableBody,
@@ -56,6 +56,12 @@ export default function GeneralLedger() {
     _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
+  useEffect(() => {
+    const cs = clampToFiscal(startDate);
+    const ce = clampToFiscal(endDate);
+    if (cs !== startDate) setStartDate(cs);
+    if (ce !== endDate) setEndDate(ce);
+  }, [startDate, endDate]);
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
 
   // Set selected account from URL parameter
@@ -1096,7 +1102,9 @@ export default function GeneralLedger() {
               id="start-date"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              min={_fp.effectiveFrom ?? undefined}
+              max={_fp.effectiveTo ?? undefined}
+              onChange={(e) => setStartDate(clampToFiscal(e.target.value))}
             />
           </div>
 
@@ -1106,7 +1114,9 @@ export default function GeneralLedger() {
               id="end-date"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              min={_fp.effectiveFrom ?? undefined}
+              max={_fp.effectiveTo ?? undefined}
+              onChange={(e) => setEndDate(clampToFiscal(e.target.value))}
             />
           </div>
         </div>

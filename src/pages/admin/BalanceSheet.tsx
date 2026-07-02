@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
+import { useState, useEffect } from 'react';
+import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,10 @@ export default function BalanceSheet() {
   usePageView('Admin - Balance Sheet');
   const _fp = readFiscalPeriodBoundsSync();
   const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
+  useEffect(() => {
+    const c = clampToFiscal(asOfDate);
+    if (c !== asOfDate) setAsOfDate(c);
+  }, [asOfDate]);
 
   const { data: balanceSheetData, isLoading } = useQuery({
     queryKey: ['balance-sheet', asOfDate],
@@ -315,7 +319,9 @@ export default function BalanceSheet() {
               id="as-of-date"
               type="date"
               value={asOfDate}
-              onChange={(e) => setAsOfDate(e.target.value)}
+              min={_fp.effectiveFrom ?? undefined}
+              max={_fp.effectiveTo ?? undefined}
+              onChange={(e) => setAsOfDate(clampToFiscal(e.target.value))}
             />
           </div>
         </div>
