@@ -143,7 +143,7 @@ export default function AdminOrders() {
         if (order.type === 'pos') {
           const { data: freshTx } = await supabase
             .from('pos_transactions')
-            .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+            .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
             .eq('id', orderId)
             .single();
           if (freshTx) {
@@ -153,6 +153,10 @@ export default function AdminOrders() {
               tax: freshTx.tax,
               discount: freshTx.discount || 0,
               total: freshTx.total,
+              real_subtotal: freshTx.real_subtotal,
+              real_tax: freshTx.real_tax,
+              real_discount: freshTx.real_discount,
+              real_total: freshTx.real_total,
               payment_method: freshTx.payment_method,
               payment_details: freshTx.payment_details,
             });
@@ -164,7 +168,7 @@ export default function AdminOrders() {
             .eq('order_id', orderId);
           const { data: freshOrd } = await supabase
             .from('orders')
-            .select('subtotal, tax, total, delivery_fee, status')
+            .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
             .eq('id', orderId)
             .single();
           if (freshItems) order.items = freshItems;
