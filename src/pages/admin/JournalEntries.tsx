@@ -56,6 +56,7 @@ import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 interface JournalLine {
   account_id: string;
@@ -69,6 +70,8 @@ interface JournalLine {
 export default function JournalEntries() {
   usePageView('Admin - Journal Entries');
   useRealtimeSync();
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -148,6 +151,7 @@ export default function JournalEntries() {
             accounts (account_code, account_name)
           )
         `, { count: 'exact' })
+        .neq('is_real_ledger', true)
         .order('created_at', { ascending: false });
 
       // Server-side date filtering
@@ -173,7 +177,19 @@ export default function JournalEntries() {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { entries: data, totalCount: count || 0 };
+      // Attach paired real-ledger entries for F12 reveal
+      const maskedIds = (data ?? []).map((e: any) => e.id);
+      let realByMaskedId = new Map<string, any>();
+      if (maskedIds.length > 0) {
+        const { data: realData } = await supabase
+          .from('journal_entries')
+          .select(`*, journal_entry_lines (*, accounts (account_code, account_name))`)
+          .eq('is_real_ledger', true)
+          .in('masked_entry_id', maskedIds);
+        for (const r of realData ?? []) realByMaskedId.set(r.masked_entry_id as string, r);
+      }
+      const entries = (data ?? []).map((e: any) => ({ ...e, real_entry: realByMaskedId.get(e.id) ?? null }));
+      return { entries, totalCount: count || 0 };
     },
     refetchOnMount: 'always',
     staleTime: 0,
