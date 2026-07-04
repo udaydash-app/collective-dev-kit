@@ -2999,7 +2999,8 @@ export default function POS() {
       cartDiscountItem ? [cartDiscountItem] : undefined,
       cartDiscountAmount, // Pass the cart discount amount
       editingOrderId || undefined,
-      editingOrderType || undefined
+      editingOrderType || undefined,
+      showRealDisplay // F12 active at checkout → persist real (unmasked) prices
     );
     
     if (result) {
