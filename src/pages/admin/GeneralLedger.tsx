@@ -854,7 +854,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold">
-          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
+          {fmtMoney(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
           {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -872,7 +872,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold text-primary">
-          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
+          {fmtMoney(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
           {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -1146,26 +1146,26 @@ export default function GeneralLedger() {
                   Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {formatCurrency(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
+                {fmtMoney(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
                 {Number((ledgerData.account as any).current_balance || 0) < 0 && ' CR'}
               </p>
               {(ledgerData.account as any).isUnified && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  A/R: {formatCurrency(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
-                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
+                  A/R: {fmtMoney(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
+                  A/P: {fmtMoney(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
                 </p>
               )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Debits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(Number(totalDebit))}
+                {fmtMoney(Number(totalDebit))}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Credits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(Number(totalCredit))}
+                {fmtMoney(Number(totalCredit))}
               </p>
             </div>
           </div>
@@ -1242,16 +1242,16 @@ export default function GeneralLedger() {
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.debit_amount > 0
-                            ? formatCurrency(entry.debit_amount)
+                            ? fmtMoney(entry.debit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.credit_amount > 0
-                            ? formatCurrency(entry.credit_amount)
+                            ? fmtMoney(entry.credit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold">
-                          {formatCurrency(Math.abs(entry.running_balance))}
+                          {fmtMoney(Math.abs(entry.running_balance))}
                           {entry.running_balance < 0 && ' CR'}
                         </TableCell>
                       </TableRow>
