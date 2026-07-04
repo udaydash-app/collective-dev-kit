@@ -846,7 +846,7 @@ export default function JournalEntries() {
           <DialogHeader>
             <DialogTitle>Journal Entry Details</DialogTitle>
           </DialogHeader>
-          {selectedEntry && (
+          {revealedSelectedEntry && (() => { const selectedEntry = revealedSelectedEntry; return (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -917,7 +917,7 @@ export default function JournalEntries() {
                 </TableBody>
               </Table>
             </div>
-          )}
+          ); })()}
         </DialogContent>
       </Dialog>
 
