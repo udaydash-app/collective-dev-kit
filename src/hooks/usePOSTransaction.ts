@@ -1172,6 +1172,8 @@ export const usePOSTransaction = () => {
               subtotal: transactionData.subtotal,
               total: transactionData.total,
               tax: transactionData.tax,
+              real_subtotal: transactionData.real_subtotal,
+              real_total: transactionData.real_total,
               updated_at: new Date().toISOString(),
               customer_id: transactionData.customer_id || null
             })
@@ -1382,8 +1384,10 @@ export const usePOSTransaction = () => {
     clearCart,
     loadCart,
     calculateSubtotal,
+    calculateRealSubtotal,
     calculateTimbre,
     calculateTotal,
+    calculateRealTotal,
     processTransaction,
     isProcessing,
   };
