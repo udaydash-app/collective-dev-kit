@@ -44,6 +44,8 @@ import { Search, Package, Edit, Save, UserCircle, FileText, Receipt, Trash2 } fr
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { computeMaskedPrice } from '@/lib/priceMasking';
 
 interface Customer {
   id: string;
@@ -63,6 +65,22 @@ interface CustomerProductPrice {
 export default function Pricing() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('standard');
+  const { showMasked } = usePriceMasking();
+
+  // Return masked selling price when POS session is active and F12 is not held.
+  const maskSell = (real: number | null | undefined, product: any): number | null => {
+    if (real == null) return null;
+    if (!showMasked) return Number(real);
+    const masked = computeMaskedPrice(
+      {
+        price: Number(real),
+        cost_price: product?.cost_price,
+        local_charges: product?.local_charges,
+      },
+      { local_charges: product?.local_charges, price: Number(real) },
+    );
+    return masked || Number(real);
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
