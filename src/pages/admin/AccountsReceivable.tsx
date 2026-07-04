@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchReceivablesLocal } from "@/db/queries/accounting";
+import { fetchAccountBalanceFromJournal } from "@/db/queries/accounting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,18 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
+  // F12 flips balances between masked (default) and real ledger, matching
+  // the General Ledger so AR/AP figures agree with the customer ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: receivables, isLoading } = useQuery({
-    queryKey: ['accounts-receivable'],
+    queryKey: ['accounts-receivable', isRealLedger],
     queryFn: async () => {
-      try {
-        return await fetchReceivablesLocal();
-      } catch (e) {
-        console.warn('[receivables] local failed, falling back to supabase', e);
-      }
       const { data: contacts, error } = await supabase
         .from('contacts')
         .select(`
@@ -39,37 +39,25 @@ export default function AccountsReceivable() {
 
       if (error) throw error;
 
-      // Calculate unified balance for each contact
+      // Balances come from posted journal_entry_lines filtered by
+      // is_real_ledger so F12 changes the numbers here just like on the GL.
       const contactsWithBalance = await Promise.all(
         contacts.map(async (contact) => {
           let totalBalance = 0;
-
-          // Get customer ledger account balance directly
           if (contact.customer_ledger_account_id) {
-            const { data: customerAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', contact.customer_ledger_account_id)
-              .single();
-
-            if (customerAccount) {
-              totalBalance = customerAccount.current_balance;
-            }
+            totalBalance += await fetchAccountBalanceFromJournal(
+              contact.customer_ledger_account_id,
+              isRealLedger,
+            );
           }
-
-          // If also a supplier, subtract their supplier balance (we owe them)
           if (contact.is_supplier && contact.supplier_ledger_account_id) {
-            const { data: supplierAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', contact.supplier_ledger_account_id)
-              .single();
-
-            if (supplierAccount) {
-              totalBalance -= supplierAccount.current_balance;
-            }
+            // Supplier ledger sits on the credit side; subtract what we owe.
+            const supplierBal = await fetchAccountBalanceFromJournal(
+              contact.supplier_ledger_account_id,
+              isRealLedger,
+            );
+            totalBalance -= -supplierBal; // supplier account: credit-normal → balance is negative
           }
-
           return {
             id: contact.id,
             name: contact.name,
