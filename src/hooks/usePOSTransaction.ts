@@ -1074,6 +1074,13 @@ export const usePOSTransaction = () => {
       const tax = timbreTax.taxAmount;
       const total = subtotalAfterDiscount + tax;
 
+      // Dual accounting: real (unmasked) totals stored alongside masked ones.
+      const realSubtotal = calculateRealSubtotal();
+      const realSubtotalAfterDiscount = realSubtotal - finalDiscount;
+      const realTimbre = calculateTimbreTax(realSubtotalAfterDiscount);
+      const realTax = realTimbre.taxAmount;
+      const realTotal = realSubtotalAfterDiscount + realTax;
+
       // Determine primary payment method (highest amount)
       const primaryPayment = payments.reduce((prev, current) => 
         (current.amount > prev.amount) ? current : prev
@@ -1097,6 +1104,10 @@ export const usePOSTransaction = () => {
         tax: Math.round(tax * 100) / 100,
         discount: Math.round(finalDiscount * 100) / 100,
         total: Math.round(total * 100) / 100,
+        real_subtotal: Math.round(realSubtotal * 100) / 100,
+        real_tax: Math.round(realTax * 100) / 100,
+        real_discount: Math.round(finalDiscount * 100) / 100,
+        real_total: Math.round(realTotal * 100) / 100,
         payment_method: primaryPayment.method,
         payment_details: payments.map(p => ({
           method: p.method,
@@ -1123,6 +1134,10 @@ export const usePOSTransaction = () => {
               tax: transactionData.tax,
               discount: transactionData.discount,
               total: transactionData.total,
+              real_subtotal: transactionData.real_subtotal,
+              real_tax: transactionData.real_tax,
+              real_discount: transactionData.real_discount,
+              real_total: transactionData.real_total,
               payment_method: transactionData.payment_method,
               payment_details: transactionData.payment_details,
               notes: transactionData.notes,
