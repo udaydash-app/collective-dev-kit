@@ -98,6 +98,16 @@ export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { showMasked } = usePriceMasking();
+  const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
+    if (real == null) return null;
+    if (!showMasked) return Number(real);
+    const m = computeMaskedPrice(
+      { price: Number(real), cost_price: variant?.cost_price ?? product?.cost_price, local_charges: product?.local_charges },
+      { local_charges: product?.local_charges, price: Number(real) },
+    );
+    return m || Number(real);
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
