@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent } from '@/components/ui/card';
+import { Printer } from 'lucide-react';
+import { printZReport, type ZReportData } from '@/lib/zReport';
 
 interface Transaction {
   id: string;
@@ -19,6 +21,10 @@ interface Transaction {
   created_at: string;
   customer_name?: string;
   transaction_number?: string;
+  items?: any;
+  subtotal?: number;
+  tax?: number;
+  discount?: number;
 }
 
 interface Purchase {
@@ -81,6 +87,8 @@ interface CashOutDialogProps {
   journalCashEffect?: number;
   mobileMoneyJournalEntries?: JournalEntry[];
   journalMobileMoneyEffect?: number;
+  storeName?: string;
+  cashierName?: string;
 }
 
 export const CashOutDialog = ({ 
@@ -98,7 +106,9 @@ export const CashOutDialog = ({
   journalEntries = [], 
   journalCashEffect = 0, 
   mobileMoneyJournalEntries = [], 
-  journalMobileMoneyEffect = 0 
+  journalMobileMoneyEffect = 0,
+  storeName,
+  cashierName,
 }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
@@ -188,11 +198,112 @@ export const CashOutDialog = ({
     setIsProcessing(true);
     try {
       await onConfirm(amount, notes || undefined);
+      // Auto-print Z Report after successful close
+      try {
+        await printZReport(buildZReportData(amount));
+      } catch (e) {
+        console.error('Z Report print failed', e);
+      }
       setClosingCash('');
       setNotes('');
       onClose();
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Build categories, tax, discounts summary from transaction items
+  const zSummary = (() => {
+    const catMap = new Map<string, { quantity: number; netSales: number }>();
+    const discMap = new Map<string, { count: number; amount: number }>();
+    let totalNet = 0;
+    let totalTax = 0;
+    let totalDisc = 0;
+
+    transactions.forEach(t => {
+      totalTax += Number(t.tax || 0);
+      totalDisc += Number(t.discount || 0);
+      if (t.discount && t.discount > 0) {
+        const key = 'Discount';
+        const cur = discMap.get(key) || { count: 0, amount: 0 };
+        discMap.set(key, { count: cur.count + 1, amount: cur.amount + Number(t.discount) });
+      }
+      const items: any[] = Array.isArray(t.items) ? t.items : [];
+      items.forEach(item => {
+        if (item?.id === 'cart-discount') return;
+        const category = item.category || 'Uncategorized';
+        const qty = Math.abs(Number(item.quantity || 0));
+        const basePrice = (item.customPrice != null && item.customPrice !== '' && Number(item.customPrice) !== 0)
+          ? Math.abs(Number(item.customPrice))
+          : Number(item.price ?? item.unit_price ?? 0);
+        const unit = Math.max(0, basePrice - Math.abs(Number(item.itemDiscount || 0)));
+        const rev = unit * qty;
+        totalNet += rev;
+        const cur = catMap.get(category) || { quantity: 0, netSales: 0 };
+        catMap.set(category, { quantity: cur.quantity + qty, netSales: cur.netSales + rev });
+
+        const itemDiscTotal = (Number(item.itemDiscount || 0)) * qty;
+        if (itemDiscTotal > 0) {
+          const key = 'Item Discount';
+          const cur2 = discMap.get(key) || { count: 0, amount: 0 };
+          discMap.set(key, { count: cur2.count + 1, amount: cur2.amount + itemDiscTotal });
+        }
+      });
+    });
+
+    // Fallback if items aren't available: derive from totals
+    if (totalNet === 0 && transactions.length > 0) {
+      totalNet = transactions.reduce((s, t) => s + Number(t.subtotal ?? t.total ?? 0), 0) - totalDisc;
+    }
+
+    return {
+      categories: Array.from(catMap.entries())
+        .map(([category, v]) => ({ category, ...v }))
+        .sort((a, b) => b.netSales - a.netSales),
+      discounts: Array.from(discMap.entries()).map(([name, v]) => ({ name, ...v })),
+      totalNetSales: totalNet,
+      tax: totalTax,
+      totalDiscount: totalDisc,
+    };
+  })();
+
+  const totalSalesForReport =
+    transactions.length > 0
+      ? transactions.reduce((s, t) => s + Number(t.total || 0), 0)
+      : cashSales + creditSales + mobileMoneySales;
+
+  const buildZReportData = (actualClosing?: number): ZReportData => ({
+    storeName: storeName || 'GLOBAL INDIAN MART',
+    date: new Date(),
+    cashierName,
+    openingCash,
+    totalNetSales: zSummary.totalNetSales,
+    tax: zSummary.tax,
+    totalSales: totalSalesForReport,
+    categories: zSummary.categories,
+    payments: [
+      { label: 'Cash', amount: cashSales },
+      { label: 'Credit', amount: creditSales },
+      { label: 'Mobile Money', amount: mobileMoneySales },
+    ].filter(p => p.amount > 0),
+    totalPayments: cashSales + creditSales + mobileMoneySales,
+    discounts: zSummary.discounts,
+    expectedCash,
+    closingCash: actualClosing,
+    cashDifference: actualClosing !== undefined ? actualClosing - expectedCash : undefined,
+    purchases: totalPurchases,
+    expenses: totalExpenses,
+    supplierPayments: totalSupplierPayments,
+    paymentReceipts: totalPayments,
+    transactionCount: transactions.length,
+  });
+
+  const handlePrintZReport = async () => {
+    try {
+      const amt = parseFloat(closingCash);
+      await printZReport(buildZReportData(!isNaN(amt) ? amt : undefined));
+    } catch (e) {
+      console.error('Z Report print failed', e);
     }
   };
 
@@ -822,6 +933,17 @@ export const CashOutDialog = ({
             size="lg"
           >
             Cancel
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handlePrintZReport}
+            disabled={isProcessing}
+            className="h-12"
+            size="lg"
+            title="Print Z Report preview"
+          >
+            <Printer className="mr-2 h-5 w-5" />
+            Print Z Report
           </Button>
           <Button
             onClick={handleConfirm}
