@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { kioskPrintService } from '@/lib/kioskPrint';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 interface Payment {
   id: string;
@@ -29,6 +30,7 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
+  realTotal?: number;
   onConfirm: (payments: Payment[], totalPaid: number) => Promise<any>;
   selectedCustomer?: any;
   transactionData?: {
@@ -40,6 +42,7 @@ interface PaymentModalProps {
       displayName?: string;
       quantity: number;
       price: number;
+      realPrice?: number;
       customPrice?: number;
       itemDiscount?: number;
       isCombo?: boolean;
@@ -55,6 +58,10 @@ interface PaymentModalProps {
     discount: number;
     tax: number;
     total: number;
+    realSubtotal?: number;
+    realDiscount?: number;
+    realTax?: number;
+    realTotal?: number;
     paymentMethod: string;
     cashierName?: string;
     storeName?: string;
@@ -64,7 +71,10 @@ interface PaymentModalProps {
   };
 }
 
-export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustomer: propSelectedCustomer, transactionData }: PaymentModalProps) => {
+export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, selectedCustomer: propSelectedCustomer, transactionData }: PaymentModalProps) => {
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
+  const displayTotal = showReal ? (realTotal ?? total) : total;
   const [payments, setPayments] = useState<Payment[]>([
     { id: '1', method: 'cash', amount: total }
   ]);
@@ -260,6 +270,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
             tax={transactionData.tax}
             discount={transactionData.discount}
             total={transactionData.total}
+            realSubtotal={transactionData.realSubtotal}
+            realTax={transactionData.realTax}
+            realDiscount={transactionData.realDiscount}
+            realTotal={transactionData.realTotal}
+            showRealPrices={showReal}
             paymentMethod={transactionData.paymentMethod}
             date={new Date()}
             cashierName={transactionData.cashierName}
@@ -461,7 +476,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           <div className="p-4 bg-primary/10 rounded-lg">
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(total)}</p>
+              <p className={`text-2xl font-bold ${showReal ? 'text-amber-600' : 'text-primary'}`}>{formatCurrency(displayTotal)}</p>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Paid</span>
@@ -648,6 +663,11 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               tax={transactionData.tax}
               discount={transactionData.discount}
               total={transactionData.total}
+              realSubtotal={transactionData.realSubtotal}
+              realTax={transactionData.realTax}
+              realDiscount={transactionData.realDiscount}
+              realTotal={transactionData.realTotal}
+              showRealPrices={showReal}
               paymentMethod={transactionData.paymentMethod}
               date={new Date()}
               cashierName={transactionData.cashierName}
