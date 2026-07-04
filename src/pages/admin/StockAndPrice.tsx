@@ -37,6 +37,8 @@ import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
 import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { computeMaskedPrice } from '@/lib/priceMasking';
 
 type EditedPrices = {
   [key: string]: {
