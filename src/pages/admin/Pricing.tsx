@@ -672,18 +672,18 @@ export default function Pricing() {
                         {(product.cost_price || product.local_charges) ? formatCurrency((Number(product.cost_price) || 0) + (Number(product.local_charges) || 0)) : '-'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {product.price ? formatCurrency(product.price) : '-'}
+                        {product.price ? formatCurrency(maskSell(product.price, product) as number) : '-'}
                       </TableCell>
                       <TableCell className="text-right text-blue-600">
-                        {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                        {product.wholesale_price ? formatCurrency(maskSell(product.wholesale_price, product) as number) : '-'}
                       </TableCell>
                       <TableCell className="text-right text-purple-600">
-                        {product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                        {product.vip_price ? formatCurrency(maskSell(product.vip_price, product) as number) : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         {product.price && (product.cost_price || product.local_charges) ? (
                           <Badge variant="outline">
-                            {calculateMargin(product.price, (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0))}%
+                            {calculateMargin(maskSell(product.price, product) as number, (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0))}%
                           </Badge>
                         ) : '-'}
                       </TableCell>
