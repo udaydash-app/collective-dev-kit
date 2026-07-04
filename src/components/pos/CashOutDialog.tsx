@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package, Printer } from 'lucide-react';
 import { formatCurrency, cn, formatDateTime } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 interface Transaction {
   id: string;
   total: number;
+  real_total?: number | null;
   payment_method: string;
   payment_details?: Array<{ method: string; amount: number }>;
   created_at: string;
@@ -112,30 +115,58 @@ export const CashOutDialog = ({
     journals: false
   });
 
-  const actualClosing = parseFloat(closingCash);
-  const difference = !isNaN(actualClosing) ? actualClosing - expectedCash : 0;
-  const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
+  // F12 reveal — toggle actuals across the EOD summary
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
+  const revealAmt = (masked: number, real?: number | null) =>
+    showReal && real != null && !isNaN(Number(real)) ? Number(real) : masked;
 
-  // Calculate sales by payment method - parse payment_details for multiple payment support
-  const cashSales = transactions.reduce((sum, t) => {
+  // Print Z Report
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrintZReport = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Z-Report-${new Date().toISOString().slice(0, 10)}`,
+  } as any);
+
+  // Scale masked payment_details by real/masked ratio so split payments unmask correctly
+  const salesByMethod = (method: string) =>
+    transactions.reduce((sum, t) => {
+      const displayTotal = revealAmt(Number(t.total), t.real_total ?? undefined);
+      const factor = Number(t.total) > 0 ? displayTotal / Number(t.total) : 1;
+      if (t.payment_details && Array.isArray(t.payment_details)) {
+        return sum + t.payment_details
+          .filter(p => p.method === method)
+          .reduce((pSum, p) => pSum + (p.amount || 0) * factor, 0);
+      }
+      return t.payment_method === method ? sum + displayTotal : sum;
+    }, 0);
+
+  const cashSales = salesByMethod('cash');
+  const creditSales = salesByMethod('credit');
+  const mobileMoneySales = salesByMethod('mobile_money');
+  const totalSales = cashSales + creditSales + mobileMoneySales;
+
+  // Recompute expected balances against reveal state. Only the sales portion
+  // differs between masked and real; opening/purchases/expenses/journals are
+  // recorded at their real values already.
+  const maskedCashSales = transactions.reduce((sum, t) => {
     if (t.payment_details && Array.isArray(t.payment_details)) {
       return sum + t.payment_details.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
     }
-    return t.payment_method === 'cash' ? sum + t.total : sum;
+    return t.payment_method === 'cash' ? sum + Number(t.total) : sum;
   }, 0);
-  const creditSales = transactions.reduce((sum, t) => {
-    if (t.payment_details && Array.isArray(t.payment_details)) {
-      return sum + t.payment_details.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-    }
-    return t.payment_method === 'credit' ? sum + t.total : sum;
-  }, 0);
-  const mobileMoneySales = transactions.reduce((sum, t) => {
+  const maskedMobileMoneySales = transactions.reduce((sum, t) => {
     if (t.payment_details && Array.isArray(t.payment_details)) {
       return sum + t.payment_details.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
     }
-    return t.payment_method === 'mobile_money' ? sum + t.total : sum;
+    return t.payment_method === 'mobile_money' ? sum + Number(t.total) : sum;
   }, 0);
-  const totalSales = cashSales + creditSales + mobileMoneySales;
+  const displayExpectedCash = expectedCash + (cashSales - maskedCashSales);
+  const displayExpectedMobileMoney = expectedMobileMoney + (mobileMoneySales - maskedMobileMoneySales);
+
+  const actualClosing = parseFloat(closingCash);
+  const difference = !isNaN(actualClosing) ? actualClosing - displayExpectedCash : 0;
+  const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
 
   // Helper functions to count transactions by payment method (considering split payments)
   const countTransactionsWithMethod = (method: string) => 
@@ -187,7 +218,10 @@ export const CashOutDialog = ({
 
     setIsProcessing(true);
     try {
-      await onConfirm(amount, notes || undefined);
+      // Persist in masked units — scale actual count back if F12 was on
+      const persistFactor = displayExpectedCash !== 0 ? expectedCash / displayExpectedCash : 1;
+      const persistedAmount = showReal ? amount * persistFactor : amount;
+      await onConfirm(persistedAmount, notes || undefined);
       setClosingCash('');
       setNotes('');
       onClose();
@@ -210,7 +244,7 @@ export const CashOutDialog = ({
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-180px)]">
-          <div className="p-6 space-y-6">
+          <div ref={printRef} className="p-6 space-y-6 print:p-2">
             {/* Opening Balance */}
             <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
               <CardContent className="p-4">
@@ -308,7 +342,9 @@ export const CashOutDialog = ({
                                       ({paymentMethods})
                                     </span>
                                   </div>
-                                  <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
+                                   <span className={cn("font-semibold flex-shrink-0 ml-2", showReal && txn.real_total != null && "text-amber-600 dark:text-amber-400")}>
+                                     {formatCurrency(revealAmt(Number(txn.total), txn.real_total ?? undefined))}
+                                   </span>
                                 </div>
                               );
                             })}
@@ -716,7 +752,7 @@ export const CashOutDialog = ({
                       <DollarSign className="h-5 w-5 text-emerald-600" />
                       <p className="text-sm font-medium">Expected Cash</p>
                     </div>
-                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(expectedCash)}</p>
+                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>{formatCurrency(displayExpectedCash)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Opening ({formatCurrency(openingCash)})</p>
                       <p>+ Sales ({formatCurrency(cashSales)})</p>
@@ -737,7 +773,7 @@ export const CashOutDialog = ({
                       <Smartphone className="h-5 w-5 text-purple-600" />
                       <p className="text-sm font-medium">Expected Mobile Money</p>
                     </div>
-                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatCurrency(expectedMobileMoney)}</p>
+                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400")}>{formatCurrency(displayExpectedMobileMoney)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Sales ({formatCurrency(mobileMoneySales)})</p>
                       {mobileMoneyPayments > 0 && <p>+ Receipts ({formatCurrency(mobileMoneyPayments)})</p>}
@@ -822,6 +858,17 @@ export const CashOutDialog = ({
             size="lg"
           >
             Cancel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handlePrintZReport?.()}
+            disabled={isProcessing}
+            className="h-12"
+            size="lg"
+            title="Print Z Report"
+          >
+            <Printer className="mr-2 h-5 w-5" />
+            Z Report
           </Button>
           <Button
             onClick={handleConfirm}
