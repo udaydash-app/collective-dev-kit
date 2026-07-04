@@ -51,12 +51,13 @@ export default function AccountsReceivable() {
             );
           }
           if (contact.is_supplier && contact.supplier_ledger_account_id) {
-            // Supplier ledger sits on the credit side; subtract what we owe.
-            const supplierBal = await fetchAccountBalanceFromJournal(
+            // Supplier ledger is credit-normal, so (debit - credit) is
+            // negative when we owe money. Adding it nets AR against AP.
+            const supplierJournalBal = await fetchAccountBalanceFromJournal(
               contact.supplier_ledger_account_id,
               isRealLedger,
             );
-            totalBalance -= -supplierBal; // supplier account: credit-normal → balance is negative
+            totalBalance += supplierJournalBal;
           }
           return {
             id: contact.id,
