@@ -5,6 +5,7 @@ import { offlineDB } from '@/lib/offlineDB';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateTimbreTax } from '@/lib/timbreTax';
 import { formatCurrency } from '@/lib/utils';
+import { computeMaskedPrice } from '@/lib/priceMasking';
 
 export interface CartItem {
   id: string;
@@ -12,6 +13,12 @@ export interface CartItem {
   name: string;
   displayName?: string; // Custom name for this order only (doesn't modify product in DB)
   price: number;
+  /**
+   * Real (unmasked) unit selling price captured at add-to-cart time.
+   * `price` above is the MASKED display price. When masking isn't active
+   * (no POS session), `realPrice` equals `price`.
+   */
+  realPrice?: number;
   originalPrice?: number; // Store original price before discount
   quantity: number;
   barcode?: string;
@@ -66,6 +73,7 @@ const serializeCartItemForTransaction = (item: CartItem) => {
     display_name: item.displayName,
     quantity: item.quantity,
     price: item.price,
+    realPrice: item.realPrice ?? item.price,
     originalPrice: item.originalPrice,
     customPrice: item.customPrice,
     itemDiscount: item.itemDiscount || 0,
