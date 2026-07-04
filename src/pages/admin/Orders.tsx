@@ -2714,10 +2714,16 @@ export default function AdminOrders() {
               quantity: item.quantity,
               price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
               customPrice: item.customPrice,
+              realPrice: item.real_unit_price ?? item.realPrice ?? undefined,
               itemDiscount: item.itemDiscount || 0,
             }))}
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
+            realSubtotal={selectedReceiptOrder.real_subtotal ?? undefined}
+            realDiscount={selectedReceiptOrder.real_discount ?? undefined}
+            realTax={selectedReceiptOrder.real_tax ?? undefined}
+            realTotal={selectedReceiptOrder.real_total ?? undefined}
+            showRealPrices={showReal}
             customerName={selectedReceiptOrder.customer_name && selectedReceiptOrder.customer_name !== 'Walk-in Customer' ? selectedReceiptOrder.customer_name : undefined}
             customerPhone={selectedReceiptOrder.customer_phone || undefined}
             tax={Number(selectedReceiptOrder.tax || 0)}
