@@ -1,11 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 /**
- * F12 sticky reveal for real (unmasked) selling prices.
+ * F12 sticky toggle for masked selling prices.
  *
- * - Pressing F12 toggles `revealRealPrice`.
- * - Once ON, it stays ON until the active dialog/view resets it (via
- *   `reset()`) or the user presses F12 again.
+ * - Default: real prices are shown everywhere (`revealRealPrice = true`).
+ * - Pressing F12 toggles masking on; press again to reveal real prices.
  * - The listener lives only inside <PriceRevealProvider>, which is mounted
  *   on the POS/Admin route subtree.
  */
@@ -19,10 +18,13 @@ interface PriceRevealContextValue {
 const PriceRevealContext = createContext<PriceRevealContextValue | null>(null);
 
 export const PriceRevealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [revealRealPrice, setRevealRealPrice] = useState(false);
+  // Default to true: real prices are shown by default across the app.
+  // F12 toggles masking on (revealRealPrice=false → showMasked=true).
+  const [revealRealPrice, setRevealRealPrice] = useState(true);
 
   const flash = useCallback(() => setRevealRealPrice(true), []);
-  const reset = useCallback(() => setRevealRealPrice(false), []);
+  // reset() returns to the default (real prices visible).
+  const reset = useCallback(() => setRevealRealPrice(true), []);
   const toggle = useCallback(() => setRevealRealPrice((v) => !v), []);
 
   useEffect(() => {
@@ -47,16 +49,16 @@ export const PriceRevealProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
 export const useRevealRealPrice = (): boolean => {
   const ctx = useContext(PriceRevealContext);
-  return ctx?.revealRealPrice ?? false;
+  return ctx?.revealRealPrice ?? true;
 };
 
 export const usePriceRevealControls = (): PriceRevealContextValue => {
   const ctx = useContext(PriceRevealContext);
-  return ctx ?? { revealRealPrice: false, flash: () => undefined, reset: () => undefined };
+  return ctx ?? { revealRealPrice: true, flash: () => undefined, reset: () => undefined };
 };
 
 /** Snapshot the current reveal state at the moment of an event (e.g. click a print button). */
 export const useCurrentRevealSnapshot = () => {
   const ctx = useContext(PriceRevealContext);
-  return () => ctx?.revealRealPrice ?? false;
+  return () => ctx?.revealRealPrice ?? true;
 };
