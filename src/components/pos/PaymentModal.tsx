@@ -19,6 +19,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { kioskPrintService } from '@/lib/kioskPrint';
 import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 
 interface Payment {
   id: string;
@@ -73,7 +74,12 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, selectedCustomer: propSelectedCustomer, transactionData }: PaymentModalProps) => {
   const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
   const showReal = revealRealPrice && maskingEnabled;
+  // Reset F12 reveal when the payment dialog closes.
+  useEffect(() => {
+    if (!isOpen) resetReveal();
+  }, [isOpen, resetReveal]);
   const displayTotal = showReal ? (realTotal ?? total) : total;
   const [payments, setPayments] = useState<Payment[]>([
     { id: '1', method: 'cash', amount: total }

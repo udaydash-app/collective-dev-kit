@@ -30,6 +30,7 @@ import { ArrowDown, ArrowUp, BookOpen, Download, Check, ChevronsUpDown } from 'l
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn, formatDate } from '@/lib/utils';
 import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
@@ -49,6 +50,9 @@ export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   useRealtimeSync();
   const { showMasked } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
+  // Reset F12 reveal when leaving the ledger view.
+  useEffect(() => () => resetReveal(), [resetReveal]);
   /** Hide monetary amounts when a POS session is active and F12 isn't held. */
   const fmtMoney = (v: number | null | undefined) => (showMasked ? '••••••' : formatCurrency(Number(v ?? 0)));
   const [searchParams] = useSearchParams();
