@@ -40,6 +40,63 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
   return local.map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
+// Balance for a single account, derived from posted journal_entry_lines and
+// filtered by is_real_ledger so F12 flips between masked (default) and real
+// ledger. Used by Accounts Receivable / Accounts Payable so their totals
+// match the General Ledger. Returns 0 when the account has no activity.
+export async function fetchAccountBalanceFromJournal(
+  accountId: string,
+  isRealLedger: boolean,
+): Promise<number> {
+  if (!accountId) return 0;
+
+  if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      let totalDebit = 0;
+      let totalCredit = 0;
+      const PAGE = 1000;
+      let offset = 0;
+      for (let guard = 0; guard < 1000; guard++) {
+        let q = supabase
+          .from('journal_entry_lines')
+          .select('debit_amount, credit_amount, journal_entries!inner(status, is_real_ledger)')
+          .eq('account_id', accountId)
+          .eq('journal_entries.status', 'posted')
+          .order('id', { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        q = isRealLedger
+          ? q.eq('journal_entries.is_real_ledger', true)
+          : q.neq('journal_entries.is_real_ledger', true);
+        const { data, error } = await q;
+        if (error) throw error;
+        const rows = (data ?? []) as any[];
+        rows.forEach((r) => {
+          totalDebit += Number(r.debit_amount) || 0;
+          totalCredit += Number(r.credit_amount) || 0;
+        });
+        if (rows.length < PAGE) break;
+        offset += PAGE;
+      }
+      return totalDebit - totalCredit;
+    } catch (e) {
+      console.warn('[account-balance-journal] remote failed, using local', e);
+    }
+  }
+
+  const rows = await queryRows(
+    `SELECT COALESCE(SUM(l.debit_amount), 0) AS d,
+            COALESCE(SUM(l.credit_amount), 0) AS c
+     FROM journal_entry_lines l
+     JOIN journal_entries e ON e.id = l.journal_entry_id
+     WHERE l.account_id = ?
+       AND e.status = 'posted'
+       AND COALESCE(e.is_real_ledger, 0) = ?`,
+    [accountId, isRealLedger ? 1 : 0],
+  );
+  const r = rows[0] || {};
+  return (Number(r.d) || 0) - (Number(r.c) || 0);
+}
+
 // Compute debit/credit totals per account from posted journal entry lines
 // up to (and optionally from) a given date. Returns one row per active
 // account. Used by Trial Balance, Balance Sheet, and P&L expense sections.

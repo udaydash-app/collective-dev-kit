@@ -9,6 +9,8 @@ import { usePageView } from "@/hooks/useAnalytics";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { getPosAdminSession } from "@/db/queries/accounting";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { pickSaleTotal } from "@/lib/priceMasking";
 
 interface AnalyticsSummary {
   totalEvents: number;
@@ -34,6 +36,9 @@ interface ImportLog {
 
 export default function Analytics() {
   usePageView("Admin Analytics");
+  // F12 flips revenue between masked and real ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
   const [summary, setSummary] = useState<AnalyticsSummary>({
     totalEvents: 0,
     totalOrders: 0,
@@ -46,7 +51,9 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+    // Refetch when F12 flips so revenue reflects the active ledger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRealLedger]);
 
   const fetchAnalytics = async () => {
     try {
@@ -68,13 +75,14 @@ export default function Analytics() {
       // Fetch POS transactions instead of orders since this is a POS system
       const { data: transactions, error: transactionsError } = await supabase
         .from("pos_transactions")
-        .select("total, created_at");
+        .select("total, real_total, created_at");
 
       if (transactionsError) {
         console.error("Error fetching transactions:", transactionsError);
       }
 
-      const totalRevenue = transactions?.reduce((sum, tx) => sum + tx.total, 0) || 0;
+      const totalRevenue =
+        transactions?.reduce((sum, tx) => sum + pickSaleTotal(tx, isRealLedger), 0) || 0;
 
       // Fetch events summary
       const { count: eventsCount, error: eventsError } = await supabase

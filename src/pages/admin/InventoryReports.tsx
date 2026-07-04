@@ -13,6 +13,8 @@ import { FileText, Package, AlertTriangle, TrendingUp, Printer, DollarSign } fro
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { computeMaskedPrice } from '@/lib/priceMasking';
 
 type ReportType = 
   | 'stock-levels-by-category'
@@ -26,6 +28,15 @@ export default function InventoryReports() {
   const [reportType, setReportType] = useState<ReportType>('stock-levels-by-category');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
   const [showReport, setShowReport] = useState(false);
+  // F12 flips displayed sell prices between masked (default) and real.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
+  // When masked, show masked sell price = ceil((cost+local)*1.25/100)*100.
+  const priceOf = (p: any) => {
+    const real = parseFloat(p?.price?.toString() || '0');
+    if (isRealLedger) return real;
+    return computeMaskedPrice(p, { local_charges: p?.local_charges, price: real });
+  };
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -40,7 +51,7 @@ export default function InventoryReports() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['inventory-report', selectedStoreId, reportType, lowStockThreshold],
+    queryKey: ['inventory-report', selectedStoreId, reportType, lowStockThreshold, isRealLedger],
     queryFn: async () => {
       if (!selectedStoreId) return null;
 
@@ -68,7 +79,7 @@ export default function InventoryReports() {
           const stock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = stock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           const current = categoryMap.get(categoryName) || { 
             totalStock: 0, 
@@ -111,7 +122,7 @@ export default function InventoryReports() {
           const baseStock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = baseStock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           return {
             name: product.name,
@@ -119,7 +130,7 @@ export default function InventoryReports() {
             baseStock,
             variantStock,
             totalStock,
-            price: parseFloat(product.price?.toString() || '0'),
+            price: priceOf(product),
             value,
             variants: product.product_variants || [],
           };
@@ -155,7 +166,7 @@ export default function InventoryReports() {
               category: product.categories?.name || 'Uncategorized',
               totalStock,
               threshold,
-              price: parseFloat(product.price?.toString() || '0'),
+              price: priceOf(product),
             };
           })
           .filter((p: any) => p.totalStock > 0 && p.totalStock <= threshold)
@@ -189,7 +200,7 @@ export default function InventoryReports() {
               name: product.name,
               category: product.categories?.name || 'Uncategorized',
               totalStock,
-              price: parseFloat(product.price?.toString() || '0'),
+              price: priceOf(product),
             };
           })
           .filter((p: any) => p.totalStock === 0);
@@ -226,7 +237,7 @@ export default function InventoryReports() {
           const stock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = stock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           grandTotalValue += value;
           grandTotalStock += totalStock;

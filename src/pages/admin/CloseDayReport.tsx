@@ -18,6 +18,8 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { pickItemUnitPrice } from '@/lib/priceMasking';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -48,6 +50,11 @@ export default function CloseDayReport() {
 
   const { reset: resetReveal } = usePriceRevealControls();
   useEffect(() => () => resetReveal(), [resetReveal]);
+  // F12 flips sales-by-* revenue between masked and real ledger.
+  // Physical cash movements (session totals, payment_details) stay unchanged
+  // because those are actual money in the drawer.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -87,7 +94,7 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId, isRealLedger],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
@@ -107,9 +114,7 @@ export default function CloseDayReport() {
           items.forEach((item: any) => {
             const category = item.category || 'Uncategorized';
             const qty = Math.abs(item.quantity || 0);
-            const basePrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
-              ? Math.abs(item.customPrice)
-              : (item.price || 0);
+            const basePrice = Math.abs(pickItemUnitPrice(item, isRealLedger));
             const unitPrice = Math.max(0, basePrice - Math.abs(item.itemDiscount || 0));
             const revenue = unitPrice * qty;
             const current = categoryMap.get(category) || { quantity: 0, revenue: 0, transactions: 0 };
@@ -180,10 +185,8 @@ export default function CloseDayReport() {
               if (itemProductId !== selectedProductId && item.name !== productInfo?.name) return;
 
               const qty = Math.abs(item.quantity || 0);
-              // Use customPrice if available (actual sold price), subtract itemDiscount to get net price
-              const basePrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
-                ? Math.abs(item.customPrice)
-                : (item.price || item.unit_price || 0);
+              // F12 swaps masked unit price for the mirrored real one.
+              const basePrice = Math.abs(pickItemUnitPrice(item, isRealLedger));
               const unitPrice = Math.max(0, basePrice - Math.abs(item.itemDiscount || 0));
               const revenue = unitPrice * qty;
               const costPrice = item.cost_price || productInfo?.cost_price || 0;
@@ -239,10 +242,7 @@ export default function CloseDayReport() {
           items.forEach((item: any) => {
             const productId = item.productId || item.product_id || item.name;
             const qty = Math.abs(item.quantity || 0);
-            // Use customPrice if available, subtract itemDiscount to get net sold price
-            const basePrice = (item.customPrice != null && item.customPrice !== '' && item.customPrice !== 0)
-              ? Math.abs(item.customPrice)
-              : (item.price || item.unit_price || 0);
+            const basePrice = Math.abs(pickItemUnitPrice(item, isRealLedger));
             const unitPrice = Math.max(0, basePrice - Math.abs(item.itemDiscount || 0));
             const revenue = unitPrice * qty;
             const current = productMap.get(productId) || { name: item.name, quantity: 0, revenue: 0, transactions: 0 };
@@ -268,6 +268,7 @@ export default function CloseDayReport() {
           .select(`
             id, 
             total, 
+            real_total,
             items, 
             created_at,
             customer_id,
@@ -289,7 +290,7 @@ export default function CloseDayReport() {
           const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0, orders: [] };
           customerMap.set(customerId, {
             name: customerName,
-            totalSpent: current.totalSpent + parseFloat(t.total?.toString() || '0'),
+            totalSpent: current.totalSpent + (isRealLedger ? (Number(t.real_total ?? t.total) || 0) : (Number(t.total) || 0)),
             orderCount: current.orderCount + 1,
             orders: [...current.orders, { id: t.id, total: t.total, items: t.items, created_at: t.created_at }],
           });

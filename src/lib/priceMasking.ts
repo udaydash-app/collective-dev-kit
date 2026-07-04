@@ -60,3 +60,38 @@ export const pickPrice = (
   if (revealed) return Number(realValue ?? maskedValue ?? 0) || 0;
   return Number(maskedValue ?? realValue ?? 0) || 0;
 };
+
+// -----------------------------------------------------------------------------
+// Report helpers: pick masked vs real sale amounts on a pos_transactions /
+// orders row. Every report screen that displays a sale price MUST route the
+// picks through here so F12 flips between masked (default) and real ledger.
+// -----------------------------------------------------------------------------
+
+const num = (v: any) => Number(v ?? 0) || 0;
+
+export const pickSaleTotal = (row: any, isRealLedger: boolean): number =>
+  isRealLedger ? num(row?.real_total ?? row?.total) : num(row?.total);
+
+export const pickSaleSubtotal = (row: any, isRealLedger: boolean): number =>
+  isRealLedger ? num(row?.real_subtotal ?? row?.subtotal) : num(row?.subtotal);
+
+export const pickSaleDiscount = (row: any, isRealLedger: boolean): number =>
+  isRealLedger ? num(row?.real_discount ?? row?.discount) : num(row?.discount);
+
+export const pickSaleTax = (row: any, isRealLedger: boolean): number =>
+  isRealLedger ? num(row?.real_tax ?? row?.tax) : num(row?.tax);
+
+// Per-line-item unit price. Items store real_unit_price/realPrice alongside
+// the masked price/customPrice used during checkout.
+export const pickItemUnitPrice = (item: any, isRealLedger: boolean): number => {
+  const masked = num(item?.customPrice ?? item?.price ?? item?.unit_price);
+  if (!isRealLedger) return masked;
+  return num(item?.real_unit_price ?? item?.realPrice ?? masked);
+};
+
+export const pickItemLineTotal = (item: any, isRealLedger: boolean): number => {
+  const qty = num(item?.quantity ?? 1);
+  const disc = num(item?.itemDiscount ?? item?.discount);
+  const unit = pickItemUnitPrice(item, isRealLedger);
+  return Math.max(unit - disc, 0) * qty;
+};

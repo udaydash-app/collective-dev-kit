@@ -13,12 +13,17 @@ import { format } from 'date-fns';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { pickSaleTotal, pickSaleTax } from '@/lib/priceMasking';
 
 export default function TaxCollectionReport() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReport, setShowReport] = useState(false);
+  // F12 flips bill amounts and tax between masked and real ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -33,14 +38,14 @@ export default function TaxCollectionReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['tax-collection-report', selectedStoreId, startDate, endDate],
+    queryKey: ['tax-collection-report', selectedStoreId, startDate, endDate, isRealLedger],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
       // Fetch POS transactions with tax data
       const { data: transactions } = await supabase
         .from('pos_transactions')
-        .select('id, transaction_number, total, tax, metadata, created_at')
+        .select('id, transaction_number, total, real_total, tax, real_tax, metadata, created_at')
         .eq('store_id', selectedStoreId)
         .gte('created_at', `${startDate}T00:00:00`)
         .lte('created_at', `${endDate}T23:59:59`)
@@ -62,7 +67,7 @@ export default function TaxCollectionReport() {
       }[] = [];
 
       transactions?.forEach((t: any) => {
-        const totalTaxInColumn = parseFloat(t.tax?.toString() || '0');
+        const totalTaxInColumn = pickSaleTax(t, isRealLedger);
         const metadata = t.metadata || {};
         // Check both snake_case and camelCase for timbre_tax in metadata
         const timbreTax = parseFloat(metadata.timbre_tax?.toString() || metadata.timbreTax?.toString() || '0');
@@ -80,7 +85,7 @@ export default function TaxCollectionReport() {
             id: t.id,
             transaction_number: t.transaction_number,
             date: t.created_at,
-            total: parseFloat(t.total?.toString() || '0'),
+            total: pickSaleTotal(t, isRealLedger),
             regularTax,
             timbreTax,
             totalTax: regularTax + timbreTax,

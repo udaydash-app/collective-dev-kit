@@ -19,6 +19,8 @@ import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
 import { getPosAdminSession } from "@/db/queries/accounting";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { pickItemUnitPrice } from "@/lib/priceMasking";
 
 interface ExpenseRow {
   id: string;
@@ -36,6 +38,9 @@ export default function SalesTarget() {
   ]);
   const [mode, setMode] = useState<Mode>("current");
   const [simulatedMarkup, setSimulatedMarkup] = useState<number>(50);
+  // F12 flips revenue calculations between masked and real ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   // Past 3 months window
   const now = new Date();
@@ -43,7 +48,7 @@ export default function SalesTarget() {
   const endDate = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
 
   const { data: history, isLoading } = useQuery({
-    queryKey: ["sales-target-history", startDate, endDate],
+    queryKey: ["sales-target-history", startDate, endDate, isRealLedger],
     queryFn: async () => {
       const build = (total_revenue: number, total_cogs: number) => {
         const gross_profit = total_revenue - total_cogs;
@@ -107,7 +112,7 @@ export default function SalesTarget() {
           const pid = it.productId || it.product_id || it.id;
           if (!pid || !uuidRe.test(pid)) continue;
           const qty = Math.abs(Number(it.quantity) || 0);
-          const price = Number(it.customPrice ?? it.price ?? it.unit_price ?? 0);
+          const price = pickItemUnitPrice(it, isRealLedger);
           const discount = Number(it.itemDiscount ?? it.discount ?? 0);
           if (qty <= 0) continue;
           productIds.add(pid);
