@@ -15,6 +15,9 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
 import { getPosAdminSession } from "@/db/queries/accounting";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { pickItemUnitPrice, pickSaleTotal } from "@/lib/priceMasking";
 
 interface ProfitMarginData {
   product_id: string;
