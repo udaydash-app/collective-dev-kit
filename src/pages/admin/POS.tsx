@@ -2980,6 +2980,7 @@ export default function POS() {
         price: item.price, // Original price (can be negative for cart-discount)
         originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
+        realPrice: (item as any).realPrice ?? item.price,
         itemDiscount: item.itemDiscount || 0,
         isCombo: item.isCombo,
         isOneTimeOffer: item.isOneTimeOffer,
@@ -2989,6 +2990,11 @@ export default function POS() {
       discount: cartDiscountAmount,
       tax: timbreTax,
       total: total,
+      // Real (unmasked) counterparts — used by printTransactionReceipt when F12 is on.
+      realSubtotal: realSubtotalCalc,
+      realDiscount: cartDiscountAmount,
+      realTax: realTimbreTax,
+      realTotal: realTotalCalc,
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       customerName: selectedCustomer?.name,
