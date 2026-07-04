@@ -244,6 +244,7 @@ interface PosProduct {
   is_available: boolean;
   stock_quantity: number;
   cost_price?: number;
+  local_charges?: number;
   product_variants: Array<{
     id: string;
     label?: string;
@@ -254,6 +255,7 @@ interface PosProduct {
     is_default: boolean;
     barcode: string | null;
     stock_quantity: number;
+    cost_price?: number;
   }>;
 }
 
