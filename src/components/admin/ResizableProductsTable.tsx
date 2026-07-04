@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Sparkles, Package, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { computeMaskedPrice } from "@/lib/priceMasking";
 
 export interface ProductRow {
   id: string;
@@ -15,9 +17,11 @@ export interface ProductRow {
   stores?: { name: string } | null;
   stock_quantity?: number | null;
   price: number;
+  cost_price?: number | null;
+  local_charges?: number | null;
   is_available?: boolean;
   is_featured?: boolean;
-  product_variants?: { price: number }[];
+  product_variants?: { price: number; cost_price?: number | null }[];
 }
 
 type ColKey =
