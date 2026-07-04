@@ -1027,6 +1027,7 @@ export default function AdminOrders() {
             displayName: item.display_name || item.displayName,
           price: item.price || item.unit_price || item.products?.price || 0,
           customPrice: item.customPrice,
+          realPrice: item.real_unit_price ?? item.realPrice ?? (item.price || item.unit_price || item.products?.price || 0),
           quantity: item.quantity || 1,
           itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode || item.products?.barcode,
