@@ -317,7 +317,7 @@ function buildPosProductsIndex(products: PosProduct[]): PosProductsIndex {
 async function loadPosProductsIndex(): Promise<PosProductsIndex> {
   const [prodRows, varRows] = await Promise.all([
     queryRows(
-      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
        FROM products WHERE is_available = 1 ORDER BY name`,
     ),
     queryRows(
@@ -332,7 +332,7 @@ async function loadPosProductsIndex(): Promise<PosProductsIndex> {
       const [{ data: pData }, { data: vData }] = await Promise.all([
         supabase
           .from("products")
-          .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+          .select("id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges")
           .eq("is_available", true)
           .order("name"),
         supabase
@@ -445,7 +445,7 @@ export async function searchPosProductsLocal(
   const productRowsById = new Map<string, Row>();
   if (!term) {
     const prodRows = await queryRows(
-      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
        FROM products WHERE is_available = 1 ORDER BY name LIMIT ?`,
       [limit],
     );
@@ -454,7 +454,7 @@ export async function searchPosProductsLocal(
     const exact = term.trim();
     const prefix = `${exact}%`;
     const prodRows = await queryRows(
-      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
        FROM products
        WHERE is_available = 1
           AND (barcode = ? OR name LIKE ? COLLATE NOCASE OR barcode LIKE ? COLLATE NOCASE)
@@ -479,7 +479,7 @@ export async function searchPosProductsLocal(
     if (productRowsById.size === 0) {
       const contains = `%${exact}%`;
       const fallbackRows = await queryRows(
-        `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+        `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
          FROM products
          WHERE is_available = 1
            AND (name LIKE ? COLLATE NOCASE OR barcode LIKE ? COLLATE NOCASE)
@@ -536,7 +536,7 @@ export async function findPosProductByBarcodeLocal(
   if (matchVar) {
     // Load the parent product (with all variants).
     const parentRows = await queryRows(
-      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
        FROM products WHERE id = ?`,
       [matchVar.product_id],
     );
@@ -553,7 +553,7 @@ export async function findPosProductByBarcodeLocal(
   }
 
   const candidateProdRows = await queryRows(
-    `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+    `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
      FROM products
      WHERE is_available = 1 AND (barcode = ? OR barcode LIKE ? COLLATE NOCASE)
      LIMIT 20`,
@@ -594,7 +594,7 @@ export async function findPosProductByBarcodeLocal(
   );
   if (legacyVar) {
     const parentRows = await queryRows(
-      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+      `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
        FROM products WHERE id = ?`,
       [legacyVar.product_id],
     );
@@ -611,7 +611,7 @@ export async function findPosProductByBarcodeLocal(
   }
 
   const legacyProdRows = await queryRows(
-    `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+    `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price, local_charges
      FROM products
      WHERE is_available = 1 AND barcode LIKE ? COLLATE NOCASE
      LIMIT 20`,
