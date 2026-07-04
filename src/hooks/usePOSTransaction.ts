@@ -993,6 +993,17 @@ export const usePOSTransaction = () => {
     return sum;
   };
 
+  const calculateRealSubtotal = () => {
+    let sum = 0;
+    for (const item of cart) {
+      // If the cashier manually set a custom price, we treat that as their
+      // intent on both ledgers; otherwise use the captured real unit price.
+      const effectiveReal = item.customPrice ?? item.realPrice ?? item.price;
+      sum += (effectiveReal * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
+    }
+    return sum;
+  };
+
   const calculateTimbre = () => {
     const subtotal = calculateSubtotal() - discount;
     return calculateTimbreTax(subtotal).taxAmount;
@@ -1000,6 +1011,12 @@ export const usePOSTransaction = () => {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
+    const timbre = calculateTimbreTax(subtotal - discount).taxAmount;
+    return subtotal - discount + timbre;
+  };
+
+  const calculateRealTotal = () => {
+    const subtotal = calculateRealSubtotal();
     const timbre = calculateTimbreTax(subtotal - discount).taxAmount;
     return subtotal - discount + timbre;
   };
