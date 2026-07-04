@@ -656,28 +656,29 @@ export default function StockAndPrice() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Retail:</span>
                     <span className="font-semibold">
-                      {product.price ? formatCurrency(product.price) : '-'}
+                      {(() => { const d = maskSell(product.price, product); return d ? formatCurrency(d) : '-'; })()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wholesale:</span>
                     <span className="text-blue-600">
-                      {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
+                      {(() => { const d = maskSell(product.wholesale_price, product); return d ? formatCurrency(d) : '-'; })()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">VIP:</span>
                     <span className="text-purple-600">
-                      {product.vip_price ? formatCurrency(product.vip_price) : '-'}
+                      {(() => { const d = maskSell(product.vip_price, product); return d ? formatCurrency(d) : '-'; })()}
                     </span>
                   </div>
                   {(() => {
                     const cost = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
-                    return product.price && cost ? (
+                    const rp = maskSell(product.price, product);
+                    return rp && cost ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Margin:</span>
                       <Badge variant="outline">
-                        {calculateMargin(product.price, cost)}%
+                        {calculateMargin(rp, cost)}%
                       </Badge>
                     </div>
                     ) : null;
