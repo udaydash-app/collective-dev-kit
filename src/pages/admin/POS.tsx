@@ -70,6 +70,8 @@ import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog'
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { POSTodoList } from '@/components/pos/POSTodoList';
 import { cn } from '@/lib/utils';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { calculateTimbreTax } from '@/lib/timbreTax';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -2477,6 +2479,16 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
+  // Display-only totals that follow the F12 reveal. When masking is off (no POS
+  // session) or F12 is toggled on, show real (unmasked) prices to the cashier.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showRealDisplay = revealRealPrice && maskingEnabled;
+  const realSubtotalCalc = calculateRealSubtotal();
+  const realTimbreTax = calculateTimbreTax(realSubtotalCalc - discount).taxAmount;
+  const realTotalCalc = realSubtotalCalc - discount + realTimbreTax;
+  const displayTimbreTax = showRealDisplay ? realTimbreTax : timbreTax;
+  const displayTotal = showRealDisplay ? realTotalCalc : total;
+
   // Special-offer detection: when cart subtotal matches an active threshold,
   // prompt the cashier to apply the special offer discount.
   useEffect(() => {
@@ -4309,16 +4321,16 @@ export default function POS() {
 
         {/* Total Display - Below customer selection */}
         <div className="border-b p-3 space-y-2">
-          {timbreTax > 0 && (
+          {displayTimbreTax > 0 && (
             <div className="flex justify-between items-center text-xs px-3">
               <span className="text-muted-foreground">Timbre</span>
-              <span className="font-medium text-orange-600 dark:text-orange-400">+{formatCurrency(timbreTax)}</span>
+              <span className={cn("font-medium text-orange-600 dark:text-orange-400", showRealDisplay && "text-amber-600")}>+{formatCurrency(displayTimbreTax)}</span>
             </div>
           )}
           <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
             <span className="text-lg font-bold">TOTAL</span>
-            <span className="text-3xl font-bold text-primary">
-              {formatCurrency(total)}
+            <span className={cn("text-3xl font-bold text-primary", showRealDisplay && "text-amber-600")}>
+              {formatCurrency(displayTotal)}
             </span>
           </div>
           {selectedOfferItemIds.length > 0 && (
