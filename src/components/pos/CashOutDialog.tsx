@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent } from '@/components/ui/card';
+import { Printer } from 'lucide-react';
+import { printZReport, type ZReportData } from '@/lib/zReport';
 
 interface Transaction {
   id: string;
@@ -19,6 +21,10 @@ interface Transaction {
   created_at: string;
   customer_name?: string;
   transaction_number?: string;
+  items?: any;
+  subtotal?: number;
+  tax?: number;
+  discount?: number;
 }
 
 interface Purchase {
@@ -81,6 +87,8 @@ interface CashOutDialogProps {
   journalCashEffect?: number;
   mobileMoneyJournalEntries?: JournalEntry[];
   journalMobileMoneyEffect?: number;
+  storeName?: string;
+  cashierName?: string;
 }
 
 export const CashOutDialog = ({ 
@@ -98,7 +106,9 @@ export const CashOutDialog = ({
   journalEntries = [], 
   journalCashEffect = 0, 
   mobileMoneyJournalEntries = [], 
-  journalMobileMoneyEffect = 0 
+  journalMobileMoneyEffect = 0,
+  storeName,
+  cashierName,
 }: CashOutDialogProps) => {
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
