@@ -407,8 +407,8 @@ export default function GeneralLedger() {
         if (localAccount) {
           const [localContact, currentLines, priorLines] = await Promise.all([
             fetchContactByLedgerAccountLocal(selectedAccount),
-            fetchAccountLinesLocal(selectedAccount, { startDate, endDate }),
-            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true })
+            fetchAccountLinesLocal(selectedAccount, { startDate, endDate, realLedger: useRealLedger }),
+            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true, realLedger: useRealLedger })
               .then((all) => all.filter((l: any) => l.journal_entries.entry_date < startDate)),
           ]);
 
