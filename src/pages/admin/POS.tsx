@@ -5040,6 +5040,8 @@ export default function POS() {
           journalCashEffect={journalCashEffect}
           mobileMoneyJournalEntries={mobileMoneyJournalEntries || []}
           journalMobileMoneyEffect={journalMobileMoneyEffect}
+          storeName={settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || 'GLOBAL INDIAN MART'}
+          cashierName={currentCashSession?.cashier_name || 'Cashier'}
         />
       )}
 
