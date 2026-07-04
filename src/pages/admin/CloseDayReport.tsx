@@ -17,6 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
