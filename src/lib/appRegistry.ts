@@ -6,7 +6,7 @@ import {
   UserCog, MessageSquare, Percent, Gift, Repeat, Barcode as BarcodeIcon,
   ClipboardCheck, Factory, Banknote, Database, FileBarChart, Coins,
   CreditCard, Upload, UtensilsCrossed, ChefHat, Armchair, BookOpenCheck,
-  Carrot, Truck as TruckIcon, StickyNote, type LucideIcon,
+  Carrot, Truck as TruckIcon, type LucideIcon,
 } from 'lucide-react';
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 
@@ -172,10 +172,6 @@ export const APPS: AppDef[] = [
     component: L(() => import('@/pages/admin/TradeRecords')) },
   { id: 'cash-register', path: '/admin/cash-register', title: 'Cash Register', icon: Wallet, group: 'External', color: 'from-amber-600 to-orange-700',
     component: L(() => import('@/pages/admin/CashRegister')) },
-
-  // Utilities
-  { id: 'sticky-notes', path: '/admin/sticky-notes', title: 'Sticky Notes', icon: StickyNote, group: 'Admin', color: 'from-amber-400 to-orange-500',
-    component: L(() => import('@/pages/admin/StickyNotes')) },
 ];
 
 export const findAppByPath = (path: string): AppDef | undefined =>
