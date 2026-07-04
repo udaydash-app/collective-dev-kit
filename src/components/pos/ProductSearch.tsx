@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { VariantSelector } from './VariantSelector';
 import { AssignBarcodeDialog } from './AssignBarcodeDialog';
 import { formatCurrency } from '@/lib/utils';
+import { computeMaskedPrice } from '@/lib/priceMasking';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { searchPosProductsLocal, findPosProductByBarcodeLocal, warmPosProductsLocalIndex, invalidatePosProductsLocalIndex } from '@/db/queries/products';
@@ -21,6 +23,7 @@ interface ProductSearchProps {
 
 export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({ onProductSelect }, ref) => {
   const queryClient = useQueryClient();
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
   const [searchTerm, setSearchTerm] = useState('');
   const [variantSelectorOpen, setVariantSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -360,9 +363,20 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
               {products.map((product, index) => {
                 const availableVariants = product.product_variants?.filter((v: any) => v.is_available) || [];
                 const defaultVariant = availableVariants.find((v: any) => v.is_default) || availableVariants[0];
-                const displayPrice = availableVariants.length > 0 
-                  ? defaultVariant?.price 
+                const realPrice = availableVariants.length > 0
+                  ? defaultVariant?.price
                   : product.price;
+                const costSource = defaultVariant ?? product;
+                const maskedPrice = computeMaskedPrice(
+                  {
+                    price: Number(realPrice ?? 0),
+                    cost_price: costSource?.cost_price,
+                    local_charges: costSource?.local_charges,
+                  },
+                  { local_charges: product?.local_charges, price: Number(realPrice ?? 0) }
+                );
+                const showReal = !maskingEnabled || revealRealPrice;
+                const displayPrice = showReal ? realPrice : maskedPrice;
                 const displayStock = availableVariants.length > 0
                   ? defaultVariant?.stock_quantity || 0
                   : product.stock_quantity || 0;
@@ -379,7 +393,7 @@ export const ProductSearch = forwardRef<ProductSearchRef, ProductSearchProps>(({
                   >
                     <div className="text-sm truncate">{product.barcode || '-'}</div>
                     <div className="text-sm font-medium truncate">{product.name}</div>
-                    <div className="text-sm font-semibold text-right">{displayPrice ? formatCurrency(Number(displayPrice)) : '-'}</div>
+                    <div className={`text-sm font-semibold text-right ${revealRealPrice && maskingEnabled ? 'text-amber-600' : ''}`}>{displayPrice ? formatCurrency(Number(displayPrice)) : '-'}</div>
                     <div className="text-sm text-right">{displayStock}</div>
                   </div>
                 );
