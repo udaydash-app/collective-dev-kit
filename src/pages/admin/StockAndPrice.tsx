@@ -55,6 +55,21 @@ export default function StockAndPrice() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'positive' | 'negative'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const { showMasked } = usePriceMasking();
+  /** Return the masked sell price when a POS session is active and F12 is not held. */
+  const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
+    if (real == null) return null;
+    if (!showMasked) return Number(real);
+    const masked = computeMaskedPrice(
+      {
+        price: Number(real),
+        cost_price: variant?.cost_price ?? product?.cost_price,
+        local_charges: product?.local_charges,
+      },
+      { local_charges: product?.local_charges, price: Number(real) },
+    );
+    return masked || Number(real);
+  };
   
   // Bulk edit mode state
   const [bulkEditMode, setBulkEditMode] = useState(false);
