@@ -23,6 +23,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
 import { ExportProductsDialog } from "@/components/admin/ExportProductsDialog";
 import { formatCurrency } from "@/lib/utils";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { computeMaskedPrice } from "@/lib/priceMasking";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { ResizableProductsTable } from "@/components/admin/ResizableProductsTable";
