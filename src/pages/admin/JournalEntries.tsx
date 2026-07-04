@@ -783,7 +783,7 @@ export default function JournalEntries() {
           { key: 'date', label: 'Date', width: 110, render: (r) => formatDate(r.entry_date) },
           { key: 'description', label: 'Description', width: 280, render: (r) => r.description },
           { key: 'reference', label: 'Reference', width: 120, render: (r) => r.reference || '-' },
-          { key: 'amount', label: 'Amount', width: 120, align: 'right', render: (r) => <span className="font-mono">{formatCurrency(r.transaction_amount || r.total_debit)}</span> },
+          { key: 'amount', label: 'Amount', width: 120, align: 'right', render: (r) => <span className={cn("font-mono", r._revealed && "text-amber-600 dark:text-amber-400")}>{formatCurrency(r.transaction_amount || r.total_debit)}</span> },
           { key: 'status', label: 'Status', width: 90, render: (r) => (
             <Badge variant={r.status === 'posted' ? 'default' : 'secondary'}>{r.status}</Badge>
           )},
