@@ -892,6 +892,12 @@ export default function AdminOrders() {
     toast.loading('Printing...', { id: 'direct-print' });
     
     try {
+      const pick = (masked: any, real: any) => {
+        const m = Number(masked || 0);
+        if (!showReal) return m;
+        const r = real == null || real === '' ? null : Number(real);
+        return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+      };
       await kioskPrintService.printReceipt({
         storeName: settings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART',
         transactionNumber: order.order_number,
@@ -900,14 +906,17 @@ export default function AdminOrders() {
           name: item.products?.name || item.name,
           displayName: item.display_name || item.displayName,
           quantity: item.quantity,
-          price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+          price: pick(
+            item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+            item.real_unit_price ?? item.realPrice,
+          ),
           itemDiscount: item.itemDiscount || item.item_discount || 0,
           comboItems: item.comboItems || item.combo_items,
         })),
-        subtotal: Number(order.subtotal),
-        tax: Number(order.tax || 0),
-        discount: order.type === 'pos' ? Number(order.discount || 0) : undefined,
-        total: Number(order.total),
+        subtotal: pick(order.subtotal, order.real_subtotal),
+        tax: pick(order.tax || 0, order.real_tax),
+        discount: order.type === 'pos' ? pick(order.discount || 0, order.real_discount) : undefined,
+        total: pick(order.total, order.real_total),
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
         customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
