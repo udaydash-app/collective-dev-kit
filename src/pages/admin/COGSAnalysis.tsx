@@ -10,10 +10,15 @@ import { TrendingUp, DollarSign, Package } from 'lucide-react';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
 import { getPosAdminSession } from '@/db/queries/accounting';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { pickItemUnitPrice } from '@/lib/priceMasking';
 
 export default function COGSAnalysis() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('all');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  // F12 flips revenue between masked and real ledger; COGS stays constant.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
@@ -40,7 +45,7 @@ export default function COGSAnalysis() {
   });
 
   const { data: cogsData, isLoading } = useQuery({
-    queryKey: ['cogs-analysis', selectedStoreId, selectedCategoryId],
+    queryKey: ['cogs-analysis', selectedStoreId, selectedCategoryId, isRealLedger],
     queryFn: async () => {
       const adminSession = getPosAdminSession();
       if (adminSession) {
@@ -126,7 +131,7 @@ export default function COGSAnalysis() {
           if (selectedCategoryId !== 'all' && product.category_id !== selectedCategoryId) return;
 
           const quantity = Math.abs(item.quantity || 0);
-          const revenue = (item.price || 0) * quantity;
+          const revenue = pickItemUnitPrice(item, isRealLedger) * quantity;
           const unitCost = (Number(product.cost_price) || 0) + (Number((product as any).local_charges) || 0);
           const cogs = unitCost * quantity;
 
