@@ -465,7 +465,7 @@ export async function searchPosProductsLocal(
 
     if (productRowsById.size < limit) {
       const varProductRows = await queryRows(
-        `SELECT DISTINCT p.id, p.name, p.price, p.barcode, p.is_available, p.stock_quantity, p.cost_price
+        `SELECT DISTINCT p.id, p.name, p.price, p.barcode, p.is_available, p.stock_quantity, p.cost_price, p.local_charges
          FROM product_variants v
          JOIN products p ON p.id = v.product_id
          WHERE v.is_available = 1 AND p.is_available = 1
