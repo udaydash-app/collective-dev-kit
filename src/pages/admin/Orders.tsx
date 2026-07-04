@@ -113,6 +113,17 @@ export default function AdminOrders() {
   // Enable real-time sync for automatic updates
   useRealtimeSync();
 
+  // Reveal real (unmasked) totals when F12 is held. Falls back to masked when
+  // no real value is stored (e.g. legacy rows before dual accounting).
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
+  const revealAmt = (masked: any, real: any) => {
+    const m = Number(masked || 0);
+    if (!showReal) return m;
+    const r = real == null || real === '' ? null : Number(real);
+    return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+  };
+
   const toggleOrderExpanded = async (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
     if (newExpanded.has(orderId)) {
@@ -318,6 +329,10 @@ export default function AdminOrders() {
           subtotal,
           tax,
           discount,
+          real_total,
+          real_subtotal,
+          real_tax,
+          real_discount,
           payment_method,
           payment_details,
           created_at,
@@ -467,6 +482,10 @@ export default function AdminOrders() {
           subtotal: transaction.subtotal,
           tax: transaction.tax,
           discount: transaction.discount || 0,
+          real_total: (transaction as any).real_total,
+          real_subtotal: (transaction as any).real_subtotal,
+          real_tax: (transaction as any).real_tax,
+          real_discount: (transaction as any).real_discount,
           delivery_fee: 0,
           created_at: transaction.created_at,
           items: transaction.items || [],
@@ -1978,8 +1997,8 @@ export default function AdminOrders() {
                               {order.items?.length || 0} items
                             </Badge>
                           </TableCell>
-                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
-                            {formatCurrency(Number(order.total))}
+                          <TableCell className={`border-r border-border/60 px-2 py-1 text-xs font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                            {formatCurrency(revealAmt(order.total, order.real_total))}
                           </TableCell>
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
@@ -2177,8 +2196,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.name}</p>
-                                              <p className="text-sm text-muted-foreground">
-                                                Original: {formatCurrency(Number(item.price))} each
+                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                Original: {formatCurrency(revealAmt(item.price, item.realPrice))} each
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2212,8 +2231,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className="font-semibold">
-                                                {formatCurrency((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
+                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                                                {formatCurrency((Number(item.customPrice ?? revealAmt(item.price, item.realPrice)) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
                                               </p>
                                             </div>
                                             <Button
@@ -2289,8 +2308,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
-                                              <p className="text-sm text-muted-foreground">
-                                                {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
+                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                {formatCurrency(revealAmt(item.unit_price, item.real_unit_price))} / {item.products?.unit}
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2324,8 +2343,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className="font-semibold">
-                                                {formatCurrency(Number(item.subtotal))}
+                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                                                {formatCurrency(revealAmt(item.subtotal, item.real_total_price))}
                                               </p>
                                             </div>
                                             <Button
