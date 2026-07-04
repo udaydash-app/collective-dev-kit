@@ -244,7 +244,7 @@ export const CashOutDialog = ({
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-180px)]">
-          <div ref={printRef} className="p-6 space-y-6 print:p-2">
+          <div className="p-6 space-y-6">
             {/* Opening Balance */}
             <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
               <CardContent className="p-4">
@@ -888,6 +888,114 @@ export const CashOutDialog = ({
               </>
             )}
           </Button>
+        </div>
+
+        {/* Hidden Z-Report layout used by react-to-print. Kept off-screen so
+            it never renders in the dialog, but is cloned into the print iframe. */}
+        <div style={{ position: 'fixed', left: -99999, top: 0 }} aria-hidden>
+          <div
+            ref={printRef}
+            style={{
+              width: '72mm',
+              padding: '4mm 3mm',
+              fontFamily: '"Courier New", monospace',
+              fontSize: '11px',
+              lineHeight: 1.3,
+              color: '#000',
+              background: '#fff',
+            }}
+          >
+            <style>{`
+              .zr-h { text-align: center; font-weight: 700; letter-spacing: .5px; padding: 4px 0; }
+              .zr-row { display: flex; justify-content: space-between; gap: 6px; }
+              .zr-row > span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+              .zr-total { font-weight: 700; border-top: 1px solid #000; padding-top: 3px; margin-top: 3px; }
+              .zr-sec { border-top: 1px dashed #000; margin-top: 6px; padding-top: 3px; }
+              .zr-title { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; padding-bottom: 4px; border-bottom: 1px solid #000; margin-bottom: 4px; }
+            `}</style>
+
+            <div className="zr-title">
+              <span>Z Report</span>
+              <span>{formatDateTime(new Date().toISOString())}</span>
+            </div>
+
+            <div className="zr-h">SALES AND TAXES SUMMARY</div>
+            <div className="zr-row"><span>Total Net Sales</span><span>{formatCurrency(totalSales)}</span></div>
+            <div className="zr-row"><span>Tax</span><span>{formatCurrency(0)}</span></div>
+            <div className="zr-row zr-total"><span>Total Sales</span><span>{formatCurrency(totalSales)}</span></div>
+
+            <div className="zr-sec">
+              <div className="zr-h">SALES BY PAYMENT</div>
+              <div className="zr-row"><span>Cash ({countTransactionsWithMethod('cash')})</span><span>{formatCurrency(cashSales)}</span></div>
+              <div className="zr-row"><span>Credit ({countTransactionsWithMethod('credit')})</span><span>{formatCurrency(creditSales)}</span></div>
+              <div className="zr-row"><span>Mobile Money ({countTransactionsWithMethod('mobile_money')})</span><span>{formatCurrency(mobileMoneySales)}</span></div>
+              <div className="zr-row zr-total"><span>Total Net Sales</span><span>{formatCurrency(totalSales)}</span></div>
+            </div>
+
+            <div className="zr-sec">
+              <div className="zr-h">PAYMENT DETAILS</div>
+              <div className="zr-row"><span>Cash In (Sales)</span><span>{formatCurrency(cashSales)}</span></div>
+              {cashPayments > 0 && <div className="zr-row"><span>Cash In (Receipts)</span><span>{formatCurrency(cashPayments)}</span></div>}
+              {mobileMoneySales > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneySales)}</span></div>}
+              {mobileMoneyPayments > 0 && <div className="zr-row"><span>Mobile Money (Receipts)</span><span>{formatCurrency(mobileMoneyPayments)}</span></div>}
+              {creditSales > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditSales)}</span></div>}
+              <div className="zr-row zr-total"><span>Total Payments</span><span>{formatCurrency(cashSales + creditSales + mobileMoneySales + cashPayments + mobileMoneyPayments)}</span></div>
+              <div className="zr-row zr-total"><span>Payments - Sales</span><span>{formatCurrency((cashPayments + mobileMoneyPayments))}</span></div>
+            </div>
+
+            {(cashPurchases + creditPurchases + mobileMoneyPurchases) > 0 && (
+              <div className="zr-sec">
+                <div className="zr-h">PURCHASES</div>
+                {cashPurchases > 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(cashPurchases)}</span></div>}
+                {creditPurchases > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditPurchases)}</span></div>}
+                {mobileMoneyPurchases > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneyPurchases)}</span></div>}
+                <div className="zr-row zr-total"><span>Total Purchases</span><span>{formatCurrency(totalPurchases)}</span></div>
+              </div>
+            )}
+
+            {(cashExpenses + creditExpenses + mobileMoneyExpenses) > 0 && (
+              <div className="zr-sec">
+                <div className="zr-h">EXPENSES</div>
+                {cashExpenses > 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(cashExpenses)}</span></div>}
+                {creditExpenses > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditExpenses)}</span></div>}
+                {mobileMoneyExpenses > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneyExpenses)}</span></div>}
+                <div className="zr-row zr-total"><span>Total Expenses</span><span>{formatCurrency(totalExpenses)}</span></div>
+              </div>
+            )}
+
+            {(journalCashEffect !== 0 || journalMobileMoneyEffect !== 0) && (
+              <div className="zr-sec">
+                <div className="zr-h">JOURNAL ENTRIES</div>
+                {journalCashEffect !== 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(journalCashEffect)}</span></div>}
+                {journalMobileMoneyEffect !== 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(journalMobileMoneyEffect)}</span></div>}
+              </div>
+            )}
+
+            <div className="zr-sec">
+              <div className="zr-h">CASH RECONCILIATION</div>
+              <div className="zr-row"><span>Opening</span><span>{formatCurrency(openingCash)}</span></div>
+              <div className="zr-row"><span>+ Sales</span><span>{formatCurrency(cashSales)}</span></div>
+              {cashPayments > 0 && <div className="zr-row"><span>+ Receipts</span><span>{formatCurrency(cashPayments)}</span></div>}
+              {cashPurchases > 0 && <div className="zr-row"><span>- Purchases</span><span>{formatCurrency(cashPurchases)}</span></div>}
+              {cashExpenses > 0 && <div className="zr-row"><span>- Expenses</span><span>{formatCurrency(cashExpenses)}</span></div>}
+              {cashSupplierPayments > 0 && <div className="zr-row"><span>- Supplier Pmts</span><span>{formatCurrency(cashSupplierPayments)}</span></div>}
+              {journalCashEffect !== 0 && <div className="zr-row"><span>{journalCashEffect >= 0 ? '+' : '-'} Journals</span><span>{formatCurrency(Math.abs(journalCashEffect))}</span></div>}
+              <div className="zr-row zr-total"><span>Expected Cash</span><span>{formatCurrency(displayExpectedCash)}</span></div>
+              {!isNaN(actualClosing) && (
+                <>
+                  <div className="zr-row"><span>Counted Cash</span><span>{formatCurrency(actualClosing)}</span></div>
+                  <div className="zr-row zr-total"><span>{difference >= 0 ? 'Cash Over' : 'Cash Short'}</span><span>{formatCurrency(Math.abs(difference))}</span></div>
+                </>
+              )}
+            </div>
+
+            <div className="zr-sec">
+              <div className="zr-h">EXPECTED MOBILE MONEY</div>
+              <div className="zr-row zr-total"><span>Expected M. Money</span><span>{formatCurrency(displayExpectedMobileMoney)}</span></div>
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10 }}>--- END OF Z REPORT ---</div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
