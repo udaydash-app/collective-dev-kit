@@ -386,6 +386,7 @@ function mapPosProducts(prodRows: Row[], varRows: Row[]): PosProduct[] {
       is_default: toBool(v.is_default),
       barcode: v.barcode,
       stock_quantity: v.stock_quantity ?? 0,
+      cost_price: v.cost_price ?? undefined,
     });
     variantsByProduct.set(v.product_id, list);
   }
@@ -397,6 +398,7 @@ function mapPosProducts(prodRows: Row[], varRows: Row[]): PosProduct[] {
     is_available: toBool(p.is_available),
     stock_quantity: p.stock_quantity ?? 0,
     cost_price: p.cost_price ?? undefined,
+    local_charges: p.local_charges ?? undefined,
     product_variants: variantsByProduct.get(p.id) ?? [],
   }));
 }
