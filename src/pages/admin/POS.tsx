@@ -1272,6 +1272,8 @@ export default function POS() {
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
+      const sessionStartDate = sessionStart.slice(0, 10);
+      const sessionEndDate = sessionEnd.slice(0, 10);
 
       // Get journal entry lines for cash account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
@@ -1280,12 +1282,14 @@ export default function POS() {
         .select(`
           debit_amount,
           credit_amount,
-          journal_entries!inner(status, entry_date, created_at, reference, description)
+          journal_entries!inner(status, entry_date, created_at, reference, description, is_opening)
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
+        .gte('journal_entries.entry_date', sessionStartDate)
+        .lte('journal_entries.entry_date', sessionEndDate)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
       // Filter out system-generated entries client-side
@@ -1293,13 +1297,14 @@ export default function POS() {
       const filteredData = data?.filter(entry => {
         const ref = entry.journal_entries.reference || '';
         const desc = (entry.journal_entries.description || '').toUpperCase();
-        
+        if ((entry.journal_entries as any).is_opening === true) return false;
+
         // Exclude all automated journal entries by reference prefix
-        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-'];
+        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-', 'OPENING-', 'OPENING'];
         const isExcludedByRef = excludedRefPrefixes.some(prefix => ref.startsWith(prefix)) || ref.endsWith('-PMT');
         
         // Also exclude by description pattern for older entries that might not have proper references
-        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
+        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER', 'OPENING BALANCE'];
         const isExcludedByDesc = excludedDescPatterns.some(pattern => desc.includes(pattern));
         
         return !isExcludedByRef && !isExcludedByDesc;
@@ -1323,6 +1328,8 @@ export default function POS() {
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
+      const sessionStartDate2 = sessionStart.slice(0, 10);
+      const sessionEndDate2 = sessionEnd.slice(0, 10);
 
       // Get ONLY manual journal entries (exclude automated entries from POS, expenses, purchases, payment receipts, cash register)
       // Automated entries are already represented in their respective sections (sales, expenses, purchases)
@@ -1336,18 +1343,22 @@ export default function POS() {
           created_at,
           total_debit,
           total_credit,
-          status
+          status,
+          is_opening
         `)
         .eq('status', 'posted')
         .gte('created_at', sessionStart)
         .lte('created_at', sessionEnd)
+        .gte('entry_date', sessionStartDate2)
+        .lte('entry_date', sessionEndDate2)
         .order('created_at', { ascending: false });
       
       // Client-side filter to exclude automated journal entries
       // These are already shown in their respective sections (sales, expenses, purchases, payments)
-      const excludeRefPatterns = ['CASHREG', 'CASHCLOSE', 'CAISSE', 'REG-', 'EXP-', 'POS-', 'PUR-', 'PMT-'];
-      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
+      const excludeRefPatterns = ['CASHREG', 'CASHCLOSE', 'CAISSE', 'REG-', 'EXP-', 'POS-', 'PUR-', 'PMT-', 'OPENING'];
+      const excludeDescPatterns = ['DÉPENSE', 'DEPENSE', 'VENTE POS', 'ACHAT -', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER', 'OPENING BALANCE'];
       const filteredData = data?.filter(je => {
+        if ((je as any).is_opening === true) return false;
         const ref = (je.reference || '').toUpperCase();
         const desc = (je.description || '').toUpperCase();
         const isExcludedByRef = excludeRefPatterns.some(pattern => ref.includes(pattern));
@@ -1401,6 +1412,8 @@ export default function POS() {
       // Get the session timestamp range
       const sessionStart = currentCashSession.opened_at;
       const sessionEnd = currentCashSession.closed_at || new Date().toISOString();
+      const sessionStartDateMM = sessionStart.slice(0, 10);
+      const sessionEndDateMM = sessionEnd.slice(0, 10);
       
       // Get journal entry lines for mobile money account from posted entries created during the session
       // Include only truly manual journal entries by excluding system-generated prefixes
@@ -1409,26 +1422,29 @@ export default function POS() {
         .select(`
           debit_amount,
           credit_amount,
-          journal_entries!inner(status, entry_date, created_at, reference, description)
+          journal_entries!inner(status, entry_date, created_at, reference, description, is_opening)
         `)
         .eq('account_id', mobileMoneyAccount.id)
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
+        .gte('journal_entries.entry_date', sessionStartDateMM)
+        .lte('journal_entries.entry_date', sessionEndDateMM)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
       
       // Filter out system-generated entries client-side
       const filteredData = data?.filter(entry => {
         const ref = entry.journal_entries.reference || '';
         const desc = (entry.journal_entries.description || '').toUpperCase();
+        if ((entry.journal_entries as any).is_opening === true) return false;
 
         // Exclude all automated journal entries by reference prefix
         // These are already counted in their respective sections (sales, purchases, expenses, payments)
-        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-'];
+        const excludedRefPrefixes = ['POS-', 'PUR-', 'SPM-', 'PMT-', 'OB-', 'CASHREG-', 'CAISSE-', 'CASHCLOSE-', 'EXP-', 'REG-', 'OPENING-', 'OPENING'];
         const isExcludedByRef = excludedRefPrefixes.some(prefix => ref.startsWith(prefix)) || ref.endsWith('-PMT');
 
         // Also exclude by description pattern for older entries that might not have proper references
-        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER'];
+        const excludedDescPatterns = ['DÉPENSE', 'DEPENSE', 'EXPENSE', 'VENTE POS', 'ACHAT', 'PAYMENT RECEIPT', 'OUVERTURE CAISSE', 'FERMETURE CAISSE', 'CASH REGISTER', 'OPENING BALANCE'];
         const isExcludedByDesc = excludedDescPatterns.some(pattern => desc.includes(pattern));
 
         return !isExcludedByRef && !isExcludedByDesc;
