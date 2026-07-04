@@ -230,6 +230,8 @@ export default function AdminOrders() {
       // When searching, pre-resolve contact IDs whose name/phone match the query
       // so we can push the search down to the database (covers ALL historical orders).
       let matchingContactIds: string[] = [];
+      let matchingProductIds: string[] = [];
+      let onlineOrderIdsByProduct: string[] = [];
       if (isSearching) {
         const q = searchQuery.trim();
         const { data: matchedContacts } = await supabase
@@ -238,6 +240,26 @@ export default function AdminOrders() {
           .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
           .limit(500);
         matchingContactIds = (matchedContacts || []).map((c: any) => c.id);
+
+        // Resolve products whose name (or barcode) matches so we can pull in
+        // orders/POS transactions containing those products.
+        const { data: matchedProducts } = await supabase
+          .from('products')
+          .select('id')
+          .or(`name.ilike.%${q}%,barcode.ilike.%${q}%`)
+          .limit(500);
+        matchingProductIds = (matchedProducts || []).map((p: any) => p.id);
+
+        if (matchingProductIds.length > 0) {
+          const { data: matchedOrderItems } = await supabase
+            .from('order_items')
+            .select('order_id')
+            .in('product_id', matchingProductIds)
+            .limit(5000);
+          onlineOrderIdsByProduct = [
+            ...new Set((matchedOrderItems || []).map((oi: any) => oi.order_id).filter(Boolean)),
+          ];
+        }
       }
 
       // Fetch online orders
@@ -272,6 +294,9 @@ export default function AdminOrders() {
         ];
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        }
+        if (onlineOrderIdsByProduct.length > 0) {
+          orParts.push(`id.in.(${onlineOrderIdsByProduct.join(',')})`);
         }
         ordersQuery = ordersQuery.or(orParts.join(',')).limit(5000);
       }
@@ -311,7 +336,11 @@ export default function AdminOrders() {
       } else if (isSearching) {
         // Push search to the DB so ALL historical transactions are scanned (no recent-cap cutoff)
         const q = searchQuery.trim();
-        const orParts = [`transaction_number.ilike.%${q}%`];
+        const orParts = [
+          `transaction_number.ilike.%${q}%`,
+          // Match product names/barcodes stored inside the items JSONB blob.
+          `items::text.ilike.%${q}%`,
+        ];
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
         }
