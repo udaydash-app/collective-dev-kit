@@ -158,7 +158,7 @@ export default function Pricing() {
       if (!selectedCustomer) return [];
       const { data, error } = await supabase
         .from('customer_product_prices')
-        .select('*, products(name, price, categories(name))')
+        .select('*, products(name, price, cost_price, local_charges, categories(name))')
         .eq('customer_id', selectedCustomer);
       if (error) throw error;
       return data;
