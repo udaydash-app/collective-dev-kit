@@ -56,6 +56,7 @@ import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 interface JournalLine {
   account_id: string;
@@ -69,6 +70,8 @@ interface JournalLine {
 export default function JournalEntries() {
   usePageView('Admin - Journal Entries');
   useRealtimeSync();
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -148,6 +151,7 @@ export default function JournalEntries() {
             accounts (account_code, account_name)
           )
         `, { count: 'exact' })
+        .neq('is_real_ledger', true)
         .order('created_at', { ascending: false });
 
       // Server-side date filtering
@@ -173,7 +177,19 @@ export default function JournalEntries() {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { entries: data, totalCount: count || 0 };
+      // Attach paired real-ledger entries for F12 reveal
+      const maskedIds = (data ?? []).map((e: any) => e.id);
+      let realByMaskedId = new Map<string, any>();
+      if (maskedIds.length > 0) {
+        const { data: realData } = await supabase
+          .from('journal_entries')
+          .select(`*, journal_entry_lines (*, accounts (account_code, account_name))`)
+          .eq('is_real_ledger', true)
+          .in('masked_entry_id', maskedIds);
+        for (const r of realData ?? []) realByMaskedId.set(r.masked_entry_id as string, r);
+      }
+      const entries = (data ?? []).map((e: any) => ({ ...e, real_entry: realByMaskedId.get(e.id) ?? null }));
+      return { entries, totalCount: count || 0 };
     },
     refetchOnMount: 'always',
     staleTime: 0,
@@ -395,8 +411,23 @@ export default function JournalEntries() {
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  // Filtering is now done server-side; use fetched entries directly
-  const filteredEntries = journalEntries;
+  // Filtering is now done server-side; use fetched entries directly.
+  // When F12 is active, swap in the paired real-ledger entry (amounts + lines)
+  // while keeping the masked entry's id/status so edits/deletes still target it.
+  const displayEntry = (e: any) => {
+    if (!showReal || !e?.real_entry) return e;
+    const r = e.real_entry;
+    return {
+      ...e,
+      total_debit: r.total_debit,
+      total_credit: r.total_credit,
+      transaction_amount: r.transaction_amount ?? e.transaction_amount,
+      journal_entry_lines: r.journal_entry_lines ?? e.journal_entry_lines,
+      _revealed: true,
+    };
+  };
+  const filteredEntries = (journalEntries || []).map(displayEntry);
+  const revealedSelectedEntry = selectedEntry ? displayEntry(selectedEntry) : null;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -752,7 +783,7 @@ export default function JournalEntries() {
           { key: 'date', label: 'Date', width: 110, render: (r) => formatDate(r.entry_date) },
           { key: 'description', label: 'Description', width: 280, render: (r) => r.description },
           { key: 'reference', label: 'Reference', width: 120, render: (r) => r.reference || '-' },
-          { key: 'amount', label: 'Amount', width: 120, align: 'right', render: (r) => <span className="font-mono">{formatCurrency(r.transaction_amount || r.total_debit)}</span> },
+          { key: 'amount', label: 'Amount', width: 120, align: 'right', render: (r) => <span className={cn("font-mono", r._revealed && "text-amber-600 dark:text-amber-400")}>{formatCurrency(r.transaction_amount || r.total_debit)}</span> },
           { key: 'status', label: 'Status', width: 90, render: (r) => (
             <Badge variant={r.status === 'posted' ? 'default' : 'secondary'}>{r.status}</Badge>
           )},
@@ -815,7 +846,7 @@ export default function JournalEntries() {
           <DialogHeader>
             <DialogTitle>Journal Entry Details</DialogTitle>
           </DialogHeader>
-          {selectedEntry && (
+          {revealedSelectedEntry && (() => { const selectedEntry = revealedSelectedEntry; return (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -886,7 +917,7 @@ export default function JournalEntries() {
                 </TableBody>
               </Table>
             </div>
-          )}
+          ); })()}
         </DialogContent>
       </Dialog>
 

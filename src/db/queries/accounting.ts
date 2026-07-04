@@ -799,7 +799,9 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     }
   }
 
-  const clauses: string[] = [];
+  // Only fetch masked (non-real) entries; real-ledger duplicates are attached
+  // as `real_entry` for F12 reveal.
+  const clauses: string[] = ["COALESCE(is_real_ledger, 0) = 0"];
   const args: any[] = [];
   if (start) {
     clauses.push("entry_date >= ?");
@@ -854,9 +856,42 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     linesByEntry.set(l.journal_entry_id, list);
   }
 
+  // Fetch matching real-ledger entries + lines for reveal
+  const realEntries = await queryRows(
+    `SELECT * FROM journal_entries WHERE is_real_ledger = 1 AND masked_entry_id IN (${ph})`,
+    ids,
+  );
+  const realById = new Map<string, any>();
+  const realIds = realEntries.map((r: any) => r.id);
+  if (realIds.length > 0) {
+    const rph = realIds.map(() => "?").join(",");
+    const realLines = await queryRows(
+      `SELECT l.*, a.account_code, a.account_name
+       FROM journal_entry_lines l
+       LEFT JOIN accounts a ON a.id = l.account_id
+       WHERE l.journal_entry_id IN (${rph})`,
+      realIds,
+    );
+    const realLinesByEntry = new Map<string, any[]>();
+    for (const l of realLines) {
+      const list = realLinesByEntry.get(l.journal_entry_id) ?? [];
+      list.push({
+        ...l,
+        accounts: l.account_code
+          ? { account_code: l.account_code, account_name: l.account_name }
+          : null,
+      });
+      realLinesByEntry.set(l.journal_entry_id, list);
+    }
+    for (const r of realEntries) {
+      realById.set(r.masked_entry_id, { ...r, journal_entry_lines: realLinesByEntry.get(r.id) ?? [] });
+    }
+  }
+
   const merged = entries.map((e) => ({
     ...e,
     journal_entry_lines: linesByEntry.get(e.id) ?? [],
+    real_entry: realById.get(e.id) ?? null,
   }));
   return { entries: merged, totalCount };
 }
@@ -871,6 +906,7 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
   let query = supabase
     .from('journal_entries')
     .select('*', { count: 'exact' })
+    .neq('is_real_ledger', true)
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -919,10 +955,42 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
     linesByEntry.set(line.journal_entry_id, list);
   }
 
+  // Fetch paired real-ledger entries for reveal
+  const { data: realEntriesData } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('is_real_ledger', true)
+    .in('masked_entry_id', ids);
+  const realEntries = realEntriesData ?? [];
+  const realIds = realEntries.map((r: Row) => r.id);
+  const realLinesByEntry = new Map<string, Row[]>();
+  if (realIds.length > 0) {
+    const { data: realLinesData } = await supabase
+      .from('journal_entry_lines')
+      .select('*')
+      .in('journal_entry_id', realIds);
+    for (const line of realLinesData ?? []) {
+      const account = line.account_id ? accountsById.get(line.account_id) : null;
+      const list = realLinesByEntry.get(line.journal_entry_id) ?? [];
+      list.push({
+        ...line,
+        accounts: account
+          ? { account_code: account.account_code, account_name: account.account_name }
+          : null,
+      });
+      realLinesByEntry.set(line.journal_entry_id, list);
+    }
+  }
+  const realByMaskedId = new Map<string, any>();
+  for (const r of realEntries) {
+    realByMaskedId.set(r.masked_entry_id, { ...r, journal_entry_lines: realLinesByEntry.get(r.id) ?? [] });
+  }
+
   return {
     entries: entries.map((entry: Row) => ({
       ...entry,
       journal_entry_lines: linesByEntry.get(entry.id) ?? [],
+      real_entry: realByMaskedId.get(entry.id) ?? null,
     })),
     totalCount: count ?? entries.length,
   };
