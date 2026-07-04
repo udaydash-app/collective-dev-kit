@@ -658,6 +658,13 @@ export default function AdminOrders() {
     // Fetch customer balance
     const customerBalance = await fetchCustomerBalance(order.customer_name);
 
+    const pick = (masked: any, real: any) => {
+      const m = Number(masked || 0);
+      if (!showReal) return m;
+      const r = real == null || real === '' ? null : Number(real);
+      return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+    };
+
     // Create a temporary container for the receipt
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -729,7 +736,8 @@ export default function AdminOrders() {
 
             <div class="border-t border-b py-2 mb-2">
               ${order.items.map((item: any) => {
-                const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                const baseEffective = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                const effectivePrice = pick(baseEffective, item.real_unit_price ?? item.realPrice);
                 const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
                 return `
                 <div class="mb-2">
@@ -753,21 +761,21 @@ export default function AdminOrders() {
             <div class="space-y-1 mb-2">
               <div class="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${Number(order.subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.subtotal, (order as any).real_subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               <div class="flex justify-between">
                 <span>Tax (15%):</span>
-                <span>${Number(order.tax || 0).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.tax || 0, (order as any).real_tax).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               ${order.type === 'pos' && order.discount > 0 ? `
                 <div class="flex justify-between">
                   <span>Discount:</span>
-                  <span>-${Number(order.discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                  <span>-${pick(order.discount, (order as any).real_discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                 </div>
               ` : ''}
               <div class="flex justify-between font-bold text-lg border-t pt-1">
                 <span>TOTAL:</span>
-                <span>${Number(order.total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.total, (order as any).real_total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
             </div>
 
