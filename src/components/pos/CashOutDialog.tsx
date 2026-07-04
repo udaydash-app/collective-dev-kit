@@ -244,7 +244,7 @@ export const CashOutDialog = ({
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-180px)]">
-          <div className="p-6 space-y-6">
+          <div ref={printRef} className="p-6 space-y-6 print:p-2">
             {/* Opening Balance */}
             <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
               <CardContent className="p-4">
