@@ -24,6 +24,7 @@ import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
 import { ExportProductsDialog } from "@/components/admin/ExportProductsDialog";
 import { formatCurrency } from "@/lib/utils";
 import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { usePriceRevealControls } from "@/contexts/PriceRevealContext";
 import { computeMaskedPrice } from "@/lib/priceMasking";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -99,6 +100,8 @@ export default function Products() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showMasked } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
   const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
     if (real == null) return null;
     if (!showMasked) return Number(real);
