@@ -658,6 +658,21 @@ export const usePOSTransaction = () => {
       ? `${product.name} (${product.selectedVariant.label})`
       : product.name;
     
+    // Compute real vs masked price at add time. `product.price` is what the
+    // caller passes in (variant.price when a variant is picked, otherwise
+    // product.price) — that is the REAL selling price. Masking gates keep
+    // the real value hidden from the cashier UI unless F12 is pressed.
+    const realUnitPrice = Number(product.price);
+    const costSource = product.selectedVariant ?? product;
+    const maskedUnitPrice = computeMaskedPrice(
+      {
+        price: realUnitPrice,
+        cost_price: costSource?.cost_price,
+        local_charges: costSource?.local_charges,
+      },
+      { local_charges: product?.local_charges, price: realUnitPrice }
+    );
+
     let updatedCart: CartItem[];
     const existing = cart.find(item => item.id === cartItemId);
     
@@ -670,6 +685,8 @@ export const usePOSTransaction = () => {
               // Preserve or update discount if passed in
               itemDiscount: product.itemDiscount !== undefined ? product.itemDiscount : item.itemDiscount,
               customPrice: product.customPrice !== undefined ? product.customPrice : item.customPrice,
+              // Keep the previously captured masked & real prices intact.
+              realPrice: item.realPrice ?? realUnitPrice,
             }
           : item
       );
@@ -678,7 +695,8 @@ export const usePOSTransaction = () => {
         id: cartItemId,
         productId: baseProductId,
         name: displayName,
-        price: Number(product.price),
+        price: maskedUnitPrice,
+        realPrice: realUnitPrice,
         quantity: 1,
         barcode: product.barcode,
         image_url: product.image_url,
