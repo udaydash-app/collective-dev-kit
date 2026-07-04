@@ -168,8 +168,12 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   // Calculate item final amount
   const getItemFinal = (item: OrderItem) => {
     if (order.type === 'pos') {
-      const basePrice = item.customPrice ?? item.price;
-      const price = pickVal(basePrice, item.real_unit_price ?? item.realPrice);
+      const masked = Number(item.price ?? 0);
+      const real = Number(item.real_unit_price ?? item.realPrice ?? item.customPrice ?? masked);
+      // If the cashier manually charged less than the masked price, that
+      // lower amount is always shown — F12 rule does not apply to this line.
+      const overrideBelow = item.customPrice != null && item.customPrice < masked;
+      const price = overrideBelow ? item.customPrice! : pickVal(masked, real);
       const discount = item.itemDiscount ?? 0;
       return (price * item.quantity) - discount;
     }
@@ -187,9 +191,13 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   };
 
   const getItemPrice = (item: OrderItem) => {
-    const base = order.type === 'pos'
-      ? (item.customPrice ?? item.price)
-      : (item.unit_price ?? item.products?.price ?? item.price);
+    if (order.type === 'pos') {
+      const masked = Number(item.price ?? 0);
+      const real = Number(item.real_unit_price ?? item.realPrice ?? item.customPrice ?? masked);
+      if (item.customPrice != null && item.customPrice < masked) return item.customPrice;
+      return pickVal(masked, real);
+    }
+    const base = item.unit_price ?? item.products?.price ?? item.price;
     return pickVal(base, item.real_unit_price ?? item.realPrice);
   };
 
