@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -45,6 +46,8 @@ export default function CloseDayReport() {
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
 
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
