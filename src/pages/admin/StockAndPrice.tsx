@@ -560,16 +560,17 @@ export default function StockAndPrice() {
               : <>{r.costTotal ? formatCurrency(r.costTotal) : '-'}</> },
             { key: 'retail', label: 'Retail', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'retailPrice', r.retail)
-              : <span className="font-medium">{r.retail != null ? formatCurrency(r.retail) : '-'}</span> },
+              : (() => { const d = maskSell(r.retail, r.product, r.variant); return <span className="font-medium">{d != null ? formatCurrency(d) : '-'}</span>; })() },
             { key: 'wholesale', label: 'Wholesale', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'wholesalePrice', r.wholesale)
-              : <span className="text-blue-600">{r.wholesale != null ? formatCurrency(r.wholesale) : '-'}</span> },
+              : (() => { const d = maskSell(r.wholesale, r.product, r.variant); return <span className="text-blue-600">{d != null ? formatCurrency(d) : '-'}</span>; })() },
             { key: 'vip', label: 'VIP', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'vipPrice', r.vip)
-              : <span className="text-purple-600">{r.vip != null ? formatCurrency(r.vip) : '-'}</span> },
+              : (() => { const d = maskSell(r.vip, r.product, r.variant); return <span className="text-purple-600">{d != null ? formatCurrency(d) : '-'}</span>; })() },
             { key: 'margin', label: 'Margin %', width: 90, align: 'right', render: r => {
-              if (!r.retail || !r.costTotal) return '-';
-              const m = calculateMargin(r.retail, r.costTotal);
+              const rp = maskSell(r.retail, r.product, r.variant);
+              if (!rp || !r.costTotal) return '-';
+              const m = calculateMargin(rp, r.costTotal);
               return m != null ? <Badge variant="outline" className="text-[10px] h-5">{m}%</Badge> : '-';
             } },
             { key: 'status', label: 'Status', width: 90, render: r => (
