@@ -763,8 +763,10 @@ export default function Pricing() {
                   <TableBody>
                     {customerPrices && customerPrices.length > 0 ? (
                       customerPrices.map((item: any) => {
-                        const standardPrice = item.products?.price || 0;
-                        const customPrice = item.price;
+                        const rawStandard = item.products?.price || 0;
+                        const rawCustom = item.price;
+                        const standardPrice = maskSell(rawStandard, item.products) as number || 0;
+                        const customPrice = maskSell(rawCustom, item.products) as number || 0;
                         const savings = standardPrice > 0 ? standardPrice - customPrice : 0;
                         const savingsPercent = standardPrice > 0 
                           ? ((savings / standardPrice) * 100).toFixed(1)
