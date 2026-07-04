@@ -93,6 +93,16 @@ export function ResizableProductsTable({
   const [cols, setCols] = useState<ColDef[]>(() => loadCols());
   const resizing = useRef<{ key: ColKey; startX: number; startW: number } | null>(null);
   const dragKey = useRef<ColKey | null>(null);
+  const { showMasked } = usePriceMasking();
+  const maskSell = (real: number | null | undefined, product: ProductRow, variant?: { cost_price?: number | null }): number | null => {
+    if (real == null) return null;
+    if (!showMasked) return Number(real);
+    const m = computeMaskedPrice(
+      { price: Number(real), cost_price: variant?.cost_price ?? product?.cost_price, local_charges: product?.local_charges },
+      { local_charges: product?.local_charges, price: Number(real) },
+    );
+    return m || Number(real);
+  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
