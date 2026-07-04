@@ -1035,8 +1035,7 @@ export const usePOSTransaction = () => {
     additionalItems?: CartItem[],
     discountOverride?: number,
     editingTransactionId?: string,
-    editingTransactionType?: 'pos' | 'online',
-    useRealPricing?: boolean
+    editingTransactionType?: 'pos' | 'online'
   ) => {
     if (cart.length === 0) {
       console.error('Cart is empty');
@@ -1072,11 +1071,7 @@ export const usePOSTransaction = () => {
         cachedUserRef.current = freshUser;
       }
 
-      const maskedSubtotal = calculateSubtotal();
-      const realSubtotalBase = calculateRealSubtotal();
-      // When the cashier holds F12 at checkout, persist the transaction using
-      // the real (unmasked) unit prices. Otherwise persist the masked prices.
-      const subtotal = useRealPricing ? realSubtotalBase : maskedSubtotal;
+      const subtotal = calculateSubtotal();
       const finalDiscount = discountOverride !== undefined ? discountOverride : discount;
       const subtotalAfterDiscount = subtotal - finalDiscount;
       
@@ -1085,9 +1080,8 @@ export const usePOSTransaction = () => {
       const tax = timbreTax.taxAmount;
       const total = subtotalAfterDiscount + tax;
 
-      // Dual accounting mirror. When persisting real prices as the primary
-      // ledger, the mirror equals the primary so both views match.
-      const realSubtotal = realSubtotalBase;
+      // Dual accounting: real (unmasked) totals stored alongside masked ones.
+      const realSubtotal = calculateRealSubtotal();
       const realSubtotalAfterDiscount = realSubtotal - finalDiscount;
       const realTimbre = calculateTimbreTax(realSubtotalAfterDiscount);
       const realTax = realTimbre.taxAmount;
