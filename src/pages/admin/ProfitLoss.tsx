@@ -17,6 +17,7 @@ import { TrendingUp, Download, Calendar, FileSpreadsheet } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 const fetchAllRows = async <T,>(makeQuery: () => any): Promise<T[]> => {
   const PAGE = 1000;
@@ -40,6 +41,9 @@ export default function ProfitLoss() {
     _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
+  // F12 swaps the whole report between masked (default) and real ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
   useEffect(() => {
     const cs = clampToFiscal(startDate);
     const ce = clampToFiscal(endDate);
@@ -48,7 +52,7 @@ export default function ProfitLoss() {
   }, [startDate, endDate]);
 
   const { data: plData, isLoading } = useQuery({
-    queryKey: ['profit-loss', startDate, endDate],
+    queryKey: ['profit-loss', startDate, endDate, isRealLedger],
     queryFn: async () => {
       // Use authoritative Supabase data when online, with explicit pagination
       // so sales/purchases over 1000 rows are not truncated by PostgREST.
@@ -83,14 +87,19 @@ export default function ProfitLoss() {
       } else {
         sales = await fetchAllRows<any>(() => supabase
           .from('pos_transactions')
-          .select('subtotal, discount, items')
+          .select('subtotal, discount, real_subtotal, real_discount, items')
           .gte('created_at', startDate)
           .lte('created_at', endDate + 'T23:59:59'));
       }
 
-      const grossSales = sales?.reduce((sum, s) => sum + (s.subtotal || 0), 0) || 0;
+      // Dual accounting: F12 swaps masked totals for the mirrored real ones.
+      const pickSubtotal = (s: any) =>
+        isRealLedger ? Number(s.real_subtotal ?? s.subtotal ?? 0) : Number(s.subtotal ?? 0);
+      const pickDiscount = (s: any) =>
+        isRealLedger ? Number(s.real_discount ?? s.discount ?? 0) : Number(s.discount ?? 0);
+      const grossSales = sales?.reduce((sum, s) => sum + pickSubtotal(s), 0) || 0;
       const salesReturns = 0; // Would need a returns table
-      const salesDiscounts = sales?.reduce((sum, s) => sum + (s.discount || 0), 0) || 0;
+      const salesDiscounts = sales?.reduce((sum, s) => sum + pickDiscount(s), 0) || 0;
       const netSales = grossSales - salesReturns - salesDiscounts;
 
       // Calculate COGS from sold items (using cost_price from products/variants)
@@ -312,6 +321,7 @@ export default function ProfitLoss() {
           startDate,
           endDate,
           accountTypes: ['expense'],
+          isRealLedger,
         });
       } catch (err) {
         console.warn('[profit-loss] local expense balances failed', err);
@@ -325,13 +335,17 @@ export default function ProfitLoss() {
           .order('account_code');
         expenseRows = await Promise.all(
           (expenseAccounts || []).map(async (account: any) => {
-            const { data: lines } = await supabase
+            let q = supabase
               .from('journal_entry_lines')
               .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
               .eq('account_id', account.id)
               .eq('journal_entries.status', 'posted')
               .gte('journal_entries.entry_date', startDate)
               .lte('journal_entries.entry_date', endDate);
+            q = isRealLedger
+              ? q.eq('journal_entries.is_real_ledger', true)
+              : q.neq('journal_entries.is_real_ledger', true);
+            const { data: lines } = await q;
             return {
               ...account,
               total_debit: lines?.reduce((s: number, l: any) => s + l.debit_amount, 0) || 0,
