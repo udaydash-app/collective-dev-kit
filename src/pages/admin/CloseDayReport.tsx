@@ -268,6 +268,7 @@ export default function CloseDayReport() {
           .select(`
             id, 
             total, 
+            real_total,
             items, 
             created_at,
             customer_id,
@@ -289,7 +290,7 @@ export default function CloseDayReport() {
           const current = customerMap.get(customerId) || { name: customerName, totalSpent: 0, orderCount: 0, orders: [] };
           customerMap.set(customerId, {
             name: customerName,
-            totalSpent: current.totalSpent + parseFloat(t.total?.toString() || '0'),
+            totalSpent: current.totalSpent + (isRealLedger ? Number(t.real_total ?? t.total) : Number(t.total)) || current.totalSpent,
             orderCount: current.orderCount + 1,
             orders: [...current.orders, { id: t.id, total: t.total, items: t.items, created_at: t.created_at }],
           });
