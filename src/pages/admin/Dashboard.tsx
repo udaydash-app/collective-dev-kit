@@ -28,18 +28,13 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { KeyboardBadge } from "@/components/ui/keyboard-badge";
 import { getPosAdminSession } from "@/db/queries/accounting";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { pickSaleTotal } from "@/lib/priceMasking";
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
-  // F12 flips revenue between masked and real ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
 
   // Fetch statistics
   const { data: stats } = useQuery({
-    queryKey: ['admin-stats', timeRange, isRealLedger],
+    queryKey: ['admin-stats', timeRange],
     queryFn: async () => {
       const now = new Date();
       const startDate = new Date();
@@ -62,13 +57,13 @@ export default function AdminDashboard() {
       // Get orders
       const { data: orders } = await supabase
         .from('orders')
-        .select('total, real_total, status, created_at')
+        .select('total, status, created_at')
         .gte('created_at', startDate.toISOString());
 
       // Get POS transactions
       const { data: posTransactions } = await supabase
         .from('pos_transactions')
-        .select('total, real_total, created_at')
+        .select('total, created_at')
         .gte('created_at', startDate.toISOString());
 
       // Get products
@@ -82,10 +77,8 @@ export default function AdminDashboard() {
         .select('*', { count: 'exact' });
 
       // Calculate revenue (orders + POS transactions)
-      const ordersRevenue =
-        orders?.reduce((sum, order) => sum + pickSaleTotal(order, isRealLedger), 0) || 0;
-      const posRevenue =
-        posTransactions?.reduce((sum, tx) => sum + pickSaleTotal(tx, isRealLedger), 0) || 0;
+      const ordersRevenue = orders?.reduce((sum, order) => sum + Number(order.total), 0) || 0;
+      const posRevenue = posTransactions?.reduce((sum, tx) => sum + Number(tx.total), 0) || 0;
       const revenue = ordersRevenue + posRevenue;
       const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0;
       const totalTransactions = (orders?.length || 0) + (posTransactions?.length || 0);

@@ -23,9 +23,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MergeProductsDialog } from "@/components/admin/MergeProductsDialog";
 import { ExportProductsDialog } from "@/components/admin/ExportProductsDialog";
 import { formatCurrency } from "@/lib/utils";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { usePriceRevealControls } from "@/contexts/PriceRevealContext";
-import { computeMaskedPrice } from "@/lib/priceMasking";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { ResizableProductsTable } from "@/components/admin/ResizableProductsTable";
@@ -99,18 +96,6 @@ export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { showMasked } = usePriceMasking();
-  const { reset: resetReveal } = usePriceRevealControls();
-  useEffect(() => () => resetReveal(), [resetReveal]);
-  const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
-    if (real == null) return null;
-    if (!showMasked) return Number(real);
-    const m = computeMaskedPrice(
-      { price: Number(real), cost_price: variant?.cost_price ?? product?.cost_price, local_charges: product?.local_charges },
-      { local_charges: product?.local_charges, price: Number(real) },
-    );
-    return m || Number(real);
-  };
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -1620,11 +1605,8 @@ export default function Products() {
                       <span className="text-muted-foreground">Price:</span>
                       <span className="font-semibold text-xs">
                         {product.product_variants && product.product_variants.length > 0 
-                          ? (() => {
-                              const ps = product.product_variants.map(v => maskSell(v.price, product, v) ?? v.price);
-                              return `${formatCurrency(Math.min(...ps))} - ${formatCurrency(Math.max(...ps))}`;
-                            })()
-                          : formatCurrency(maskSell(product.price, product) ?? product.price)
+                          ? `${formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - ${formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}`
+                          : formatCurrency(product.price)
                         }
                       </span>
                     </div>

@@ -1,37 +1,61 @@
-# Extend F12 masked/real toggle to AR/AP and all reports
+
+# Fiscal Period Toggle — Start of Business 01/Jul/2026
 
 ## Goal
-Every screen where a sales price / revenue / customer balance is displayed must respect the F12 reveal rule (masked ledger by default, real ledger while F12 is held), matching the pattern already used in Trial Balance, Balance Sheet, P&L, Trading Account, General Ledger and Journal Entries.
+Set 01/Jul/2026 as the official start of the current fiscal period. Add a period switcher (F12 inside Company Settings) that flips the entire accounting UI between:
+- **Before Incorporation** — everything up to and including 30/Jun/2026
+- **Current** — from 01/Jul/2026 onward, with previous balances shown as a single "Opening Balance" line per account
 
-## Pages to update
+## 1. Settings & storage
+- Add two fields to `settings` (single-row config): `incorporation_date` (default `2026-07-01`) and `active_period` (`'current' | 'before'`, default `'current'`).
+- Store user-selected period in `localStorage` (`fiscalPeriod`) so it persists per device; falls back to settings default.
+- New tiny context `FiscalPeriodContext` exposes `{ period, setPeriod, incorporationDate, effectiveFrom, effectiveTo }`.
+  - `current`: `from = 2026-07-01`, `to = null` (open)
+  - `before`: `from = null`, `to = 2026-06-30`
 
-### Receivables/Payables (balance from journal lines, not cached `current_balance`)
-1. `AccountsReceivable.tsx` — derive each customer balance from `journal_entry_lines` joined to `journal_entries` filtered by `is_real_ledger` per F12; keep dual-role netting.
-2. `AccountsPayable.tsx` — same pattern for supplier ledger accounts.
+## 2. Company Settings — F12 dropdown
+- On `/admin/company-settings` (or equivalent), bind a global `keydown` for `F12` that opens a Select dropdown with two options.
+- Cashiers **and** admins can toggle. Selection saved immediately, triggers `queryClient.invalidateQueries()` so all reports refetch.
+- Small badge shown at top of settings page: "Active period: Current (from 01/07/2026)".
 
-### Sales / revenue reports
-3. `Analytics.tsx` — revenue, top products, charts should read `real_subtotal`/`real_discount` when F12 held, else `subtotal`/`discount`.
-4. `CashFlow.tsx` — sales inflows via `pickSubtotal`/`pickDiscount` helper (same as ProfitLoss).
-5. `COGSAnalysis.tsx` — revenue side switches to real; cost side stays as-is.
-6. `Dashboard.tsx` and `DashboardModern.tsx` — today/period revenue tiles + charts.
-7. `ProfitLossAnalysis.tsx` — mirror ProfitLoss.tsx changes.
-8. `ProfitMarginAnalysis.tsx` — revenue and margin use real when F12.
-9. `SalesTarget.tsx` — achieved sales figure.
-10. `TaxCollectionReport.tsx` — tax base derived from sale price; switch base to real when F12.
-11. `InventoryReports.tsx` — only the "sales value / stock value at sale price" columns need the toggle; cost columns unchanged.
-12. `CloseDayReport.tsx` — already imports masking; audit sale totals to confirm they use `pickSubtotal` pattern (fix if missing).
-13. `PaymentReceipts.tsx` / `SupplierPayments.tsx` — payment amounts are actual cash movements (not masked), leave unchanged. Document this in code comments.
+## 3. Opening balances — real journal entry
+- One-time migration + admin action "Generate Opening Balances":
+  - Sums each account's net (debit − credit) for all lines with `entry_date <= 2026-06-30`.
+  - Inserts one journal entry dated `2026-06-30` with reference `OPENING-2026-07-01`, one line per non-zero account, balanced against retained-earnings account (SYSCOHADA 1301/1101).
+- The opening entry is **tagged** with `is_opening = true` (new boolean column on `journal_entries`) so filters can include/exclude it.
+- Rules used by report queries:
+  - **Current view**: include lines where `entry_date >= 2026-07-01` **OR** `is_opening = true`. Opening line displays as "Opening Balance" per account at 01/07/2026.
+  - **Before view**: include lines where `entry_date <= 2026-06-30` **AND** `is_opening = false`.
 
-## Shared plumbing
-- Reuse `usePriceMasking` + `revealRealPrice` gating (`isRealLedger = revealRealPrice && maskingEnabled`).
-- Reuse the `pickSubtotal(s)`/`pickDiscount(s)` helpers from `ProfitLoss.tsx` — extract to `src/lib/priceMasking.ts` as `pickSaleSubtotal` / `pickSaleDiscount` so all reports share one implementation.
-- Extend `fetchAccountBalancesLocal` (already accepts `isRealLedger`) with a new helper `fetchContactBalancesFromJournalLocal(contactIds, isRealLedger)` used by AR/AP for per-account balances from `journal_entry_lines`.
-- Every affected `useQuery` must include `isRealLedger` in its `queryKey` so F12 triggers a refetch.
+## 4. Reports affected
+All read the same period context and pass `from`/`to` filters:
+- General Ledger (`src/pages/admin/GeneralLedger.tsx` + `src/ledgerly/pages/GeneralLedger.tsx`)
+- Trial Balance (`src/ledgerly/pages/TrialBalance.tsx`)
+- P&L (`src/ledgerly/pages/ProfitLoss.tsx`)
+- Balance Sheet (`src/ledgerly/pages/BalanceSheet.tsx`)
+- Journal Entries listing
+- Stock reports / dashboards showing opening qty (virtual — computed by summing stock movements up to `effectiveFrom - 1`)
 
-## Out of scope
-Cost-only reports, purchase/expense screens, cash register entries, supplier/customer payment logs (real cash movements).
+Date pickers on each report default to the period bounds but remain overridable within that period.
 
-## Verification
-- Typecheck.
-- Manually toggle F12 on each updated page and confirm totals change and revert.
-- Confirm AR/AP totals match General Ledger customer/supplier account balances for both masked and real mode.
+## 5. Stock (virtual opening only)
+- No new stock snapshot table. Existing `inventory_layers` / stock movement history is queried with the period bounds.
+- "Opening Stock" column = sum of movements before `effectiveFrom`; "Current Stock" = opening + movements in period.
+- Stock deduction triggers are untouched.
+
+## 6. Safety & audit
+- Opening entry can only be generated once (unique constraint on `reference = 'OPENING-2026-07-01'`).
+- Admin-only "Regenerate opening" action requires PIN + explicit confirm; deletes prior opening entry and rebuilds.
+- All changes respect existing RLS (POS admin/cashier roles).
+
+## 7. Rollout
+1. Migration: add `incorporation_date`, `active_period` to `settings`; add `is_opening bool default false` to `journal_entries`; unique index on opening reference.
+2. Backend RPC `generate_opening_balances(p_cutoff date)` — computes and inserts atomically.
+3. `FiscalPeriodContext` + F12 handler in Company Settings.
+4. Update the 4 report pages + GL to consume the context.
+5. Update stock dashboard queries.
+6. Admin one-click "Generate opening balances" button in Company Settings (runs the RPC).
+
+## Technical notes
+- Files touched: `settings` schema, `src/contexts/FiscalPeriodContext.tsx` (new), `src/pages/admin/CompanySettings.tsx` (or `RestaurantSettings.tsx` equivalent), all report pages listed above, `src/ledgerly/lib/fetchAllJournalLines.ts` (accept opening-inclusion flag).
+- No changes to POS transaction posting logic — triggers keep writing entries with real dates; the period filter is a read-side concern only.

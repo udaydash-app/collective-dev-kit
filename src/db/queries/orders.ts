@@ -34,13 +34,12 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
   const endMs = end ? end.getTime() : null;
 
   // Load cached collections in parallel
-  const [allOrders, allItems, allPos, allContacts, allStores, allProducts] = await Promise.all([
+  const [allOrders, allItems, allPos, allContacts, allStores] = await Promise.all([
     offlineDB.getOrders().catch(() => []),
     offlineDB.getOrderItems().catch(() => []),
     offlineDB.getPOSTransactions().catch(() => []),
     offlineDB.getContacts().catch(() => []),
     offlineDB.getStores().catch(() => []),
-    offlineDB.getProducts().catch(() => []),
   ]);
 
   const contactById = new Map<string, any>(
@@ -48,9 +47,6 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
   );
   const storeById = new Map<string, any>(
     allStores.map((s: any) => [s.id, s] as [string, any]),
-  );
-  const productById = new Map<string, any>(
-    (allProducts as any[]).map((p: any) => [p.id, p]),
   );
 
   const itemsByOrder = new Map<string, any[]>();
@@ -82,13 +78,7 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
         c?.phone,
         c?.email,
       ].filter(Boolean).join(" ").toLowerCase();
-      if (hay.includes(q)) return true;
-      // Also match product names inside the order's items.
-      const items = itemsByOrder.get(o.id) ?? [];
-      return items.some((it: any) => {
-        const name = (it.products?.name || productById.get(it.product_id)?.name || it.name || "").toLowerCase();
-        return name.includes(q);
-      });
+      return hay.includes(q);
     })
     .map((order: any) => {
       const guest = parseGuestInfo(order.delivery_instructions);
@@ -119,13 +109,7 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
       const c = contactById.get(t.customer_id);
       const hay = [t.transaction_number, c?.name, c?.phone]
         .filter(Boolean).join(" ").toLowerCase();
-      if (hay.includes(q)) return true;
-      // Search product names inside the transaction items JSON.
-      const items = safeParse<any[]>(t.items, []);
-      return items.some((it: any) => {
-        const name = (it.name || it.product_name || productById.get(it.product_id)?.name || "").toLowerCase();
-        return name.includes(q);
-      });
+      return hay.includes(q);
     })
     .map((t: any) => {
       const contact = contactById.get(t.customer_id);

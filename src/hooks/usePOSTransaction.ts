@@ -5,7 +5,6 @@ import { offlineDB } from '@/lib/offlineDB';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateTimbreTax } from '@/lib/timbreTax';
 import { formatCurrency } from '@/lib/utils';
-import { computeMaskedPrice } from '@/lib/priceMasking';
 
 export interface CartItem {
   id: string;
@@ -13,12 +12,6 @@ export interface CartItem {
   name: string;
   displayName?: string; // Custom name for this order only (doesn't modify product in DB)
   price: number;
-  /**
-   * Real (unmasked) unit selling price captured at add-to-cart time.
-   * `price` above is the MASKED display price. When masking isn't active
-   * (no POS session), `realPrice` equals `price`.
-   */
-  realPrice?: number;
   originalPrice?: number; // Store original price before discount
   quantity: number;
   barcode?: string;
@@ -73,9 +66,6 @@ const serializeCartItemForTransaction = (item: CartItem) => {
     display_name: item.displayName,
     quantity: item.quantity,
     price: item.price,
-    // Manual edits (customPrice) flow into the REAL ledger only. The masked
-    // value (item.price) stays governed by the masking formula.
-    realPrice: item.customPrice ?? item.realPrice ?? item.price,
     originalPrice: item.originalPrice,
     customPrice: item.customPrice,
     itemDiscount: item.itemDiscount || 0,
@@ -100,20 +90,14 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
           quantity: comboItem.quantity * item.quantity,
           unit_price: 0,
           subtotal: 0,
-          real_unit_price: 0,
-          real_total_price: 0,
         }));
     }
 
     if (item.isCombo || !UUID_PATTERN.test(item.productId)) return [];
 
-    // Masked side is untouched by manual price edits — customPrice only
-    // updates the real ledger. This keeps the masking rule intact while
-    // still recording what the cashier actually charged.
+    const effectivePrice = item.customPrice ?? item.price;
     const discountPerUnit = item.itemDiscount || 0;
-    const unitPrice = (item.price ?? 0) - discountPerUnit;
-    const realEffectivePrice = item.customPrice ?? item.realPrice ?? item.price;
-    const realUnitPrice = realEffectivePrice - discountPerUnit;
+    const unitPrice = effectivePrice - discountPerUnit;
 
     return [{
       order_id: orderId,
@@ -121,8 +105,6 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
       quantity: item.quantity,
       unit_price: Math.round(unitPrice * 100) / 100,
       subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
-      real_unit_price: Math.round(realUnitPrice * 100) / 100,
-      real_total_price: Math.round(realUnitPrice * item.quantity * 100) / 100,
     }];
   });
 };
@@ -668,21 +650,6 @@ export const usePOSTransaction = () => {
       ? `${product.name} (${product.selectedVariant.label})`
       : product.name;
     
-    // Compute real vs masked price at add time. `product.price` is what the
-    // caller passes in (variant.price when a variant is picked, otherwise
-    // product.price) — that is the REAL selling price. Masking gates keep
-    // the real value hidden from the cashier UI unless F12 is pressed.
-    const realUnitPrice = Number(product.price);
-    const costSource = product.selectedVariant ?? product;
-    const maskedUnitPrice = computeMaskedPrice(
-      {
-        price: realUnitPrice,
-        cost_price: costSource?.cost_price,
-        local_charges: costSource?.local_charges,
-      },
-      { local_charges: product?.local_charges, price: realUnitPrice }
-    );
-
     let updatedCart: CartItem[];
     const existing = cart.find(item => item.id === cartItemId);
     
@@ -695,8 +662,6 @@ export const usePOSTransaction = () => {
               // Preserve or update discount if passed in
               itemDiscount: product.itemDiscount !== undefined ? product.itemDiscount : item.itemDiscount,
               customPrice: product.customPrice !== undefined ? product.customPrice : item.customPrice,
-              // Keep the previously captured masked & real prices intact.
-              realPrice: item.realPrice ?? realUnitPrice,
             }
           : item
       );
@@ -705,8 +670,7 @@ export const usePOSTransaction = () => {
         id: cartItemId,
         productId: baseProductId,
         name: displayName,
-        price: maskedUnitPrice,
-        realPrice: realUnitPrice,
+        price: Number(product.price),
         quantity: 1,
         barcode: product.barcode,
         image_url: product.image_url,
@@ -997,21 +961,8 @@ export const usePOSTransaction = () => {
   const calculateSubtotal = () => {
     let sum = 0;
     for (const item of cart) {
-      // Masked subtotal ignores customPrice so the masking rule is preserved
-      // even after manual edits. customPrice flows into the real subtotal.
-      const maskedPrice = item.price ?? 0;
-      sum += (maskedPrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
-    }
-    return sum;
-  };
-
-  const calculateRealSubtotal = () => {
-    let sum = 0;
-    for (const item of cart) {
-      // If the cashier manually set a custom price, we treat that as their
-      // intent on both ledgers; otherwise use the captured real unit price.
-      const effectiveReal = item.customPrice ?? item.realPrice ?? item.price;
-      sum += (effectiveReal * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
+      const effectivePrice = item.customPrice ?? item.price;
+      sum += (effectivePrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
     }
     return sum;
   };
@@ -1023,12 +974,6 @@ export const usePOSTransaction = () => {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const timbre = calculateTimbreTax(subtotal - discount).taxAmount;
-    return subtotal - discount + timbre;
-  };
-
-  const calculateRealTotal = () => {
-    const subtotal = calculateRealSubtotal();
     const timbre = calculateTimbreTax(subtotal - discount).taxAmount;
     return subtotal - discount + timbre;
   };
@@ -1086,13 +1031,6 @@ export const usePOSTransaction = () => {
       const tax = timbreTax.taxAmount;
       const total = subtotalAfterDiscount + tax;
 
-      // Dual accounting: real (unmasked) totals stored alongside masked ones.
-      const realSubtotal = calculateRealSubtotal();
-      const realSubtotalAfterDiscount = realSubtotal - finalDiscount;
-      const realTimbre = calculateTimbreTax(realSubtotalAfterDiscount);
-      const realTax = realTimbre.taxAmount;
-      const realTotal = realSubtotalAfterDiscount + realTax;
-
       // Determine primary payment method (highest amount)
       const primaryPayment = payments.reduce((prev, current) => 
         (current.amount > prev.amount) ? current : prev
@@ -1116,10 +1054,6 @@ export const usePOSTransaction = () => {
         tax: Math.round(tax * 100) / 100,
         discount: Math.round(finalDiscount * 100) / 100,
         total: Math.round(total * 100) / 100,
-        real_subtotal: Math.round(realSubtotal * 100) / 100,
-        real_tax: Math.round(realTax * 100) / 100,
-        real_discount: Math.round(finalDiscount * 100) / 100,
-        real_total: Math.round(realTotal * 100) / 100,
         payment_method: primaryPayment.method,
         payment_details: payments.map(p => ({
           method: p.method,
@@ -1146,10 +1080,6 @@ export const usePOSTransaction = () => {
               tax: transactionData.tax,
               discount: transactionData.discount,
               total: transactionData.total,
-              real_subtotal: transactionData.real_subtotal,
-              real_tax: transactionData.real_tax,
-              real_discount: transactionData.real_discount,
-              real_total: transactionData.real_total,
               payment_method: transactionData.payment_method,
               payment_details: transactionData.payment_details,
               notes: transactionData.notes,
@@ -1184,8 +1114,6 @@ export const usePOSTransaction = () => {
               subtotal: transactionData.subtotal,
               total: transactionData.total,
               tax: transactionData.tax,
-              real_subtotal: transactionData.real_subtotal,
-              real_total: transactionData.real_total,
               updated_at: new Date().toISOString(),
               customer_id: transactionData.customer_id || null
             })
@@ -1396,10 +1324,8 @@ export const usePOSTransaction = () => {
     clearCart,
     loadCart,
     calculateSubtotal,
-    calculateRealSubtotal,
     calculateTimbre,
     calculateTotal,
-    calculateRealTotal,
     processTransaction,
     isProcessing,
   };

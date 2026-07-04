@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatCurrency, cn } from '@/lib/utils';
 import { CartItem } from '@/hooks/usePOSTransaction';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -43,22 +42,6 @@ export const TransactionCart = ({
   onUpdatePrice,
   onUpdateDisplayName,
 }: TransactionCartProps) => {
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  // Pick the unit price the cashier sees. If masking is off (no POS session),
-  // this is always the real price. Otherwise, F12 momentarily reveals real.
-  const pickUnitPrice = (item: CartItem): number => {
-    // Manual override that is BELOW the masked price is always shown as-is —
-    // the customer paid less than the masked value, so displaying the higher
-    // masked number would be misleading and F12 has no effect on this line.
-    if (item.customPrice != null && item.customPrice < item.price) {
-      return item.customPrice;
-    }
-    // Otherwise apply the standard masking rule. When customPrice is set and
-    // >= masked price, treat it as the real value that F12 reveals.
-    const realValue = item.customPrice ?? item.realPrice ?? item.price;
-    if (!maskingEnabled) return realValue;
-    return revealRealPrice ? realValue : item.price;
-  };
   const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
   const [focusedField, setFocusedField] = useState<'name' | 'qty' | 'price' | 'disc' | 'final'>('name');
@@ -226,7 +209,7 @@ export const TransactionCart = ({
   }
 
   const calculateFinalAmount = (item: CartItem) => {
-    const effectivePrice = pickUnitPrice(item);
+    const effectivePrice = item.customPrice ?? item.price;
     const subtotal = effectivePrice * item.quantity;
     const discountAmount = (item.itemDiscount || 0) * item.quantity;
     // Ensure final amount never goes negative (e.g., 100% discount)
@@ -435,7 +418,7 @@ export const TransactionCart = ({
                           <Input
                             ref={(el) => { inputRefs.current[`${item.id}-price`] = el; }}
                             type="number"
-                            value={pickUnitPrice(item) || ''}
+                            value={(item.customPrice ?? item.price) || ''}
                             onChange={(e) => {
                               e.stopPropagation();
                               const newPrice = e.target.value === '' ? undefined : parseFloat(e.target.value);
@@ -449,7 +432,6 @@ export const TransactionCart = ({
                             }}
                             className={cn(
                               "w-16 h-5 text-right text-[10px] px-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                              revealRealPrice && maskingEnabled && "text-amber-600 font-semibold",
                               isKeyboardFocused && focusedField === 'price' && "ring-1 ring-primary/40 rounded"
                             )}
                             step="0.01"
@@ -457,7 +439,7 @@ export const TransactionCart = ({
                             placeholder="0"
                           />
                       ) : !isCartDiscount ? (
-                        <span className={cn("text-[10px]", revealRealPrice && maskingEnabled && "text-amber-600 font-semibold")}>{formatCurrency(Math.abs(pickUnitPrice(item)))}</span>
+                        <span className="text-[10px]">{formatCurrency(Math.abs(item.customPrice ?? item.price))}</span>
                       ) : (
                         ''
                       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,30 +18,22 @@ import { Scale, Download, Calendar, FileSpreadsheet, CheckCircle, XCircle } from
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');
   const _fp = readFiscalPeriodBoundsSync();
   const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
   const [groupFilter, setGroupFilter] = useState('all');
-  // F12 reveals the mirrored real-ledger totals; default is the masked ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
-  useEffect(() => {
-    const c = clampToFiscal(asOfDate);
-    if (c !== asOfDate) setAsOfDate(c);
-  }, [asOfDate]);
 
   const { data: trialBalanceData, isLoading } = useQuery({
-    queryKey: ['trial-balance', asOfDate, isRealLedger],
+    queryKey: ['trial-balance', asOfDate],
     queryFn: async () => {
       // Local-first: compute per-account debit/credit totals from the
       // PowerSync mirror. Falls back to Supabase if local DB is empty.
       let rows: any[] = [];
       try {
-        rows = await fetchAccountBalancesLocal({ endDate: asOfDate, isRealLedger });
+        rows = await fetchAccountBalancesLocal({ endDate: asOfDate });
       } catch (err) {
         console.warn('[trial-balance] local fetch failed, falling back', err);
       }
@@ -54,16 +46,12 @@ export default function TrialBalance() {
         if (error) throw error;
         rows = await Promise.all(
           (accounts || []).map(async (account: any) => {
-            let q = supabase
+            const { data: lines } = await supabase
               .from('journal_entry_lines')
               .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
               .eq('account_id', account.id)
               .eq('journal_entries.status', 'posted')
               .lte('journal_entries.entry_date', asOfDate);
-            q = isRealLedger
-              ? q.eq('journal_entries.is_real_ledger', true)
-              : q.neq('journal_entries.is_real_ledger', true);
-            const { data: lines } = await q;
             return {
               ...account,
               total_debit: lines?.reduce((s: number, l: any) => s + l.debit_amount, 0) || 0,
@@ -175,9 +163,7 @@ export default function TrialBalance() {
               id="as-of-date"
               type="date"
               value={asOfDate}
-              min={_fp.effectiveFrom ?? undefined}
-              max={_fp.effectiveTo ?? undefined}
-              onChange={(e) => setAsOfDate(clampToFiscal(e.target.value))}
+              onChange={(e) => setAsOfDate(e.target.value)}
             />
           </div>
           <div className="flex-1 max-w-xs">

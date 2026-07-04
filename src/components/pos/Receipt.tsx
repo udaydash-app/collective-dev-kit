@@ -10,13 +10,6 @@ interface ReceiptProps {
   tax: number;
   discount: number;
   total: number;
-  /** Optional real totals — used when showRealPrices is true. */
-  realSubtotal?: number;
-  realTax?: number;
-  realDiscount?: number;
-  realTotal?: number;
-  /** When true, render real (unmasked) prices for line items and totals. */
-  showRealPrices?: boolean;
   paymentMethod: string;
   date: Date;
   cashierName?: string;
@@ -39,11 +32,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       tax,
       discount,
       total,
-      realSubtotal,
-      realTax,
-      realDiscount,
-      realTotal,
-      showRealPrices = false,
       paymentMethod,
       date,
       cashierName,
@@ -77,19 +65,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         maximumFractionDigits: 0 
       }) + ' FCFA';
     };
-
-    const pickItemUnit = (item: CartItem): number => {
-      const masked = item.customPrice ?? item.price;
-      if (!showRealPrices) return masked;
-      // If manually overridden, honour the override even in real view.
-      if (item.customPrice != null) return item.customPrice;
-      return (item as any).realPrice ?? item.price;
-    };
-
-    const displaySubtotal = showRealPrices ? (realSubtotal ?? subtotal) : subtotal;
-    const displayTax = showRealPrices ? (realTax ?? tax) : tax;
-    const displayDiscount = showRealPrices ? (realDiscount ?? discount) : discount;
-    const displayTotal = showRealPrices ? (realTotal ?? total) : total;
 
   return (
     <div ref={ref} className="receipt-container" style={{ width: '80mm', padding: '8px', background: 'white', color: 'black', fontFamily: 'monospace', fontSize: '14px' }}>
@@ -207,7 +182,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
       <div className="border-t border-b border-black py-2 mb-2">
         {items.map((item, index) => {
-          const effectivePrice = pickItemUnit(item);
+          const effectivePrice = item.customPrice ?? item.price;
           const itemDiscount = (item.itemDiscount || 0) * item.quantity;
           const showOfferPrice = item.isOneTimeOffer && item.originalPrice && item.originalPrice > effectivePrice * item.quantity;
           return (
@@ -248,23 +223,23 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
       <div className="space-y-1 mb-2">
         <div className="flex justify-between">
           <span>Subtotal:</span>
-          <span>{formatCurrency(displaySubtotal)}</span>
+          <span>{formatCurrency(subtotal)}</span>
         </div>
-        {displayTax > 0 && (
+        {tax > 0 && (
           <div className="flex justify-between">
             <span>Timbre:</span>
-            <span>{formatCurrency(displayTax)}</span>
+            <span>{formatCurrency(tax)}</span>
           </div>
         )}
-        {displayDiscount > 0 && (
+        {discount > 0 && (
           <div className="flex justify-between">
             <span>Discount:</span>
-            <span>-{formatCurrency(displayDiscount)}</span>
+            <span>-{formatCurrency(discount)}</span>
           </div>
         )}
         <div className="flex justify-between font-bold text-lg border-t pt-1">
           <span>TOTAL:</span>
-          <span>{formatCurrency(displayTotal)}</span>
+          <span>{formatCurrency(total)}</span>
         </div>
       </div>
 

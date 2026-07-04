@@ -73,8 +73,6 @@ import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { usePriceRevealControls } from "@/contexts/PriceRevealContext";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
@@ -114,19 +112,6 @@ export default function AdminOrders() {
   // Enable real-time sync for automatic updates
   useRealtimeSync();
 
-  // Reveal real (unmasked) totals when F12 is held. Falls back to masked when
-  // no real value is stored (e.g. legacy rows before dual accounting).
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const { reset: resetReveal } = usePriceRevealControls();
-  useEffect(() => () => resetReveal(), [resetReveal]);
-  const showReal = revealRealPrice && maskingEnabled;
-  const revealAmt = (masked: any, real: any) => {
-    const m = Number(masked || 0);
-    if (!showReal) return m;
-    const r = real == null || real === '' ? null : Number(real);
-    return r != null && !Number.isNaN(r) && r > 0 ? r : m;
-  };
-
   const toggleOrderExpanded = async (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
     if (newExpanded.has(orderId)) {
@@ -143,7 +128,7 @@ export default function AdminOrders() {
         if (order.type === 'pos') {
           const { data: freshTx } = await supabase
             .from('pos_transactions')
-            .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
+            .select('items, subtotal, tax, discount, total, payment_method, payment_details')
             .eq('id', orderId)
             .single();
           if (freshTx) {
@@ -153,10 +138,6 @@ export default function AdminOrders() {
               tax: freshTx.tax,
               discount: freshTx.discount || 0,
               total: freshTx.total,
-              real_subtotal: freshTx.real_subtotal,
-              real_tax: freshTx.real_tax,
-              real_discount: freshTx.real_discount,
-              real_total: freshTx.real_total,
               payment_method: freshTx.payment_method,
               payment_details: freshTx.payment_details,
             });
@@ -168,7 +149,7 @@ export default function AdminOrders() {
             .eq('order_id', orderId);
           const { data: freshOrd } = await supabase
             .from('orders')
-            .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
+            .select('subtotal, tax, total, delivery_fee, status')
             .eq('id', orderId)
             .single();
           if (freshItems) order.items = freshItems;
@@ -249,8 +230,6 @@ export default function AdminOrders() {
       // When searching, pre-resolve contact IDs whose name/phone match the query
       // so we can push the search down to the database (covers ALL historical orders).
       let matchingContactIds: string[] = [];
-      let matchingProductIds: string[] = [];
-      let onlineOrderIdsByProduct: string[] = [];
       if (isSearching) {
         const q = searchQuery.trim();
         const { data: matchedContacts } = await supabase
@@ -259,26 +238,6 @@ export default function AdminOrders() {
           .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
           .limit(500);
         matchingContactIds = (matchedContacts || []).map((c: any) => c.id);
-
-        // Resolve products whose name (or barcode) matches so we can pull in
-        // orders/POS transactions containing those products.
-        const { data: matchedProducts } = await supabase
-          .from('products')
-          .select('id')
-          .or(`name.ilike.%${q}%,barcode.ilike.%${q}%`)
-          .limit(500);
-        matchingProductIds = (matchedProducts || []).map((p: any) => p.id);
-
-        if (matchingProductIds.length > 0) {
-          const { data: matchedOrderItems } = await supabase
-            .from('order_items')
-            .select('order_id')
-            .in('product_id', matchingProductIds)
-            .limit(5000);
-          onlineOrderIdsByProduct = [
-            ...new Set((matchedOrderItems || []).map((oi: any) => oi.order_id).filter(Boolean)),
-          ];
-        }
       }
 
       // Fetch online orders
@@ -314,9 +273,6 @@ export default function AdminOrders() {
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
         }
-        if (onlineOrderIdsByProduct.length > 0) {
-          orParts.push(`id.in.(${onlineOrderIdsByProduct.join(',')})`);
-        }
         ordersQuery = ordersQuery.or(orParts.join(',')).limit(5000);
       }
 
@@ -336,10 +292,6 @@ export default function AdminOrders() {
           subtotal,
           tax,
           discount,
-          real_total,
-          real_subtotal,
-          real_tax,
-          real_discount,
           payment_method,
           payment_details,
           created_at,
@@ -359,11 +311,7 @@ export default function AdminOrders() {
       } else if (isSearching) {
         // Push search to the DB so ALL historical transactions are scanned (no recent-cap cutoff)
         const q = searchQuery.trim();
-        const orParts = [
-          `transaction_number.ilike.%${q}%`,
-          // Match product names/barcodes stored inside the items JSONB blob.
-          `items::text.ilike.%${q}%`,
-        ];
+        const orParts = [`transaction_number.ilike.%${q}%`];
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
         }
@@ -489,10 +437,6 @@ export default function AdminOrders() {
           subtotal: transaction.subtotal,
           tax: transaction.tax,
           discount: transaction.discount || 0,
-          real_total: (transaction as any).real_total,
-          real_subtotal: (transaction as any).real_subtotal,
-          real_tax: (transaction as any).real_tax,
-          real_discount: (transaction as any).real_discount,
           delivery_fee: 0,
           created_at: transaction.created_at,
           items: transaction.items || [],
@@ -658,13 +602,6 @@ export default function AdminOrders() {
     // Fetch customer balance
     const customerBalance = await fetchCustomerBalance(order.customer_name);
 
-    const pick = (masked: any, real: any) => {
-      const m = Number(masked || 0);
-      if (!showReal) return m;
-      const r = real == null || real === '' ? null : Number(real);
-      return r != null && !Number.isNaN(r) && r > 0 ? r : m;
-    };
-
     // Create a temporary container for the receipt
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -736,8 +673,7 @@ export default function AdminOrders() {
 
             <div class="border-t border-b py-2 mb-2">
               ${order.items.map((item: any) => {
-                const baseEffective = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
-                const effectivePrice = pick(baseEffective, item.real_unit_price ?? item.realPrice);
+                const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
                 const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
                 return `
                 <div class="mb-2">
@@ -761,21 +697,21 @@ export default function AdminOrders() {
             <div class="space-y-1 mb-2">
               <div class="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${pick(order.subtotal, (order as any).real_subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${Number(order.subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               <div class="flex justify-between">
                 <span>Tax (15%):</span>
-                <span>${pick(order.tax || 0, (order as any).real_tax).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${Number(order.tax || 0).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               ${order.type === 'pos' && order.discount > 0 ? `
                 <div class="flex justify-between">
                   <span>Discount:</span>
-                  <span>-${pick(order.discount, (order as any).real_discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                  <span>-${Number(order.discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                 </div>
               ` : ''}
               <div class="flex justify-between font-bold text-lg border-t pt-1">
                 <span>TOTAL:</span>
-                <span>${pick(order.total, (order as any).real_total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${Number(order.total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
             </div>
 
@@ -839,7 +775,7 @@ export default function AdminOrders() {
     if (cachedOrder.type === 'pos') {
       const { data: freshTx } = await supabase
         .from('pos_transactions')
-        .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
+        .select('items, subtotal, tax, discount, total, payment_method, payment_details')
         .eq('id', orderId)
         .single();
       if (freshTx) {
@@ -850,10 +786,6 @@ export default function AdminOrders() {
           tax: freshTx.tax,
           discount: freshTx.discount || 0,
           total: freshTx.total,
-          real_subtotal: freshTx.real_subtotal,
-          real_tax: freshTx.real_tax,
-          real_discount: freshTx.real_discount,
-          real_total: freshTx.real_total,
           payment_method: freshTx.payment_method,
           payment_details: freshTx.payment_details,
         };
@@ -867,7 +799,7 @@ export default function AdminOrders() {
           .eq('order_id', orderId),
         supabase
           .from('orders')
-          .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
+          .select('subtotal, tax, total, delivery_fee, status')
           .eq('id', orderId)
           .single()
       ]);
@@ -880,8 +812,6 @@ export default function AdminOrders() {
           subtotal: orderResult.data.subtotal,
           tax: orderResult.data.tax,
           total: orderResult.data.total,
-          real_subtotal: orderResult.data.real_subtotal,
-          real_total: orderResult.data.real_total,
         };
       }
     }
@@ -900,12 +830,6 @@ export default function AdminOrders() {
     toast.loading('Printing...', { id: 'direct-print' });
     
     try {
-      const pick = (masked: any, real: any) => {
-        const m = Number(masked || 0);
-        if (!showReal) return m;
-        const r = real == null || real === '' ? null : Number(real);
-        return r != null && !Number.isNaN(r) && r > 0 ? r : m;
-      };
       await kioskPrintService.printReceipt({
         storeName: settings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART',
         transactionNumber: order.order_number,
@@ -914,17 +838,14 @@ export default function AdminOrders() {
           name: item.products?.name || item.name,
           displayName: item.display_name || item.displayName,
           quantity: item.quantity,
-          price: pick(
-            item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
-            item.real_unit_price ?? item.realPrice,
-          ),
+          price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
           itemDiscount: item.itemDiscount || item.item_discount || 0,
           comboItems: item.comboItems || item.combo_items,
         })),
-        subtotal: pick(order.subtotal, order.real_subtotal),
-        tax: pick(order.tax || 0, order.real_tax),
-        discount: order.type === 'pos' ? pick(order.discount || 0, order.real_discount) : undefined,
-        total: pick(order.total, order.real_total),
+        subtotal: Number(order.subtotal),
+        tax: Number(order.tax || 0),
+        discount: order.type === 'pos' ? Number(order.discount || 0) : undefined,
+        total: Number(order.total),
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
         customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
@@ -1027,7 +948,6 @@ export default function AdminOrders() {
             displayName: item.display_name || item.displayName,
           price: item.price || item.unit_price || item.products?.price || 0,
           customPrice: item.customPrice,
-          realPrice: item.real_unit_price ?? item.realPrice ?? (item.price || item.unit_price || item.products?.price || 0),
           quantity: item.quantity || 1,
           itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode || item.products?.barcode,
@@ -2028,8 +1948,8 @@ export default function AdminOrders() {
                               {order.items?.length || 0} items
                             </Badge>
                           </TableCell>
-                          <TableCell className={`border-r border-border/60 px-2 py-1 text-xs font-semibold ${showReal ? 'text-amber-600' : ''}`}>
-                            {formatCurrency(revealAmt(order.total, order.real_total))}
+                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
+                            {formatCurrency(Number(order.total))}
                           </TableCell>
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
@@ -2086,7 +2006,7 @@ export default function AdminOrders() {
                                       .eq('order_id', order.id);
                                     const { data: freshOrd } = await supabase
                                       .from('orders')
-                                      .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
+                                      .select('subtotal, tax, total, delivery_fee, status')
                                       .eq('id', order.id)
                                       .single();
                                     if (freshItems) freshView = { ...freshView, items: freshItems };
@@ -2094,7 +2014,7 @@ export default function AdminOrders() {
                                   } else {
                                     const { data: freshTx } = await supabase
                                       .from('pos_transactions')
-                                      .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
+                                      .select('items, subtotal, tax, discount, total, payment_method, payment_details')
                                       .eq('id', order.id)
                                       .single();
                                     if (freshTx) freshView = { ...freshView, ...freshTx, items: freshTx.items || [] };
@@ -2227,8 +2147,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.name}</p>
-                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                                                Original: {formatCurrency(revealAmt(item.price, item.realPrice))} each
+                                              <p className="text-sm text-muted-foreground">
+                                                Original: {formatCurrency(Number(item.price))} each
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2262,8 +2182,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
-                                                {formatCurrency((Number(item.customPrice ?? revealAmt(item.price, item.realPrice)) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
+                                              <p className="font-semibold">
+                                                {formatCurrency((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
                                               </p>
                                             </div>
                                             <Button
@@ -2339,8 +2259,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
-                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                                                {formatCurrency(revealAmt(item.unit_price, item.real_unit_price))} / {item.products?.unit}
+                                              <p className="text-sm text-muted-foreground">
+                                                {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2374,8 +2294,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
-                                                {formatCurrency(revealAmt(item.subtotal, item.real_total_price))}
+                                              <p className="font-semibold">
+                                                {formatCurrency(Number(item.subtotal))}
                                               </p>
                                             </div>
                                             <Button
@@ -2732,16 +2652,10 @@ export default function AdminOrders() {
               quantity: item.quantity,
               price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
               customPrice: item.customPrice,
-              realPrice: item.real_unit_price ?? item.realPrice ?? undefined,
               itemDiscount: item.itemDiscount || 0,
             }))}
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
-            realSubtotal={selectedReceiptOrder.real_subtotal ?? undefined}
-            realDiscount={selectedReceiptOrder.real_discount ?? undefined}
-            realTax={selectedReceiptOrder.real_tax ?? undefined}
-            realTotal={selectedReceiptOrder.real_total ?? undefined}
-            showRealPrices={showReal}
             customerName={selectedReceiptOrder.customer_name && selectedReceiptOrder.customer_name !== 'Walk-in Customer' ? selectedReceiptOrder.customer_name : undefined}
             customerPhone={selectedReceiptOrder.customer_phone || undefined}
             tax={Number(selectedReceiptOrder.tax || 0)}

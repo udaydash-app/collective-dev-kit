@@ -17,7 +17,6 @@ import { Droplets, Download, Calendar } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 export default function CashFlow() {
   usePageView('Admin - Cash Flow Statement');
@@ -25,12 +24,9 @@ export default function CashFlow() {
     new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  // F12 toggles between masked (default) and real ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: cashFlowData, isLoading } = useQuery({
-    queryKey: ['cash-flow', startDate, endDate, isRealLedger],
+    queryKey: ['cash-flow', startDate, endDate],
     queryFn: async () => {
       // Get cash account (571 - Caisse SYSCOHADA)
       const { data: cashAccounts } = await supabase
@@ -58,7 +54,7 @@ export default function CashFlow() {
       console.log('Cash account ID:', cashAccountId);
 
       // Get journal lines for cash account with journal entry data in date range
-      let jlQuery = supabase
+      const { data: journalLines, error: jlError } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -76,15 +72,11 @@ export default function CashFlow() {
         .eq('journal_entries.status', 'posted')
         .gte('journal_entries.entry_date', startDate)
         .lte('journal_entries.entry_date', endDate);
-      jlQuery = isRealLedger
-        ? jlQuery.eq('journal_entries.is_real_ledger', true)
-        : jlQuery.neq('journal_entries.is_real_ledger', true);
-      const { data: journalLines, error: jlError } = await jlQuery;
 
       console.log('Journal lines for cash:', journalLines?.length, jlError);
 
       // Calculate beginning cash balance (before start date)
-      let blQuery = supabase
+      const { data: beginningLines, error: blError } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -94,10 +86,6 @@ export default function CashFlow() {
         .eq('account_id', cashAccountId)
         .eq('journal_entries.status', 'posted')
         .lt('journal_entries.entry_date', startDate);
-      blQuery = isRealLedger
-        ? blQuery.eq('journal_entries.is_real_ledger', true)
-        : blQuery.neq('journal_entries.is_real_ledger', true);
-      const { data: beginningLines, error: blError } = await blQuery;
 
       console.log('Beginning lines:', beginningLines?.length, blError);
 

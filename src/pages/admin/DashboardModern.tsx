@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchModernDashboardLocal, getPosAdminSession } from "@/db/queries/accounting";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { pickSaleTotal } from "@/lib/priceMasking";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -115,9 +113,6 @@ const menuGroups: { label: string; items: { title: string; to: string; icon: any
 
 export default function DashboardModern() {
   const [recentOpen, setRecentOpen] = useState(true);
-  // F12 flips revenue tiles/charts between masked and real ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
   const offlineSession = (() => {
     try {
       const storedSession = localStorage.getItem('offline_pos_session');
@@ -135,7 +130,7 @@ export default function DashboardModern() {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
 
   const { data: dashboardData } = useQuery({
-    queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id, isRealLedger],
+    queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
     queryFn: async () => {
       const adminSession = getPosAdminSession();
       if (adminSession && navigator.onLine) {
@@ -155,8 +150,8 @@ export default function DashboardModern() {
       }
 
       const [tx, orders, products, contacts, lowStock, posUsers, purchases, expenses, journals, accounts] = await Promise.all([
-        supabase.from("pos_transactions").select("id, transaction_number, total, real_total, subtotal, real_subtotal, discount, real_discount, tax, real_tax, payment_method, created_at, items, cashier_id").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(500),
-        supabase.from("orders").select("id, order_number, total, real_total, status, payment_status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200),
+        supabase.from("pos_transactions").select("id, transaction_number, total, subtotal, discount, tax, payment_method, created_at, items, cashier_id").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(500),
+        supabase.from("orders").select("id, order_number, total, status, payment_status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200),
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("contacts").select("*", { count: "exact", head: true }),
         supabase.from("products").select("*", { count: "exact", head: true }).lte("stock_quantity", 5),
@@ -209,7 +204,7 @@ export default function DashboardModern() {
     const uid = t.cashier_id || "unknown";
     const name = userMap.get(uid)?.name || (uid === "unknown" ? "Unassigned" : "Unknown user");
     if (!perUser[uid]) perUser[uid] = { name, sales: 0, count: 0 };
-    perUser[uid].sales += pickSaleTotal(t, isRealLedger);
+    perUser[uid].sales += Number(t.total) || 0;
     perUser[uid].count += 1;
   });
   const userRows = Object.entries(perUser)
@@ -225,42 +220,42 @@ export default function DashboardModern() {
     days.push({ date: `${d.getDate()}/${d.getMonth() + 1}`, sales: 0, transactions: 0 });
     (tx || []).forEach((t: any) => {
       if (t.created_at?.slice(0, 10) === key) {
-        days[i].sales += pickSaleTotal(t, isRealLedger);
+        days[i].sales += Number(t.total) || 0;
         days[i].transactions += 1;
       }
     });
     (orders || []).forEach((o: any) => {
       if (o.created_at?.slice(0, 10) === key && o.payment_status === "paid") {
-        days[i].sales += pickSaleTotal(o, isRealLedger);
+        days[i].sales += Number(o.total) || 0;
       }
     });
   }
 
   const todaySales = (tx || [])
     .filter((t: any) => new Date(t.created_at) >= startOfToday)
-    .reduce((s: number, t: any) => s + pickSaleTotal(t, isRealLedger), 0);
+    .reduce((s: number, t: any) => s + (Number(t.total) || 0), 0);
   const todayTx = (tx || []).filter((t: any) => new Date(t.created_at) >= startOfToday).length;
-  const periodSales = (tx || []).reduce((s: number, t: any) => s + pickSaleTotal(t, isRealLedger), 0);
+  const periodSales = (tx || []).reduce((s: number, t: any) => s + (Number(t.total) || 0), 0);
   const avgTicket = (tx || []).length > 0 ? periodSales / (tx || []).length : 0;
 
   // Payment mix
   const paymentMix: Record<string, number> = {};
   (tx || []).forEach((t: any) => {
     const m = t.payment_method || "unknown";
-    paymentMix[m] = (paymentMix[m] || 0) + pickSaleTotal(t, isRealLedger);
+    paymentMix[m] = (paymentMix[m] || 0) + (Number(t.total) || 0);
   });
   const pieData = Object.entries(paymentMix).map(([name, value]) => ({ name, value }));
   const pieColors = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))", "#f59e0b", "#ec4899", "#06b6d4"];
 
   const recent = [
     ...((tx || []).map((t: any) => ({
-      id: t.id, ref: t.transaction_number, total: pickSaleTotal(t, isRealLedger),
+      id: t.id, ref: t.transaction_number, total: Number(t.total) || 0,
       date: t.created_at, type: "POS" as const, customer: "Walk-in",
       items: Array.isArray(t.items) ? t.items.length : 0,
       user: userMap.get(t.cashier_id || "")?.name || "—",
     }))),
     ...((orders || []).map((o: any) => ({
-      id: o.id, ref: o.order_number, total: pickSaleTotal(o, isRealLedger),
+      id: o.id, ref: o.order_number, total: Number(o.total) || 0,
       date: o.created_at, type: "Online" as const, customer: "Guest",
       items: 0, status: o.status,
       user: "Online",

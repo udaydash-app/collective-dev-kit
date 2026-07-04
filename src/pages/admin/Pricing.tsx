@@ -44,8 +44,6 @@ import { Search, Package, Edit, Save, UserCircle, FileText, Receipt, Trash2 } fr
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { computeMaskedPrice } from '@/lib/priceMasking';
 
 interface Customer {
   id: string;
@@ -65,22 +63,6 @@ interface CustomerProductPrice {
 export default function Pricing() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('standard');
-  const { showMasked } = usePriceMasking();
-
-  // Return masked selling price when POS session is active and F12 is not held.
-  const maskSell = (real: number | null | undefined, product: any): number | null => {
-    if (real == null) return null;
-    if (!showMasked) return Number(real);
-    const masked = computeMaskedPrice(
-      {
-        price: Number(real),
-        cost_price: product?.cost_price,
-        local_charges: product?.local_charges,
-      },
-      { local_charges: product?.local_charges, price: Number(real) },
-    );
-    return masked || Number(real);
-  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
@@ -158,7 +140,7 @@ export default function Pricing() {
       if (!selectedCustomer) return [];
       const { data, error } = await supabase
         .from('customer_product_prices')
-        .select('*, products(name, price, cost_price, local_charges, categories(name))')
+        .select('*, products(name, price, categories(name))')
         .eq('customer_id', selectedCustomer);
       if (error) throw error;
       return data;
@@ -672,18 +654,18 @@ export default function Pricing() {
                         {(product.cost_price || product.local_charges) ? formatCurrency((Number(product.cost_price) || 0) + (Number(product.local_charges) || 0)) : '-'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {product.price ? formatCurrency(maskSell(product.price, product) as number) : '-'}
+                        {product.price ? formatCurrency(product.price) : '-'}
                       </TableCell>
                       <TableCell className="text-right text-blue-600">
-                        {product.wholesale_price ? formatCurrency(maskSell(product.wholesale_price, product) as number) : '-'}
+                        {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
                       </TableCell>
                       <TableCell className="text-right text-purple-600">
-                        {product.vip_price ? formatCurrency(maskSell(product.vip_price, product) as number) : '-'}
+                        {product.vip_price ? formatCurrency(product.vip_price) : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         {product.price && (product.cost_price || product.local_charges) ? (
                           <Badge variant="outline">
-                            {calculateMargin(maskSell(product.price, product) as number, (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0))}%
+                            {calculateMargin(product.price, (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0))}%
                           </Badge>
                         ) : '-'}
                       </TableCell>
@@ -763,10 +745,8 @@ export default function Pricing() {
                   <TableBody>
                     {customerPrices && customerPrices.length > 0 ? (
                       customerPrices.map((item: any) => {
-                        const rawStandard = item.products?.price || 0;
-                        const rawCustom = item.price;
-                        const standardPrice = maskSell(rawStandard, item.products) as number || 0;
-                        const customPrice = maskSell(rawCustom, item.products) as number || 0;
+                        const standardPrice = item.products?.price || 0;
+                        const customPrice = item.price;
                         const savings = standardPrice > 0 ? standardPrice - customPrice : 0;
                         const savingsPercent = standardPrice > 0 
                           ? ((savings / standardPrice) * 100).toFixed(1)

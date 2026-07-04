@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Sparkles, Package, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { computeMaskedPrice } from "@/lib/priceMasking";
 
 export interface ProductRow {
   id: string;
@@ -17,11 +15,9 @@ export interface ProductRow {
   stores?: { name: string } | null;
   stock_quantity?: number | null;
   price: number;
-  cost_price?: number | null;
-  local_charges?: number | null;
   is_available?: boolean;
   is_featured?: boolean;
-  product_variants?: { price: number; cost_price?: number | null }[];
+  product_variants?: { price: number }[];
 }
 
 type ColKey =
@@ -93,16 +89,6 @@ export function ResizableProductsTable({
   const [cols, setCols] = useState<ColDef[]>(() => loadCols());
   const resizing = useRef<{ key: ColKey; startX: number; startW: number } | null>(null);
   const dragKey = useRef<ColKey | null>(null);
-  const { showMasked } = usePriceMasking();
-  const maskSell = (real: number | null | undefined, product: ProductRow, variant?: { cost_price?: number | null }): number | null => {
-    if (real == null) return null;
-    if (!showMasked) return Number(real);
-    const m = computeMaskedPrice(
-      { price: Number(real), cost_price: variant?.cost_price ?? product?.cost_price, local_charges: product?.local_charges },
-      { local_charges: product?.local_charges, price: Number(real) },
-    );
-    return m || Number(real);
-  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
@@ -192,10 +178,10 @@ export function ResizableProductsTable({
       }
       case "price":
         if (p.product_variants && p.product_variants.length > 0) {
-          const prices = p.product_variants.map(v => maskSell(v.price, p, v) ?? v.price);
+          const prices = p.product_variants.map(v => v.price);
           return <span className="font-medium">{formatCurrency(Math.min(...prices))} - {formatCurrency(Math.max(...prices))}</span>;
         }
-        return <span className="font-medium">{formatCurrency(maskSell(p.price, p) ?? p.price)}</span>;
+        return <span className="font-medium">{formatCurrency(p.price)}</span>;
       case "status":
         return (
           <div className="flex items-center gap-1">

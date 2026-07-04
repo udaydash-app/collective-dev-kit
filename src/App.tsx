@@ -116,7 +116,6 @@ import LedgerlyApp from "@/ledgerly/LedgerlyApp";
 import { useCloudSync } from "./hooks/useCloudSync";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { FiscalPeriodProvider } from "./contexts/FiscalPeriodContext";
-import { PriceRevealProvider } from "./contexts/PriceRevealContext";
 
 const queryClient = new QueryClient();
 
@@ -124,9 +123,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <FiscalPeriodProvider>
-        <PriceRevealProvider>
-          <AppContent />
-        </PriceRevealProvider>
+        <AppContent />
       </FiscalPeriodProvider>
     </QueryClientProvider>
   );

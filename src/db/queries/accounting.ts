@@ -40,63 +40,6 @@ export async function fetchAccountsLocal(opts: { includeInactive?: boolean } = {
   return local.map((r) => ({ ...r, is_active: toBool(r.is_active) }) as any);
 }
 
-// Balance for a single account, derived from posted journal_entry_lines and
-// filtered by is_real_ledger so F12 flips between masked (default) and real
-// ledger. Used by Accounts Receivable / Accounts Payable so their totals
-// match the General Ledger. Returns 0 when the account has no activity.
-export async function fetchAccountBalanceFromJournal(
-  accountId: string,
-  isRealLedger: boolean,
-): Promise<number> {
-  if (!accountId) return 0;
-
-  if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
-    try {
-      let totalDebit = 0;
-      let totalCredit = 0;
-      const PAGE = 1000;
-      let offset = 0;
-      for (let guard = 0; guard < 1000; guard++) {
-        let q = supabase
-          .from('journal_entry_lines')
-          .select('debit_amount, credit_amount, journal_entries!inner(status, is_real_ledger)')
-          .eq('account_id', accountId)
-          .eq('journal_entries.status', 'posted')
-          .order('id', { ascending: true })
-          .range(offset, offset + PAGE - 1);
-        q = isRealLedger
-          ? q.eq('journal_entries.is_real_ledger', true)
-          : q.neq('journal_entries.is_real_ledger', true);
-        const { data, error } = await q;
-        if (error) throw error;
-        const rows = (data ?? []) as any[];
-        rows.forEach((r) => {
-          totalDebit += Number(r.debit_amount) || 0;
-          totalCredit += Number(r.credit_amount) || 0;
-        });
-        if (rows.length < PAGE) break;
-        offset += PAGE;
-      }
-      return totalDebit - totalCredit;
-    } catch (e) {
-      console.warn('[account-balance-journal] remote failed, using local', e);
-    }
-  }
-
-  const rows = await queryRows(
-    `SELECT COALESCE(SUM(l.debit_amount), 0) AS d,
-            COALESCE(SUM(l.credit_amount), 0) AS c
-     FROM journal_entry_lines l
-     JOIN journal_entries e ON e.id = l.journal_entry_id
-     WHERE l.account_id = ?
-       AND e.status = 'posted'
-       AND COALESCE(e.is_real_ledger, 0) = ?`,
-    [accountId, isRealLedger ? 1 : 0],
-  );
-  const r = rows[0] || {};
-  return (Number(r.d) || 0) - (Number(r.c) || 0);
-}
-
 // Compute debit/credit totals per account from posted journal entry lines
 // up to (and optionally from) a given date. Returns one row per active
 // account. Used by Trial Balance, Balance Sheet, and P&L expense sections.
@@ -104,7 +47,6 @@ export async function fetchAccountBalancesLocal(opts: {
   startDate?: string;
   endDate?: string;
   accountTypes?: string[];
-  isRealLedger?: boolean;
 } = {}): Promise<any[]> {
   if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
@@ -123,13 +65,9 @@ export async function fetchAccountBalancesLocal(opts: {
   const lineDateClauses: string[] = ["e.status = 'posted'"];
   if (opts.startDate) lineDateClauses.push("e.entry_date >= ?");
   if (opts.endDate) lineDateClauses.push("e.entry_date <= ?");
-  // Dual accounting: default to masked ledger; reveal switches to the
-  // mirrored real ledger. Rows without the flag (legacy) count as masked.
-  lineDateClauses.push("COALESCE(e.is_real_ledger, 0) = ?");
   const lineArgs: any[] = [];
   if (opts.startDate) lineArgs.push(opts.startDate);
   if (opts.endDate) lineArgs.push(opts.endDate);
-  lineArgs.push(opts.isRealLedger ? 1 : 0);
 
   const sql = `
     SELECT a.*, 
@@ -160,7 +98,6 @@ export async function fetchAccountBalancesRemote(opts: {
   startDate?: string;
   endDate?: string;
   accountTypes?: string[];
-  isRealLedger?: boolean;
 } = {}): Promise<any[]> {
   let accountQuery = supabase
     .from('accounts')
@@ -197,12 +134,6 @@ export async function fetchAccountBalancesRemote(opts: {
     if (opts.accountTypes?.length) lineQuery = lineQuery.in('accounts.account_type', opts.accountTypes as any);
     if (opts.startDate) lineQuery = lineQuery.gte('journal_entries.entry_date', opts.startDate);
     if (opts.endDate) lineQuery = lineQuery.lte('journal_entries.entry_date', opts.endDate);
-    // Masked ledger by default; F12 reveals the real one.
-    if (opts.isRealLedger) {
-      lineQuery = lineQuery.eq('journal_entries.is_real_ledger', true);
-    } else {
-      lineQuery = lineQuery.neq('journal_entries.is_real_ledger', true);
-    }
 
     const { data, error } = await lineQuery;
     if (error) throw error;
@@ -249,7 +180,7 @@ export async function fetchProfitLossInputsLocal(startDate: string, endDate: str
       [startDate, endTs],
     ),
     db.getAll(
-      `SELECT subtotal, discount, real_subtotal, real_discount, items FROM pos_transactions
+      `SELECT subtotal, discount, items FROM pos_transactions
        WHERE created_at >= ? AND created_at <= ?`,
       [startDate, endTs],
     ),
@@ -813,16 +744,15 @@ export async function fetchContactByLedgerAccountLocal(accountId: string): Promi
 // Joins journal_entries so the page can read entry_date/description/etc.
 export async function fetchAccountLinesLocal(
   accountId: string,
-  opts: { startDate?: string; endDate?: string; includePrior?: boolean; realLedger?: boolean } = {},
+  opts: { startDate?: string; endDate?: string; includePrior?: boolean } = {},
 ): Promise<any[]> {
   if (!accountId) return [];
   const clauses: string[] = [
     "l.account_id = ?",
     "e.status = 'posted'",
     "LOWER(COALESCE(e.description, '')) NOT LIKE '%opening balance%'",
-    "COALESCE(e.is_real_ledger, 0) = ?",
   ];
-  const args: any[] = [accountId, opts.realLedger ? 1 : 0];
+  const args: any[] = [accountId];
   if (opts.startDate && !opts.includePrior) {
     clauses.push("e.entry_date >= ?");
     args.push(opts.startDate);
@@ -868,9 +798,7 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     }
   }
 
-  // Only fetch masked (non-real) entries; real-ledger duplicates are attached
-  // as `real_entry` for F12 reveal.
-  const clauses: string[] = ["COALESCE(is_real_ledger, 0) = 0"];
+  const clauses: string[] = [];
   const args: any[] = [];
   if (start) {
     clauses.push("entry_date >= ?");
@@ -925,42 +853,9 @@ export async function fetchJournalEntriesLocal(filter: LocalJournalFilter) {
     linesByEntry.set(l.journal_entry_id, list);
   }
 
-  // Fetch matching real-ledger entries + lines for reveal
-  const realEntries = await queryRows(
-    `SELECT * FROM journal_entries WHERE is_real_ledger = 1 AND masked_entry_id IN (${ph})`,
-    ids,
-  );
-  const realById = new Map<string, any>();
-  const realIds = realEntries.map((r: any) => r.id);
-  if (realIds.length > 0) {
-    const rph = realIds.map(() => "?").join(",");
-    const realLines = await queryRows(
-      `SELECT l.*, a.account_code, a.account_name
-       FROM journal_entry_lines l
-       LEFT JOIN accounts a ON a.id = l.account_id
-       WHERE l.journal_entry_id IN (${rph})`,
-      realIds,
-    );
-    const realLinesByEntry = new Map<string, any[]>();
-    for (const l of realLines) {
-      const list = realLinesByEntry.get(l.journal_entry_id) ?? [];
-      list.push({
-        ...l,
-        accounts: l.account_code
-          ? { account_code: l.account_code, account_name: l.account_name }
-          : null,
-      });
-      realLinesByEntry.set(l.journal_entry_id, list);
-    }
-    for (const r of realEntries) {
-      realById.set(r.masked_entry_id, { ...r, journal_entry_lines: realLinesByEntry.get(r.id) ?? [] });
-    }
-  }
-
   const merged = entries.map((e) => ({
     ...e,
     journal_entry_lines: linesByEntry.get(e.id) ?? [],
-    real_entry: realById.get(e.id) ?? null,
   }));
   return { entries: merged, totalCount };
 }
@@ -975,7 +870,6 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
   let query = supabase
     .from('journal_entries')
     .select('*', { count: 'exact' })
-    .neq('is_real_ledger', true)
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -1024,42 +918,10 @@ async function fetchJournalEntriesFromSupabase(filter: LocalJournalFilter) {
     linesByEntry.set(line.journal_entry_id, list);
   }
 
-  // Fetch paired real-ledger entries for reveal
-  const { data: realEntriesData } = await supabase
-    .from('journal_entries')
-    .select('*')
-    .eq('is_real_ledger', true)
-    .in('masked_entry_id', ids);
-  const realEntries = realEntriesData ?? [];
-  const realIds = realEntries.map((r: Row) => r.id);
-  const realLinesByEntry = new Map<string, Row[]>();
-  if (realIds.length > 0) {
-    const { data: realLinesData } = await supabase
-      .from('journal_entry_lines')
-      .select('*')
-      .in('journal_entry_id', realIds);
-    for (const line of realLinesData ?? []) {
-      const account = line.account_id ? accountsById.get(line.account_id) : null;
-      const list = realLinesByEntry.get(line.journal_entry_id) ?? [];
-      list.push({
-        ...line,
-        accounts: account
-          ? { account_code: account.account_code, account_name: account.account_name }
-          : null,
-      });
-      realLinesByEntry.set(line.journal_entry_id, list);
-    }
-  }
-  const realByMaskedId = new Map<string, any>();
-  for (const r of realEntries) {
-    realByMaskedId.set(r.masked_entry_id, { ...r, journal_entry_lines: realLinesByEntry.get(r.id) ?? [] });
-  }
-
   return {
     entries: entries.map((entry: Row) => ({
       ...entry,
       journal_entry_lines: linesByEntry.get(entry.id) ?? [],
-      real_entry: realByMaskedId.get(entry.id) ?? null,
     })),
     totalCount: count ?? entries.length,
   };

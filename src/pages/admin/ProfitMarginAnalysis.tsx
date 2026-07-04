@@ -15,8 +15,6 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
 import { getPosAdminSession } from "@/db/queries/accounting";
-import { usePriceMasking } from "@/hooks/usePriceMasking";
-import { pickItemUnitPrice, pickSaleTotal } from "@/lib/priceMasking";
 
 interface ProfitMarginData {
   product_id: string;
@@ -47,9 +45,6 @@ export default function ProfitMarginAnalysis() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"product" | "category">("product");
   const [searchTerm, setSearchTerm] = useState("");
-  // F12 flips sale amounts between masked and real ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
 
   // Fetch categories for filter
   const { data: categories } = useQuery({
@@ -67,7 +62,7 @@ export default function ProfitMarginAnalysis() {
 
   // Fetch profit margin data
   const { data: profitData, isLoading } = useQuery({
-    queryKey: ["profit-margin", startDate, endDate, selectedCategory, isRealLedger],
+    queryKey: ["profit-margin", startDate, endDate, selectedCategory],
     queryFn: async () => {
       const adminSession = getPosAdminSession();
       if (adminSession) {
@@ -139,8 +134,8 @@ export default function ProfitMarginAnalysis() {
           if (!product) return;
 
           const quantity = Math.abs(item.quantity || 0);
-          // F12 swaps masked unit price for the mirrored real one.
-          const unitPrice = pickItemUnitPrice(item, isRealLedger);
+          // Use actual transaction price: customPrice ?? price, minus per-unit itemDiscount
+          const unitPrice = Number(item.customPrice ?? item.price ?? item.unit_price ?? 0);
           const itemDiscount = Number(item.itemDiscount ?? item.discount ?? 0);
           const revenue = Math.max(unitPrice - itemDiscount, 0) * quantity;
           // Landed cost = CIF cost_price + local_charges
@@ -186,14 +181,14 @@ export default function ProfitMarginAnalysis() {
   // Fetch true total revenue from pos_transactions.total for the period
   // (the per-product RPC under-counts: it drops non-UUID/custom items and ignores tax/timbre/delivery)
   const { data: trueRevenue } = useQuery({
-    queryKey: ["profit-margin-true-revenue", startDate, endDate, isRealLedger],
+    queryKey: ["profit-margin-true-revenue", startDate, endDate],
     queryFn: async () => {
       let sum = 0;
       const pageSize = 1000;
       for (let from = 0; ; from += pageSize) {
         const { data, error } = await supabase
           .from("pos_transactions")
-          .select("id,total,real_total")
+          .select("id,total")
           .gte("created_at", startDate)
           .lte("created_at", endDate + "T23:59:59")
           .order("created_at", { ascending: true })
@@ -201,7 +196,7 @@ export default function ProfitMarginAnalysis() {
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        sum += data.reduce((s, r: any) => s + pickSaleTotal(r, isRealLedger), 0);
+        sum += data.reduce((s, r: any) => s + (Number(r.total) || 0), 0);
         if (data.length < pageSize) break;
       }
       return sum;

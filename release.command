@@ -22,29 +22,11 @@ echo "============================================"
 echo "  Global Market POS - Release Builder"
 echo "============================================"
 
-auto_commit_local_changes() {
-  # Use explicit diff checks instead of only `git status --porcelain`, because
-  # `git pull --rebase` can still fail on some local file states that status
-  # output misses or scripts run from older shells hide.
-  local has_changes=0
-  git diff --quiet || has_changes=1
-  git diff --cached --quiet || has_changes=1
-  [ -n "$(git ls-files --others --exclude-standard)" ] && has_changes=1
-
-  if [ "$has_changes" -eq 1 ]; then
-    echo "Local uncommitted changes detected - auto-committing before pull..."
-    git add -A
-    git commit -m "chore: auto-commit local changes before release" || echo "Nothing to commit"
-  fi
-}
-
 # -------- 1. Pull latest code --------
 echo ""
 echo "[1/7] Pulling latest code from git..."
 if [ -d .git ]; then
-  auto_commit_local_changes
   git fetch --all
-  auto_commit_local_changes
   git pull --rebase || { echo "git pull failed - resolve conflicts and retry"; exit 1; }
 else
   echo "WARNING: not a git repo - skipping pull"

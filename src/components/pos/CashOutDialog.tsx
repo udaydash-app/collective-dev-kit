@@ -1,13 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { useReactToPrint } from 'react-to-print';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package, Printer } from 'lucide-react';
+import { DollarSign, AlertCircle, CreditCard, Smartphone, ShoppingBag, TrendingDown, BookOpen, ChevronDown, ChevronUp, Receipt, Wallet, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
 import { formatCurrency, cn, formatDateTime } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,7 +14,6 @@ import { Card, CardContent } from '@/components/ui/card';
 interface Transaction {
   id: string;
   total: number;
-  real_total?: number | null;
   payment_method: string;
   payment_details?: Array<{ method: string; amount: number }>;
   created_at: string;
@@ -116,60 +112,30 @@ export const CashOutDialog = ({
     journals: false
   });
 
-  // F12 reveal — toggle actuals across the EOD summary
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const { reset: resetReveal } = usePriceRevealControls();
-  useEffect(() => { if (!isOpen) resetReveal(); }, [isOpen, resetReveal]);
-  const showReal = revealRealPrice && maskingEnabled;
-  const revealAmt = (masked: number, real?: number | null) =>
-    showReal && real != null && !isNaN(Number(real)) ? Number(real) : masked;
+  const actualClosing = parseFloat(closingCash);
+  const difference = !isNaN(actualClosing) ? actualClosing - expectedCash : 0;
+  const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
 
-  // Print Z Report
-  const printRef = useRef<HTMLDivElement>(null);
-  const handlePrintZReport = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `Z-Report-${new Date().toISOString().slice(0, 10)}`,
-  } as any);
-
-  // Scale masked payment_details by real/masked ratio so split payments unmask correctly
-  const salesByMethod = (method: string) =>
-    transactions.reduce((sum, t) => {
-      const displayTotal = revealAmt(Number(t.total), t.real_total ?? undefined);
-      const factor = Number(t.total) > 0 ? displayTotal / Number(t.total) : 1;
-      if (t.payment_details && Array.isArray(t.payment_details)) {
-        return sum + t.payment_details
-          .filter(p => p.method === method)
-          .reduce((pSum, p) => pSum + (p.amount || 0) * factor, 0);
-      }
-      return t.payment_method === method ? sum + displayTotal : sum;
-    }, 0);
-
-  const cashSales = salesByMethod('cash');
-  const creditSales = salesByMethod('credit');
-  const mobileMoneySales = salesByMethod('mobile_money');
-  const totalSales = cashSales + creditSales + mobileMoneySales;
-
-  // Recompute expected balances against reveal state. Only the sales portion
-  // differs between masked and real; opening/purchases/expenses/journals are
-  // recorded at their real values already.
-  const maskedCashSales = transactions.reduce((sum, t) => {
+  // Calculate sales by payment method - parse payment_details for multiple payment support
+  const cashSales = transactions.reduce((sum, t) => {
     if (t.payment_details && Array.isArray(t.payment_details)) {
       return sum + t.payment_details.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
     }
-    return t.payment_method === 'cash' ? sum + Number(t.total) : sum;
+    return t.payment_method === 'cash' ? sum + t.total : sum;
   }, 0);
-  const maskedMobileMoneySales = transactions.reduce((sum, t) => {
+  const creditSales = transactions.reduce((sum, t) => {
+    if (t.payment_details && Array.isArray(t.payment_details)) {
+      return sum + t.payment_details.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
+    }
+    return t.payment_method === 'credit' ? sum + t.total : sum;
+  }, 0);
+  const mobileMoneySales = transactions.reduce((sum, t) => {
     if (t.payment_details && Array.isArray(t.payment_details)) {
       return sum + t.payment_details.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
     }
-    return t.payment_method === 'mobile_money' ? sum + Number(t.total) : sum;
+    return t.payment_method === 'mobile_money' ? sum + t.total : sum;
   }, 0);
-  const displayExpectedCash = expectedCash + (cashSales - maskedCashSales);
-  const displayExpectedMobileMoney = expectedMobileMoney + (mobileMoneySales - maskedMobileMoneySales);
-
-  const actualClosing = parseFloat(closingCash);
-  const difference = !isNaN(actualClosing) ? actualClosing - displayExpectedCash : 0;
-  const hasDifference = !isNaN(actualClosing) && Math.abs(difference) > 0.01;
+  const totalSales = cashSales + creditSales + mobileMoneySales;
 
   // Helper functions to count transactions by payment method (considering split payments)
   const countTransactionsWithMethod = (method: string) => 
@@ -221,10 +187,7 @@ export const CashOutDialog = ({
 
     setIsProcessing(true);
     try {
-      // Persist in masked units — scale actual count back if F12 was on
-      const persistFactor = displayExpectedCash !== 0 ? expectedCash / displayExpectedCash : 1;
-      const persistedAmount = showReal ? amount * persistFactor : amount;
-      await onConfirm(persistedAmount, notes || undefined);
+      await onConfirm(amount, notes || undefined);
       setClosingCash('');
       setNotes('');
       onClose();
@@ -345,9 +308,7 @@ export const CashOutDialog = ({
                                       ({paymentMethods})
                                     </span>
                                   </div>
-                                   <span className={cn("font-semibold flex-shrink-0 ml-2", showReal && txn.real_total != null && "text-amber-600 dark:text-amber-400")}>
-                                     {formatCurrency(revealAmt(Number(txn.total), txn.real_total ?? undefined))}
-                                   </span>
+                                  <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
                                 </div>
                               );
                             })}
@@ -755,7 +716,7 @@ export const CashOutDialog = ({
                       <DollarSign className="h-5 w-5 text-emerald-600" />
                       <p className="text-sm font-medium">Expected Cash</p>
                     </div>
-                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>{formatCurrency(displayExpectedCash)}</p>
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(expectedCash)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Opening ({formatCurrency(openingCash)})</p>
                       <p>+ Sales ({formatCurrency(cashSales)})</p>
@@ -776,7 +737,7 @@ export const CashOutDialog = ({
                       <Smartphone className="h-5 w-5 text-purple-600" />
                       <p className="text-sm font-medium">Expected Mobile Money</p>
                     </div>
-                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400")}>{formatCurrency(displayExpectedMobileMoney)}</p>
+                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatCurrency(expectedMobileMoney)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Sales ({formatCurrency(mobileMoneySales)})</p>
                       {mobileMoneyPayments > 0 && <p>+ Receipts ({formatCurrency(mobileMoneyPayments)})</p>}
@@ -863,17 +824,6 @@ export const CashOutDialog = ({
             Cancel
           </Button>
           <Button
-            variant="outline"
-            onClick={() => handlePrintZReport?.()}
-            disabled={isProcessing}
-            className="h-12"
-            size="lg"
-            title="Print Z Report"
-          >
-            <Printer className="mr-2 h-5 w-5" />
-            Z Report
-          </Button>
-          <Button
             onClick={handleConfirm}
             disabled={isProcessing || !closingCash || isNaN(parseFloat(closingCash)) || parseFloat(closingCash) < 0}
             className="flex-1 h-12"
@@ -891,139 +841,6 @@ export const CashOutDialog = ({
               </>
             )}
           </Button>
-        </div>
-
-        {/* Hidden Z-Report layout used by react-to-print. Kept off-screen so
-            it never renders in the dialog, but is cloned into the print iframe. */}
-        <div style={{ position: 'fixed', left: -99999, top: 0 }} aria-hidden>
-          <div
-            ref={printRef}
-            style={{
-              width: '72mm',
-              padding: '2mm',
-              fontFamily: '"Courier New", monospace',
-              fontSize: '11px',
-              lineHeight: 1.25,
-              fontWeight: 900,
-              color: '#000',
-              background: '#fff',
-            }}
-          >
-            <style>{`
-              @page { size: 72mm auto; margin: 0; }
-              html, body { width: 72mm; margin: 0; }
-              * { font-weight: 900 !important; color: #000 !important; -webkit-text-stroke: 0.4px #000; box-sizing: border-box; }
-              .zr-h { text-align: center; font-size: 12px; text-transform: uppercase; padding: 4px 0 2px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 4px 0; }
-              .zr-sec { margin-top: 4px; }
-              .zr-title { text-align: center; font-size: 14px; margin-bottom: 2px; }
-              .zr-subtitle { text-align: center; font-size: 10.5px; margin-bottom: 4px; }
-              table { width: 100%; border-collapse: collapse; }
-              td { padding: 1px 0; font-size: 11px; vertical-align: top; }
-              td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-              .zr-total td { border-top: 1px dashed #000; padding-top: 2px; }
-              .zr-cut { text-align: center; margin-top: 3mm; font-size: 9px; border-top: 1px dashed #000; padding-top: 1.5mm; }
-            `}</style>
-
-            <div className="zr-title">
-              Z REPORT
-            </div>
-            <div className="zr-subtitle">{formatDateTime(new Date().toISOString())}</div>
-
-            <div className="zr-sec">
-              <div className="zr-h">Sales Summary</div>
-              <table><tbody>
-                <tr><td>Total Net Sales</td><td>{formatCurrency(totalSales)}</td></tr>
-                <tr><td>Tax</td><td>{formatCurrency(0)}</td></tr>
-                <tr className="zr-total"><td>Total Sales</td><td>{formatCurrency(totalSales)}</td></tr>
-              </tbody></table>
-            </div>
-
-            <div className="zr-sec">
-              <div className="zr-h">Sales by Payment</div>
-              <table><tbody>
-                <tr><td>Cash ({countTransactionsWithMethod('cash')})</td><td>{formatCurrency(cashSales)}</td></tr>
-                <tr><td>Credit ({countTransactionsWithMethod('credit')})</td><td>{formatCurrency(creditSales)}</td></tr>
-                <tr><td>Mobile ({countTransactionsWithMethod('mobile_money')})</td><td>{formatCurrency(mobileMoneySales)}</td></tr>
-                <tr className="zr-total"><td>Total</td><td>{formatCurrency(totalSales)}</td></tr>
-              </tbody></table>
-            </div>
-
-            <div className="zr-sec">
-              <div className="zr-h">Payment Details</div>
-              <table><tbody>
-                  <tr><td>Cash In (Sales)</td><td>{formatCurrency(cashSales)}</td></tr>
-                  {cashPayments > 0 && <tr><td>Cash In (Receipts)</td><td>{formatCurrency(cashPayments)}</td></tr>}
-                  {mobileMoneySales > 0 && <tr><td>Mobile</td><td>{formatCurrency(mobileMoneySales)}</td></tr>}
-                  {mobileMoneyPayments > 0 && <tr><td>Mobile (Receipts)</td><td>{formatCurrency(mobileMoneyPayments)}</td></tr>}
-                  {creditSales > 0 && <tr><td>Credit</td><td>{formatCurrency(creditSales)}</td></tr>}
-                  <tr className="zr-total"><td>Total Payments</td><td>{formatCurrency(cashSales + creditSales + mobileMoneySales + cashPayments + mobileMoneyPayments)}</td></tr>
-                  <tr><td>Payments - Sales</td><td>{formatCurrency(cashPayments + mobileMoneyPayments)}</td></tr>
-              </tbody></table>
-            </div>
-
-            {(cashPurchases + creditPurchases + mobileMoneyPurchases) > 0 && (
-              <div className="zr-sec">
-                <div className="zr-h">Purchases</div>
-                <table><tbody>
-                    {cashPurchases > 0 && <tr><td>Cash</td><td>{formatCurrency(cashPurchases)}</td></tr>}
-                    {creditPurchases > 0 && <tr><td>Credit</td><td>{formatCurrency(creditPurchases)}</td></tr>}
-                    {mobileMoneyPurchases > 0 && <tr><td>Mobile</td><td>{formatCurrency(mobileMoneyPurchases)}</td></tr>}
-                    <tr className="zr-total"><td>Total Purchases</td><td>{formatCurrency(totalPurchases)}</td></tr>
-                </tbody></table>
-              </div>
-            )}
-
-            {(cashExpenses + creditExpenses + mobileMoneyExpenses) > 0 && (
-              <div className="zr-sec">
-                <div className="zr-h">Expenses</div>
-                <table><tbody>
-                    {cashExpenses > 0 && <tr><td>Cash</td><td>{formatCurrency(cashExpenses)}</td></tr>}
-                    {creditExpenses > 0 && <tr><td>Credit</td><td>{formatCurrency(creditExpenses)}</td></tr>}
-                    {mobileMoneyExpenses > 0 && <tr><td>Mobile</td><td>{formatCurrency(mobileMoneyExpenses)}</td></tr>}
-                    <tr className="zr-total"><td>Total Expenses</td><td>{formatCurrency(totalExpenses)}</td></tr>
-                </tbody></table>
-              </div>
-            )}
-
-            {(journalCashEffect !== 0 || journalMobileMoneyEffect !== 0) && (
-              <div className="zr-sec">
-                <div className="zr-h">Journal Entries</div>
-                <table><tbody>
-                    {journalCashEffect !== 0 && <tr><td>Cash</td><td>{formatCurrency(journalCashEffect)}</td></tr>}
-                    {journalMobileMoneyEffect !== 0 && <tr><td>Mobile</td><td>{formatCurrency(journalMobileMoneyEffect)}</td></tr>}
-                </tbody></table>
-              </div>
-            )}
-
-            <div className="zr-sec">
-              <div className="zr-h">Cash Reconciliation</div>
-              <table><tbody>
-                  <tr><td>Opening</td><td>{formatCurrency(openingCash)}</td></tr>
-                  <tr><td>+ Sales</td><td>{formatCurrency(cashSales)}</td></tr>
-                  {cashPayments > 0 && <tr><td>+ Receipts</td><td>{formatCurrency(cashPayments)}</td></tr>}
-                  {cashPurchases > 0 && <tr><td>- Purchases</td><td>{formatCurrency(cashPurchases)}</td></tr>}
-                  {cashExpenses > 0 && <tr><td>- Expenses</td><td>{formatCurrency(cashExpenses)}</td></tr>}
-                  {cashSupplierPayments > 0 && <tr><td>- Supplier Payments</td><td>{formatCurrency(cashSupplierPayments)}</td></tr>}
-                  {journalCashEffect !== 0 && <tr><td>{journalCashEffect >= 0 ? '+' : '-'} Journals</td><td>{formatCurrency(Math.abs(journalCashEffect))}</td></tr>}
-                  <tr className="zr-total"><td>Expected Cash</td><td>{formatCurrency(displayExpectedCash)}</td></tr>
-                  {!isNaN(actualClosing) && (
-                    <>
-                      <tr><td>Counted Cash</td><td>{formatCurrency(actualClosing)}</td></tr>
-                      <tr className="zr-total"><td>{difference >= 0 ? 'Cash Over' : 'Cash Short'}</td><td>{formatCurrency(Math.abs(difference))}</td></tr>
-                    </>
-                  )}
-              </tbody></table>
-            </div>
-
-            <div className="zr-sec">
-              <div className="zr-h">Mobile Money</div>
-              <table><tbody>
-                <tr className="zr-total"><td>Expected Mobile</td><td>{formatCurrency(displayExpectedMobileMoney)}</td></tr>
-              </tbody></table>
-            </div>
-
-            <div className="zr-cut">✂ - - - END OF Z REPORT - - -</div>
-          </div>
         </div>
       </DialogContent>
     </Dialog>

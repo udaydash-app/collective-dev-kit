@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -37,9 +37,6 @@ import { offlineDB } from '@/lib/offlineDB';
 import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
 import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
-import { computeMaskedPrice } from '@/lib/priceMasking';
 
 type EditedPrices = {
   [key: string]: {
@@ -56,23 +53,6 @@ export default function StockAndPrice() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'positive' | 'negative'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const { showMasked } = usePriceMasking();
-  const { reset: resetReveal } = usePriceRevealControls();
-  useEffect(() => () => resetReveal(), [resetReveal]);
-  /** Return the masked sell price when a POS session is active and F12 is not held. */
-  const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
-    if (real == null) return null;
-    if (!showMasked) return Number(real);
-    const masked = computeMaskedPrice(
-      {
-        price: Number(real),
-        cost_price: variant?.cost_price ?? product?.cost_price,
-        local_charges: product?.local_charges,
-      },
-      { local_charges: product?.local_charges, price: Number(real) },
-    );
-    return masked || Number(real);
-  };
   
   // Bulk edit mode state
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -563,17 +543,16 @@ export default function StockAndPrice() {
               : <>{r.costTotal ? formatCurrency(r.costTotal) : '-'}</> },
             { key: 'retail', label: 'Retail', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'retailPrice', r.retail)
-              : (() => { const d = maskSell(r.retail, r.product, r.variant); return <span className="font-medium">{d != null ? formatCurrency(d) : '-'}</span>; })() },
+              : <span className="font-medium">{r.retail != null ? formatCurrency(r.retail) : '-'}</span> },
             { key: 'wholesale', label: 'Wholesale', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'wholesalePrice', r.wholesale)
-              : (() => { const d = maskSell(r.wholesale, r.product, r.variant); return <span className="text-blue-600">{d != null ? formatCurrency(d) : '-'}</span>; })() },
+              : <span className="text-blue-600">{r.wholesale != null ? formatCurrency(r.wholesale) : '-'}</span> },
             { key: 'vip', label: 'VIP', width: 110, align: 'right', render: r => bulkEditMode
               ? priceInput(r, 'vipPrice', r.vip)
-              : (() => { const d = maskSell(r.vip, r.product, r.variant); return <span className="text-purple-600">{d != null ? formatCurrency(d) : '-'}</span>; })() },
+              : <span className="text-purple-600">{r.vip != null ? formatCurrency(r.vip) : '-'}</span> },
             { key: 'margin', label: 'Margin %', width: 90, align: 'right', render: r => {
-              const rp = maskSell(r.retail, r.product, r.variant);
-              if (!rp || !r.costTotal) return '-';
-              const m = calculateMargin(rp, r.costTotal);
+              if (!r.retail || !r.costTotal) return '-';
+              const m = calculateMargin(r.retail, r.costTotal);
               return m != null ? <Badge variant="outline" className="text-[10px] h-5">{m}%</Badge> : '-';
             } },
             { key: 'status', label: 'Status', width: 90, render: r => (
@@ -659,29 +638,28 @@ export default function StockAndPrice() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Retail:</span>
                     <span className="font-semibold">
-                      {(() => { const d = maskSell(product.price, product); return d ? formatCurrency(d) : '-'; })()}
+                      {product.price ? formatCurrency(product.price) : '-'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wholesale:</span>
                     <span className="text-blue-600">
-                      {(() => { const d = maskSell(product.wholesale_price, product); return d ? formatCurrency(d) : '-'; })()}
+                      {product.wholesale_price ? formatCurrency(product.wholesale_price) : '-'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">VIP:</span>
                     <span className="text-purple-600">
-                      {(() => { const d = maskSell(product.vip_price, product); return d ? formatCurrency(d) : '-'; })()}
+                      {product.vip_price ? formatCurrency(product.vip_price) : '-'}
                     </span>
                   </div>
                   {(() => {
                     const cost = (Number(product.cost_price) || 0) + (Number(product.local_charges) || 0);
-                    const rp = maskSell(product.price, product);
-                    return rp && cost ? (
+                    return product.price && cost ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Margin:</span>
                       <Badge variant="outline">
-                        {calculateMargin(rp, cost)}%
+                        {calculateMargin(product.price, cost)}%
                       </Badge>
                     </div>
                     ) : null;

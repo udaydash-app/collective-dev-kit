@@ -16,8 +16,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 import { getPosAdminSession } from '@/db/queries/accounting';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { pickItemUnitPrice } from '@/lib/priceMasking';
 
 type GroupBy = 'customer' | 'month' | 'year';
 
@@ -36,12 +34,9 @@ export default function ProfitLossAnalysis() {
   const [groupBy, setGroupBy] = useState<GroupBy>('customer');
   const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfYear(new Date()), 'yyyy-MM-dd'));
-  // F12 flips per-line sale prices between masked and real ledger.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const isRealLedger = revealRealPrice && maskingEnabled;
 
   const { data: rows, isLoading } = useQuery({
-    queryKey: ['pl-analysis', groupBy, startDate, endDate, isRealLedger],
+    queryKey: ['pl-analysis', groupBy, startDate, endDate],
     queryFn: async () => {
       const adminSession = getPosAdminSession();
       if (adminSession) {
@@ -124,7 +119,7 @@ export default function ProfitLossAnalysis() {
         for (const it of items) {
           const pid = it.product_id || it.productId || it.id;
           const qty = Number(it.quantity) || 1;
-          const unitPrice = pickItemUnitPrice(it, isRealLedger);
+          const unitPrice = Number(it.customPrice ?? it.price ?? it.unit_price ?? 0);
           const itemDiscount = Number(it.itemDiscount || it.discount || 0);
           const sale = (unitPrice - itemDiscount) * qty;
           const cost = (pid && uuidRe.test(pid) ? (costMap[pid] || 0) : 0) * qty;

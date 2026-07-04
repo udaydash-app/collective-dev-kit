@@ -468,17 +468,9 @@ export type Database = {
           notes: string | null
           opened_at: string
           opening_cash: number
-          real_discount_given: number | null
-          real_expected_cash: number | null
-          real_expected_mobile: number | null
-          real_tax_collected: number | null
-          real_total_sales: number | null
-          real_variance: number | null
           status: string
           store_id: string
           updated_at: string
-          z_report_masked: Json | null
-          z_report_real: Json | null
         }
         Insert: {
           cash_difference?: number | null
@@ -491,17 +483,9 @@ export type Database = {
           notes?: string | null
           opened_at?: string
           opening_cash?: number
-          real_discount_given?: number | null
-          real_expected_cash?: number | null
-          real_expected_mobile?: number | null
-          real_tax_collected?: number | null
-          real_total_sales?: number | null
-          real_variance?: number | null
           status?: string
           store_id: string
           updated_at?: string
-          z_report_masked?: Json | null
-          z_report_real?: Json | null
         }
         Update: {
           cash_difference?: number | null
@@ -514,17 +498,9 @@ export type Database = {
           notes?: string | null
           opened_at?: string
           opening_cash?: number
-          real_discount_given?: number | null
-          real_expected_cash?: number | null
-          real_expected_mobile?: number | null
-          real_tax_collected?: number | null
-          real_total_sales?: number | null
-          real_variance?: number | null
           status?: string
           store_id?: string
           updated_at?: string
-          z_report_masked?: Json | null
-          z_report_real?: Json | null
         }
         Relationships: [
           {
@@ -1237,8 +1213,6 @@ export type Database = {
           entry_number: string
           id: string
           is_opening: boolean
-          is_real_ledger: boolean
-          masked_entry_id: string | null
           notes: string | null
           posted_at: string | null
           posted_by: string | null
@@ -1257,8 +1231,6 @@ export type Database = {
           entry_number?: string
           id?: string
           is_opening?: boolean
-          is_real_ledger?: boolean
-          masked_entry_id?: string | null
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -1277,8 +1249,6 @@ export type Database = {
           entry_number?: string
           id?: string
           is_opening?: boolean
-          is_real_ledger?: boolean
-          masked_entry_id?: string | null
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -1289,15 +1259,7 @@ export type Database = {
           transaction_amount?: number | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "journal_entries_masked_entry_id_fkey"
-            columns: ["masked_entry_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       journal_entry_lines: {
         Row: {
@@ -1490,8 +1452,6 @@ export type Database = {
           order_id: string
           product_id: string
           quantity: number
-          real_total_price: number | null
-          real_unit_price: number | null
           subtotal: number
           unit_price: number
         }
@@ -1501,8 +1461,6 @@ export type Database = {
           order_id: string
           product_id: string
           quantity: number
-          real_total_price?: number | null
-          real_unit_price?: number | null
           subtotal: number
           unit_price: number
         }
@@ -1512,8 +1470,6 @@ export type Database = {
           order_id?: string
           product_id?: string
           quantity?: number
-          real_total_price?: number | null
-          real_unit_price?: number | null
           subtotal?: number
           unit_price?: number
         }
@@ -1549,8 +1505,6 @@ export type Database = {
           payment_method: string | null
           payment_method_id: string | null
           payment_status: string | null
-          real_subtotal: number | null
-          real_total: number | null
           status: string
           store_id: string
           stripe_payment_intent_id: string | null
@@ -1574,8 +1528,6 @@ export type Database = {
           payment_method?: string | null
           payment_method_id?: string | null
           payment_status?: string | null
-          real_subtotal?: number | null
-          real_total?: number | null
           status?: string
           store_id: string
           stripe_payment_intent_id?: string | null
@@ -1599,8 +1551,6 @@ export type Database = {
           payment_method?: string | null
           payment_method_id?: string | null
           payment_status?: string | null
-          real_subtotal?: number | null
-          real_total?: number | null
           status?: string
           store_id?: string
           stripe_payment_intent_id?: string | null
@@ -1840,10 +1790,6 @@ export type Database = {
           notes: string | null
           payment_details: Json | null
           payment_method: string
-          real_discount: number | null
-          real_subtotal: number | null
-          real_tax: number | null
-          real_total: number | null
           store_id: string
           subtotal: number
           tax: number
@@ -1863,10 +1809,6 @@ export type Database = {
           notes?: string | null
           payment_details?: Json | null
           payment_method: string
-          real_discount?: number | null
-          real_subtotal?: number | null
-          real_tax?: number | null
-          real_total?: number | null
           store_id: string
           subtotal: number
           tax?: number
@@ -1886,10 +1828,6 @@ export type Database = {
           notes?: string | null
           payment_details?: Json | null
           payment_method?: string
-          real_discount?: number | null
-          real_subtotal?: number | null
-          real_tax?: number | null
-          real_total?: number | null
           store_id?: string
           subtotal?: number
           tax?: number

@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
-import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
+import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
 import {
   Table,
   TableBody,
@@ -29,8 +29,6 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowDown, ArrowUp, BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, cn, formatDate } from '@/lib/utils';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
@@ -49,14 +47,6 @@ import {
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   useRealtimeSync();
-  const { showMasked } = usePriceMasking();
-  const { reset: resetReveal } = usePriceRevealControls();
-  // Reset F12 reveal when leaving the ledger view.
-  useEffect(() => () => resetReveal(), [resetReveal]);
-  /** Format a monetary amount (values already come from the masked/real ledger view). */
-  const fmtMoney = (v: number | null | undefined) => formatCurrency(Number(v ?? 0));
-  /** True = read the "real" mirror rows; false = read the masked default rows. */
-  const useRealLedger = !showMasked;
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
@@ -66,12 +56,6 @@ export default function GeneralLedger() {
     _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
   const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
-  useEffect(() => {
-    const cs = clampToFiscal(startDate);
-    const ce = clampToFiscal(endDate);
-    if (cs !== startDate) setStartDate(cs);
-    if (ce !== endDate) setEndDate(ce);
-  }, [startDate, endDate]);
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
 
   // Set selected account from URL parameter
@@ -226,7 +210,7 @@ export default function GeneralLedger() {
   })();
 
   const { data: ledgerData, isLoading } = useQuery({
-    queryKey: ['general-ledger', selectedAccount, startDate, endDate, useRealLedger],
+    queryKey: ['general-ledger', selectedAccount, startDate, endDate],
     refetchOnMount: 'always',
     staleTime: 0,
     queryFn: async () => {
@@ -264,7 +248,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', customerAccountId)
-          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+          .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', endDate);
 
@@ -282,7 +266,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', supplierAccountId)
-          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+          .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', endDate);
 
@@ -407,8 +391,8 @@ export default function GeneralLedger() {
         if (localAccount) {
           const [localContact, currentLines, priorLines] = await Promise.all([
             fetchContactByLedgerAccountLocal(selectedAccount),
-            fetchAccountLinesLocal(selectedAccount, { startDate, endDate, realLedger: useRealLedger }),
-            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true, realLedger: useRealLedger })
+            fetchAccountLinesLocal(selectedAccount, { startDate, endDate }),
+            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true })
               .then((all) => all.filter((l: any) => l.journal_entries.entry_date < startDate)),
           ]);
 
@@ -484,7 +468,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+        .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .gte('journal_entries.entry_date', startDate)
         .lte('journal_entries.entry_date', endDate);
@@ -554,7 +538,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+        .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .lt('journal_entries.entry_date', startDate);
 
@@ -583,7 +567,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', selectedAccount)
-          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+          .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%');
 
         const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
@@ -681,7 +665,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
+        .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%');
 
       const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
@@ -860,7 +844,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold">
-          {fmtMoney(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
+          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
           {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -878,7 +862,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold text-primary">
-          {fmtMoney(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
+          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
           {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -1112,9 +1096,7 @@ export default function GeneralLedger() {
               id="start-date"
               type="date"
               value={startDate}
-              min={_fp.effectiveFrom ?? undefined}
-              max={_fp.effectiveTo ?? undefined}
-              onChange={(e) => setStartDate(clampToFiscal(e.target.value))}
+              onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
 
@@ -1124,9 +1106,7 @@ export default function GeneralLedger() {
               id="end-date"
               type="date"
               value={endDate}
-              min={_fp.effectiveFrom ?? undefined}
-              max={_fp.effectiveTo ?? undefined}
-              onChange={(e) => setEndDate(clampToFiscal(e.target.value))}
+              onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
         </div>
@@ -1152,26 +1132,26 @@ export default function GeneralLedger() {
                   Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {fmtMoney(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
+                {formatCurrency(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
                 {Number((ledgerData.account as any).current_balance || 0) < 0 && ' CR'}
               </p>
               {(ledgerData.account as any).isUnified && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  A/R: {fmtMoney(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
-                  A/P: {fmtMoney(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
+                  A/R: {formatCurrency(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
+                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
                 </p>
               )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Debits</p>
               <p className="text-lg font-bold font-mono">
-                {fmtMoney(Number(totalDebit))}
+                {formatCurrency(Number(totalDebit))}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Credits</p>
               <p className="text-lg font-bold font-mono">
-                {fmtMoney(Number(totalCredit))}
+                {formatCurrency(Number(totalCredit))}
               </p>
             </div>
           </div>
@@ -1248,16 +1228,16 @@ export default function GeneralLedger() {
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.debit_amount > 0
-                            ? fmtMoney(entry.debit_amount)
+                            ? formatCurrency(entry.debit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.credit_amount > 0
-                            ? fmtMoney(entry.credit_amount)
+                            ? formatCurrency(entry.credit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold">
-                          {fmtMoney(Math.abs(entry.running_balance))}
+                          {formatCurrency(Math.abs(entry.running_balance))}
                           {entry.running_balance < 0 && ' CR'}
                         </TableCell>
                       </TableRow>

@@ -66,12 +66,12 @@ import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
+import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { POSTodoList } from '@/components/pos/POSTodoList';
+import { POSChatRoom } from '@/components/pos/POSChatRoom';
 import { cn } from '@/lib/utils';
-import { usePriceMasking } from '@/hooks/usePriceMasking';
-import { calculateTimbreTax } from '@/lib/timbreTax';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -319,8 +319,6 @@ export default function POS() {
     calculateSubtotal,
     calculateTimbre,
     calculateTotal,
-    calculateRealSubtotal,
-    calculateRealTotal,
     processTransaction,
   } = usePOSTransaction();
 
@@ -539,7 +537,6 @@ export default function POS() {
             quantity: item.quantity || 1,
             barcode: item.barcode,
             customPrice: item.customPrice || null,
-            realPrice: (item as any).realPrice ?? (item as any).real_unit_price ?? item.price,
             itemDiscount: item.itemDiscount || 0,
             isCombo: item.isCombo || item.is_combo,
             isOneTimeOffer: item.isOneTimeOffer || item.is_one_time_offer,
@@ -960,7 +957,7 @@ export default function POS() {
 
       const { data } = await supabase
         .from('pos_transactions')
-        .select('id, total, real_total, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
+        .select('id, total, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
         .order('created_at', { ascending: false });
@@ -1287,7 +1284,6 @@ export default function POS() {
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
-        .neq('journal_entries.is_real_ledger', true)
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
@@ -1343,7 +1339,6 @@ export default function POS() {
           status
         `)
         .eq('status', 'posted')
-        .neq('is_real_ledger', true)
         .gte('created_at', sessionStart)
         .lte('created_at', sessionEnd)
         .order('created_at', { ascending: false });
@@ -1418,7 +1413,6 @@ export default function POS() {
         `)
         .eq('account_id', mobileMoneyAccount.id)
         .eq('journal_entries.status', 'posted')
-        .neq('journal_entries.is_real_ledger', true)
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
@@ -2483,16 +2477,6 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
-  // Display-only totals that follow the F12 reveal. When masking is off (no POS
-  // session) or F12 is toggled on, show real (unmasked) prices to the cashier.
-  const { revealRealPrice, maskingEnabled } = usePriceMasking();
-  const showRealDisplay = revealRealPrice && maskingEnabled;
-  const realSubtotalCalc = calculateRealSubtotal();
-  const realTimbreTax = calculateTimbreTax(realSubtotalCalc - discount).taxAmount;
-  const realTotalCalc = realSubtotalCalc - discount + realTimbreTax;
-  const displayTimbreTax = showRealDisplay ? realTimbreTax : timbreTax;
-  const displayTotal = showRealDisplay ? realTotalCalc : total;
-
   // Special-offer detection: when cart subtotal matches an active threshold,
   // prompt the cashier to apply the special offer discount.
   useEffect(() => {
@@ -2774,7 +2758,6 @@ export default function POS() {
         displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
-        realPrice: (item as any).realPrice ?? item.price,
         originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
@@ -2786,10 +2769,6 @@ export default function POS() {
       discount: cartDiscountAmount,
       tax: timbreTax,
       total: total,
-      realSubtotal: calculateRealSubtotal(),
-      realDiscount: cartDiscountAmount,
-      realTax: timbreTax, // timbre depends on subtotal - discount; recomputed exactly in Receipt if needed
-      realTotal: calculateRealTotal(),
       paymentMethod: "Pending",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
@@ -2907,28 +2886,11 @@ export default function POS() {
   };
 
   const printTransactionReceipt = (completeTransactionData: any) => {
-    // Honour the F12 sticky reveal at the moment of printing so quick-pay
-    // shortcuts (F2/F3/F4) print real (unmasked) prices when F12 is on.
-    const useReal = showRealDisplay;
-    const items = (completeTransactionData.items || []).map((item: any) => {
-      if (!useReal) return item;
-      const realUnit = item.realPrice ?? item.price;
-      return {
-        ...item,
-        price: realUnit,
-        // customPrice already reflects a manual override on the real ledger.
-        customPrice: item.customPrice,
-      };
-    });
-    const subtotal = useReal ? (completeTransactionData.realSubtotal ?? completeTransactionData.subtotal) : completeTransactionData.subtotal;
-    const tax = useReal ? (completeTransactionData.realTax ?? completeTransactionData.tax) : completeTransactionData.tax;
-    const discount = useReal ? (completeTransactionData.realDiscount ?? completeTransactionData.discount) : completeTransactionData.discount;
-    const total = useReal ? (completeTransactionData.realTotal ?? completeTransactionData.total) : completeTransactionData.total;
     return kioskPrintService.printReceipt({
       storeName: completeTransactionData.storeName,
       transactionNumber: completeTransactionData.transactionNumber,
       date: completeTransactionData.date,
-      items: items.map((item: any) => ({
+      items: completeTransactionData.items.map((item: any) => ({
         name: item.name,
         displayName: item.displayName,
         quantity: item.quantity,
@@ -2938,10 +2900,10 @@ export default function POS() {
         itemDiscount: item.itemDiscount,
         comboItems: item.comboItems,
       })),
-      subtotal,
-      discount,
-      tax,
-      total,
+      subtotal: completeTransactionData.subtotal,
+      discount: completeTransactionData.discount,
+      tax: completeTransactionData.tax,
+      total: completeTransactionData.total,
       paymentMethod: completeTransactionData.paymentMethod,
       cashierName: completeTransactionData.cashierName,
       customerName: completeTransactionData.customerName,
@@ -2980,7 +2942,6 @@ export default function POS() {
         price: item.price, // Original price (can be negative for cart-discount)
         originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
-        realPrice: (item as any).realPrice ?? item.price,
         itemDiscount: item.itemDiscount || 0,
         isCombo: item.isCombo,
         isOneTimeOffer: item.isOneTimeOffer,
@@ -2990,11 +2951,6 @@ export default function POS() {
       discount: cartDiscountAmount,
       tax: timbreTax,
       total: total,
-      // Real (unmasked) counterparts — used by printTransactionReceipt when F12 is on.
-      realSubtotal: realSubtotalCalc,
-      realDiscount: cartDiscountAmount,
-      realTax: realTimbreTax,
-      realTotal: realTotalCalc,
       paymentMethod: payments.length > 1 ? "Multiple" : payments[0]?.method || "Cash",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       customerName: selectedCustomer?.name,
@@ -4348,16 +4304,16 @@ export default function POS() {
 
         {/* Total Display - Below customer selection */}
         <div className="border-b p-3 space-y-2">
-          {displayTimbreTax > 0 && (
+          {timbreTax > 0 && (
             <div className="flex justify-between items-center text-xs px-3">
               <span className="text-muted-foreground">Timbre</span>
-              <span className={cn("font-medium text-orange-600 dark:text-orange-400", showRealDisplay && "text-amber-600")}>+{formatCurrency(displayTimbreTax)}</span>
+              <span className="font-medium text-orange-600 dark:text-orange-400">+{formatCurrency(timbreTax)}</span>
             </div>
           )}
           <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
             <span className="text-lg font-bold">TOTAL</span>
-            <span className={cn("text-3xl font-bold text-primary", showRealDisplay && "text-amber-600")}>
-              {formatCurrency(displayTotal)}
+            <span className="text-3xl font-bold text-primary">
+              {formatCurrency(total)}
             </span>
           </div>
           {selectedOfferItemIds.length > 0 && (
@@ -4966,7 +4922,6 @@ export default function POS() {
           setLastTransactionData(null);
         }}
         total={total}
-        realTotal={calculateRealTotal()}
         onConfirm={handlePaymentConfirm}
         selectedCustomer={selectedCustomer}
         transactionData={lastTransactionData}
