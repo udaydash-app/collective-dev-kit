@@ -47,6 +47,7 @@ export async function fetchAccountBalancesLocal(opts: {
   startDate?: string;
   endDate?: string;
   accountTypes?: string[];
+  isRealLedger?: boolean;
 } = {}): Promise<any[]> {
   if (!isElectronLocalDb() && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
@@ -65,9 +66,13 @@ export async function fetchAccountBalancesLocal(opts: {
   const lineDateClauses: string[] = ["e.status = 'posted'"];
   if (opts.startDate) lineDateClauses.push("e.entry_date >= ?");
   if (opts.endDate) lineDateClauses.push("e.entry_date <= ?");
+  // Dual accounting: default to masked ledger; reveal switches to the
+  // mirrored real ledger. Rows without the flag (legacy) count as masked.
+  lineDateClauses.push("COALESCE(e.is_real_ledger, 0) = ?");
   const lineArgs: any[] = [];
   if (opts.startDate) lineArgs.push(opts.startDate);
   if (opts.endDate) lineArgs.push(opts.endDate);
+  lineArgs.push(opts.isRealLedger ? 1 : 0);
 
   const sql = `
     SELECT a.*, 
@@ -98,6 +103,7 @@ export async function fetchAccountBalancesRemote(opts: {
   startDate?: string;
   endDate?: string;
   accountTypes?: string[];
+  isRealLedger?: boolean;
 } = {}): Promise<any[]> {
   let accountQuery = supabase
     .from('accounts')
@@ -134,6 +140,12 @@ export async function fetchAccountBalancesRemote(opts: {
     if (opts.accountTypes?.length) lineQuery = lineQuery.in('accounts.account_type', opts.accountTypes as any);
     if (opts.startDate) lineQuery = lineQuery.gte('journal_entries.entry_date', opts.startDate);
     if (opts.endDate) lineQuery = lineQuery.lte('journal_entries.entry_date', opts.endDate);
+    // Masked ledger by default; F12 reveals the real one.
+    if (opts.isRealLedger) {
+      lineQuery = lineQuery.eq('journal_entries.is_real_ledger', true);
+    } else {
+      lineQuery = lineQuery.neq('journal_entries.is_real_ledger', true);
+    }
 
     const { data, error } = await lineQuery;
     if (error) throw error;
