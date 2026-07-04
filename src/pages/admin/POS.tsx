@@ -319,6 +319,8 @@ export default function POS() {
     calculateSubtotal,
     calculateTimbre,
     calculateTotal,
+    calculateRealSubtotal,
+    calculateRealTotal,
     processTransaction,
   } = usePOSTransaction();
 
@@ -2758,6 +2760,7 @@ export default function POS() {
         displayName: item.displayName,
         quantity: item.quantity,
         price: item.price, // Original price (can be negative for cart-discount)
+        realPrice: (item as any).realPrice ?? item.price,
         originalPrice: item.originalPrice,
         customPrice: item.customPrice, // Custom/modified price if any
         itemDiscount: item.itemDiscount || 0,
@@ -2769,6 +2772,10 @@ export default function POS() {
       discount: cartDiscountAmount,
       tax: timbreTax,
       total: total,
+      realSubtotal: calculateRealSubtotal(),
+      realDiscount: cartDiscountAmount,
+      realTax: timbreTax, // timbre depends on subtotal - discount; recomputed exactly in Receipt if needed
+      realTotal: calculateRealTotal(),
       paymentMethod: "Pending",
       cashierName: currentCashSession?.cashier_name || "Cashier",
       storeName: settings?.company_name || stores?.find(s => s.id === selectedStoreId)?.name || "GLOBAL INDIAN MART",
@@ -4922,6 +4929,7 @@ export default function POS() {
           setLastTransactionData(null);
         }}
         total={total}
+        realTotal={calculateRealTotal()}
         onConfirm={handlePaymentConfirm}
         selectedCustomer={selectedCustomer}
         transactionData={lastTransactionData}
