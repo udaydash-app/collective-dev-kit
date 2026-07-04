@@ -2479,6 +2479,17 @@ export default function POS() {
   const timbreTax = calculateTimbre();
   const total = subtotal - cartDiscountAmount + timbreTax;
 
+  // Display-only totals that follow the F12 reveal. When masking is off (no POS
+  // session) or F12 is toggled on, show real (unmasked) prices to the cashier.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showRealDisplay = revealRealPrice && maskingEnabled;
+  const realSubtotalCalc = calculateRealSubtotal();
+  const realTimbreTax = calculateTimbreTax(realSubtotalCalc - discount).taxAmount;
+  const realTotalCalc = realSubtotalCalc - discount + realTimbreTax;
+  const displaySubtotal = showRealDisplay ? realSubtotalCalc : subtotal;
+  const displayTimbreTax = showRealDisplay ? realTimbreTax : timbreTax;
+  const displayTotal = showRealDisplay ? realTotalCalc : total;
+
   // Special-offer detection: when cart subtotal matches an active threshold,
   // prompt the cashier to apply the special offer discount.
   useEffect(() => {
