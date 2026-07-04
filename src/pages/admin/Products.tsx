@@ -1617,8 +1617,11 @@ export default function Products() {
                       <span className="text-muted-foreground">Price:</span>
                       <span className="font-semibold text-xs">
                         {product.product_variants && product.product_variants.length > 0 
-                          ? `${formatCurrency(Math.min(...product.product_variants.map(v => v.price)))} - ${formatCurrency(Math.max(...product.product_variants.map(v => v.price)))}`
-                          : formatCurrency(product.price)
+                          ? (() => {
+                              const ps = product.product_variants.map(v => maskSell(v.price, product, v) ?? v.price);
+                              return `${formatCurrency(Math.min(...ps))} - ${formatCurrency(Math.max(...ps))}`;
+                            })()
+                          : formatCurrency(maskSell(product.price, product) ?? product.price)
                         }
                       </span>
                     </div>
