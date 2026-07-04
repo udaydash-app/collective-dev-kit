@@ -411,8 +411,23 @@ export default function JournalEntries() {
   const totalCredit = lines.reduce((sum, line) => sum + line.credit_amount, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  // Filtering is now done server-side; use fetched entries directly
-  const filteredEntries = journalEntries;
+  // Filtering is now done server-side; use fetched entries directly.
+  // When F12 is active, swap in the paired real-ledger entry (amounts + lines)
+  // while keeping the masked entry's id/status so edits/deletes still target it.
+  const displayEntry = (e: any) => {
+    if (!showReal || !e?.real_entry) return e;
+    const r = e.real_entry;
+    return {
+      ...e,
+      total_debit: r.total_debit,
+      total_credit: r.total_credit,
+      transaction_amount: r.transaction_amount ?? e.transaction_amount,
+      journal_entry_lines: r.journal_entry_lines ?? e.journal_entry_lines,
+      _revealed: true,
+    };
+  };
+  const filteredEntries = (journalEntries || []).map(displayEntry);
+  const revealedSelectedEntry = selectedEntry ? displayEntry(selectedEntry) : null;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
