@@ -47,9 +47,17 @@ export const TransactionCart = ({
   // Pick the unit price the cashier sees. If masking is off (no POS session),
   // this is always the real price. Otherwise, F12 momentarily reveals real.
   const pickUnitPrice = (item: CartItem): number => {
-    if (item.customPrice != null) return item.customPrice;
-    if (!maskingEnabled) return item.price;
-    return revealRealPrice ? (item.realPrice ?? item.price) : item.price;
+    // Manual override that is BELOW the masked price is always shown as-is —
+    // the customer paid less than the masked value, so displaying the higher
+    // masked number would be misleading and F12 has no effect on this line.
+    if (item.customPrice != null && item.customPrice < item.price) {
+      return item.customPrice;
+    }
+    // Otherwise apply the standard masking rule. When customPrice is set and
+    // >= masked price, treat it as the real value that F12 reveals.
+    const realValue = item.customPrice ?? item.realPrice ?? item.price;
+    if (!maskingEnabled) return realValue;
+    return revealRealPrice ? realValue : item.price;
   };
   const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
