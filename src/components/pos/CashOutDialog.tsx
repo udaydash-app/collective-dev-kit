@@ -899,105 +899,150 @@ export const CashOutDialog = ({
           <div
             ref={printRef}
             style={{
-              width: '72mm',
-              padding: '4mm 3mm',
-              fontFamily: '"Courier New", monospace',
-              fontSize: '11px',
-              lineHeight: 1.3,
+              width: '210mm',
+              minHeight: '297mm',
+              padding: '15mm',
+              fontFamily: '"Inter", "Helvetica Neue", Arial, sans-serif',
+              fontSize: '12px',
+              lineHeight: 1.5,
               color: '#000',
               background: '#fff',
             }}
           >
             <style>{`
-              .zr-h { text-align: center; font-weight: 700; letter-spacing: .5px; padding: 4px 0; }
-              .zr-row { display: flex; justify-content: space-between; gap: 6px; }
-              .zr-row > span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-              .zr-total { font-weight: 700; border-top: 1px solid #000; padding-top: 3px; margin-top: 3px; }
-              .zr-sec { border-top: 1px dashed #000; margin-top: 6px; padding-top: 3px; }
-              .zr-title { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; padding-bottom: 4px; border-bottom: 1px solid #000; margin-bottom: 4px; }
+              @page { size: A4 portrait; margin: 15mm; }
+              .zr-h { text-align: left; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 0 6px; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; margin-bottom: 8px; }
+              .zr-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; }
+              .zr-row > span:first-child { flex: 1; }
+              .zr-row > span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 120px; }
+              .zr-total { font-weight: 700; border-top: 1px solid #333; padding-top: 6px; margin-top: 6px; }
+              .zr-sec { margin-top: 18px; }
+              .zr-title { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; font-size: 20px; padding-bottom: 8px; border-bottom: 3px solid #000; margin-bottom: 16px; }
+              .zr-subtitle { font-size: 13px; color: #444; font-weight: 400; }
+              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+              th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+              th { background: #f3f4f6; font-weight: 600; }
+              td:last-child, th:last-child { text-align: right; }
             `}</style>
 
             <div className="zr-title">
               <span>Z Report</span>
-              <span>{formatDateTime(new Date().toISOString())}</span>
-            </div>
-
-            <div className="zr-h">SALES AND TAXES SUMMARY</div>
-            <div className="zr-row"><span>Total Net Sales</span><span>{formatCurrency(totalSales)}</span></div>
-            <div className="zr-row"><span>Tax</span><span>{formatCurrency(0)}</span></div>
-            <div className="zr-row zr-total"><span>Total Sales</span><span>{formatCurrency(totalSales)}</span></div>
-
-            <div className="zr-sec">
-              <div className="zr-h">SALES BY PAYMENT</div>
-              <div className="zr-row"><span>Cash ({countTransactionsWithMethod('cash')})</span><span>{formatCurrency(cashSales)}</span></div>
-              <div className="zr-row"><span>Credit ({countTransactionsWithMethod('credit')})</span><span>{formatCurrency(creditSales)}</span></div>
-              <div className="zr-row"><span>Mobile Money ({countTransactionsWithMethod('mobile_money')})</span><span>{formatCurrency(mobileMoneySales)}</span></div>
-              <div className="zr-row zr-total"><span>Total Net Sales</span><span>{formatCurrency(totalSales)}</span></div>
+              <span className="zr-subtitle">{formatDateTime(new Date().toISOString())}</span>
             </div>
 
             <div className="zr-sec">
-              <div className="zr-h">PAYMENT DETAILS</div>
-              <div className="zr-row"><span>Cash In (Sales)</span><span>{formatCurrency(cashSales)}</span></div>
-              {cashPayments > 0 && <div className="zr-row"><span>Cash In (Receipts)</span><span>{formatCurrency(cashPayments)}</span></div>}
-              {mobileMoneySales > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneySales)}</span></div>}
-              {mobileMoneyPayments > 0 && <div className="zr-row"><span>Mobile Money (Receipts)</span><span>{formatCurrency(mobileMoneyPayments)}</span></div>}
-              {creditSales > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditSales)}</span></div>}
-              <div className="zr-row zr-total"><span>Total Payments</span><span>{formatCurrency(cashSales + creditSales + mobileMoneySales + cashPayments + mobileMoneyPayments)}</span></div>
-              <div className="zr-row zr-total"><span>Payments - Sales</span><span>{formatCurrency((cashPayments + mobileMoneyPayments))}</span></div>
+              <div className="zr-h">Sales and Taxes Summary</div>
+              <table>
+                <tbody>
+                  <tr><td>Total Net Sales</td><td>{formatCurrency(totalSales)}</td></tr>
+                  <tr><td>Tax</td><td>{formatCurrency(0)}</td></tr>
+                  <tr className="zr-total"><td><strong>Total Sales</strong></td><td><strong>{formatCurrency(totalSales)}</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="zr-sec">
+              <div className="zr-h">Sales by Payment</div>
+              <table>
+                <thead>
+                  <tr><th>Payment Method</th><th>Count</th><th>Amount</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Cash</td><td>{countTransactionsWithMethod('cash')}</td><td>{formatCurrency(cashSales)}</td></tr>
+                  <tr><td>Credit</td><td>{countTransactionsWithMethod('credit')}</td><td>{formatCurrency(creditSales)}</td></tr>
+                  <tr><td>Mobile Money</td><td>{countTransactionsWithMethod('mobile_money')}</td><td>{formatCurrency(mobileMoneySales)}</td></tr>
+                  <tr className="zr-total"><td colSpan={2}><strong>Total Net Sales</strong></td><td><strong>{formatCurrency(totalSales)}</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="zr-sec">
+              <div className="zr-h">Payment Details</div>
+              <table>
+                <tbody>
+                  <tr><td>Cash In (Sales)</td><td>{formatCurrency(cashSales)}</td></tr>
+                  {cashPayments > 0 && <tr><td>Cash In (Receipts)</td><td>{formatCurrency(cashPayments)}</td></tr>}
+                  {mobileMoneySales > 0 && <tr><td>Mobile Money</td><td>{formatCurrency(mobileMoneySales)}</td></tr>}
+                  {mobileMoneyPayments > 0 && <tr><td>Mobile Money (Receipts)</td><td>{formatCurrency(mobileMoneyPayments)}</td></tr>}
+                  {creditSales > 0 && <tr><td>Credit</td><td>{formatCurrency(creditSales)}</td></tr>}
+                  <tr className="zr-total"><td><strong>Total Payments</strong></td><td><strong>{formatCurrency(cashSales + creditSales + mobileMoneySales + cashPayments + mobileMoneyPayments)}</strong></td></tr>
+                  <tr className="zr-total"><td><strong>Payments - Sales</strong></td><td><strong>{formatCurrency(cashPayments + mobileMoneyPayments)}</strong></td></tr>
+                </tbody>
+              </table>
             </div>
 
             {(cashPurchases + creditPurchases + mobileMoneyPurchases) > 0 && (
               <div className="zr-sec">
-                <div className="zr-h">PURCHASES</div>
-                {cashPurchases > 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(cashPurchases)}</span></div>}
-                {creditPurchases > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditPurchases)}</span></div>}
-                {mobileMoneyPurchases > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneyPurchases)}</span></div>}
-                <div className="zr-row zr-total"><span>Total Purchases</span><span>{formatCurrency(totalPurchases)}</span></div>
+                <div className="zr-h">Purchases</div>
+                <table>
+                  <tbody>
+                    {cashPurchases > 0 && <tr><td>Cash</td><td>{formatCurrency(cashPurchases)}</td></tr>}
+                    {creditPurchases > 0 && <tr><td>Credit</td><td>{formatCurrency(creditPurchases)}</td></tr>}
+                    {mobileMoneyPurchases > 0 && <tr><td>Mobile Money</td><td>{formatCurrency(mobileMoneyPurchases)}</td></tr>}
+                    <tr className="zr-total"><td><strong>Total Purchases</strong></td><td><strong>{formatCurrency(totalPurchases)}</strong></td></tr>
+                  </tbody>
+                </table>
               </div>
             )}
 
             {(cashExpenses + creditExpenses + mobileMoneyExpenses) > 0 && (
               <div className="zr-sec">
-                <div className="zr-h">EXPENSES</div>
-                {cashExpenses > 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(cashExpenses)}</span></div>}
-                {creditExpenses > 0 && <div className="zr-row"><span>Credit</span><span>{formatCurrency(creditExpenses)}</span></div>}
-                {mobileMoneyExpenses > 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(mobileMoneyExpenses)}</span></div>}
-                <div className="zr-row zr-total"><span>Total Expenses</span><span>{formatCurrency(totalExpenses)}</span></div>
+                <div className="zr-h">Expenses</div>
+                <table>
+                  <tbody>
+                    {cashExpenses > 0 && <tr><td>Cash</td><td>{formatCurrency(cashExpenses)}</td></tr>}
+                    {creditExpenses > 0 && <tr><td>Credit</td><td>{formatCurrency(creditExpenses)}</td></tr>}
+                    {mobileMoneyExpenses > 0 && <tr><td>Mobile Money</td><td>{formatCurrency(mobileMoneyExpenses)}</td></tr>}
+                    <tr className="zr-total"><td><strong>Total Expenses</strong></td><td><strong>{formatCurrency(totalExpenses)}</strong></td></tr>
+                  </tbody>
+                </table>
               </div>
             )}
 
             {(journalCashEffect !== 0 || journalMobileMoneyEffect !== 0) && (
               <div className="zr-sec">
-                <div className="zr-h">JOURNAL ENTRIES</div>
-                {journalCashEffect !== 0 && <div className="zr-row"><span>Cash</span><span>{formatCurrency(journalCashEffect)}</span></div>}
-                {journalMobileMoneyEffect !== 0 && <div className="zr-row"><span>Mobile Money</span><span>{formatCurrency(journalMobileMoneyEffect)}</span></div>}
+                <div className="zr-h">Journal Entries</div>
+                <table>
+                  <tbody>
+                    {journalCashEffect !== 0 && <tr><td>Cash</td><td>{formatCurrency(journalCashEffect)}</td></tr>}
+                    {journalMobileMoneyEffect !== 0 && <tr><td>Mobile Money</td><td>{formatCurrency(journalMobileMoneyEffect)}</td></tr>}
+                  </tbody>
+                </table>
               </div>
             )}
 
             <div className="zr-sec">
-              <div className="zr-h">CASH RECONCILIATION</div>
-              <div className="zr-row"><span>Opening</span><span>{formatCurrency(openingCash)}</span></div>
-              <div className="zr-row"><span>+ Sales</span><span>{formatCurrency(cashSales)}</span></div>
-              {cashPayments > 0 && <div className="zr-row"><span>+ Receipts</span><span>{formatCurrency(cashPayments)}</span></div>}
-              {cashPurchases > 0 && <div className="zr-row"><span>- Purchases</span><span>{formatCurrency(cashPurchases)}</span></div>}
-              {cashExpenses > 0 && <div className="zr-row"><span>- Expenses</span><span>{formatCurrency(cashExpenses)}</span></div>}
-              {cashSupplierPayments > 0 && <div className="zr-row"><span>- Supplier Pmts</span><span>{formatCurrency(cashSupplierPayments)}</span></div>}
-              {journalCashEffect !== 0 && <div className="zr-row"><span>{journalCashEffect >= 0 ? '+' : '-'} Journals</span><span>{formatCurrency(Math.abs(journalCashEffect))}</span></div>}
-              <div className="zr-row zr-total"><span>Expected Cash</span><span>{formatCurrency(displayExpectedCash)}</span></div>
-              {!isNaN(actualClosing) && (
-                <>
-                  <div className="zr-row"><span>Counted Cash</span><span>{formatCurrency(actualClosing)}</span></div>
-                  <div className="zr-row zr-total"><span>{difference >= 0 ? 'Cash Over' : 'Cash Short'}</span><span>{formatCurrency(Math.abs(difference))}</span></div>
-                </>
-              )}
+              <div className="zr-h">Cash Reconciliation</div>
+              <table>
+                <tbody>
+                  <tr><td>Opening</td><td>{formatCurrency(openingCash)}</td></tr>
+                  <tr><td>+ Sales</td><td>{formatCurrency(cashSales)}</td></tr>
+                  {cashPayments > 0 && <tr><td>+ Receipts</td><td>{formatCurrency(cashPayments)}</td></tr>}
+                  {cashPurchases > 0 && <tr><td>- Purchases</td><td>{formatCurrency(cashPurchases)}</td></tr>}
+                  {cashExpenses > 0 && <tr><td>- Expenses</td><td>{formatCurrency(cashExpenses)}</td></tr>}
+                  {cashSupplierPayments > 0 && <tr><td>- Supplier Payments</td><td>{formatCurrency(cashSupplierPayments)}</td></tr>}
+                  {journalCashEffect !== 0 && <tr><td>{journalCashEffect >= 0 ? '+' : '-'} Journals</td><td>{formatCurrency(Math.abs(journalCashEffect))}</td></tr>}
+                  <tr className="zr-total"><td><strong>Expected Cash</strong></td><td><strong>{formatCurrency(displayExpectedCash)}</strong></td></tr>
+                  {!isNaN(actualClosing) && (
+                    <>
+                      <tr><td>Counted Cash</td><td>{formatCurrency(actualClosing)}</td></tr>
+                      <tr className="zr-total"><td><strong>{difference >= 0 ? 'Cash Over' : 'Cash Short'}</strong></td><td><strong>{formatCurrency(Math.abs(difference))}</strong></td></tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
             </div>
 
             <div className="zr-sec">
-              <div className="zr-h">EXPECTED MOBILE MONEY</div>
-              <div className="zr-row zr-total"><span>Expected M. Money</span><span>{formatCurrency(displayExpectedMobileMoney)}</span></div>
+              <div className="zr-h">Expected Mobile Money</div>
+              <table>
+                <tbody>
+                  <tr className="zr-total"><td><strong>Expected Mobile Money</strong></td><td><strong>{formatCurrency(displayExpectedMobileMoney)}</strong></td></tr>
+                </tbody>
+              </table>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10 }}>--- END OF Z REPORT ---</div>
+            <div style={{ textAlign: 'center', marginTop: 30, fontSize: 11, color: '#666' }}>--- END OF Z REPORT ---</div>
           </div>
         </div>
       </DialogContent>
