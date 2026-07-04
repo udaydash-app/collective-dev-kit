@@ -192,7 +192,7 @@ export async function fetchProfitLossInputsLocal(startDate: string, endDate: str
       [startDate, endTs],
     ),
     db.getAll(
-      `SELECT subtotal, discount, items FROM pos_transactions
+      `SELECT subtotal, discount, real_subtotal, real_discount, items FROM pos_transactions
        WHERE created_at >= ? AND created_at <= ?`,
       [startDate, endTs],
     ),
