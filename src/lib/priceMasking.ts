@@ -12,7 +12,7 @@
  */
 
 export const MARKUP_MULTIPLIER = 1.25;
-export const ROUND_STEP = 500;
+export const ROUND_STEP = 100;
 
 export const ceilTo500 = (value: number): number => {
   if (!Number.isFinite(value) || value <= 0) return 0;
