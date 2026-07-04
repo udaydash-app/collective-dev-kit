@@ -19,25 +19,29 @@ import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { readFiscalPeriodBoundsSync, clampToFiscal } from '@/contexts/FiscalPeriodContext';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 export default function TrialBalance() {
   usePageView('Admin - Trial Balance');
   const _fp = readFiscalPeriodBoundsSync();
   const [asOfDate, setAsOfDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
   const [groupFilter, setGroupFilter] = useState('all');
+  // F12 reveals the mirrored real-ledger totals; default is the masked ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
   useEffect(() => {
     const c = clampToFiscal(asOfDate);
     if (c !== asOfDate) setAsOfDate(c);
   }, [asOfDate]);
 
   const { data: trialBalanceData, isLoading } = useQuery({
-    queryKey: ['trial-balance', asOfDate],
+    queryKey: ['trial-balance', asOfDate, isRealLedger],
     queryFn: async () => {
       // Local-first: compute per-account debit/credit totals from the
       // PowerSync mirror. Falls back to Supabase if local DB is empty.
       let rows: any[] = [];
       try {
-        rows = await fetchAccountBalancesLocal({ endDate: asOfDate });
+        rows = await fetchAccountBalancesLocal({ endDate: asOfDate, isRealLedger });
       } catch (err) {
         console.warn('[trial-balance] local fetch failed, falling back', err);
       }
@@ -50,12 +54,16 @@ export default function TrialBalance() {
         if (error) throw error;
         rows = await Promise.all(
           (accounts || []).map(async (account: any) => {
-            const { data: lines } = await supabase
+            let q = supabase
               .from('journal_entry_lines')
               .select(`debit_amount, credit_amount, journal_entries!inner (status, entry_date)`)
               .eq('account_id', account.id)
               .eq('journal_entries.status', 'posted')
               .lte('journal_entries.entry_date', asOfDate);
+            q = isRealLedger
+              ? q.eq('journal_entries.is_real_ledger', true)
+              : q.neq('journal_entries.is_real_ledger', true);
+            const { data: lines } = await q;
             return {
               ...account,
               total_debit: lines?.reduce((s: number, l: any) => s + l.debit_amount, 0) || 0,

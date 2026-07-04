@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 interface SalesReportItem {
   productId: string;
@@ -29,10 +30,13 @@ export default function TradingAccount() {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+  // F12 swaps sale prices between masked (default) and real dual-ledger values.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
 
   // Fetch sales data with product details
   const { data: salesReport, isLoading } = useQuery({
-    queryKey: ['sales-report', startDate, endDate],
+    queryKey: ['sales-report', startDate, endDate, isRealLedger],
     queryFn: async () => {
       // Fetch all POS transactions in the date range
       const { data: transactions, error } = await supabase
@@ -58,9 +62,14 @@ export default function TradingAccount() {
             const productId = item.product_id || item.productId || item.id;
             const productName = item.name || item.product_name || 'Unknown Product';
             const quantity = item.quantity || 1;
-            
-            // Get the actual price used (customPrice if set, otherwise regular price)
-            const unitPrice = item.customPrice ?? item.price ?? item.unit_price ?? 0;
+
+            // Masked (default) uses item.price; F12 reveals the real price
+            // captured at sale time. customPrice, when set, is the real one.
+            const maskedPrice = Number(item.price ?? item.unit_price ?? 0);
+            const realPrice = Number(
+              item.realPrice ?? item.real_unit_price ?? item.customPrice ?? maskedPrice
+            );
+            const unitPrice = isRealLedger ? realPrice : maskedPrice;
             // Apply item-level discount
             const itemDiscount = item.itemDiscount || item.discount || 0;
             // Calculate actual sale amount per unit after discount
