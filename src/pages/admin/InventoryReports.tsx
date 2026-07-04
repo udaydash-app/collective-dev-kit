@@ -79,7 +79,7 @@ export default function InventoryReports() {
           const stock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = stock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           const current = categoryMap.get(categoryName) || { 
             totalStock: 0, 
@@ -122,7 +122,7 @@ export default function InventoryReports() {
           const baseStock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = baseStock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           return {
             name: product.name,
@@ -130,7 +130,7 @@ export default function InventoryReports() {
             baseStock,
             variantStock,
             totalStock,
-            price: parseFloat(product.price?.toString() || '0'),
+            price: priceOf(product),
             value,
             variants: product.product_variants || [],
           };
@@ -166,7 +166,7 @@ export default function InventoryReports() {
               category: product.categories?.name || 'Uncategorized',
               totalStock,
               threshold,
-              price: parseFloat(product.price?.toString() || '0'),
+              price: priceOf(product),
             };
           })
           .filter((p: any) => p.totalStock > 0 && p.totalStock <= threshold)
@@ -200,7 +200,7 @@ export default function InventoryReports() {
               name: product.name,
               category: product.categories?.name || 'Uncategorized',
               totalStock,
-              price: parseFloat(product.price?.toString() || '0'),
+              price: priceOf(product),
             };
           })
           .filter((p: any) => p.totalStock === 0);
@@ -237,7 +237,7 @@ export default function InventoryReports() {
           const stock = product.stock_quantity || 0;
           const variantStock = product.product_variants?.reduce((sum: number, v: any) => sum + (v.stock_quantity || 0), 0) || 0;
           const totalStock = stock + variantStock;
-          const value = totalStock * parseFloat(product.price?.toString() || '0');
+          const value = totalStock * priceOf(product);
 
           grandTotalValue += value;
           grandTotalStock += totalStock;
