@@ -752,7 +752,7 @@ export const CashOutDialog = ({
                       <DollarSign className="h-5 w-5 text-emerald-600" />
                       <p className="text-sm font-medium">Expected Cash</p>
                     </div>
-                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(expectedCash)}</p>
+                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>{formatCurrency(displayExpectedCash)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Opening ({formatCurrency(openingCash)})</p>
                       <p>+ Sales ({formatCurrency(cashSales)})</p>
@@ -773,7 +773,7 @@ export const CashOutDialog = ({
                       <Smartphone className="h-5 w-5 text-purple-600" />
                       <p className="text-sm font-medium">Expected Mobile Money</p>
                     </div>
-                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatCurrency(expectedMobileMoney)}</p>
+                     <p className={cn("text-3xl font-bold", showReal ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400")}>{formatCurrency(displayExpectedMobileMoney)}</p>
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>= Sales ({formatCurrency(mobileMoneySales)})</p>
                       {mobileMoneyPayments > 0 && <p>+ Receipts ({formatCurrency(mobileMoneyPayments)})</p>}
