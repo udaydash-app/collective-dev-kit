@@ -46,6 +46,8 @@ export default function CloseDayReport() {
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
 
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
 
   const { data: stores } = useQuery({
     queryKey: ['stores'],
