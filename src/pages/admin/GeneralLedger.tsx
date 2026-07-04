@@ -53,8 +53,10 @@ export default function GeneralLedger() {
   const { reset: resetReveal } = usePriceRevealControls();
   // Reset F12 reveal when leaving the ledger view.
   useEffect(() => () => resetReveal(), [resetReveal]);
-  /** Hide monetary amounts when a POS session is active and F12 isn't held. */
-  const fmtMoney = (v: number | null | undefined) => (showMasked ? '••••••' : formatCurrency(Number(v ?? 0)));
+  /** Format a monetary amount (values already come from the masked/real ledger view). */
+  const fmtMoney = (v: number | null | undefined) => formatCurrency(Number(v ?? 0));
+  /** True = read the "real" mirror rows; false = read the masked default rows. */
+  const useRealLedger = !showMasked;
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
