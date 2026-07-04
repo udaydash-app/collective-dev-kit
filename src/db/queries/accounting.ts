@@ -744,15 +744,16 @@ export async function fetchContactByLedgerAccountLocal(accountId: string): Promi
 // Joins journal_entries so the page can read entry_date/description/etc.
 export async function fetchAccountLinesLocal(
   accountId: string,
-  opts: { startDate?: string; endDate?: string; includePrior?: boolean } = {},
+  opts: { startDate?: string; endDate?: string; includePrior?: boolean; realLedger?: boolean } = {},
 ): Promise<any[]> {
   if (!accountId) return [];
   const clauses: string[] = [
     "l.account_id = ?",
     "e.status = 'posted'",
     "LOWER(COALESCE(e.description, '')) NOT LIKE '%opening balance%'",
+    "COALESCE(e.is_real_ledger, 0) = ?",
   ];
-  const args: any[] = [accountId];
+  const args: any[] = [accountId, opts.realLedger ? 1 : 0];
   if (opts.startDate && !opts.includePrior) {
     clauses.push("e.entry_date >= ?");
     args.push(opts.startDate);
