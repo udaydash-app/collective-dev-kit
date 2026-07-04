@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ import { shouldUseLocalData } from '@/lib/localModeHelper';
 import { BulkSellPriceUpdateDialog } from '@/components/admin/BulkSellPriceUpdateDialog';
 import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import { computeMaskedPrice } from '@/lib/priceMasking';
 
 type EditedPrices = {
@@ -56,6 +57,8 @@ export default function StockAndPrice() {
   const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'positive' | 'negative'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const { showMasked } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
   /** Return the masked sell price when a POS session is active and F12 is not held. */
   const maskSell = (real: number | null | undefined, product: any, variant?: any): number | null => {
     if (real == null) return null;
