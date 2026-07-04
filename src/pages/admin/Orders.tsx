@@ -2196,8 +2196,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.name}</p>
-                                              <p className="text-sm text-muted-foreground">
-                                                Original: {formatCurrency(Number(item.price))} each
+                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                Original: {formatCurrency(revealAmt(item.price, item.realPrice))} each
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2231,8 +2231,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className="font-semibold">
-                                                {formatCurrency((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
+                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                                                {formatCurrency((Number(item.customPrice ?? revealAmt(item.price, item.realPrice)) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
                                               </p>
                                             </div>
                                             <Button
