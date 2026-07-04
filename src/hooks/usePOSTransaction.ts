@@ -73,7 +73,9 @@ const serializeCartItemForTransaction = (item: CartItem) => {
     display_name: item.displayName,
     quantity: item.quantity,
     price: item.price,
-    realPrice: item.realPrice ?? item.price,
+    // Manual edits (customPrice) flow into the REAL ledger only. The masked
+    // value (item.price) stays governed by the masking formula.
+    realPrice: item.customPrice ?? item.realPrice ?? item.price,
     originalPrice: item.originalPrice,
     customPrice: item.customPrice,
     itemDiscount: item.itemDiscount || 0,
@@ -105,9 +107,11 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
 
     if (item.isCombo || !UUID_PATTERN.test(item.productId)) return [];
 
-    const effectivePrice = item.customPrice ?? item.price;
+    // Masked side is untouched by manual price edits — customPrice only
+    // updates the real ledger. This keeps the masking rule intact while
+    // still recording what the cashier actually charged.
     const discountPerUnit = item.itemDiscount || 0;
-    const unitPrice = effectivePrice - discountPerUnit;
+    const unitPrice = (item.price ?? 0) - discountPerUnit;
     const realEffectivePrice = item.customPrice ?? item.realPrice ?? item.price;
     const realUnitPrice = realEffectivePrice - discountPerUnit;
 
@@ -993,8 +997,10 @@ export const usePOSTransaction = () => {
   const calculateSubtotal = () => {
     let sum = 0;
     for (const item of cart) {
-      const effectivePrice = item.customPrice ?? item.price;
-      sum += (effectivePrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
+      // Masked subtotal ignores customPrice so the masking rule is preserved
+      // even after manual edits. customPrice flows into the real subtotal.
+      const maskedPrice = item.price ?? 0;
+      sum += (maskedPrice * item.quantity) - ((item.itemDiscount ?? 0) * item.quantity);
     }
     return sum;
   };
