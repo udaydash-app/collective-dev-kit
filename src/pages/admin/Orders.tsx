@@ -113,6 +113,17 @@ export default function AdminOrders() {
   // Enable real-time sync for automatic updates
   useRealtimeSync();
 
+  // Reveal real (unmasked) totals when F12 is held. Falls back to masked when
+  // no real value is stored (e.g. legacy rows before dual accounting).
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
+  const revealAmt = (masked: any, real: any) => {
+    const m = Number(masked || 0);
+    if (!showReal) return m;
+    const r = real == null || real === '' ? null : Number(real);
+    return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+  };
+
   const toggleOrderExpanded = async (orderId: string) => {
     const newExpanded = new Set(expandedOrders);
     if (newExpanded.has(orderId)) {
