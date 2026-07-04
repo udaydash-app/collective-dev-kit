@@ -2343,8 +2343,8 @@ export default function AdminOrders() {
                                               </Button>
                                             </div>
                                             <div className="w-32 text-right">
-                                              <p className="font-semibold">
-                                                {formatCurrency(Number(item.subtotal))}
+                                              <p className={`font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                                                {formatCurrency(revealAmt(item.subtotal, item.real_total_price))}
                                               </p>
                                             </div>
                                             <Button
