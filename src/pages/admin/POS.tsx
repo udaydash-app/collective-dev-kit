@@ -1286,6 +1286,7 @@ export default function POS() {
         `)
         .eq('account_id', cashAccount.id)
         .eq('journal_entries.status', 'posted')
+        .neq('journal_entries.is_real_ledger', true)
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
@@ -1341,6 +1342,7 @@ export default function POS() {
           status
         `)
         .eq('status', 'posted')
+        .neq('is_real_ledger', true)
         .gte('created_at', sessionStart)
         .lte('created_at', sessionEnd)
         .order('created_at', { ascending: false });
@@ -1415,6 +1417,7 @@ export default function POS() {
         `)
         .eq('account_id', mobileMoneyAccount.id)
         .eq('journal_entries.status', 'posted')
+        .neq('journal_entries.is_real_ledger', true)
         .gte('journal_entries.created_at', sessionStart)
         .lte('journal_entries.created_at', sessionEnd)
         .order('created_at', { foreignTable: 'journal_entries', ascending: true });
