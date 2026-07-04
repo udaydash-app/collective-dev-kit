@@ -254,13 +254,13 @@ export default function DashboardModern() {
 
   const recent = [
     ...((tx || []).map((t: any) => ({
-      id: t.id, ref: t.transaction_number, total: Number(t.total) || 0,
+      id: t.id, ref: t.transaction_number, total: pickSaleTotal(t, isRealLedger),
       date: t.created_at, type: "POS" as const, customer: "Walk-in",
       items: Array.isArray(t.items) ? t.items.length : 0,
       user: userMap.get(t.cashier_id || "")?.name || "—",
     }))),
     ...((orders || []).map((o: any) => ({
-      id: o.id, ref: o.order_number, total: Number(o.total) || 0,
+      id: o.id, ref: o.order_number, total: pickSaleTotal(o, isRealLedger),
       date: o.created_at, type: "Online" as const, customer: "Guest",
       items: 0, status: o.status,
       user: "Online",
