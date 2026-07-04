@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { readFiscalPeriodBoundsSync } from '@/contexts/FiscalPeriodContext';
@@ -57,6 +57,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { ExcelTable, ExcelColumn } from '@/components/admin/ExcelTable';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 
 interface JournalLine {
   account_id: string;
@@ -72,6 +73,8 @@ export default function JournalEntries() {
   useRealtimeSync();
   const { revealRealPrice, maskingEnabled } = usePriceMasking();
   const showReal = revealRealPrice && maskingEnabled;
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
