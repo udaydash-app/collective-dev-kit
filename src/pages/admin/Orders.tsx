@@ -73,6 +73,7 @@ import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
+import { usePriceMasking } from "@/hooks/usePriceMasking";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
