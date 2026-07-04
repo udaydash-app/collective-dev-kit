@@ -860,6 +860,17 @@ export const CashOutDialog = ({
             Cancel
           </Button>
           <Button
+            variant="outline"
+            onClick={() => handlePrintZReport?.()}
+            disabled={isProcessing}
+            className="h-12"
+            size="lg"
+            title="Print Z Report"
+          >
+            <Printer className="mr-2 h-5 w-5" />
+            Z Report
+          </Button>
+          <Button
             onClick={handleConfirm}
             disabled={isProcessing || !closingCash || isNaN(parseFloat(closingCash)) || parseFloat(closingCash) < 0}
             className="flex-1 h-12"
