@@ -98,6 +98,8 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
           quantity: comboItem.quantity * item.quantity,
           unit_price: 0,
           subtotal: 0,
+          real_unit_price: 0,
+          real_total_price: 0,
         }));
     }
 
@@ -106,6 +108,8 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
     const effectivePrice = item.customPrice ?? item.price;
     const discountPerUnit = item.itemDiscount || 0;
     const unitPrice = effectivePrice - discountPerUnit;
+    const realEffectivePrice = item.customPrice ?? item.realPrice ?? item.price;
+    const realUnitPrice = realEffectivePrice - discountPerUnit;
 
     return [{
       order_id: orderId,
@@ -113,6 +117,8 @@ const flattenCartItemsForOrderItems = (items: CartItem[], orderId: string) => {
       quantity: item.quantity,
       unit_price: Math.round(unitPrice * 100) / 100,
       subtotal: Math.round(unitPrice * item.quantity * 100) / 100,
+      real_unit_price: Math.round(realUnitPrice * 100) / 100,
+      real_total_price: Math.round(realUnitPrice * item.quantity * 100) / 100,
     }];
   });
 };
