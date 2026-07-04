@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { usePriceRevealControls } from '@/contexts/PriceRevealContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,6 +118,8 @@ export const CashOutDialog = ({
 
   // F12 reveal — toggle actuals across the EOD summary
   const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => { if (!isOpen) resetReveal(); }, [isOpen, resetReveal]);
   const showReal = revealRealPrice && maskingEnabled;
   const revealAmt = (masked: number, real?: number | null) =>
     showReal && real != null && !isNaN(Number(real)) ? Number(real) : masked;
