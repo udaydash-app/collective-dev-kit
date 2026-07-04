@@ -27,6 +27,12 @@ echo ""
 echo "[1/7] Pulling latest code from git..."
 if [ -d .git ]; then
   git fetch --all
+  # Auto-commit any local uncommitted changes so the rebase can proceed
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "Uncommitted changes detected - auto-committing before pull..."
+    git add -A
+    git commit -m "chore: auto-commit local changes before release" || echo "Nothing to commit"
+  fi
   git pull --rebase || { echo "git pull failed - resolve conflicts and retry"; exit 1; }
 else
   echo "WARNING: not a git repo - skipping pull"
