@@ -70,6 +70,8 @@ import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog'
 import { SearchAllSalesDialog } from '@/components/pos/SearchAllSalesDialog';
 import { POSTodoList } from '@/components/pos/POSTodoList';
 import { cn } from '@/lib/utils';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
+import { calculateTimbreTax } from '@/lib/timbreTax';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
