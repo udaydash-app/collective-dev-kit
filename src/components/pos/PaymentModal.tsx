@@ -81,8 +81,12 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
     if (!isOpen) resetReveal();
   }, [isOpen, resetReveal]);
   const displayTotal = showReal ? (realTotal ?? total) : total;
+  // Scale factor used to convert amounts the cashier enters (in displayTotal
+  // units) back to masked-total units when persisting the transaction. Dual
+  // accounting stores masked as the primary total.
+  const persistFactor = displayTotal > 0 ? total / displayTotal : 1;
   const [payments, setPayments] = useState<Payment[]>([
-    { id: '1', method: 'cash', amount: total }
+    { id: '1', method: 'cash', amount: displayTotal }
   ]);
   const [cashReceived, setCashReceived] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
@@ -361,7 +365,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
   };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const remaining = total - totalPaid;
+  const remaining = displayTotal - totalPaid;
   const change = parseFloat(cashReceived || '0') - totalPaid;
   const hasCashPayment = payments.some(p => p.method === 'cash');
   const hasCreditPayment = payments.some(p => p.method === 'credit');
@@ -373,12 +377,12 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
     { value: 'credit', label: 'Credit', icon: CreditCard },
   ];
 
-  // Auto-fill amount for single payment methods - only when total changes
+  // Auto-fill amount for single payment methods - only when the displayed total changes
   useEffect(() => {
     if (payments.length === 1) {
-      setPayments(prev => [{ ...prev[0], amount: total }]);
+      setPayments(prev => [{ ...prev[0], amount: displayTotal }]);
     }
-  }, [total]);
+  }, [displayTotal]);
 
   const addPayment = () => {
     const newPayment: Payment = {
@@ -388,7 +392,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
     };
     // When adding a new payment, set first payment to 0 if it equals total (default)
     // so user can enter the split amounts manually
-    if (payments.length === 1 && Math.abs(payments[0].amount - total) < 0.01) {
+    if (payments.length === 1 && Math.abs(payments[0].amount - displayTotal) < 0.01) {
       setPayments([{ ...payments[0], amount: 0 }, newPayment]);
     } else {
       setPayments([...payments, newPayment]);
@@ -420,7 +424,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
           const sumExceptLast = updatedPayments
             .slice(0, lastIndex)
             .reduce((sum, p) => sum + p.amount, 0);
-          const remaining = Math.max(0, total - sumExceptLast);
+          const remaining = Math.max(0, displayTotal - sumExceptLast);
           updatedPayments[lastIndex] = { ...updatedPayments[lastIndex], amount: remaining };
         }
       }
@@ -430,7 +434,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
   };
 
   const handleConfirm = async () => {
-    if (totalPaid < total) {
+    if (totalPaid < displayTotal) {
       console.error(`Insufficient payment: need ${formatCurrency(remaining)} more`);
       return;
     }
@@ -442,12 +446,20 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
 
     setIsProcessing(true);
     try {
-      await onConfirm(payments, totalPaid);
+      // Convert cashier-entered amounts (in displayTotal units) back to the
+      // masked-total units the transaction is persisted in.
+      const persistedPayments = persistFactor === 1
+        ? payments
+        : payments.map(p => ({ ...p, amount: Math.round(p.amount * persistFactor * 100) / 100 }));
+      const persistedTotalPaid = persistFactor === 1
+        ? totalPaid
+        : Math.round(totalPaid * persistFactor * 100) / 100;
+      await onConfirm(persistedPayments, persistedTotalPaid);
       
       // Kiosk printing is now handled in POS.tsx after balance recalculation
       
       // Reset and close
-      setPayments([{ id: '1', method: 'cash', amount: total }]);
+      setPayments([{ id: '1', method: 'cash', amount: displayTotal }]);
       setCashReceived("");
       setSelectedCustomer("");
       setCustomerSearch("");
@@ -486,7 +498,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Paid</span>
-              <span className={totalPaid >= total ? 'text-green-600 font-semibold' : 'font-semibold'}>
+              <span className={totalPaid >= displayTotal ? 'text-green-600 font-semibold' : 'font-semibold'}>
                 {formatCurrency(totalPaid)}
               </span>
             </div>
@@ -548,7 +560,7 @@ export const PaymentModal = ({ isOpen, onClose, total, realTotal, onConfirm, sel
                         placeholder="0.00"
                         step="0.01"
                         min="0"
-                        max={total}
+                        max={displayTotal}
                         disabled={payments.length === 1}
                       />
                     </div>
