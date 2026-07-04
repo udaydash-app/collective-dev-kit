@@ -209,7 +209,7 @@ export default function DashboardModern() {
     const uid = t.cashier_id || "unknown";
     const name = userMap.get(uid)?.name || (uid === "unknown" ? "Unassigned" : "Unknown user");
     if (!perUser[uid]) perUser[uid] = { name, sales: 0, count: 0 };
-    perUser[uid].sales += Number(t.total) || 0;
+    perUser[uid].sales += pickSaleTotal(t, isRealLedger);
     perUser[uid].count += 1;
   });
   const userRows = Object.entries(perUser)
@@ -225,29 +225,29 @@ export default function DashboardModern() {
     days.push({ date: `${d.getDate()}/${d.getMonth() + 1}`, sales: 0, transactions: 0 });
     (tx || []).forEach((t: any) => {
       if (t.created_at?.slice(0, 10) === key) {
-        days[i].sales += Number(t.total) || 0;
+        days[i].sales += pickSaleTotal(t, isRealLedger);
         days[i].transactions += 1;
       }
     });
     (orders || []).forEach((o: any) => {
       if (o.created_at?.slice(0, 10) === key && o.payment_status === "paid") {
-        days[i].sales += Number(o.total) || 0;
+        days[i].sales += pickSaleTotal(o, isRealLedger);
       }
     });
   }
 
   const todaySales = (tx || [])
     .filter((t: any) => new Date(t.created_at) >= startOfToday)
-    .reduce((s: number, t: any) => s + (Number(t.total) || 0), 0);
+    .reduce((s: number, t: any) => s + pickSaleTotal(t, isRealLedger), 0);
   const todayTx = (tx || []).filter((t: any) => new Date(t.created_at) >= startOfToday).length;
-  const periodSales = (tx || []).reduce((s: number, t: any) => s + (Number(t.total) || 0), 0);
+  const periodSales = (tx || []).reduce((s: number, t: any) => s + pickSaleTotal(t, isRealLedger), 0);
   const avgTicket = (tx || []).length > 0 ? periodSales / (tx || []).length : 0;
 
   // Payment mix
   const paymentMix: Record<string, number> = {};
   (tx || []).forEach((t: any) => {
     const m = t.payment_method || "unknown";
-    paymentMix[m] = (paymentMix[m] || 0) + (Number(t.total) || 0);
+    paymentMix[m] = (paymentMix[m] || 0) + pickSaleTotal(t, isRealLedger);
   });
   const pieData = Object.entries(paymentMix).map(([name, value]) => ({ name, value }));
   const pieColors = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))", "#f59e0b", "#ec4899", "#06b6d4"];
