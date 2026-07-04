@@ -2308,8 +2308,8 @@ export default function AdminOrders() {
                                             )}
                                             <div className="flex-1">
                                               <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
-                                              <p className="text-sm text-muted-foreground">
-                                                {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
+                                              <p className={`text-sm ${showReal ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                {formatCurrency(revealAmt(item.unit_price, item.real_unit_price))} / {item.products?.unit}
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
