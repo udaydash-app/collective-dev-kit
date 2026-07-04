@@ -2907,11 +2907,28 @@ export default function POS() {
   };
 
   const printTransactionReceipt = (completeTransactionData: any) => {
+    // Honour the F12 sticky reveal at the moment of printing so quick-pay
+    // shortcuts (F2/F3/F4) print real (unmasked) prices when F12 is on.
+    const useReal = showRealDisplay;
+    const items = (completeTransactionData.items || []).map((item: any) => {
+      if (!useReal) return item;
+      const realUnit = item.realPrice ?? item.price;
+      return {
+        ...item,
+        price: realUnit,
+        // customPrice already reflects a manual override on the real ledger.
+        customPrice: item.customPrice,
+      };
+    });
+    const subtotal = useReal ? (completeTransactionData.realSubtotal ?? completeTransactionData.subtotal) : completeTransactionData.subtotal;
+    const tax = useReal ? (completeTransactionData.realTax ?? completeTransactionData.tax) : completeTransactionData.tax;
+    const discount = useReal ? (completeTransactionData.realDiscount ?? completeTransactionData.discount) : completeTransactionData.discount;
+    const total = useReal ? (completeTransactionData.realTotal ?? completeTransactionData.total) : completeTransactionData.total;
     return kioskPrintService.printReceipt({
       storeName: completeTransactionData.storeName,
       transactionNumber: completeTransactionData.transactionNumber,
       date: completeTransactionData.date,
-      items: completeTransactionData.items.map((item: any) => ({
+      items: items.map((item: any) => ({
         name: item.name,
         displayName: item.displayName,
         quantity: item.quantity,
@@ -2921,10 +2938,10 @@ export default function POS() {
         itemDiscount: item.itemDiscount,
         comboItems: item.comboItems,
       })),
-      subtotal: completeTransactionData.subtotal,
-      discount: completeTransactionData.discount,
-      tax: completeTransactionData.tax,
-      total: completeTransactionData.total,
+      subtotal,
+      discount,
+      tax,
+      total,
       paymentMethod: completeTransactionData.paymentMethod,
       cashierName: completeTransactionData.cashierName,
       customerName: completeTransactionData.customerName,
