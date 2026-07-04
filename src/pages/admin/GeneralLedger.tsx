@@ -53,8 +53,10 @@ export default function GeneralLedger() {
   const { reset: resetReveal } = usePriceRevealControls();
   // Reset F12 reveal when leaving the ledger view.
   useEffect(() => () => resetReveal(), [resetReveal]);
-  /** Hide monetary amounts when a POS session is active and F12 isn't held. */
-  const fmtMoney = (v: number | null | undefined) => (showMasked ? '••••••' : formatCurrency(Number(v ?? 0)));
+  /** Format a monetary amount (values already come from the masked/real ledger view). */
+  const fmtMoney = (v: number | null | undefined) => formatCurrency(Number(v ?? 0));
+  /** True = read the "real" mirror rows; false = read the masked default rows. */
+  const useRealLedger = !showMasked;
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
@@ -224,7 +226,7 @@ export default function GeneralLedger() {
   })();
 
   const { data: ledgerData, isLoading } = useQuery({
-    queryKey: ['general-ledger', selectedAccount, startDate, endDate],
+    queryKey: ['general-ledger', selectedAccount, startDate, endDate, useRealLedger],
     refetchOnMount: 'always',
     staleTime: 0,
     queryFn: async () => {
@@ -262,7 +264,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', customerAccountId)
-          .eq('journal_entries.status', 'posted')
+          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
           .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', endDate);
 
@@ -280,7 +282,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', supplierAccountId)
-          .eq('journal_entries.status', 'posted')
+          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
           .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', endDate);
 
@@ -405,8 +407,8 @@ export default function GeneralLedger() {
         if (localAccount) {
           const [localContact, currentLines, priorLines] = await Promise.all([
             fetchContactByLedgerAccountLocal(selectedAccount),
-            fetchAccountLinesLocal(selectedAccount, { startDate, endDate }),
-            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true })
+            fetchAccountLinesLocal(selectedAccount, { startDate, endDate, realLedger: useRealLedger }),
+            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true, realLedger: useRealLedger })
               .then((all) => all.filter((l: any) => l.journal_entries.entry_date < startDate)),
           ]);
 
@@ -482,7 +484,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted')
+        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .gte('journal_entries.entry_date', startDate)
         .lte('journal_entries.entry_date', endDate);
@@ -552,7 +554,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted')
+        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .lt('journal_entries.entry_date', startDate);
 
@@ -581,7 +583,7 @@ export default function GeneralLedger() {
             )
           `)
           .eq('account_id', selectedAccount)
-          .eq('journal_entries.status', 'posted')
+          .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
           .not('journal_entries.description', 'ilike', '%opening balance%');
 
         const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
@@ -679,7 +681,7 @@ export default function GeneralLedger() {
           )
         `)
         .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted')
+        .eq('journal_entries.status', 'posted').eq('journal_entries.is_real_ledger', useRealLedger)
         .not('journal_entries.description', 'ilike', '%opening balance%');
 
       const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
