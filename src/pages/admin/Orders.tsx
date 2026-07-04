@@ -74,6 +74,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
 import { usePriceMasking } from "@/hooks/usePriceMasking";
+import { usePriceRevealControls } from "@/contexts/PriceRevealContext";
 
 export default function AdminOrders() {
   const [searchParams] = useSearchParams();
@@ -116,6 +117,8 @@ export default function AdminOrders() {
   // Reveal real (unmasked) totals when F12 is held. Falls back to masked when
   // no real value is stored (e.g. legacy rows before dual accounting).
   const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const { reset: resetReveal } = usePriceRevealControls();
+  useEffect(() => () => resetReveal(), [resetReveal]);
   const showReal = revealRealPrice && maskingEnabled;
   const revealAmt = (masked: any, real: any) => {
     const m = Number(masked || 0);
