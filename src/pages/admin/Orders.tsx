@@ -143,7 +143,7 @@ export default function AdminOrders() {
         if (order.type === 'pos') {
           const { data: freshTx } = await supabase
             .from('pos_transactions')
-            .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+            .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
             .eq('id', orderId)
             .single();
           if (freshTx) {
@@ -153,6 +153,10 @@ export default function AdminOrders() {
               tax: freshTx.tax,
               discount: freshTx.discount || 0,
               total: freshTx.total,
+              real_subtotal: freshTx.real_subtotal,
+              real_tax: freshTx.real_tax,
+              real_discount: freshTx.real_discount,
+              real_total: freshTx.real_total,
               payment_method: freshTx.payment_method,
               payment_details: freshTx.payment_details,
             });
@@ -164,7 +168,7 @@ export default function AdminOrders() {
             .eq('order_id', orderId);
           const { data: freshOrd } = await supabase
             .from('orders')
-            .select('subtotal, tax, total, delivery_fee, status')
+            .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
             .eq('id', orderId)
             .single();
           if (freshItems) order.items = freshItems;
@@ -654,6 +658,13 @@ export default function AdminOrders() {
     // Fetch customer balance
     const customerBalance = await fetchCustomerBalance(order.customer_name);
 
+    const pick = (masked: any, real: any) => {
+      const m = Number(masked || 0);
+      if (!showReal) return m;
+      const r = real == null || real === '' ? null : Number(real);
+      return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+    };
+
     // Create a temporary container for the receipt
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -725,7 +736,8 @@ export default function AdminOrders() {
 
             <div class="border-t border-b py-2 mb-2">
               ${order.items.map((item: any) => {
-                const effectivePrice = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                const baseEffective = item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price;
+                const effectivePrice = pick(baseEffective, item.real_unit_price ?? item.realPrice);
                 const itemDiscount = (item.itemDiscount || item.item_discount || 0) * item.quantity;
                 return `
                 <div class="mb-2">
@@ -749,21 +761,21 @@ export default function AdminOrders() {
             <div class="space-y-1 mb-2">
               <div class="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${Number(order.subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.subtotal, (order as any).real_subtotal).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               <div class="flex justify-between">
                 <span>Tax (15%):</span>
-                <span>${Number(order.tax || 0).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.tax || 0, (order as any).real_tax).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
               ${order.type === 'pos' && order.discount > 0 ? `
                 <div class="flex justify-between">
                   <span>Discount:</span>
-                  <span>-${Number(order.discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                  <span>-${pick(order.discount, (order as any).real_discount).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
                 </div>
               ` : ''}
               <div class="flex justify-between font-bold text-lg border-t pt-1">
                 <span>TOTAL:</span>
-                <span>${Number(order.total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
+                <span>${pick(order.total, (order as any).real_total).toLocaleString('fr-CI', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA</span>
               </div>
             </div>
 
@@ -827,7 +839,7 @@ export default function AdminOrders() {
     if (cachedOrder.type === 'pos') {
       const { data: freshTx } = await supabase
         .from('pos_transactions')
-        .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+        .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
         .eq('id', orderId)
         .single();
       if (freshTx) {
@@ -838,6 +850,10 @@ export default function AdminOrders() {
           tax: freshTx.tax,
           discount: freshTx.discount || 0,
           total: freshTx.total,
+          real_subtotal: freshTx.real_subtotal,
+          real_tax: freshTx.real_tax,
+          real_discount: freshTx.real_discount,
+          real_total: freshTx.real_total,
           payment_method: freshTx.payment_method,
           payment_details: freshTx.payment_details,
         };
@@ -851,7 +867,7 @@ export default function AdminOrders() {
           .eq('order_id', orderId),
         supabase
           .from('orders')
-          .select('subtotal, tax, total, delivery_fee, status')
+          .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
           .eq('id', orderId)
           .single()
       ]);
@@ -864,6 +880,8 @@ export default function AdminOrders() {
           subtotal: orderResult.data.subtotal,
           tax: orderResult.data.tax,
           total: orderResult.data.total,
+          real_subtotal: orderResult.data.real_subtotal,
+          real_total: orderResult.data.real_total,
         };
       }
     }
@@ -882,6 +900,12 @@ export default function AdminOrders() {
     toast.loading('Printing...', { id: 'direct-print' });
     
     try {
+      const pick = (masked: any, real: any) => {
+        const m = Number(masked || 0);
+        if (!showReal) return m;
+        const r = real == null || real === '' ? null : Number(real);
+        return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+      };
       await kioskPrintService.printReceipt({
         storeName: settings?.company_name || order.stores?.name || 'GLOBAL INDIAN MART',
         transactionNumber: order.order_number,
@@ -890,14 +914,17 @@ export default function AdminOrders() {
           name: item.products?.name || item.name,
           displayName: item.display_name || item.displayName,
           quantity: item.quantity,
-          price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+          price: pick(
+            item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
+            item.real_unit_price ?? item.realPrice,
+          ),
           itemDiscount: item.itemDiscount || item.item_discount || 0,
           comboItems: item.comboItems || item.combo_items,
         })),
-        subtotal: Number(order.subtotal),
-        tax: Number(order.tax || 0),
-        discount: order.type === 'pos' ? Number(order.discount || 0) : undefined,
-        total: Number(order.total),
+        subtotal: pick(order.subtotal, order.real_subtotal),
+        tax: pick(order.tax || 0, order.real_tax),
+        discount: order.type === 'pos' ? pick(order.discount || 0, order.real_discount) : undefined,
+        total: pick(order.total, order.real_total),
         paymentMethod: order.payment_method || 'Online',
         cashierName: order.type === 'pos' ? order.cashier_name : undefined,
         customerName: order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined,
@@ -1000,6 +1027,7 @@ export default function AdminOrders() {
             displayName: item.display_name || item.displayName,
           price: item.price || item.unit_price || item.products?.price || 0,
           customPrice: item.customPrice,
+          realPrice: item.real_unit_price ?? item.realPrice ?? (item.price || item.unit_price || item.products?.price || 0),
           quantity: item.quantity || 1,
           itemDiscount: item.itemDiscount || 0,
             barcode: item.barcode || item.products?.barcode,
@@ -2058,7 +2086,7 @@ export default function AdminOrders() {
                                       .eq('order_id', order.id);
                                     const { data: freshOrd } = await supabase
                                       .from('orders')
-                                      .select('subtotal, tax, total, delivery_fee, status')
+                                      .select('subtotal, tax, total, real_subtotal, real_total, delivery_fee, status')
                                       .eq('id', order.id)
                                       .single();
                                     if (freshItems) freshView = { ...freshView, items: freshItems };
@@ -2066,7 +2094,7 @@ export default function AdminOrders() {
                                   } else {
                                     const { data: freshTx } = await supabase
                                       .from('pos_transactions')
-                                      .select('items, subtotal, tax, discount, total, payment_method, payment_details')
+                                      .select('items, subtotal, tax, discount, total, real_subtotal, real_tax, real_discount, real_total, payment_method, payment_details')
                                       .eq('id', order.id)
                                       .single();
                                     if (freshTx) freshView = { ...freshView, ...freshTx, items: freshTx.items || [] };
@@ -2704,10 +2732,16 @@ export default function AdminOrders() {
               quantity: item.quantity,
               price: item.customPrice ?? item.products?.price ?? item.unit_price ?? item.price,
               customPrice: item.customPrice,
+              realPrice: item.real_unit_price ?? item.realPrice ?? undefined,
               itemDiscount: item.itemDiscount || 0,
             }))}
             subtotal={Number(selectedReceiptOrder.subtotal)}
             discount={Number(selectedReceiptOrder.discount || 0)}
+            realSubtotal={selectedReceiptOrder.real_subtotal ?? undefined}
+            realDiscount={selectedReceiptOrder.real_discount ?? undefined}
+            realTax={selectedReceiptOrder.real_tax ?? undefined}
+            realTotal={selectedReceiptOrder.real_total ?? undefined}
+            showRealPrices={showReal}
             customerName={selectedReceiptOrder.customer_name && selectedReceiptOrder.customer_name !== 'Walk-in Customer' ? selectedReceiptOrder.customer_name : undefined}
             customerPhone={selectedReceiptOrder.customer_phone || undefined}
             tax={Number(selectedReceiptOrder.tax || 0)}

@@ -11,6 +11,7 @@ import { Receipt as ReceiptComponent } from './Receipt';
 import { useReactToPrint } from 'react-to-print';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { usePriceMasking } from '@/hooks/usePriceMasking';
 
 interface OrderItem {
   id?: string;
@@ -38,6 +39,9 @@ interface OrderItem {
   };
   unit_price?: number;
   subtotal?: number;
+  real_unit_price?: number | null;
+  real_total_price?: number | null;
+  realPrice?: number | null;
 }
 
 interface PaymentDetail {
@@ -66,6 +70,10 @@ interface OrderViewDialogProps {
     discount?: number;
     delivery_fee?: number;
     total: number;
+    real_subtotal?: number | null;
+    real_tax?: number | null;
+    real_discount?: number | null;
+    real_total?: number | null;
     stores?: { name: string };
     addresses?: { address_line1: string; city: string; phone?: string };
     cashier_name?: string;
@@ -75,6 +83,14 @@ interface OrderViewDialogProps {
 
 export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps) => {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const showReal = revealRealPrice && maskingEnabled;
+  const pickVal = (masked: any, real: any): number => {
+    const m = Number(masked || 0);
+    if (!showReal) return m;
+    const r = real == null || real === '' ? null : Number(real);
+    return r != null && !Number.isNaN(r) && r > 0 ? r : m;
+  };
 
   // Fetch company settings for receipt
   const { data: settings } = useQuery({
@@ -152,11 +168,15 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   // Calculate item final amount
   const getItemFinal = (item: OrderItem) => {
     if (order.type === 'pos') {
-      const price = item.customPrice ?? item.price;
+      const basePrice = item.customPrice ?? item.price;
+      const price = pickVal(basePrice, item.real_unit_price ?? item.realPrice);
       const discount = item.itemDiscount ?? 0;
       return (price * item.quantity) - discount;
     }
-    return item.subtotal ?? (item.unit_price ?? item.price) * item.quantity;
+    const baseUnit = item.unit_price ?? item.price;
+    const unit = pickVal(baseUnit, item.real_unit_price ?? item.realPrice);
+    const baseSubtotal = item.subtotal ?? baseUnit * item.quantity;
+    return pickVal(baseSubtotal, item.real_total_price ?? (unit * item.quantity));
   };
 
   // Get item details
@@ -167,9 +187,10 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
   };
 
   const getItemPrice = (item: OrderItem) => {
-    return order.type === 'pos'
+    const base = order.type === 'pos'
       ? (item.customPrice ?? item.price)
       : (item.unit_price ?? item.products?.price ?? item.price);
+    return pickVal(base, item.real_unit_price ?? item.realPrice);
   };
 
   return (
@@ -313,18 +334,18 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(order.subtotal)}</span>
+                <span>{formatCurrency(pickVal(order.subtotal, order.real_subtotal))}</span>
               </div>
               {order.discount && order.discount > 0 && (
                 <div className="flex justify-between text-orange-600">
                   <span>Discount</span>
-                  <span>-{formatCurrency(order.discount)}</span>
+                  <span>-{formatCurrency(pickVal(order.discount, order.real_discount))}</span>
                 </div>
               )}
               {order.tax > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>{formatCurrency(order.tax)}</span>
+                  <span>{formatCurrency(pickVal(order.tax, order.real_tax))}</span>
                 </div>
               )}
               {order.delivery_fee && order.delivery_fee > 0 && (
@@ -336,7 +357,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
               <Separator className="my-2" />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-primary">{formatCurrency(order.total)}</span>
+                <span className="text-primary">{formatCurrency(pickVal(order.total, order.real_total))}</span>
               </div>
             </div>
 
@@ -397,6 +418,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                 ? (item.customPrice ?? item.price)
                 : (item.unit_price ?? item.products?.price ?? item.price),
               customPrice: item.customPrice,
+              realPrice: (item.real_unit_price ?? item.realPrice ?? undefined) as any,
                 itemDiscount: item.itemDiscount || item.item_discount || 0,
                 isCombo: item.isCombo,
                 isOneTimeOffer: item.isOneTimeOffer,
@@ -404,6 +426,11 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             }))}
             subtotal={order.subtotal}
             discount={order.discount || 0}
+            realSubtotal={order.real_subtotal ?? undefined}
+            realDiscount={order.real_discount ?? undefined}
+            realTax={order.real_tax ?? undefined}
+            realTotal={order.real_total ?? undefined}
+            showRealPrices={showReal}
             customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
             customerPhone={order.customer_phone}
             tax={order.tax || 0}

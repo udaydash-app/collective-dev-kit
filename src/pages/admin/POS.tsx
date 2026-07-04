@@ -539,6 +539,7 @@ export default function POS() {
             quantity: item.quantity || 1,
             barcode: item.barcode,
             customPrice: item.customPrice || null,
+            realPrice: (item as any).realPrice ?? (item as any).real_unit_price ?? item.price,
             itemDiscount: item.itemDiscount || 0,
             isCombo: item.isCombo || item.is_combo,
             isOneTimeOffer: item.isOneTimeOffer || item.is_one_time_offer,
