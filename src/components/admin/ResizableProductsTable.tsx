@@ -192,10 +192,10 @@ export function ResizableProductsTable({
       }
       case "price":
         if (p.product_variants && p.product_variants.length > 0) {
-          const prices = p.product_variants.map(v => v.price);
+          const prices = p.product_variants.map(v => maskSell(v.price, p, v) ?? v.price);
           return <span className="font-medium">{formatCurrency(Math.min(...prices))} - {formatCurrency(Math.max(...prices))}</span>;
         }
-        return <span className="font-medium">{formatCurrency(p.price)}</span>;
+        return <span className="font-medium">{formatCurrency(maskSell(p.price, p) ?? p.price)}</span>;
       case "status":
         return (
           <div className="flex items-center gap-1">
