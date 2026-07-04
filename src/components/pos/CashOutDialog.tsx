@@ -342,7 +342,9 @@ export const CashOutDialog = ({
                                       ({paymentMethods})
                                     </span>
                                   </div>
-                                  <span className="font-semibold flex-shrink-0 ml-2">{formatCurrency(txn.total)}</span>
+                                   <span className={cn("font-semibold flex-shrink-0 ml-2", showReal && txn.real_total != null && "text-amber-600 dark:text-amber-400")}>
+                                     {formatCurrency(revealAmt(Number(txn.total), txn.real_total ?? undefined))}
+                                   </span>
                                 </div>
                               );
                             })}
