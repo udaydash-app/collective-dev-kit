@@ -1997,8 +1997,8 @@ export default function AdminOrders() {
                               {order.items?.length || 0} items
                             </Badge>
                           </TableCell>
-                          <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
-                            {formatCurrency(Number(order.total))}
+                          <TableCell className={`border-r border-border/60 px-2 py-1 text-xs font-semibold ${showReal ? 'text-amber-600' : ''}`}>
+                            {formatCurrency(revealAmt(order.total, order.real_total))}
                           </TableCell>
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
