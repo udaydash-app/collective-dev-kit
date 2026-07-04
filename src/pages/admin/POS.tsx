@@ -2486,7 +2486,6 @@ export default function POS() {
   const realSubtotalCalc = calculateRealSubtotal();
   const realTimbreTax = calculateTimbreTax(realSubtotalCalc - discount).taxAmount;
   const realTotalCalc = realSubtotalCalc - discount + realTimbreTax;
-  const displaySubtotal = showRealDisplay ? realSubtotalCalc : subtotal;
   const displayTimbreTax = showRealDisplay ? realTimbreTax : timbreTax;
   const displayTotal = showRealDisplay ? realTotalCalc : total;
 
