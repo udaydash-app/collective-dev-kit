@@ -115,6 +115,9 @@ const menuGroups: { label: string; items: { title: string; to: string; icon: any
 
 export default function DashboardModern() {
   const [recentOpen, setRecentOpen] = useState(true);
+  // F12 flips revenue tiles/charts between masked and real ledger.
+  const { revealRealPrice, maskingEnabled } = usePriceMasking();
+  const isRealLedger = revealRealPrice && maskingEnabled;
   const offlineSession = (() => {
     try {
       const storedSession = localStorage.getItem('offline_pos_session');
@@ -132,7 +135,7 @@ export default function DashboardModern() {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
 
   const { data: dashboardData } = useQuery({
-    queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id],
+    queryKey: ["dashmodern-all-data", since.toISOString(), offlineSession?.pos_user_id, isRealLedger],
     queryFn: async () => {
       const adminSession = getPosAdminSession();
       if (adminSession && navigator.onLine) {
@@ -152,8 +155,8 @@ export default function DashboardModern() {
       }
 
       const [tx, orders, products, contacts, lowStock, posUsers, purchases, expenses, journals, accounts] = await Promise.all([
-        supabase.from("pos_transactions").select("id, transaction_number, total, subtotal, discount, tax, payment_method, created_at, items, cashier_id").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(500),
-        supabase.from("orders").select("id, order_number, total, status, payment_status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200),
+        supabase.from("pos_transactions").select("id, transaction_number, total, real_total, subtotal, real_subtotal, discount, real_discount, tax, real_tax, payment_method, created_at, items, cashier_id").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(500),
+        supabase.from("orders").select("id, order_number, total, real_total, status, payment_status, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200),
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("contacts").select("*", { count: "exact", head: true }),
         supabase.from("products").select("*", { count: "exact", head: true }).lte("stock_quantity", 5),
