@@ -334,18 +334,18 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(order.subtotal)}</span>
+                <span>{formatCurrency(pickVal(order.subtotal, order.real_subtotal))}</span>
               </div>
               {order.discount && order.discount > 0 && (
                 <div className="flex justify-between text-orange-600">
                   <span>Discount</span>
-                  <span>-{formatCurrency(order.discount)}</span>
+                  <span>-{formatCurrency(pickVal(order.discount, order.real_discount))}</span>
                 </div>
               )}
               {order.tax > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>{formatCurrency(order.tax)}</span>
+                  <span>{formatCurrency(pickVal(order.tax, order.real_tax))}</span>
                 </div>
               )}
               {order.delivery_fee && order.delivery_fee > 0 && (
@@ -357,7 +357,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
               <Separator className="my-2" />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-primary">{formatCurrency(order.total)}</span>
+                <span className="text-primary">{formatCurrency(pickVal(order.total, order.real_total))}</span>
               </div>
             </div>
 
@@ -418,6 +418,7 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
                 ? (item.customPrice ?? item.price)
                 : (item.unit_price ?? item.products?.price ?? item.price),
               customPrice: item.customPrice,
+              realPrice: (item.real_unit_price ?? item.realPrice ?? undefined) as any,
                 itemDiscount: item.itemDiscount || item.item_discount || 0,
                 isCombo: item.isCombo,
                 isOneTimeOffer: item.isOneTimeOffer,
@@ -425,6 +426,11 @@ export const OrderViewDialog = ({ isOpen, onClose, order }: OrderViewDialogProps
             }))}
             subtotal={order.subtotal}
             discount={order.discount || 0}
+            realSubtotal={order.real_subtotal ?? undefined}
+            realDiscount={order.real_discount ?? undefined}
+            realTax={order.real_tax ?? undefined}
+            realTotal={order.real_total ?? undefined}
+            showRealPrices={showReal}
             customerName={order.customer_name && order.customer_name !== 'Walk-in Customer' ? order.customer_name : undefined}
             customerPhone={order.customer_phone}
             tax={order.tax || 0}
