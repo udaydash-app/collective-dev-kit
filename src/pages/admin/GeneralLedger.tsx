@@ -226,7 +226,7 @@ export default function GeneralLedger() {
   })();
 
   const { data: ledgerData, isLoading } = useQuery({
-    queryKey: ['general-ledger', selectedAccount, startDate, endDate],
+    queryKey: ['general-ledger', selectedAccount, startDate, endDate, useRealLedger],
     refetchOnMount: 'always',
     staleTime: 0,
     queryFn: async () => {
