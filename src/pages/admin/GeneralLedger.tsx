@@ -48,6 +48,9 @@ import {
 export default function GeneralLedger() {
   usePageView('Admin - General Ledger');
   useRealtimeSync();
+  const { showMasked } = usePriceMasking();
+  /** Hide monetary amounts when a POS session is active and F12 isn't held. */
+  const fmtMoney = (v: number | null | undefined) => (showMasked ? '••••••' : formatCurrency(Number(v ?? 0)));
   const [searchParams] = useSearchParams();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [open, setOpen] = useState(false);
