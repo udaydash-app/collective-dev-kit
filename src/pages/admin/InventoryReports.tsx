@@ -13,6 +13,9 @@ import { FileText, Package, AlertTriangle, TrendingUp, Printer, DollarSign } fro
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 
 type ReportType = 
   | 'stock-levels-by-category'
@@ -274,6 +277,141 @@ export default function InventoryReports() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const storeNameForPdf = () => stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
+
+  const reportTitle = () =>
+    reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  const handleExportPDF = async () => {
+    if (!reportData) {
+      toast.error('Generate the report first');
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(storeNameForPdf(), pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
+    doc.setFontSize(12);
+    doc.text(reportTitle(), pageWidth / 2, yPos, { align: 'center' });
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on ${formatDateTime(new Date())}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
+
+    const commonOpts = {
+      theme: 'striped' as const,
+      headStyles: { fillColor: [34, 197, 94] as [number, number, number] },
+      footStyles: { fillColor: [34, 197, 94] as [number, number, number], textColor: [255, 255, 255] as [number, number, number] },
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' as const },
+      margin: { left: 8, right: 8 },
+    };
+
+    if (reportData.type === 'inventory-valuation') {
+      const { categories, grandTotalValue, grandTotalStock, totalProducts } = reportData.data as any;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Value: ${formatCurrency(grandTotalValue)}`, 10, yPos);
+      doc.text(`Total Stock: ${grandTotalStock}`, pageWidth / 2, yPos, { align: 'center' });
+      doc.text(`Products: ${totalProducts}`, pageWidth - 10, yPos, { align: 'right' });
+      yPos += 6;
+
+      autoTable(doc, {
+        ...commonOpts,
+        startY: yPos,
+        head: [['Category', 'Products', 'Stock', 'Value', '% of Total']],
+        body: categories.map((c: any) => [
+          c.category,
+          String(c.productCount),
+          String(c.totalStock),
+          formatCurrency(c.totalValue),
+          `${grandTotalValue > 0 ? ((c.totalValue / grandTotalValue) * 100).toFixed(1) : '0.0'}%`,
+        ]),
+        foot: [['TOTAL', String(totalProducts), String(grandTotalStock), formatCurrency(grandTotalValue), '100.0%']],
+        columnStyles: {
+          0: { cellWidth: 120 },
+          1: { halign: 'right', cellWidth: 30 },
+          2: { halign: 'right', cellWidth: 40 },
+          3: { halign: 'right', cellWidth: 55 },
+          4: { halign: 'right', cellWidth: 30 },
+        },
+      });
+    } else if (reportData.type === 'stock-levels-by-category') {
+      const data = reportData.data as any[];
+      const grandValue = data.reduce((s, d) => s + d.totalValue, 0);
+      autoTable(doc, {
+        ...commonOpts,
+        startY: yPos,
+        head: [['Category', 'Products', 'Total Stock', 'Value', '% of Total']],
+        body: data.map((c: any) => [
+          c.category,
+          String(c.productCount),
+          String(c.totalStock),
+          formatCurrency(c.totalValue),
+          `${grandValue > 0 ? ((c.totalValue / grandValue) * 100).toFixed(1) : '0.0'}%`,
+        ]),
+        foot: [['TOTAL', '', '', formatCurrency(grandValue), '100.0%']],
+        columnStyles: {
+          0: { cellWidth: 120 },
+          1: { halign: 'right', cellWidth: 30 },
+          2: { halign: 'right', cellWidth: 40 },
+          3: { halign: 'right', cellWidth: 55 },
+          4: { halign: 'right', cellWidth: 30 },
+        },
+      });
+    } else if (reportData.type === 'stock-levels-by-product') {
+      const data = reportData.data as any[];
+      autoTable(doc, {
+        ...commonOpts,
+        startY: yPos,
+        head: [['Product', 'Category', 'Stock', 'Price', 'Value']],
+        body: data.map((p: any) => [
+          p.name,
+          p.category,
+          String(p.totalStock),
+          formatCurrency(p.price),
+          formatCurrency(p.value),
+        ]),
+        foot: [[
+          'TOTAL',
+          '',
+          String(data.reduce((s, p) => s + p.totalStock, 0)),
+          '',
+          formatCurrency(data.reduce((s, p) => s + p.value, 0)),
+        ]],
+        columnStyles: {
+          0: { cellWidth: 110 },
+          1: { cellWidth: 60 },
+          2: { halign: 'right', cellWidth: 25 },
+          3: { halign: 'right', cellWidth: 40 },
+          4: { halign: 'right', cellWidth: 45 },
+        },
+      });
+    } else if (reportData.type === 'low-stock-items' || reportData.type === 'out-of-stock-items') {
+      const data = reportData.data as any[];
+      autoTable(doc, {
+        ...commonOpts,
+        startY: yPos,
+        head: [['Product', 'Category', 'Stock', 'Price']],
+        body: data.map((p: any) => [p.name, p.category, String(p.totalStock), formatCurrency(p.price)]),
+        columnStyles: {
+          0: { cellWidth: 130 },
+          1: { cellWidth: 80 },
+          2: { halign: 'right', cellWidth: 30 },
+          3: { halign: 'right', cellWidth: 45 },
+        },
+      });
+    }
+
+    const fname = `${reportTitle().replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
+    doc.save(fname);
   };
 
   const storeName = stores?.find(s => s.id === selectedStoreId)?.name || 'Store';
@@ -584,10 +722,16 @@ export default function InventoryReports() {
         <div className="flex gap-2">
           <ReturnToPOSButton inline />
           {showReport && (
-            <Button onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print Report
-            </Button>
+            <>
+              <Button variant="outline" onClick={handleExportPDF}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+              <Button onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </>
           )}
         </div>
       </div>
