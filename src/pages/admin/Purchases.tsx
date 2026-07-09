@@ -799,8 +799,28 @@ export default function Purchases() {
       yPos += 6;
     }
     const grandTotal = selectedData.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
-    doc.text(`Purchases: ${selectedData.length}  |  Grand Total: ${fmtPdf(grandTotal)}`, 14, yPos);
-    yPos += 8;
+    // Summary bar mirroring the on-screen grand total card
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, yPos - 1, 180, 18, 2, 2, 'FD');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      selectedPurchases.size > 0
+        ? `${selectedPurchases.size} selected`
+        : `${selectedData.length} purchase${selectedData.length === 1 ? '' : 's'}${(filterDateFrom || filterDateTo) ? ' in selected period' : ''}`,
+      18,
+      yPos + 9
+    );
+    doc.setTextColor(59, 130, 246);
+    doc.setFontSize(8);
+    doc.text('Grand Total', 170, yPos + 5, { align: 'right' });
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(fmtPdf(grandTotal), 170, yPos + 12, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    yPos += 22;
     
     selectedData.forEach((purchase: any, index: number) => {
       if (index > 0) {
