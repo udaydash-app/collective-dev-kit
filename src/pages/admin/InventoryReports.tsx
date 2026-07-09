@@ -292,7 +292,7 @@ export default function InventoryReports() {
     // jsPDF's Helvetica lacks narrow no-break space (U+202F) / NBSP (U+00A0)
     // used by fr-CI locale, which render as slashes. Normalize to ASCII space.
     const fmtPdf = (n: number) =>
-      fmtPdf(n).replace(/[\u202F\u00A0]/g, ' ');
+      formatCurrency(n).replace(/[\u202F\u00A0]/g, ' ');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const settings = await fetchCompanySettings();
