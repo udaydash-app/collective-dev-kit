@@ -11,6 +11,12 @@ import { Label } from '@/components/ui/label';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
+import { getPosAdminSession } from '@/db/queries/accounting';
 
 // jsPDF's built-in Helvetica (WinAnsi) can't render narrow no-break spaces
 // (U+202F/U+00A0) that some browsers emit for fr-CI grouping. Normalize to
@@ -19,12 +25,6 @@ const formatCurrencyPdf = (amount: number | null | undefined): string =>
   formatCurrency(amount).replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
 const formatNumberPdf = (n: number): string =>
   (n ?? 0).toLocaleString('fr-CI').replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
-import { useNavigate } from 'react-router-dom';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
-import { getPosAdminSession } from '@/db/queries/accounting';
 
 interface SalesReportItem {
   productId: string;
