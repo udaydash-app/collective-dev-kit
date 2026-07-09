@@ -1066,7 +1066,7 @@ export default function Purchases() {
                     </div>
                   </div>
                 </div>
-                filteredPurchases.map((purchase: any) => (
+                {filteredPurchases.map((purchase: any) => (
                   <div key={purchase.id} className="border rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
                       <input
@@ -1121,7 +1121,8 @@ export default function Purchases() {
                       </div>
                     </div>
                   </div>
-                ))
+                ))}
+                </>
               )}
             </div>
           </CardContent>
