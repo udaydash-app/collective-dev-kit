@@ -207,7 +207,7 @@ export default function TradingAccount() {
       : [item.productName, item.unitsSold, item.salePrice, item.salePrice * item.unitsSold]
     ) || [];
     const footer = includeProfit
-      ? ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
+      ? ['TOTAL', totals.totalUnits, totals.totalCost, totals.totalSales, totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
       : ['TOTAL', totals.totalUnits, '', totals.totalSales];
     const data = [
       ['SALES REPORT'],
