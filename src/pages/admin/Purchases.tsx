@@ -902,18 +902,14 @@ export default function Purchases() {
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
-            {selectedPurchases.size > 0 && (
-              <>
-                <Button onClick={exportToExcel} variant="outline">
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export Excel ({selectedPurchases.size})
-                </Button>
-                <Button onClick={exportToPDF} variant="outline">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export PDF ({selectedPurchases.size})
-                </Button>
-              </>
-            )}
+            <Button onClick={exportToExcel} variant="outline">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel ({selectedPurchases.size > 0 ? selectedPurchases.size : filteredPurchases.length})
+            </Button>
+            <Button onClick={exportToPDF} variant="outline">
+              <FileText className="h-4 w-4 mr-2" />
+              Export PDF ({selectedPurchases.size > 0 ? selectedPurchases.size : filteredPurchases.length})
+            </Button>
             <Button onClick={() => setShowUploadDialog(true)} variant="outline">
               <Upload className="h-4 w-4 mr-2" />
               Upload Excel
