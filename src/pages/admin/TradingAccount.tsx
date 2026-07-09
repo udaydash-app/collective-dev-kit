@@ -246,23 +246,35 @@ export default function TradingAccount() {
     const tableData = salesReport?.map(item => includeProfit
       ? [
           item.productName,
-          item.unitsSold.toString(),
-          formatCurrency(item.costPrice),
-          formatCurrency(item.salePrice),
-          formatCurrency(item.profitLoss),
+          formatNumberPdf(item.unitsSold),
+          formatCurrencyPdf(item.costPrice),
+          formatCurrencyPdf(item.salePrice),
+          formatCurrencyPdf(item.profitLoss),
           `${item.profitLossPercentage.toFixed(2)}%`,
         ]
       : [
           item.productName,
-          item.unitsSold.toString(),
-          formatCurrency(item.salePrice),
-          formatCurrency(item.salePrice * item.unitsSold),
+          formatNumberPdf(item.unitsSold),
+          formatCurrencyPdf(item.salePrice),
+          formatCurrencyPdf(item.salePrice * item.unitsSold),
         ]
     ) || [];
 
     const foot = includeProfit
-      ? [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]]
-      : [['TOTAL', totals.totalUnits.toString(), '', formatCurrency(totals.totalSales)]];
+      ? [[
+          'TOTAL',
+          formatNumberPdf(totals.totalUnits),
+          formatCurrencyPdf(totals.totalCost),
+          formatCurrencyPdf(totals.totalSales),
+          formatCurrencyPdf(totals.totalProfitLoss),
+          `${overallProfitLossPercentage.toFixed(2)}%`,
+        ]]
+      : [[
+          'TOTAL',
+          formatNumberPdf(totals.totalUnits),
+          '',
+          formatCurrencyPdf(totals.totalSales),
+        ]];
 
     autoTable(doc, {
       startY: yPos,
