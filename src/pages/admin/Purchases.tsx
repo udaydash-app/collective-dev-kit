@@ -720,12 +720,13 @@ export default function Purchases() {
   };
 
   const exportToExcel = () => {
-    if (selectedPurchases.size === 0) {
-      toast.error('Please select at least one purchase to export');
+    const selectedData = selectedPurchases.size > 0
+      ? (purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [])
+      : filteredPurchases;
+    if (selectedData.length === 0) {
+      toast.error('No purchases in the current period/filter to export');
       return;
     }
-
-    const selectedData = purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [];
     
     const exportData = selectedData.flatMap((purchase: any) => 
       purchase.purchase_items.map((item: any) => ({
@@ -766,12 +767,13 @@ export default function Purchases() {
   };
 
   const exportToPDF = async () => {
-    if (selectedPurchases.size === 0) {
-      toast.error('Please select at least one purchase to export');
+    const selectedData = selectedPurchases.size > 0
+      ? (purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [])
+      : filteredPurchases;
+    if (selectedData.length === 0) {
+      toast.error('No purchases in the current period/filter to export');
       return;
     }
-
-    const selectedData = purchases?.filter((p: any) => selectedPurchases.has(p.id)) || [];
     
     const doc = new jsPDF();
     const settings = await fetchCompanySettings();
@@ -784,6 +786,15 @@ export default function Purchases() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated: ${formatDate(new Date())}`, 14, yPos);
+    yPos += 8;
+    if (filterDateFrom || filterDateTo) {
+      const from = filterDateFrom ? formatDateFns(filterDateFrom, 'dd/MM/yyyy') : '—';
+      const to = filterDateTo ? formatDateFns(filterDateTo, 'dd/MM/yyyy') : '—';
+      doc.text(`Period: ${from} to ${to}`, 14, yPos);
+      yPos += 6;
+    }
+    const grandTotal = selectedData.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
+    doc.text(`Purchases: ${selectedData.length}  |  Grand Total: ${formatCurrency(grandTotal)}`, 14, yPos);
     yPos += 8;
     
     selectedData.forEach((purchase: any, index: number) => {
@@ -891,18 +902,14 @@ export default function Purchases() {
           </div>
           <div className="flex gap-2">
             <ReturnToPOSButton inline />
-            {selectedPurchases.size > 0 && (
-              <>
-                <Button onClick={exportToExcel} variant="outline">
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export Excel ({selectedPurchases.size})
-                </Button>
-                <Button onClick={exportToPDF} variant="outline">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export PDF ({selectedPurchases.size})
-                </Button>
-              </>
-            )}
+            <Button onClick={exportToExcel} variant="outline">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel ({selectedPurchases.size > 0 ? selectedPurchases.size : filteredPurchases.length})
+            </Button>
+            <Button onClick={exportToPDF} variant="outline">
+              <FileText className="h-4 w-4 mr-2" />
+              Export PDF ({selectedPurchases.size > 0 ? selectedPurchases.size : filteredPurchases.length})
+            </Button>
             <Button onClick={() => setShowUploadDialog(true)} variant="outline">
               <Upload className="h-4 w-4 mr-2" />
               Upload Excel
