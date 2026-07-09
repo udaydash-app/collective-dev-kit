@@ -779,6 +779,11 @@ export default function Purchases() {
     const settings = await fetchCompanySettings();
     let yPos = await addPdfHeader(doc, settings);
 
+    // Helvetica in jsPDF can't render narrow no-break spaces (U+202F) that fr-CI locale emits,
+    // which renders as "/" — normalize to plain ASCII spaces for PDF output.
+    const fmtPdf = (n: number | null | undefined) =>
+      formatCurrency(n).replace(/[\u202F\u00A0]/g, ' ');
+
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('Purchase Report', 14, yPos);
@@ -794,7 +799,7 @@ export default function Purchases() {
       yPos += 6;
     }
     const grandTotal = selectedData.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
-    doc.text(`Purchases: ${selectedData.length}  |  Grand Total: ${formatCurrency(grandTotal)}`, 14, yPos);
+    doc.text(`Purchases: ${selectedData.length}  |  Grand Total: ${fmtPdf(grandTotal)}`, 14, yPos);
     yPos += 8;
     
     selectedData.forEach((purchase: any, index: number) => {
@@ -829,8 +834,8 @@ export default function Purchases() {
           (item.product_variants.label || `${item.product_variants.quantity}${item.product_variants.unit}`) : 
           '-',
         item.quantity,
-        formatCurrency(item.unit_cost),
-        formatCurrency(item.total_cost)
+        fmtPdf(item.unit_cost),
+        fmtPdf(item.total_cost)
       ]);
       
       autoTable(doc, {
@@ -838,7 +843,7 @@ export default function Purchases() {
         head: [['Product', 'Variant', 'Qty', 'Unit Cost', 'Total']],
         body: tableData,
         foot: [[{ content: 'Total:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, 
-                { content: formatCurrency(purchase.total_amount), styles: { fontStyle: 'bold' } }]],
+                { content: fmtPdf(purchase.total_amount), styles: { fontStyle: 'bold' } }]],
         theme: 'striped',
         headStyles: { fillColor: [59, 130, 246] },
         footStyles: { fillColor: [240, 240, 240] },
