@@ -289,6 +289,10 @@ export default function InventoryReports() {
       toast.error('Generate the report first');
       return;
     }
+    // jsPDF's Helvetica lacks narrow no-break space (U+202F) / NBSP (U+00A0)
+    // used by fr-CI locale, which render as slashes. Normalize to ASCII space.
+    const fmtPdf = (n: number) =>
+      fmtPdf(n).replace(/[\u202F\u00A0]/g, ' ');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const settings = await fetchCompanySettings();
@@ -318,7 +322,7 @@ export default function InventoryReports() {
       const { categories, grandTotalValue, grandTotalStock, totalProducts } = reportData.data as any;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Value: ${formatCurrency(grandTotalValue)}`, 10, yPos);
+      doc.text(`Total Value: ${fmtPdf(grandTotalValue)}`, 10, yPos);
       doc.text(`Total Stock: ${grandTotalStock}`, pageWidth / 2, yPos, { align: 'center' });
       doc.text(`Products: ${totalProducts}`, pageWidth - 10, yPos, { align: 'right' });
       yPos += 6;
@@ -331,10 +335,10 @@ export default function InventoryReports() {
           c.category,
           String(c.productCount),
           String(c.totalStock),
-          formatCurrency(c.totalValue),
+          fmtPdf(c.totalValue),
           `${grandTotalValue > 0 ? ((c.totalValue / grandTotalValue) * 100).toFixed(1) : '0.0'}%`,
         ]),
-        foot: [['TOTAL', String(totalProducts), String(grandTotalStock), formatCurrency(grandTotalValue), '100.0%']],
+        foot: [['TOTAL', String(totalProducts), String(grandTotalStock), fmtPdf(grandTotalValue), '100.0%']],
         columnStyles: {
           0: { cellWidth: 120 },
           1: { halign: 'right', cellWidth: 30 },
@@ -354,10 +358,10 @@ export default function InventoryReports() {
           c.category,
           String(c.productCount),
           String(c.totalStock),
-          formatCurrency(c.totalValue),
+          fmtPdf(c.totalValue),
           `${grandValue > 0 ? ((c.totalValue / grandValue) * 100).toFixed(1) : '0.0'}%`,
         ]),
-        foot: [['TOTAL', '', '', formatCurrency(grandValue), '100.0%']],
+        foot: [['TOTAL', '', '', fmtPdf(grandValue), '100.0%']],
         columnStyles: {
           0: { cellWidth: 120 },
           1: { halign: 'right', cellWidth: 30 },
@@ -376,15 +380,15 @@ export default function InventoryReports() {
           p.name,
           p.category,
           String(p.totalStock),
-          formatCurrency(p.price),
-          formatCurrency(p.value),
+          fmtPdf(p.price),
+          fmtPdf(p.value),
         ]),
         foot: [[
           'TOTAL',
           '',
           String(data.reduce((s, p) => s + p.totalStock, 0)),
           '',
-          formatCurrency(data.reduce((s, p) => s + p.value, 0)),
+          fmtPdf(data.reduce((s, p) => s + p.value, 0)),
         ]],
         columnStyles: {
           0: { cellWidth: 110 },
@@ -400,7 +404,7 @@ export default function InventoryReports() {
         ...commonOpts,
         startY: yPos,
         head: [['Product', 'Category', 'Stock', 'Price']],
-        body: data.map((p: any) => [p.name, p.category, String(p.totalStock), formatCurrency(p.price)]),
+        body: data.map((p: any) => [p.name, p.category, String(p.totalStock), fmtPdf(p.price)]),
         columnStyles: {
           0: { cellWidth: 130 },
           1: { cellWidth: 80 },
