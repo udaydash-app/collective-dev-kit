@@ -501,8 +501,8 @@ export default function TradingAccount() {
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>TOTAL</TableCell>
                       <TableCell className="text-right">{totals.totalUnits}</TableCell>
-                      <TableCell className="text-right"></TableCell>
-                      <TableCell className="text-right"></TableCell>
+                      <TableCell className="text-right">{formatCurrency(totals.totalCost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(totals.totalSales)}</TableCell>
                       <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatCurrency(totals.totalProfitLoss)}
                       </TableCell>
