@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfYear, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -34,14 +34,26 @@ export default function TradingAccount() {
   const { data: salesReport, isLoading } = useQuery({
     queryKey: ['sales-report', startDate, endDate],
     queryFn: async () => {
-      // Fetch all POS transactions in the date range
-      const { data: transactions, error } = await supabase
-        .from('pos_transactions')
-        .select('items')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+      // Normalize to full-day bounds so hand-picked dates still include same-day transactions
+      const fromISO = startOfDay(startDate).toISOString();
+      const toISO = endOfDay(endDate).toISOString();
 
-      if (error) throw error;
+      // Page through pos_transactions to bypass the 1000-row PostgREST default
+      const PAGE = 1000;
+      const transactions: Array<{ items: any }> = [];
+      for (let offset = 0; offset < 100000; offset += PAGE) {
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .select('items')
+          .gte('created_at', fromISO)
+          .lte('created_at', toISO)
+          .order('created_at', { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        const rows = data ?? [];
+        transactions.push(...(rows as any));
+        if (rows.length < PAGE) break;
+      }
 
       // Aggregate sales by product
       const productSales: Record<string, { 
