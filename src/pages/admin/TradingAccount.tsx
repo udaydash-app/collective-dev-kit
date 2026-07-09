@@ -18,6 +18,14 @@ import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
 import { getPosAdminSession } from '@/db/queries/accounting';
 
+// jsPDF's built-in Helvetica (WinAnsi) can't render narrow no-break spaces
+// (U+202F/U+00A0) that some browsers emit for fr-CI grouping. Normalize to
+// plain ASCII spaces so numbers render as "2 323 456" instead of "2/323/456".
+const formatCurrencyPdf = (amount: number | null | undefined): string =>
+  formatCurrency(amount).replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
+const formatNumberPdf = (n: number): string =>
+  (n ?? 0).toLocaleString('fr-CI').replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
+
 interface SalesReportItem {
   productId: string;
   productName: string;
@@ -199,7 +207,7 @@ export default function TradingAccount() {
       : [item.productName, item.unitsSold, item.salePrice, item.salePrice * item.unitsSold]
     ) || [];
     const footer = includeProfit
-      ? ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
+      ? ['TOTAL', totals.totalUnits, totals.totalCost, totals.totalSales, totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
       : ['TOTAL', totals.totalUnits, '', totals.totalSales];
     const data = [
       ['SALES REPORT'],
@@ -238,23 +246,35 @@ export default function TradingAccount() {
     const tableData = salesReport?.map(item => includeProfit
       ? [
           item.productName,
-          item.unitsSold.toString(),
-          formatCurrency(item.costPrice),
-          formatCurrency(item.salePrice),
-          formatCurrency(item.profitLoss),
+          formatNumberPdf(item.unitsSold),
+          formatCurrencyPdf(item.costPrice),
+          formatCurrencyPdf(item.salePrice),
+          formatCurrencyPdf(item.profitLoss),
           `${item.profitLossPercentage.toFixed(2)}%`,
         ]
       : [
           item.productName,
-          item.unitsSold.toString(),
-          formatCurrency(item.salePrice),
-          formatCurrency(item.salePrice * item.unitsSold),
+          formatNumberPdf(item.unitsSold),
+          formatCurrencyPdf(item.salePrice),
+          formatCurrencyPdf(item.salePrice * item.unitsSold),
         ]
     ) || [];
 
     const foot = includeProfit
-      ? [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]]
-      : [['TOTAL', totals.totalUnits.toString(), '', formatCurrency(totals.totalSales)]];
+      ? [[
+          'TOTAL',
+          formatNumberPdf(totals.totalUnits),
+          formatCurrencyPdf(totals.totalCost),
+          formatCurrencyPdf(totals.totalSales),
+          formatCurrencyPdf(totals.totalProfitLoss),
+          `${overallProfitLossPercentage.toFixed(2)}%`,
+        ]]
+      : [[
+          'TOTAL',
+          formatNumberPdf(totals.totalUnits),
+          '',
+          formatCurrencyPdf(totals.totalSales),
+        ]];
 
     autoTable(doc, {
       startY: yPos,
@@ -481,8 +501,8 @@ export default function TradingAccount() {
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>TOTAL</TableCell>
                       <TableCell className="text-right">{totals.totalUnits}</TableCell>
-                      <TableCell className="text-right"></TableCell>
-                      <TableCell className="text-right"></TableCell>
+                      <TableCell className="text-right">{formatCurrency(totals.totalCost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(totals.totalSales)}</TableCell>
                       <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatCurrency(totals.totalProfitLoss)}
                       </TableCell>
