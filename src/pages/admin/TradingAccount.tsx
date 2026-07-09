@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfHeader, fetchCompanySettings } from '@/lib/pdfBranding';
+import { getPosAdminSession } from '@/db/queries/accounting';
 
 interface SalesReportItem {
   productId: string;
@@ -37,6 +38,34 @@ export default function TradingAccount() {
       // Normalize to full-day bounds so hand-picked dates still include same-day transactions
       const fromISO = startOfDay(startDate).toISOString();
       const toISO = endOfDay(endDate).toISOString();
+
+      const adminSession = getPosAdminSession();
+      if (adminSession) {
+        const { data, error } = await supabase.rpc('get_product_profit_report' as any, {
+          input_pos_user_id: adminSession.posUserId,
+          input_pin: adminSession.pin,
+          start_ts: fromISO,
+          end_ts: toISO,
+          store_filter: null,
+          category_filter: null,
+        });
+
+        if (!error && data) {
+          return ((data as any[]) || []).map((row: any) => ({
+            productId: row.product_id,
+            productName: row.product_name || 'Unknown Product',
+            unitsSold: Number(row.units_sold) || 0,
+            costPrice: Number(row.avg_cost) || 0,
+            salePrice: Number(row.avg_selling_price) || 0,
+            profitLoss: Number(row.gross_profit) || 0,
+            profitLossPercentage: Number(row.total_cogs) > 0
+              ? (Number(row.gross_profit) / Number(row.total_cogs)) * 100
+              : 0,
+          }));
+        }
+
+        console.warn('[trading-account] secure POS report failed, falling back to direct reads', error);
+      }
 
       // Page through pos_transactions to bypass the 1000-row PostgREST default
       const PAGE = 1000;
