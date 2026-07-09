@@ -191,21 +191,24 @@ export default function TradingAccount() {
     : 0;
 
   const exportToExcel = () => {
+    const header = includeProfit
+      ? ['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']
+      : ['Product Name', 'Units Sold', 'Sale Price', 'Total Sales'];
+    const rows = salesReport?.map(item => includeProfit
+      ? [item.productName, item.unitsSold, item.costPrice, item.salePrice, item.profitLoss, `${item.profitLossPercentage.toFixed(2)}%`]
+      : [item.productName, item.unitsSold, item.salePrice, item.salePrice * item.unitsSold]
+    ) || [];
+    const footer = includeProfit
+      ? ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
+      : ['TOTAL', totals.totalUnits, '', totals.totalSales];
     const data = [
       ['SALES REPORT'],
       [`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`],
       [],
-      ['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %'],
-      ...(salesReport?.map(item => [
-        item.productName,
-        item.unitsSold,
-        item.costPrice,
-        item.salePrice,
-        item.profitLoss,
-        `${item.profitLossPercentage.toFixed(2)}%`,
-      ]) || []),
+      header,
+      ...rows,
       [],
-      ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`],
+      footer,
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
