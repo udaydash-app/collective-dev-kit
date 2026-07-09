@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
@@ -30,6 +32,7 @@ export default function TradingAccount() {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+  const [includeProfit, setIncludeProfit] = useState<boolean>(true);
 
   // Fetch sales data with product details
   const { data: salesReport, isLoading } = useQuery({
@@ -188,21 +191,24 @@ export default function TradingAccount() {
     : 0;
 
   const exportToExcel = () => {
+    const header = includeProfit
+      ? ['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']
+      : ['Product Name', 'Units Sold', 'Sale Price', 'Total Sales'];
+    const rows = salesReport?.map(item => includeProfit
+      ? [item.productName, item.unitsSold, item.costPrice, item.salePrice, item.profitLoss, `${item.profitLossPercentage.toFixed(2)}%`]
+      : [item.productName, item.unitsSold, item.salePrice, item.salePrice * item.unitsSold]
+    ) || [];
+    const footer = includeProfit
+      ? ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
+      : ['TOTAL', totals.totalUnits, '', totals.totalSales];
     const data = [
       ['SALES REPORT'],
       [`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`],
       [],
-      ['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %'],
-      ...(salesReport?.map(item => [
-        item.productName,
-        item.unitsSold,
-        item.costPrice,
-        item.salePrice,
-        item.profitLoss,
-        `${item.profitLossPercentage.toFixed(2)}%`,
-      ]) || []),
+      header,
+      ...rows,
       [],
-      ['TOTAL', totals.totalUnits, '', '', totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`],
+      footer,
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -212,39 +218,72 @@ export default function TradingAccount() {
   };
 
   const exportToPDF = async () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
     const settings = await fetchCompanySettings();
     let yPos = await addPdfHeader(doc, settings);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('SALES REPORT', 105, yPos, { align: 'center' });
+    doc.text('SALES REPORT', pageWidth / 2, yPos, { align: 'center' });
     yPos += 7;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, 105, yPos, { align: 'center' });
+    doc.text(`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`, pageWidth / 2, yPos, { align: 'center' });
     yPos += 5;
 
-    const tableData = salesReport?.map(item => [
-      item.productName,
-      item.unitsSold.toString(),
-      formatCurrency(item.costPrice),
-      formatCurrency(item.salePrice),
-      formatCurrency(item.profitLoss),
-      `${item.profitLossPercentage.toFixed(2)}%`,
-    ]) || [];
+    const head = includeProfit
+      ? [['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']]
+      : [['Product Name', 'Units Sold', 'Sale Price', 'Total Sales']];
+
+    const tableData = salesReport?.map(item => includeProfit
+      ? [
+          item.productName,
+          item.unitsSold.toString(),
+          formatCurrency(item.costPrice),
+          formatCurrency(item.salePrice),
+          formatCurrency(item.profitLoss),
+          `${item.profitLossPercentage.toFixed(2)}%`,
+        ]
+      : [
+          item.productName,
+          item.unitsSold.toString(),
+          formatCurrency(item.salePrice),
+          formatCurrency(item.salePrice * item.unitsSold),
+        ]
+    ) || [];
+
+    const foot = includeProfit
+      ? [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]]
+      : [['TOTAL', totals.totalUnits.toString(), '', formatCurrency(totals.totalSales)]];
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Product Name', 'Units Sold', 'Cost Price', 'Sale Price', 'Profit/Loss', 'P/L %']],
+      head,
       body: tableData,
-      foot: [['TOTAL', totals.totalUnits.toString(), '', '', formatCurrency(totals.totalProfitLoss), `${overallProfitLossPercentage.toFixed(2)}%`]],
+      foot,
       theme: 'striped',
       headStyles: { fillColor: [34, 197, 94] },
       footStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255] },
-      styles: { fontSize: 9 },
+      styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
+      columnStyles: includeProfit
+        ? {
+            0: { cellWidth: 90 },
+            1: { halign: 'right', cellWidth: 25 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 },
+            4: { halign: 'right', cellWidth: 40 },
+            5: { halign: 'right', cellWidth: 25 },
+          }
+        : {
+            0: { cellWidth: 130 },
+            1: { halign: 'right', cellWidth: 35 },
+            2: { halign: 'right', cellWidth: 50 },
+            3: { halign: 'right', cellWidth: 60 },
+          },
+      margin: { left: 8, right: 8 },
     });
 
-    doc.save(`Sales_Report_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.pdf`);
+    doc.save(`Sales_Report_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}${includeProfit ? '' : '_no_profit'}.pdf`);
   };
 
   const setQuickDateRange = (range: 'thisMonth' | 'lastMonth' | 'thisYear') => {
@@ -335,6 +374,16 @@ export default function TradingAccount() {
               </div>
               
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mr-2">
+                  <Checkbox
+                    id="include-profit"
+                    checked={includeProfit}
+                    onCheckedChange={(v) => setIncludeProfit(v === true)}
+                  />
+                  <Label htmlFor="include-profit" className="text-sm cursor-pointer">
+                    Include profit in export
+                  </Label>
+                </div>
                 <Button variant="outline" size="sm" onClick={exportToExcel}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Excel
