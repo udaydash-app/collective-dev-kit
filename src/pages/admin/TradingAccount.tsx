@@ -130,12 +130,18 @@ export default function TradingAccount() {
       
       if (validProductIds.length === 0) return [];
 
-      const { data: products, error: productsError } = await supabase
-        .from('products')
-        .select('id, cost_price, local_charges')
-        .in('id', validProductIds);
+      const products: any[] = [];
+      const PRODUCT_ID_BATCH_SIZE = 200;
+      for (let i = 0; i < validProductIds.length; i += PRODUCT_ID_BATCH_SIZE) {
+        const batch = validProductIds.slice(i, i + PRODUCT_ID_BATCH_SIZE);
+        const { data, error: productsError } = await supabase
+          .from('products')
+          .select('id, cost_price, local_charges')
+          .in('id', batch);
 
-      if (productsError) throw productsError;
+        if (productsError) throw productsError;
+        products.push(...(data || []));
+      }
 
       // Create a map of product id to cost price
       const costPriceMap: Record<string, number> = {};
