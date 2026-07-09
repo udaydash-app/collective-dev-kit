@@ -1047,6 +1047,25 @@ export default function Purchases() {
               ) : filteredPurchases.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No purchases found matching your filters.</p>
               ) : (
+                <>
+                <div className="flex items-center justify-between rounded-md border bg-muted/40 px-4 py-3">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedPurchases.size > 0
+                      ? `${selectedPurchases.size} selected`
+                      : `${filteredPurchases.length} purchase${filteredPurchases.length === 1 ? '' : 's'}${(filterDateFrom || filterDateTo) ? ' in selected period' : ''}`}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Grand Total</div>
+                    <div className="text-xl font-bold text-primary">
+                      {formatCurrency(
+                        (selectedPurchases.size > 0
+                          ? filteredPurchases.filter((p: any) => selectedPurchases.has(p.id))
+                          : filteredPurchases
+                        ).reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0)
+                      )}
+                    </div>
+                  </div>
+                </div>
                 filteredPurchases.map((purchase: any) => (
                   <div key={purchase.id} className="border rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
