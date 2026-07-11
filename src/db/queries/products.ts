@@ -312,6 +312,111 @@ function buildPosProductsIndex(products: PosProduct[]): PosProductsIndex {
   return { products, entries, barcodeMap };
 }
 
+async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMatch | null> {
+  const exact = barcode.trim();
+  const bc = exact.toLowerCase();
+  if (!exact || typeof navigator === "undefined" || !navigator.onLine) return null;
+
+  try {
+    const { data: productData } = await supabase
+      .from("products")
+      .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+      .eq("is_available", true)
+      .eq("barcode", exact)
+      .limit(1)
+      .maybeSingle();
+
+    if (productData) {
+      const { data: variantRows } = await supabase
+        .from("product_variants")
+        .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+        .eq("product_id", productData.id);
+      const [product] = mapPosProducts([productData as Row], (variantRows ?? []) as Row[]);
+      const availableVariants = product.product_variants.filter((v) => v.is_available);
+      const variant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
+      return { product, variant };
+    }
+
+    const { data: variantData } = await supabase
+      .from("product_variants")
+      .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+      .eq("is_available", true)
+      .eq("barcode", exact)
+      .limit(1)
+      .maybeSingle();
+
+    if (variantData) {
+      const { data: parentData } = await supabase
+        .from("products")
+        .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+        .eq("id", variantData.product_id)
+        .eq("is_available", true)
+        .maybeSingle();
+      if (parentData) {
+        const { data: variantRows } = await supabase
+          .from("product_variants")
+          .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+          .eq("product_id", variantData.product_id);
+        const [product] = mapPosProducts([parentData as Row], (variantRows ?? []) as Row[]);
+        const variant = product.product_variants.find((v) => v.id === variantData.id) ?? null;
+        return { product, variant };
+      }
+    }
+
+    const contains = `%${exact}%`;
+    const { data: productCandidates } = await supabase
+      .from("products")
+      .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+      .eq("is_available", true)
+      .ilike("barcode", contains)
+      .limit(20);
+    const legacyProduct = (productCandidates ?? []).find((p: any) =>
+      p.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
+    );
+    if (legacyProduct) {
+      const { data: variantRows } = await supabase
+        .from("product_variants")
+        .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+        .eq("product_id", legacyProduct.id);
+      const [product] = mapPosProducts([legacyProduct as Row], (variantRows ?? []) as Row[]);
+      const availableVariants = product.product_variants.filter((v) => v.is_available);
+      const variant = availableVariants.find((v) => v.is_default) ?? availableVariants[0] ?? null;
+      return { product, variant };
+    }
+
+    const { data: variantCandidates } = await supabase
+      .from("product_variants")
+      .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+      .eq("is_available", true)
+      .ilike("barcode", contains)
+      .limit(20);
+    const legacyVariant = (variantCandidates ?? []).find((v: any) =>
+      v.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
+    );
+    if (legacyVariant) {
+      const { data: parentData } = await supabase
+        .from("products")
+        .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+        .eq("id", legacyVariant.product_id)
+        .eq("is_available", true)
+        .maybeSingle();
+      if (parentData) {
+        const { data: variantRows } = await supabase
+          .from("product_variants")
+          .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+          .eq("product_id", legacyVariant.product_id);
+        const [product] = mapPosProducts([parentData as Row], (variantRows ?? []) as Row[]);
+        const variant = product.product_variants.find((v) => v.id === legacyVariant.id) ?? null;
+        return { product, variant };
+      }
+    }
+  } catch (e) {
+    console.warn("[pos products] Supabase barcode fallback failed", e);
+  }
+
+  return null;
+}
+
 async function loadPosProductsIndex(): Promise<PosProductsIndex> {
   const [prodRows, varRows] = await Promise.all([
     queryRows(
@@ -534,7 +639,8 @@ export async function findPosProductByBarcodeLocal(
   const bc = barcode.trim().toLowerCase();
   const cachedIndex = getWarmPosProductsIndex();
   if (cachedIndex) {
-    return cachedIndex.barcodeMap.get(bc) ?? null;
+    const cachedMatch = cachedIndex.barcodeMap.get(bc);
+    if (cachedMatch) return cachedMatch;
   }
 
   const exact = barcode.trim();
@@ -655,5 +761,5 @@ export async function findPosProductByBarcodeLocal(
     return { product, variant };
   }
 
-  return null;
+  return findPosProductByBarcodeCloud(barcode);
 }
