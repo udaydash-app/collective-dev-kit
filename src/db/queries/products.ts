@@ -422,11 +422,16 @@ export async function searchPosProductsLocal(
 
     const results: PosProduct[] = [];
     const seen = new Set<string>();
+    const tokens = query.split(/\s+/).filter(Boolean);
     for (const entry of cachedIndex.entries) {
       if (results.length >= limit) break;
       const matchingVariant = entry.variantBarcodes.find(({ barcode }) => barcode.startsWith(query))?.variant;
+      const normalizedName = entry.name.replace(/\s+/g, ' ');
+      const allTokensMatch = tokens.length > 1
+        && tokens.every((t) => normalizedName.includes(t));
       const matches = entry.name.startsWith(query)
         || entry.name.includes(query)
+        || allTokensMatch
         || entry.productBarcodes.some((barcode) => barcode.startsWith(query) || barcode.includes(query))
         || Boolean(matchingVariant);
       if (matches && !seen.has(entry.product.id)) {
