@@ -491,6 +491,25 @@ export async function searchPosProductsLocal(
       );
       fallbackRows.forEach((p) => productRowsById.set(p.id, p));
     }
+
+    // Token-based fallback: split query into words and require all to appear
+    // in the product name (any order, ignoring extra spaces). Enables matches
+    // like "wagh bakri tea 500 gm" ↔ "WAGH BAKRI TEA 500GM".
+    if (productRowsById.size === 0) {
+      const tokens = exact.toLowerCase().split(/\s+/).filter(Boolean);
+      if (tokens.length > 1) {
+        const whereClauses = tokens.map(() => `LOWER(name) LIKE ?`).join(' AND ');
+        const params = tokens.map((t) => `%${t}%`);
+        const tokenRows = await queryRows(
+          `SELECT id, name, price, barcode, is_available, stock_quantity, cost_price
+           FROM products
+           WHERE is_available = 1 AND ${whereClauses}
+           ORDER BY name LIMIT ?`,
+          [...params, limit],
+        );
+        tokenRows.forEach((p) => productRowsById.set(p.id, p));
+      }
+    }
   }
   const prodRows = Array.from(productRowsById.values()).slice(0, limit);
   if (prodRows.length === 0) return [];
