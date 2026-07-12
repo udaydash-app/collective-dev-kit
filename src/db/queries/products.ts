@@ -547,7 +547,8 @@ export async function searchPosProductsLocal(
         } as PosProduct);
       }
     }
-    return results;
+    if (results.length > 0) return results;
+    // Cached index may be stale — fall through to cloud lookup below.
   }
 
   const productRowsById = new Map<string, Row>();
