@@ -1,5 +1,6 @@
 import { connectPowerSync } from "@/db/powersync";
 import { supabase } from "@/integrations/supabase/client";
+import { createClient } from "@supabase/supabase-js";
 import { isElectronLocalDb, localRows } from "@/integrations/db/localSql";
 import { offlineDB } from "@/lib/offlineDB";
 
@@ -9,6 +10,16 @@ import { offlineDB } from "@/lib/offlineDB";
 // and stream back via PowerSync replication.
 
 type Row = Record<string, any>;
+
+const CLOUD_SUPABASE_URL = "https://wvdrsofehwiopbkzrqit.supabase.co";
+const CLOUD_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Ind2ZHJzb2ZlaHdpb3Bia3pycWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzE1NjUsImV4cCI6MjA3NjA0NzU2NX0.GH5r-1xInHsL_EyzMOTVtb2QWIImuyJe-_ysqF0LCQ0";
+
+const cloudSupabase = createClient(CLOUD_SUPABASE_URL, CLOUD_SUPABASE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+});
+
+const isOnline = () => typeof navigator !== "undefined" && navigator.onLine;
+const remoteProductClients = () => [supabase, cloudSupabase];
 
 const toBool = (v: any) => v === 1 || v === true;
 
@@ -315,10 +326,11 @@ function buildPosProductsIndex(products: PosProduct[]): PosProductsIndex {
 async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMatch | null> {
   const exact = barcode.trim();
   const bc = exact.toLowerCase();
-  if (!exact || typeof navigator === "undefined" || !navigator.onLine) return null;
+  if (!exact || !isOnline()) return null;
 
+  for (const client of remoteProductClients()) {
   try {
-    const { data: productData } = await supabase
+    const { data: productData } = await client
       .from("products")
       .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
       .eq("is_available", true)
@@ -327,7 +339,7 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       .maybeSingle();
 
     if (productData) {
-      const { data: variantRows } = await supabase
+      const { data: variantRows } = await client
         .from("product_variants")
         .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
         .eq("product_id", productData.id);
@@ -337,7 +349,7 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       return { product, variant };
     }
 
-    const { data: variantData } = await supabase
+    const { data: variantData } = await client
       .from("product_variants")
       .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
       .eq("is_available", true)
@@ -346,14 +358,14 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       .maybeSingle();
 
     if (variantData) {
-      const { data: parentData } = await supabase
+      const { data: parentData } = await client
         .from("products")
         .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
         .eq("id", variantData.product_id)
         .eq("is_available", true)
         .maybeSingle();
       if (parentData) {
-        const { data: variantRows } = await supabase
+        const { data: variantRows } = await client
           .from("product_variants")
           .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
           .eq("product_id", variantData.product_id);
@@ -364,7 +376,7 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
     }
 
     const contains = `%${exact}%`;
-    const { data: productCandidates } = await supabase
+    const { data: productCandidates } = await client
       .from("products")
       .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
       .eq("is_available", true)
@@ -374,7 +386,7 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       p.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
     );
     if (legacyProduct) {
-      const { data: variantRows } = await supabase
+      const { data: variantRows } = await client
         .from("product_variants")
         .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
         .eq("product_id", legacyProduct.id);
@@ -384,7 +396,7 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       return { product, variant };
     }
 
-    const { data: variantCandidates } = await supabase
+    const { data: variantCandidates } = await client
       .from("product_variants")
       .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
       .eq("is_available", true)
@@ -394,14 +406,14 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
       v.barcode?.split(",").some((b: string) => b.trim().toLowerCase() === bc),
     );
     if (legacyVariant) {
-      const { data: parentData } = await supabase
+      const { data: parentData } = await client
         .from("products")
         .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
         .eq("id", legacyVariant.product_id)
         .eq("is_available", true)
         .maybeSingle();
       if (parentData) {
-        const { data: variantRows } = await supabase
+        const { data: variantRows } = await client
           .from("product_variants")
           .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
           .eq("product_id", legacyVariant.product_id);
@@ -413,11 +425,12 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
   } catch (e) {
     console.warn("[pos products] Supabase barcode fallback failed", e);
   }
+  }
 
   return null;
 }
 
-async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProduct[]> {
+async function searchPosProductsWithClient(client: any, term: string, limit = 10): Promise<PosProduct[]> {
   const q = term.trim();
   if (!q) return [];
   const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -432,7 +445,7 @@ async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProd
 
   try {
     // Direct name/barcode contains match.
-    let qy = supabase
+    let qy = client
       .from("products")
       .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
       .eq("is_available", true)
@@ -444,7 +457,7 @@ async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProd
 
     // Token-AND match (all tokens must appear in name), e.g. "wagh bakri 500gm".
     if (productRows.length < limit && tokens.length > 1) {
-      let tq: any = supabase
+      let tq: any = client
         .from("products")
         .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
         .eq("is_available", true);
@@ -455,7 +468,7 @@ async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProd
 
     // Variant-level barcode contains match.
     if (productRows.length < limit) {
-      const { data: vData } = await supabase
+      const { data: vData } = await client
         .from("product_variants")
         .select("product_id")
         .eq("is_available", true)
@@ -463,7 +476,7 @@ async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProd
         .limit(limit);
       const parentIds = Array.from(new Set((vData ?? []).map((v: any) => v.product_id).filter(Boolean)));
       if (parentIds.length) {
-        const { data: parents } = await supabase
+        const { data: parents } = await client
           .from("products")
           .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
           .in("id", parentIds)
@@ -479,11 +492,36 @@ async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProd
   const capped = productRows.slice(0, limit);
   if (capped.length === 0) return [];
   const ids = capped.map((p) => p.id);
-  const { data: varRows } = await supabase
+  const { data: varRows } = await client
     .from("product_variants")
     .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
     .in("product_id", ids);
   return mapPosProducts(capped, (varRows ?? []) as Row[]);
+}
+
+async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProduct[]> {
+  if (!isOnline()) return [];
+  const byId = new Map<string, PosProduct>();
+  for (const client of remoteProductClients()) {
+    const rows = await searchPosProductsWithClient(client, term, limit);
+    for (const row of rows) if (!byId.has(row.id)) byId.set(row.id, row);
+  }
+  return Array.from(byId.values()).slice(0, limit);
+}
+
+async function mergeFreshCloudResults(term: string, localResults: PosProduct[], limit: number): Promise<PosProduct[]> {
+  const q = term.trim();
+  if (!q || !isOnline()) return localResults.slice(0, limit);
+  try {
+    const cloudResults = await searchPosProductsCloud(q, limit);
+    const byId = new Map<string, PosProduct>();
+    for (const row of cloudResults) byId.set(row.id, row);
+    for (const row of localResults) if (!byId.has(row.id)) byId.set(row.id, row);
+    return Array.from(byId.values()).slice(0, limit);
+  } catch (e) {
+    console.warn('[pos products] fresh cloud merge failed', e);
+    return localResults.slice(0, limit);
+  }
 }
 
 async function loadPosProductsIndex(): Promise<PosProductsIndex> {
