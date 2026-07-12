@@ -618,7 +618,17 @@ export async function searchPosProductsLocal(
     }
   }
   const prodRows = Array.from(productRowsById.values()).slice(0, limit);
-  if (prodRows.length === 0) return [];
+  if (prodRows.length === 0) {
+    // Cloud fallback: local mirror/index may be stale or missing this product.
+    if (typeof navigator !== "undefined" && navigator.onLine && term.trim()) {
+      try {
+        return await searchPosProductsCloud(term.trim(), limit);
+      } catch (e) {
+        console.warn('[pos products] cloud name search failed', e);
+      }
+    }
+    return [];
+  }
   const ids = prodRows.map((p) => p.id);
   const placeholders = ids.map(() => "?").join(",");
   const varRows = await queryRows(
