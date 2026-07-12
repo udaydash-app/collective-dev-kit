@@ -654,7 +654,7 @@ export async function searchPosProductsLocal(
         } as PosProduct);
       }
     }
-    if (results.length > 0) return results;
+    if (results.length > 0) return mergeFreshCloudResults(term, results, limit);
     // Cached index may be stale — fall through to cloud lookup below.
   }
 
@@ -744,7 +744,7 @@ export async function searchPosProductsLocal(
      FROM product_variants WHERE product_id IN (${placeholders})`,
     ids,
   );
-  return mapPosProducts(prodRows, varRows);
+  return mergeFreshCloudResults(term, mapPosProducts(prodRows, varRows), limit);
 }
 
 /**
