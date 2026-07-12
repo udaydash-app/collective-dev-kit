@@ -417,6 +417,75 @@ async function findPosProductByBarcodeCloud(barcode: string): Promise<BarcodeMat
   return null;
 }
 
+async function searchPosProductsCloud(term: string, limit = 10): Promise<PosProduct[]> {
+  const q = term.trim();
+  if (!q) return [];
+  const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const contains = `%${q}%`;
+  const productIds = new Set<string>();
+  const productRows: Row[] = [];
+  const push = (row: Row) => {
+    if (!row?.id || productIds.has(row.id)) return;
+    productIds.add(row.id);
+    productRows.push(row);
+  };
+
+  try {
+    // Direct name/barcode contains match.
+    let qy = supabase
+      .from("products")
+      .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+      .eq("is_available", true)
+      .or(`name.ilike.${contains},barcode.ilike.${contains}`)
+      .order("name")
+      .limit(limit);
+    const { data: direct } = await qy;
+    (direct ?? []).forEach(push);
+
+    // Token-AND match (all tokens must appear in name), e.g. "wagh bakri 500gm".
+    if (productRows.length < limit && tokens.length > 1) {
+      let tq: any = supabase
+        .from("products")
+        .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+        .eq("is_available", true);
+      for (const t of tokens) tq = tq.ilike("name", `%${t}%`);
+      const { data: tokenData } = await tq.order("name").limit(limit);
+      (tokenData ?? []).forEach(push);
+    }
+
+    // Variant-level barcode contains match.
+    if (productRows.length < limit) {
+      const { data: vData } = await supabase
+        .from("product_variants")
+        .select("product_id")
+        .eq("is_available", true)
+        .ilike("barcode", contains)
+        .limit(limit);
+      const parentIds = Array.from(new Set((vData ?? []).map((v: any) => v.product_id).filter(Boolean)));
+      if (parentIds.length) {
+        const { data: parents } = await supabase
+          .from("products")
+          .select("id, name, price, barcode, is_available, stock_quantity, cost_price")
+          .in("id", parentIds)
+          .eq("is_available", true);
+        (parents ?? []).forEach(push);
+      }
+    }
+  } catch (e) {
+    console.warn("[pos products] cloud search error", e);
+    return [];
+  }
+
+  const capped = productRows.slice(0, limit);
+  if (capped.length === 0) return [];
+  const ids = capped.map((p) => p.id);
+  const { data: varRows } = await supabase
+    .from("product_variants")
+    .select("id, product_id, label, quantity, unit, price, is_available, is_default, barcode, stock_quantity")
+    .in("product_id", ids);
+  return mapPosProducts(capped, (varRows ?? []) as Row[]);
+}
+
 async function loadPosProductsIndex(): Promise<PosProductsIndex> {
   const [prodRows, varRows] = await Promise.all([
     queryRows(
