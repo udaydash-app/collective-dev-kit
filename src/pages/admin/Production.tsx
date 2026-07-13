@@ -84,7 +84,10 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local products failed, falling back', e);
       }
-      if (shouldUseLocalData()) return offlineDB.getProducts();
+      if (shouldUseLocalData()) {
+        const cached = await offlineDB.getProducts().catch(() => []);
+        if (cached && cached.length > 0) return cached;
+      }
       const result: any = await supabase.from('products').select('id, name, stock_quantity, barcode').order('name');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -120,11 +123,13 @@ export default function Production() {
           offlineDB.getProductVariants().catch(() => []),
           offlineDB.getProducts().catch(() => []),
         ]);
-        const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
-        return cachedVariants.map((variant: any) => ({
-          ...variant,
-          products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
-        }));
+        if (cachedVariants && cachedVariants.length > 0) {
+          const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
+          return cachedVariants.map((variant: any) => ({
+            ...variant,
+            products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
+          }));
+        }
       }
       const result: any = await supabase.from('product_variants').select('id, product_id, label, unit, stock_quantity, barcode, products(name)').order('unit');
       if (result.error) throw result.error;
@@ -491,9 +496,9 @@ export default function Production() {
                       <CommandEmpty>No {sourceType} found.</CommandEmpty>
                       <CommandGroup className="max-h-64 overflow-auto">
                         {getSourceOptions().map((item: any) => (
-                          <CommandItem key={item.id} value={sourceType === 'product' ? item.name : `${item.product.name} ${item.label} ${item.unit}`} onSelect={() => { setSourceId(item.id); setSourceOpen(false); }}>
+                          <CommandItem key={item.id} value={`${item.id} ${sourceType === 'product' ? item.name : `${item.product?.name ?? ''} ${item.label ?? ''} ${item.unit ?? ''}`}`} onSelect={() => { setSourceId(item.id); setSourceOpen(false); }}>
                             <Check className={cn("mr-2 h-4 w-4", sourceId === item.id ? "opacity-100" : "opacity-0")} />
-                            {sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`}
+                            {sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product?.name ?? ''} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`}
                           </CommandItem>
                         ))}
                       </CommandGroup>
