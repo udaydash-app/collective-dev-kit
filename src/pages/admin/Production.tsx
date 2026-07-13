@@ -84,7 +84,10 @@ export default function Production() {
       } catch (e) {
         console.warn('[production] local products failed, falling back', e);
       }
-      if (shouldUseLocalData()) return offlineDB.getProducts();
+      if (shouldUseLocalData()) {
+        const cached = await offlineDB.getProducts().catch(() => []);
+        if (cached && cached.length > 0) return cached;
+      }
       const result: any = await supabase.from('products').select('id, name, stock_quantity, barcode').order('name');
       if (result.error) throw result.error;
       return result.data ?? [];
@@ -120,11 +123,13 @@ export default function Production() {
           offlineDB.getProductVariants().catch(() => []),
           offlineDB.getProducts().catch(() => []),
         ]);
-        const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
-        return cachedVariants.map((variant: any) => ({
-          ...variant,
-          products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
-        }));
+        if (cachedVariants && cachedVariants.length > 0) {
+          const productById = new Map(cachedProducts.map((p: any) => [p.id, p] as [string, any]));
+          return cachedVariants.map((variant: any) => ({
+            ...variant,
+            products: productById.get(variant.product_id) ? { name: productById.get(variant.product_id).name } : null,
+          }));
+        }
       }
       const result: any = await supabase.from('product_variants').select('id, product_id, label, unit, stock_quantity, barcode, products(name)').order('unit');
       if (result.error) throw result.error;
