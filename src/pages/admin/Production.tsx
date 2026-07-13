@@ -64,6 +64,7 @@ export default function Production() {
   const [notes, setNotes] = useState("");
   const [outputs, setOutputs] = useState<OutputItem[]>([]);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceSearch, setSourceSearch] = useState("");
 
   // Edit form state
   const [editDate, setEditDate] = useState("");
@@ -480,31 +481,60 @@ export default function Production() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Source {sourceType === 'product' ? 'Product' : 'Variant'}</Label>
-                <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                      {sourceId ? (() => {
-                        const item = getSourceOptions().find((i: any) => i.id === sourceId);
-                        return item ? (sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`) : "Select source";
-                      })() : "Select source"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0 bg-popover z-50">
-                    <Command>
-                      <CommandInput placeholder={`Search ${sourceType}...`} />
-                      <CommandEmpty>No {sourceType} found.</CommandEmpty>
-                      <CommandGroup className="max-h-64 overflow-auto">
-                        {getSourceOptions().map((item: any) => (
-                          <CommandItem key={item.id} value={`${item.id} ${sourceType === 'product' ? item.name : `${item.product?.name ?? ''} ${item.label ?? ''} ${item.unit ?? ''}`}`} onSelect={() => { setSourceId(item.id); setSourceOpen(false); }}>
-                            <Check className={cn("mr-2 h-4 w-4", sourceId === item.id ? "opacity-100" : "opacity-0")} />
-                            {sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product?.name ?? ''} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  placeholder={`Search ${sourceType}...`}
+                  value={sourceSearch}
+                  onChange={(e) => setSourceSearch(e.target.value)}
+                />
+                {sourceId && (() => {
+                  const item = getSourceOptions().find((i: any) => i.id === sourceId);
+                  if (!item) return null;
+                  const label = sourceType === 'product'
+                    ? `${item.name} (Stock: ${item.stock_quantity})`
+                    : `${item.product?.name ?? ''} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`;
+                  return (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" /> Selected: {label}
+                    </div>
+                  );
+                })()}
+                <div className="border rounded-md max-h-56 overflow-auto bg-background">
+                  {(() => {
+                    const q = sourceSearch.trim().toLowerCase();
+                    const all = getSourceOptions();
+                    const filtered = q
+                      ? all.filter((item: any) => {
+                          const text = sourceType === 'product'
+                            ? `${item.name ?? ''} ${item.barcode ?? ''}`
+                            : `${item.product?.name ?? ''} ${item.label ?? ''} ${item.unit ?? ''} ${item.barcode ?? ''}`;
+                          return text.toLowerCase().includes(q);
+                        })
+                      : all;
+                    if (filtered.length === 0) {
+                      return <div className="p-3 text-sm text-muted-foreground">No {sourceType} found.</div>;
+                    }
+                    return filtered.slice(0, 200).map((item: any) => {
+                      const label = sourceType === 'product'
+                        ? `${item.name} (Stock: ${item.stock_quantity})`
+                        : `${item.product?.name ?? ''} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`;
+                      const active = sourceId === item.id;
+                      return (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => setSourceId(item.id)}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2",
+                            active && "bg-accent",
+                          )}
+                        >
+                          <Check className={cn("h-4 w-4", active ? "opacity-100" : "opacity-0")} />
+                          <span className="truncate">{label}</span>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Quantity to Convert</Label>
