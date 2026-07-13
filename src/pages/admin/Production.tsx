@@ -496,9 +496,9 @@ export default function Production() {
                       <CommandEmpty>No {sourceType} found.</CommandEmpty>
                       <CommandGroup className="max-h-64 overflow-auto">
                         {getSourceOptions().map((item: any) => (
-                          <CommandItem key={item.id} value={sourceType === 'product' ? item.name : `${item.product.name} ${item.label} ${item.unit}`} onSelect={() => { setSourceId(item.id); setSourceOpen(false); }}>
+                          <CommandItem key={item.id} value={`${item.id} ${sourceType === 'product' ? item.name : `${item.product?.name ?? ''} ${item.label ?? ''} ${item.unit ?? ''}`}`} onSelect={() => { setSourceId(item.id); setSourceOpen(false); }}>
                             <Check className={cn("mr-2 h-4 w-4", sourceId === item.id ? "opacity-100" : "opacity-0")} />
-                            {sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product.name} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`}
+                            {sourceType === 'product' ? `${item.name} (Stock: ${item.stock_quantity})` : `${item.product?.name ?? ''} - ${item.label || item.unit} (Stock: ${item.stock_quantity || 0})`}
                           </CommandItem>
                         ))}
                       </CommandGroup>
