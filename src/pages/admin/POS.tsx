@@ -955,17 +955,52 @@ export default function POS() {
         }
       }
 
-      const { data } = await supabase
-        .from('pos_transactions')
-        .select('id, total, subtotal, tax, discount, items, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
-        .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at)
-        .order('created_at', { ascending: false });
+      const [{ data: posData }, { data: onlineOrders }] = await Promise.all([
+        supabase
+          .from('pos_transactions')
+          .select('id, total, subtotal, tax, discount, items, payment_method, payment_details, created_at, transaction_number, customer_id, contacts:customer_id(name)')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('orders')
+          .select('id, order_number, total, subtotal, tax, discount, delivery_fee, payment_method, payment_details, created_at, status, customer_id, store_id, contacts:customer_id(name), order_items(quantity, unit_price, product_id, products(id, name))')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .not('status', 'in', '("cancelled","pending")')
+          .order('created_at', { ascending: false }),
+      ]);
 
-      return (data || []).map(t => ({
+      const posMapped = (posData || []).map(t => ({
         ...t,
-        customer_name: t.contacts?.name || null
+        customer_name: t.contacts?.name || null,
       }));
+
+      const onlineMapped = (onlineOrders || []).map((o: any) => ({
+        id: o.id,
+        transaction_number: o.order_number,
+        total: Number(o.total || 0),
+        subtotal: Number(o.subtotal || 0),
+        tax: Number(o.tax || 0),
+        discount: Number(o.discount || 0),
+        items: (o.order_items || []).map((it: any) => ({
+          id: it.product_id,
+          name: it.products?.name,
+          quantity: it.quantity,
+          price: it.unit_price,
+          unit_price: it.unit_price,
+        })),
+        payment_method: o.payment_method || 'credit',
+        payment_details: o.payment_details || null,
+        created_at: o.created_at,
+        customer_id: o.customer_id,
+        customer_name: o.contacts?.name || null,
+        _source: 'online',
+      }));
+
+      return [...posMapped, ...onlineMapped].sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     },
     enabled: !!currentCashSession || isOffline,
     staleTime: isOffline ? Infinity : 30 * 1000,
