@@ -168,6 +168,56 @@ export default function POS() {
   const keypadInputRef = useRef<string>(''); // Persist across re-renders
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
+
+  const normalizePaymentMethod = (method?: string | null, paymentMethodRecord?: any) => {
+    const relatedMethod = Array.isArray(paymentMethodRecord) ? paymentMethodRecord[0] : paymentMethodRecord;
+    const raw = String(method || relatedMethod?.type || relatedMethod?.label || '').toLowerCase();
+
+    if (raw.includes('wave') || raw.includes('orange') || raw.includes('mobile') || raw.includes('money')) {
+      return 'mobile_money';
+    }
+    if (raw.includes('cash')) return 'cash';
+    if (raw.includes('credit') || raw.includes('store_credit')) return 'credit';
+    if (raw === 'multiple') return 'multiple';
+
+    // Online orders without an explicit method are settled through mobile money in store reporting.
+    return raw || 'mobile_money';
+  };
+
+  const paymentAmountForMethod = (transaction: any, method: 'cash' | 'credit' | 'mobile_money') => {
+    const paymentDetails = transaction?.payment_details as Array<{ method: string; amount: number }> | null;
+    if (Array.isArray(paymentDetails) && paymentDetails.length > 0) {
+      return paymentDetails.reduce((sum, payment) => {
+        return normalizePaymentMethod(payment.method) === method ? sum + Number(payment.amount || 0) : sum;
+      }, 0);
+    }
+
+    return normalizePaymentMethod(transaction?.payment_method) === method ? Number(transaction?.total || 0) : 0;
+  };
+
+  const mapOnlineOrderToTransaction = (order: any) => ({
+    id: order.id,
+    transaction_number: order.order_number,
+    total: Number(order.total || 0),
+    subtotal: Number(order.subtotal || 0),
+    tax: Number(order.tax || 0),
+    discount: 0,
+    items: (order.order_items || []).map((item: any) => ({
+      id: item.product_id,
+      productId: item.product_id,
+      name: item.products?.name || 'Online order item',
+      quantity: Number(item.quantity || 0),
+      price: Number(item.unit_price || 0),
+      unit_price: Number(item.unit_price || 0),
+    })),
+    payment_method: normalizePaymentMethod(order.payment_method, order.payment_methods),
+    payment_details: null,
+    created_at: order.created_at,
+    customer_id: order.customer_id,
+    customer_name: order.contacts?.name || null,
+    status: order.status,
+    _source: 'online',
+  });
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [specialOfferApplied, setSpecialOfferApplied] = useState<{ id: string; name: string; percentage: number } | null>(null);
   const [pendingSpecialOffer, setPendingSpecialOffer] = useState<{ id: string; name: string; percentage: number; threshold: number } | null>(null);
@@ -964,7 +1014,7 @@ export default function POS() {
           .order('created_at', { ascending: false }),
         supabase
           .from('orders')
-          .select('id, order_number, total, subtotal, tax, discount, delivery_fee, payment_method, payment_details, created_at, status, customer_id, store_id, contacts:customer_id(name), order_items(quantity, unit_price, product_id, products(id, name))')
+          .select('id, order_number, total, subtotal, tax, delivery_fee, payment_method, payment_method_id, created_at, status, customer_id, store_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
           .eq('store_id', currentCashSession.store_id)
           .gte('created_at', currentCashSession.opened_at)
           .not('status', 'in', '("cancelled","pending")')
@@ -976,27 +1026,7 @@ export default function POS() {
         customer_name: t.contacts?.name || null,
       }));
 
-      const onlineMapped = (onlineOrders || []).map((o: any) => ({
-        id: o.id,
-        transaction_number: o.order_number,
-        total: Number(o.total || 0),
-        subtotal: Number(o.subtotal || 0),
-        tax: Number(o.tax || 0),
-        discount: Number(o.discount || 0),
-        items: (o.order_items || []).map((it: any) => ({
-          id: it.product_id,
-          name: it.products?.name,
-          quantity: it.quantity,
-          price: it.unit_price,
-          unit_price: it.unit_price,
-        })),
-        payment_method: o.payment_method || 'credit',
-        payment_details: o.payment_details || null,
-        created_at: o.created_at,
-        customer_id: o.customer_id,
-        customer_name: o.contacts?.name || null,
-        _source: 'online',
-      }));
+      const onlineMapped = (onlineOrders || []).map(mapOnlineOrderToTransaction);
 
       return [...posMapped, ...onlineMapped].sort(
         (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -1138,25 +1168,13 @@ export default function POS() {
   // Calculate day activity - parse payment_details for multiple payment support
   const dayActivity = {
     cashSales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'cash' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'cash');
     }, 0) || 0,
     creditSales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'credit' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'credit');
     }, 0) || 0,
     mobileMoneySales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'mobile_money' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'mobile_money');
     }, 0) || 0,
     totalSales: sessionTransactions
       ?.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
@@ -1746,28 +1764,39 @@ export default function POS() {
       
       const { start, end } = getDateRange();
       
-      // Get transactions for the period
-      const { data: transactions } = await supabase
-        .from('pos_transactions')
-        .select('*, items')
-        .eq('store_id', selectedStoreId)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
+      // Get POS transactions and online orders for the period
+      const [{ data: posTransactions }, { data: onlineOrders }] = await Promise.all([
+        supabase
+          .from('pos_transactions')
+          .select('*, items')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString()),
+        supabase
+          .from('orders')
+          .select('id, order_number, total, subtotal, tax, delivery_fee, payment_method, payment_method_id, created_at, status, customer_id, store_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString())
+          .not('status', 'in', '("cancelled","pending")')
+      ]);
 
-      if (!transactions) return null;
+      const transactions = [
+        ...(posTransactions || []),
+        ...(onlineOrders || []).map(mapOnlineOrderToTransaction),
+      ];
+
+      if (!transactions.length) return null;
 
       // Calculate cash and credit sales
       const cashSales = transactions
-        .filter(t => t.payment_method === 'cash')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'cash'), 0);
       
       const creditSales = transactions
-        .filter(t => t.payment_method === 'credit')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'credit'), 0);
 
       const mobileMoneySales = transactions
-        .filter(t => t.payment_method === 'mobile_money')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'mobile_money'), 0);
 
       // Calculate top selling item
       const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
@@ -1798,8 +1827,19 @@ export default function POS() {
       const customerTransactions: Record<string, { name: string; total: number; count: number }> = {};
       
       transactions.forEach(transaction => {
-        if (transaction.notes?.includes('customer:')) {
-          const customerMatch = transaction.notes.match(/customer:([^,]+),([^)]+)/);
+        if ((transaction as any).customer_id) {
+          const customerId = (transaction as any).customer_id;
+          if (!customerTransactions[customerId]) {
+            customerTransactions[customerId] = {
+              name: (transaction as any).customer_name || 'Customer',
+              total: 0,
+              count: 0
+            };
+          }
+          customerTransactions[customerId].total += Number(transaction.total);
+          customerTransactions[customerId].count += 1;
+        } else if ((transaction as any).notes?.includes('customer:')) {
+          const customerMatch = (transaction as any).notes.match(/customer:([^,]+),([^)]+)/);
           if (customerMatch) {
             const [, customerId, customerName] = customerMatch;
             if (!customerTransactions[customerId]) {
@@ -1993,20 +2033,28 @@ export default function POS() {
         }
       }
 
-      // Online mode - Calculate expected cash from cash transactions
-      const { data: transactions } = await supabase
-        .from('pos_transactions')
-        .select('total, payment_method')
-        .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+      // Online mode - Calculate expected cash/mobile money from POS transactions plus online orders
+      const [{ data: posTransactions }, { data: onlineOrders }] = await Promise.all([
+        supabase
+          .from('pos_transactions')
+          .select('total, payment_method, payment_details')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at),
+        supabase
+          .from('orders')
+          .select('id, order_number, total, subtotal, tax, payment_method, payment_method_id, created_at, status, customer_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .not('status', 'in', '("cancelled","pending")')
+      ]);
 
-      cashSales = transactions
-        ?.filter(t => t.payment_method === 'cash')
-        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
-      
-      mobileMoneySales = transactions
-        ?.filter(t => t.payment_method === 'mobile_money')
-        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+      const transactions = [
+        ...(posTransactions || []),
+        ...(onlineOrders || []).map(mapOnlineOrderToTransaction),
+      ];
+
+      cashSales = transactions.reduce((sum, transaction) => sum + paymentAmountForMethod(transaction, 'cash'), 0);
+      mobileMoneySales = transactions.reduce((sum, transaction) => sum + paymentAmountForMethod(transaction, 'mobile_money'), 0);
 
       // Fetch purchases for this session
       const { data: purchases } = await supabase
