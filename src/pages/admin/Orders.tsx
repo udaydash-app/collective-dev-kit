@@ -262,15 +262,25 @@ export default function AdminOrders() {
             ...new Set((matchedOrderItems || []).map((i: any) => i.order_id).filter(Boolean)),
           ];
 
-          // POS items are stored as JSONB; use `cs` (contains) with each
-          // product id. Aggregate ids over multiple lightweight queries.
+          // POS items are stored as JSONB. Build a single OR of `cs` clauses
+          // for all matching product ids so we scan ALL historical POS sales
+          // in one round-trip (previous per-id loop capped at 25 and often
+          // returned empty, hiding POS results in searches like "atta").
           const posIdSet = new Set<string>();
-          for (const pid of matchingProductIds.slice(0, 25)) {
-            const { data: posMatches } = await supabase
+          const chunkSize = 40;
+          for (let i = 0; i < matchingProductIds.length; i += chunkSize) {
+            const chunk = matchingProductIds.slice(i, i + chunkSize);
+            const orClauses = chunk
+              .map((pid) => `items.cs.[{"id":"${pid}"}]`)
+              .join(',');
+            const { data: posMatches, error: posMatchErr } = await supabase
               .from('pos_transactions')
               .select('id')
-              .filter('items', 'cs', JSON.stringify([{ id: pid }]))
-              .limit(500);
+              .or(orClauses)
+              .limit(5000);
+            if (posMatchErr) {
+              console.warn('[orders] POS product-match query failed', posMatchErr);
+            }
             (posMatches || []).forEach((r: any) => posIdSet.add(r.id));
           }
           posIdsWithMatchingProducts = [...posIdSet];
