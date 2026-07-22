@@ -168,6 +168,56 @@ export default function POS() {
   const keypadInputRef = useRef<string>(''); // Persist across re-renders
   const [keypadRenderKey, setKeypadRenderKey] = useState(0); // Force re-render when input changes
   const [isPercentMode, setIsPercentMode] = useState<boolean>(false);
+
+  const normalizePaymentMethod = (method?: string | null, paymentMethodRecord?: any) => {
+    const relatedMethod = Array.isArray(paymentMethodRecord) ? paymentMethodRecord[0] : paymentMethodRecord;
+    const raw = String(method || relatedMethod?.type || relatedMethod?.label || '').toLowerCase();
+
+    if (raw.includes('wave') || raw.includes('orange') || raw.includes('mobile') || raw.includes('money')) {
+      return 'mobile_money';
+    }
+    if (raw.includes('cash')) return 'cash';
+    if (raw.includes('credit') || raw.includes('store_credit')) return 'credit';
+    if (raw === 'multiple') return 'multiple';
+
+    // Online orders without an explicit method are settled through mobile money in store reporting.
+    return raw || 'mobile_money';
+  };
+
+  const paymentAmountForMethod = (transaction: any, method: 'cash' | 'credit' | 'mobile_money') => {
+    const paymentDetails = transaction?.payment_details as Array<{ method: string; amount: number }> | null;
+    if (Array.isArray(paymentDetails) && paymentDetails.length > 0) {
+      return paymentDetails.reduce((sum, payment) => {
+        return normalizePaymentMethod(payment.method) === method ? sum + Number(payment.amount || 0) : sum;
+      }, 0);
+    }
+
+    return normalizePaymentMethod(transaction?.payment_method) === method ? Number(transaction?.total || 0) : 0;
+  };
+
+  const mapOnlineOrderToTransaction = (order: any) => ({
+    id: order.id,
+    transaction_number: order.order_number,
+    total: Number(order.total || 0),
+    subtotal: Number(order.subtotal || 0),
+    tax: Number(order.tax || 0),
+    discount: 0,
+    items: (order.order_items || []).map((item: any) => ({
+      id: item.product_id,
+      productId: item.product_id,
+      name: item.products?.name || 'Online order item',
+      quantity: Number(item.quantity || 0),
+      price: Number(item.unit_price || 0),
+      unit_price: Number(item.unit_price || 0),
+    })),
+    payment_method: normalizePaymentMethod(order.payment_method, order.payment_methods),
+    payment_details: null,
+    created_at: order.created_at,
+    customer_id: order.customer_id,
+    customer_name: order.contacts?.name || null,
+    status: order.status,
+    _source: 'online',
+  });
   const [cartDiscountItem, setCartDiscountItem] = useState<any>(null);
   const [specialOfferApplied, setSpecialOfferApplied] = useState<{ id: string; name: string; percentage: number } | null>(null);
   const [pendingSpecialOffer, setPendingSpecialOffer] = useState<{ id: string; name: string; percentage: number; threshold: number } | null>(null);
