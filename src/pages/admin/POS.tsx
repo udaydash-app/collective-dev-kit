@@ -1764,28 +1764,39 @@ export default function POS() {
       
       const { start, end } = getDateRange();
       
-      // Get transactions for the period
-      const { data: transactions } = await supabase
-        .from('pos_transactions')
-        .select('*, items')
-        .eq('store_id', selectedStoreId)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
+      // Get POS transactions and online orders for the period
+      const [{ data: posTransactions }, { data: onlineOrders }] = await Promise.all([
+        supabase
+          .from('pos_transactions')
+          .select('*, items')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString()),
+        supabase
+          .from('orders')
+          .select('id, order_number, total, subtotal, tax, delivery_fee, payment_method, payment_method_id, created_at, status, customer_id, store_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString())
+          .not('status', 'in', '("cancelled","pending")')
+      ]);
 
-      if (!transactions) return null;
+      const transactions = [
+        ...(posTransactions || []),
+        ...(onlineOrders || []).map(mapOnlineOrderToTransaction),
+      ];
+
+      if (!transactions.length) return null;
 
       // Calculate cash and credit sales
       const cashSales = transactions
-        .filter(t => t.payment_method === 'cash')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'cash'), 0);
       
       const creditSales = transactions
-        .filter(t => t.payment_method === 'credit')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'credit'), 0);
 
       const mobileMoneySales = transactions
-        .filter(t => t.payment_method === 'mobile_money')
-        .reduce((sum, t) => sum + Number(t.total), 0);
+        .reduce((sum, t) => sum + paymentAmountForMethod(t, 'mobile_money'), 0);
 
       // Calculate top selling item
       const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
@@ -1816,7 +1827,18 @@ export default function POS() {
       const customerTransactions: Record<string, { name: string; total: number; count: number }> = {};
       
       transactions.forEach(transaction => {
-        if (transaction.notes?.includes('customer:')) {
+        if ((transaction as any).customer_id) {
+          const customerId = (transaction as any).customer_id;
+          if (!customerTransactions[customerId]) {
+            customerTransactions[customerId] = {
+              name: (transaction as any).customer_name || 'Customer',
+              total: 0,
+              count: 0
+            };
+          }
+          customerTransactions[customerId].total += Number(transaction.total);
+          customerTransactions[customerId].count += 1;
+        } else if (transaction.notes?.includes('customer:')) {
           const customerMatch = transaction.notes.match(/customer:([^,]+),([^)]+)/);
           if (customerMatch) {
             const [, customerId, customerName] = customerMatch;
