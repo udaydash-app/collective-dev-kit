@@ -230,6 +230,9 @@ export default function AdminOrders() {
       // When searching, pre-resolve contact IDs whose name/phone match the query
       // so we can push the search down to the database (covers ALL historical orders).
       let matchingContactIds: string[] = [];
+      let matchingProductIds: string[] = [];
+      let orderIdsWithMatchingProducts: string[] = [];
+      let posIdsWithMatchingProducts: string[] = [];
       if (isSearching) {
         const q = searchQuery.trim();
         const { data: matchedContacts } = await supabase
@@ -238,6 +241,40 @@ export default function AdminOrders() {
           .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
           .limit(500);
         matchingContactIds = (matchedContacts || []).map((c: any) => c.id);
+
+        // Resolve product IDs matching the query, then look up which
+        // orders / POS transactions contain them so we can push the
+        // product-name search down to the database.
+        const { data: matchedProducts } = await supabase
+          .from('products')
+          .select('id')
+          .ilike('name', `%${q}%`)
+          .limit(500);
+        matchingProductIds = (matchedProducts || []).map((p: any) => p.id);
+
+        if (matchingProductIds.length > 0) {
+          const { data: matchedOrderItems } = await supabase
+            .from('order_items')
+            .select('order_id')
+            .in('product_id', matchingProductIds)
+            .limit(5000);
+          orderIdsWithMatchingProducts = [
+            ...new Set((matchedOrderItems || []).map((i: any) => i.order_id).filter(Boolean)),
+          ];
+
+          // POS items are stored as JSONB; use `cs` (contains) with each
+          // product id. Aggregate ids over multiple lightweight queries.
+          const posIdSet = new Set<string>();
+          for (const pid of matchingProductIds.slice(0, 25)) {
+            const { data: posMatches } = await supabase
+              .from('pos_transactions')
+              .select('id')
+              .filter('items', 'cs', JSON.stringify([{ id: pid }]))
+              .limit(500);
+            (posMatches || []).forEach((r: any) => posIdSet.add(r.id));
+          }
+          posIdsWithMatchingProducts = [...posIdSet];
+        }
       }
 
       // Fetch online orders
@@ -272,6 +309,9 @@ export default function AdminOrders() {
         ];
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        }
+        if (orderIdsWithMatchingProducts.length > 0) {
+          orParts.push(`id.in.(${orderIdsWithMatchingProducts.join(',')})`);
         }
         ordersQuery = ordersQuery.or(orParts.join(',')).limit(5000);
       }
@@ -314,6 +354,9 @@ export default function AdminOrders() {
         const orParts = [`transaction_number.ilike.%${q}%`];
         if (matchingContactIds.length > 0) {
           orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        }
+        if (posIdsWithMatchingProducts.length > 0) {
+          orParts.push(`id.in.(${posIdsWithMatchingProducts.join(',')})`);
         }
         posQuery = posQuery.or(orParts.join(',')).limit(5000);
       } else {
