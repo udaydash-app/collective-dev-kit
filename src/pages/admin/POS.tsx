@@ -1838,8 +1838,8 @@ export default function POS() {
           }
           customerTransactions[customerId].total += Number(transaction.total);
           customerTransactions[customerId].count += 1;
-        } else if (transaction.notes?.includes('customer:')) {
-          const customerMatch = transaction.notes.match(/customer:([^,]+),([^)]+)/);
+        } else if ((transaction as any).notes?.includes('customer:')) {
+          const customerMatch = (transaction as any).notes.match(/customer:([^,]+),([^)]+)/);
           if (customerMatch) {
             const [, customerId, customerName] = customerMatch;
             if (!customerTransactions[customerId]) {
@@ -2033,20 +2033,28 @@ export default function POS() {
         }
       }
 
-      // Online mode - Calculate expected cash from cash transactions
-      const { data: transactions } = await supabase
-        .from('pos_transactions')
-        .select('total, payment_method')
-        .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+      // Online mode - Calculate expected cash/mobile money from POS transactions plus online orders
+      const [{ data: posTransactions }, { data: onlineOrders }] = await Promise.all([
+        supabase
+          .from('pos_transactions')
+          .select('total, payment_method, payment_details')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at),
+        supabase
+          .from('orders')
+          .select('id, order_number, total, subtotal, tax, payment_method, payment_method_id, created_at, status, customer_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .not('status', 'in', '("cancelled","pending")')
+      ]);
 
-      cashSales = transactions
-        ?.filter(t => t.payment_method === 'cash')
-        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
-      
-      mobileMoneySales = transactions
-        ?.filter(t => t.payment_method === 'mobile_money')
-        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0;
+      const transactions = [
+        ...(posTransactions || []),
+        ...(onlineOrders || []).map(mapOnlineOrderToTransaction),
+      ];
+
+      cashSales = transactions.reduce((sum, transaction) => sum + paymentAmountForMethod(transaction, 'cash'), 0);
+      mobileMoneySales = transactions.reduce((sum, transaction) => sum + paymentAmountForMethod(transaction, 'mobile_money'), 0);
 
       // Fetch purchases for this session
       const { data: purchases } = await supabase
