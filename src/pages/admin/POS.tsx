@@ -1014,7 +1014,7 @@ export default function POS() {
           .order('created_at', { ascending: false }),
         supabase
           .from('orders')
-          .select('id, order_number, total, subtotal, tax, discount, delivery_fee, payment_method, payment_details, created_at, status, customer_id, store_id, contacts:customer_id(name), order_items(quantity, unit_price, product_id, products(id, name))')
+          .select('id, order_number, total, subtotal, tax, delivery_fee, payment_method, payment_method_id, created_at, status, customer_id, store_id, contacts:customer_id(name), payment_methods(type, label), order_items(quantity, unit_price, product_id, products(id, name))')
           .eq('store_id', currentCashSession.store_id)
           .gte('created_at', currentCashSession.opened_at)
           .not('status', 'in', '("cancelled","pending")')
@@ -1026,27 +1026,7 @@ export default function POS() {
         customer_name: t.contacts?.name || null,
       }));
 
-      const onlineMapped = (onlineOrders || []).map((o: any) => ({
-        id: o.id,
-        transaction_number: o.order_number,
-        total: Number(o.total || 0),
-        subtotal: Number(o.subtotal || 0),
-        tax: Number(o.tax || 0),
-        discount: Number(o.discount || 0),
-        items: (o.order_items || []).map((it: any) => ({
-          id: it.product_id,
-          name: it.products?.name,
-          quantity: it.quantity,
-          price: it.unit_price,
-          unit_price: it.unit_price,
-        })),
-        payment_method: o.payment_method || 'credit',
-        payment_details: o.payment_details || null,
-        created_at: o.created_at,
-        customer_id: o.customer_id,
-        customer_name: o.contacts?.name || null,
-        _source: 'online',
-      }));
+      const onlineMapped = (onlineOrders || []).map(mapOnlineOrderToTransaction);
 
       return [...posMapped, ...onlineMapped].sort(
         (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -1188,25 +1168,13 @@ export default function POS() {
   // Calculate day activity - parse payment_details for multiple payment support
   const dayActivity = {
     cashSales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'cash').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'cash' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'cash');
     }, 0) || 0,
     creditSales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'credit').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'credit' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'credit');
     }, 0) || 0,
     mobileMoneySales: sessionTransactions?.reduce((sum, t) => {
-      const paymentDetails = t.payment_details as Array<{ method: string; amount: number }> | null;
-      if (paymentDetails && Array.isArray(paymentDetails)) {
-        return sum + paymentDetails.filter(p => p.method === 'mobile_money').reduce((pSum, p) => pSum + (p.amount || 0), 0);
-      }
-      return t.payment_method === 'mobile_money' ? sum + parseFloat(t.total.toString()) : sum;
+      return sum + paymentAmountForMethod(t, 'mobile_money');
     }, 0) || 0,
     totalSales: sessionTransactions
       ?.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0) || 0,
