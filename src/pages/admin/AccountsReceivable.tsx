@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchReceivablesLocal } from "@/db/queries/accounting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,9 +12,13 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
+  const queryClient = useQueryClient();
 
   const { data: receivables, isLoading } = useQuery({
     queryKey: ['accounts-receivable'],
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
         return await fetchReceivablesLocal();
@@ -86,6 +90,26 @@ export default function AccountsReceivable() {
       return contactsWithBalance.filter(c => c.balance !== 0);
     }
   });
+
+  // Keep AR in sync with General Ledger in real time: any change to
+  // journal_entry_lines, journal_entries, or contacts invalidates the query.
+  useEffect(() => {
+    const channel = supabase
+      .channel('ar-ledger-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entry_lines' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entries' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const filteredReceivables = receivables?.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
