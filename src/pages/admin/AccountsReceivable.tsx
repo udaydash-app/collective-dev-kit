@@ -9,22 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
-import { useFiscalPeriod } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
-  const fiscalPeriod = useFiscalPeriod();
-  const asOfDate = fiscalPeriod.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: receivables, isLoading } = useQuery({
-    queryKey: ['accounts-receivable', asOfDate],
+    queryKey: ['accounts-receivable', 'till-date'],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchReceivablesLocal({ asOf: asOfDate });
+        // Always till-date — outstanding receivables are cumulative and
+        // must ignore the active fiscal period filter.
+        return await fetchReceivablesLocal({ asOf: null });
       } catch (e) {
         console.warn('[receivables] balance fetch failed', e);
         throw e;
