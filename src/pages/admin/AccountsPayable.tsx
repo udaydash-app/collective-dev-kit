@@ -9,22 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
-import { useFiscalPeriod } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsPayable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
-  const fiscalPeriod = useFiscalPeriod();
-  const asOfDate = fiscalPeriod.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: payables, isLoading } = useQuery({
-    queryKey: ['accounts-payable', asOfDate],
+    queryKey: ['accounts-payable', 'till-date'],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchPayablesLocal({ asOf: asOfDate });
+        // Always till-date — outstanding payables are cumulative and must
+        // ignore the active fiscal period filter.
+        return await fetchPayablesLocal({ asOf: null });
       } catch (e) {
         console.warn('[payables] balance fetch failed', e);
         throw e;
