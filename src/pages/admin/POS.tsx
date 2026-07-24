@@ -5183,6 +5183,23 @@ export default function POS() {
         }}
       />
 
+      <MarkAsDamageDialog
+        open={showDamageDialog}
+        onOpenChange={setShowDamageDialog}
+        items={cart}
+        storeId={selectedStoreId}
+        onSuccess={() => {
+          clearCart();
+          setCartDiscountItem(null);
+          setSelectedOfferItemIds([]);
+          setDiscount(0);
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+          queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+          queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+          queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+        }}
+      />
+
       {/* Customer Selection Dialog */}
       <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
