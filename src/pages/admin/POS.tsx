@@ -65,6 +65,7 @@ import html2canvas from 'html2canvas';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
+import { MarkAsDamageDialog } from '@/components/pos/MarkAsDamageDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
@@ -230,6 +231,7 @@ export default function POS() {
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
+  const [showDamageDialog, setShowDamageDialog] = useState(false);
   const [isWholesaleMode, setIsWholesaleMode] = useState(false);
   const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
   const [journalEntryDialogOpen, setJournalEntryDialogOpen] = useState(false);
@@ -3832,6 +3834,18 @@ export default function POS() {
       },
       shortcut: null
     },
+    {
+      icon: Trash2,
+      label: 'Damage',
+      color: 'bg-destructive',
+      action: () => {
+        if (cart.length === 0) { toast.error('Add products to the cart first'); return; }
+        if (editingOrderId) { toast.error('Finish or cancel the current edit before writing off damage'); return; }
+        if (!selectedStoreId) { toast.error('Select a store first'); return; }
+        setShowDamageDialog(true);
+      },
+      shortcut: null
+    },
     { 
       icon: Package, 
       label: 'Stock & Price', 
@@ -5166,6 +5180,23 @@ export default function POS() {
           setCartDiscountItem(null);
           setDiscount(0);
           queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+        }}
+      />
+
+      <MarkAsDamageDialog
+        open={showDamageDialog}
+        onOpenChange={setShowDamageDialog}
+        items={cart}
+        storeId={selectedStoreId}
+        onSuccess={() => {
+          clearCart();
+          setCartDiscountItem(null);
+          setSelectedOfferItemIds([]);
+          setDiscount(0);
+          queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+          queryClient.invalidateQueries({ queryKey: ['stock-products'] });
+          queryClient.invalidateQueries({ queryKey: ['products-stock-price'] });
+          queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
         }}
       />
 
