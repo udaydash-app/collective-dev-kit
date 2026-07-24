@@ -9,85 +9,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { useFiscalPeriod } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
+  const fiscalPeriod = useFiscalPeriod();
+  const asOfDate = fiscalPeriod.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: receivables, isLoading } = useQuery({
-    queryKey: ['accounts-receivable'],
+    queryKey: ['accounts-receivable', asOfDate],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchReceivablesLocal();
+        return await fetchReceivablesLocal({ asOf: asOfDate });
       } catch (e) {
-        console.warn('[receivables] local failed, falling back to supabase', e);
+        console.warn('[receivables] balance fetch failed', e);
+        throw e;
       }
-      const { data: contacts, error } = await supabase
-        .from('contacts')
-        .select(`
-          id,
-          name,
-          phone,
-          email,
-          credit_limit,
-          is_customer,
-          is_supplier,
-          customer_ledger_account_id,
-          supplier_ledger_account_id
-        `)
-        .eq('is_customer', true)
-        .order('name');
-
-      if (error) throw error;
-
-      // Calculate unified balance for each contact
-      const contactsWithBalance = await Promise.all(
-        contacts.map(async (contact) => {
-          let totalBalance = 0;
-
-          // Get customer ledger account balance directly
-          if (contact.customer_ledger_account_id) {
-            const { data: customerAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', contact.customer_ledger_account_id)
-              .single();
-
-            if (customerAccount) {
-              totalBalance = customerAccount.current_balance;
-            }
-          }
-
-          // If also a supplier, subtract their supplier balance (we owe them)
-          if (contact.is_supplier && contact.supplier_ledger_account_id) {
-            const { data: supplierAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', contact.supplier_ledger_account_id)
-              .single();
-
-            if (supplierAccount) {
-              totalBalance -= supplierAccount.current_balance;
-            }
-          }
-
-          return {
-            id: contact.id,
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email,
-            credit_limit: contact.credit_limit || 0,
-            balance: totalBalance,
-            isUnified: contact.is_supplier
-          };
-        })
-      );
-
-      // Show all customers with non-zero balances (positive = they owe us, negative = we owe them)
-      return contactsWithBalance.filter(c => c.balance !== 0);
     }
   });
 

@@ -378,79 +378,86 @@ export default function GeneralLedger() {
       }
 
       // Regular single account view
-      // Local-first fast path: compute everything from the local PowerSync
-      // mirror so the ledger works offline and opens instantly. Skip on any
-      // error and fall back to Supabase below.
-      try {
-        const {
-          fetchAccountByIdLocal,
-          fetchContactByLedgerAccountLocal,
-          fetchAccountLinesLocal,
-        } = await import('@/db/queries/accounting');
-        const localAccount = await fetchAccountByIdLocal(selectedAccount);
-        if (localAccount) {
-          const [localContact, currentLines, priorLines] = await Promise.all([
-            fetchContactByLedgerAccountLocal(selectedAccount),
-            fetchAccountLinesLocal(selectedAccount, { startDate, endDate }),
-            fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true })
-              .then((all) => all.filter((l: any) => l.journal_entries.entry_date < startDate)),
-          ]);
+      // Use the local mirror only when offline or inside the desktop local DB.
+      // In online PWA/browser sessions, Supabase is authoritative so General
+      // Ledger matches AR/AP immediately and never shows stale local balances.
+      const shouldUseLocalLedger =
+        typeof navigator === 'undefined' ||
+        !navigator.onLine ||
+        (typeof window !== 'undefined' && Boolean(window.electron?.isElectron && window.localDb));
 
-          let isContactAccount = false;
-          let contactOpeningBalance = 0;
-          if (localContact) {
-            if (localContact.customer_ledger_account_id === selectedAccount) {
-              contactOpeningBalance = Number(localContact.opening_balance || 0);
-              isContactAccount = true;
-            } else if (localContact.supplier_ledger_account_id === selectedAccount) {
-              contactOpeningBalance = Number(localContact.supplier_opening_balance || 0);
-              isContactAccount = true;
+      if (shouldUseLocalLedger) {
+        try {
+          const {
+            fetchAccountByIdLocal,
+            fetchContactByLedgerAccountLocal,
+            fetchAccountLinesLocal,
+          } = await import('@/db/queries/accounting');
+          const localAccount = await fetchAccountByIdLocal(selectedAccount);
+          if (localAccount) {
+            const [localContact, currentLines, priorLines] = await Promise.all([
+              fetchContactByLedgerAccountLocal(selectedAccount),
+              fetchAccountLinesLocal(selectedAccount, { startDate, endDate }),
+              fetchAccountLinesLocal(selectedAccount, { endDate: startDate, includePrior: true })
+                .then((all) => all.filter((l: any) => l.journal_entries.entry_date < startDate)),
+            ]);
+
+            let isContactAccount = false;
+            let contactOpeningBalance = 0;
+            if (localContact) {
+              if (localContact.customer_ledger_account_id === selectedAccount) {
+                contactOpeningBalance = Number(localContact.opening_balance || 0);
+                isContactAccount = true;
+              } else if (localContact.supplier_ledger_account_id === selectedAccount) {
+                contactOpeningBalance = Number(localContact.supplier_opening_balance || 0);
+                isContactAccount = true;
+              }
             }
+
+            const sumDR = (rows: any[]) => rows.reduce((s, l) => s + Number(l.debit_amount || 0), 0);
+            const sumCR = (rows: any[]) => rows.reduce((s, l) => s + Number(l.credit_amount || 0), 0);
+
+            const priorBalance = (() => {
+              const t = localAccount.account_type;
+              if (t === 'asset' || t === 'expense') return sumDR(priorLines) - sumCR(priorLines);
+              return sumCR(priorLines) - sumDR(priorLines);
+            })();
+
+            const accountOpeningBalance = Number(localAccount.opening_balance || 0);
+            const openingBalance = isContactAccount
+              ? contactOpeningBalance + priorBalance
+              : accountOpeningBalance + priorBalance;
+
+            const allLines = [...priorLines, ...currentLines];
+            const allDebits = sumDR(allLines);
+            const allCredits = sumCR(allLines);
+
+            let currentBalance: number;
+            if (isContactAccount) {
+              currentBalance = localAccount.account_type === 'asset'
+                ? contactOpeningBalance + allDebits - allCredits
+                : contactOpeningBalance + allCredits - allDebits;
+            } else if (['asset', 'expense'].includes(localAccount.account_type)) {
+              currentBalance = accountOpeningBalance + allDebits - allCredits;
+            } else {
+              currentBalance = accountOpeningBalance + allCredits - allDebits;
+            }
+
+            const sorted = currentLines.slice().sort(
+              (a: any, b: any) =>
+                new Date(a.journal_entries.entry_date).getTime() -
+                new Date(b.journal_entries.entry_date).getTime(),
+            );
+            sorted.forEach((l: any) => { (l as any).display_notes = l.journal_entries.notes; });
+
+            return {
+              lines: sorted,
+              account: { ...localAccount, opening_balance: openingBalance, current_balance: currentBalance, isContactAccount },
+            };
           }
-
-          const sumDR = (rows: any[]) => rows.reduce((s, l) => s + Number(l.debit_amount || 0), 0);
-          const sumCR = (rows: any[]) => rows.reduce((s, l) => s + Number(l.credit_amount || 0), 0);
-
-          const priorBalance = (() => {
-            const t = localAccount.account_type;
-            if (t === 'asset' || t === 'expense') return sumDR(priorLines) - sumCR(priorLines);
-            return sumCR(priorLines) - sumDR(priorLines);
-          })();
-
-          const accountOpeningBalance = Number(localAccount.opening_balance || 0);
-          const openingBalance = isContactAccount
-            ? contactOpeningBalance + priorBalance
-            : accountOpeningBalance + priorBalance;
-
-          const allLines = [...priorLines, ...currentLines];
-          const allDebits = sumDR(allLines);
-          const allCredits = sumCR(allLines);
-
-          let currentBalance: number;
-          if (isContactAccount) {
-            currentBalance = localAccount.account_type === 'asset'
-              ? contactOpeningBalance + allDebits - allCredits
-              : contactOpeningBalance + allCredits - allDebits;
-          } else if (['asset', 'expense'].includes(localAccount.account_type)) {
-            currentBalance = accountOpeningBalance + allDebits - allCredits;
-          } else {
-            currentBalance = accountOpeningBalance + allCredits - allDebits;
-          }
-
-          const sorted = currentLines.slice().sort(
-            (a: any, b: any) =>
-              new Date(a.journal_entries.entry_date).getTime() -
-              new Date(b.journal_entries.entry_date).getTime(),
-          );
-          sorted.forEach((l: any) => { (l as any).display_notes = l.journal_entries.notes; });
-
-          return {
-            lines: sorted,
-            account: { ...localAccount, opening_balance: openingBalance, current_balance: currentBalance, isContactAccount },
-          };
+        } catch (e) {
+          console.warn('[GeneralLedger] local compute failed, using Supabase', e);
         }
-      } catch (e) {
-        console.warn('[GeneralLedger] local-first compute failed, using Supabase', e);
       }
 
       // Exclude opening balance entries from display since opening balance is shown separately

@@ -9,72 +9,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { useFiscalPeriod } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsPayable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
+  const fiscalPeriod = useFiscalPeriod();
+  const asOfDate = fiscalPeriod.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: payables, isLoading } = useQuery({
-    queryKey: ['accounts-payable'],
+    queryKey: ['accounts-payable', asOfDate],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchPayablesLocal();
+        return await fetchPayablesLocal({ asOf: asOfDate });
       } catch (e) {
-        console.warn('[payables] local failed, falling back to supabase', e);
+        console.warn('[payables] balance fetch failed', e);
+        throw e;
       }
-      const { data: contacts, error } = await supabase
-        .from('contacts')
-        .select(`
-          id,
-          name,
-          phone,
-          email,
-          is_customer,
-          is_supplier,
-          customer_ledger_account_id,
-          supplier_ledger_account_id,
-          accounts!contacts_supplier_ledger_account_id_fkey(
-            current_balance
-          )
-        `)
-        .eq('is_supplier', true)
-        .order('name');
-
-      if (error) throw error;
-
-      // Calculate unified balance for each contact
-      const contactsWithBalance = await Promise.all(
-        contacts.map(async (contact) => {
-          let totalBalance = contact.accounts?.current_balance || 0;
-
-          // If also a customer, subtract their customer balance (they owe us, reduces what we owe)
-          if (contact.is_customer && contact.customer_ledger_account_id) {
-            const { data: customerAccount } = await supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', contact.customer_ledger_account_id)
-              .single();
-
-            if (customerAccount) {
-              totalBalance -= customerAccount.current_balance;
-            }
-          }
-
-          return {
-            id: contact.id,
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email,
-            balance: totalBalance,
-            isUnified: contact.is_customer
-          };
-        })
-      );
-
-      return contactsWithBalance.filter(c => c.balance > 0); // Positive balance in liability account means we owe them
     }
   });
 
