@@ -9,19 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { readFiscalPeriodBoundsSync } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsPayable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
+  const fiscalBounds = readFiscalPeriodBoundsSync();
+  const asOfDate = fiscalBounds.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: payables, isLoading } = useQuery({
-    queryKey: ['accounts-payable'],
+    queryKey: ['accounts-payable', asOfDate],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchPayablesLocal();
+        return await fetchPayablesLocal({ asOf: asOfDate });
       } catch (e) {
         console.warn('[payables] local failed, falling back to supabase', e);
       }
