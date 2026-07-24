@@ -586,11 +586,16 @@ export async function fetchPayablesLocal(opts: { asOf?: string | null } = {}): P
 function buildReceivables(contacts: Row[], balances: Map<string, number>): any[] {
   return contacts
     .map((c) => {
-      // Show the customer ledger balance exactly as it appears in the
-      // General Ledger. Dual-role contacts (also a supplier) keep a
-      // separate supplier ledger — do NOT net them here or AR will
-      // silently diverge from the per-account GL view.
-      const bal = balances.get(c.customer_ledger_account_id) ?? 0;
+      // Match General Ledger 1:1. GL renders dual-role contacts as a
+      // single "Combined View" account whose balance is
+      // (customer ledger − supplier ledger). Mirror that here so AR
+      // matches GL for both single-role and dual-role contacts.
+      const customerBal = balances.get(c.customer_ledger_account_id) ?? 0;
+      const supplierBal = toBool(c.is_supplier) && c.supplier_ledger_account_id
+        ? (balances.get(c.supplier_ledger_account_id) ?? 0)
+        : 0;
+      const isDual = toBool(c.is_supplier) && !!c.supplier_ledger_account_id;
+      const bal = isDual ? customerBal - supplierBal : customerBal;
       return {
         id: c.id,
         name: c.name,
@@ -598,7 +603,7 @@ function buildReceivables(contacts: Row[], balances: Map<string, number>): any[]
         email: c.email,
         credit_limit: c.credit_limit || 0,
         balance: bal,
-        isUnified: toBool(c.is_supplier) && !!c.supplier_ledger_account_id,
+        isUnified: isDual,
       };
     })
     .filter((c) => c.balance !== 0);
@@ -607,15 +612,22 @@ function buildReceivables(contacts: Row[], balances: Map<string, number>): any[]
 function buildPayables(contacts: Row[], balances: Map<string, number>): any[] {
   return contacts
     .map((c) => {
-      // Match General Ledger 1:1 — show the supplier ledger balance as-is.
-      const bal = balances.get(c.supplier_ledger_account_id) ?? 0;
+      // Match General Ledger 1:1. Dual-role contacts show the netted
+      // supplier − customer balance so AP matches the Combined View
+      // that GL renders for the same contact.
+      const supplierBal = balances.get(c.supplier_ledger_account_id) ?? 0;
+      const customerBal = toBool(c.is_customer) && c.customer_ledger_account_id
+        ? (balances.get(c.customer_ledger_account_id) ?? 0)
+        : 0;
+      const isDual = toBool(c.is_customer) && !!c.customer_ledger_account_id;
+      const bal = isDual ? supplierBal - customerBal : supplierBal;
       return {
         id: c.id,
         name: c.name,
         phone: c.phone,
         email: c.email,
         balance: bal,
-        isUnified: toBool(c.is_customer) && !!c.customer_ledger_account_id,
+        isUnified: isDual,
       };
     })
     .filter((c) => c.balance > 0);
