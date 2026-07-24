@@ -500,7 +500,7 @@ export async function fetchPurchasesLocal(): Promise<any[]> {
 // Build unified receivables/payables list from local contacts + accounts.
 // Matches existing logic in AccountsReceivable/Payable pages (uses
 // accounts.current_balance as the source of truth).
-export async function fetchReceivablesLocal(): Promise<any[]> {
+export async function fetchReceivablesLocal(opts: { asOf?: string | null } = {}): Promise<any[]> {
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const { data, error } = await supabase
@@ -521,6 +521,7 @@ export async function fetchReceivablesLocal(): Promise<any[]> {
       if (error) throw error;
       return buildReceivables(data ?? [], await loadBalancesCloud(
         (data ?? []).flatMap((c: any) => [c.customer_ledger_account_id, c.supplier_ledger_account_id]).filter(Boolean),
+        opts.asOf ?? null,
       ));
     } catch (e) {
       console.warn('[receivables] cloud fetch failed, using local mirror', e);
@@ -537,11 +538,11 @@ export async function fetchReceivablesLocal(): Promise<any[]> {
   const ids = contacts
     .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
     .filter(Boolean);
-  const balances = await loadBalancesLocal(db, ids);
+  const balances = await loadBalancesLocal(db, ids, opts.asOf ?? null);
   return buildReceivables(contacts, balances);
 }
 
-export async function fetchPayablesLocal(): Promise<any[]> {
+export async function fetchPayablesLocal(opts: { asOf?: string | null } = {}): Promise<any[]> {
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const { data, error } = await supabase
@@ -561,6 +562,7 @@ export async function fetchPayablesLocal(): Promise<any[]> {
       if (error) throw error;
       return buildPayables(data ?? [], await loadBalancesCloud(
         (data ?? []).flatMap((c: any) => [c.customer_ledger_account_id, c.supplier_ledger_account_id]).filter(Boolean),
+        opts.asOf ?? null,
       ));
     } catch (e) {
       console.warn('[payables] cloud fetch failed, using local mirror', e);
@@ -577,7 +579,7 @@ export async function fetchPayablesLocal(): Promise<any[]> {
   const ids = contacts
     .flatMap((c) => [c.customer_ledger_account_id, c.supplier_ledger_account_id])
     .filter(Boolean);
-  const balances = await loadBalancesLocal(db, ids);
+  const balances = await loadBalancesLocal(db, ids, opts.asOf ?? null);
   return buildPayables(contacts, balances);
 }
 
@@ -620,10 +622,88 @@ function buildPayables(contacts: Row[], balances: Map<string, number>): any[] {
     .filter((c) => c.balance > 0);
 }
 
-async function loadBalancesCloud(ids: string[]): Promise<Map<string, number>> {
+async function loadBalancesCloud(ids: string[], asOf: string | null = null): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
+  if (asOf) {
+    const chunkSize = 100;
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      const chunk = unique.slice(i, i + chunkSize);
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('id, opening_balance, account_type')
+        .in('id', chunk);
+      if (accountsError) throw accountsError;
+
+      const { data: customerOpenings, error: customerOpeningsError } = await supabase
+        .from('contacts')
+        .select('customer_ledger_account_id, opening_balance')
+        .in('customer_ledger_account_id', chunk);
+      if (customerOpeningsError) throw customerOpeningsError;
+
+      const { data: supplierOpenings, error: supplierOpeningsError } = await supabase
+        .from('contacts')
+        .select('supplier_ledger_account_id, supplier_opening_balance')
+        .in('supplier_ledger_account_id', chunk);
+      if (supplierOpeningsError) throw supplierOpeningsError;
+
+      const openingByAccount = new Map<string, number>();
+      for (const row of (customerOpenings ?? []) as Row[]) {
+        if (row.customer_ledger_account_id) {
+          openingByAccount.set(row.customer_ledger_account_id, Number(row.opening_balance) || 0);
+        }
+      }
+      for (const row of (supplierOpenings ?? []) as Row[]) {
+        if (row.supplier_ledger_account_id) {
+          openingByAccount.set(row.supplier_ledger_account_id, Number(row.supplier_opening_balance) || 0);
+        }
+      }
+
+      const movement = new Map<string, number>();
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: lines, error: linesError } = await supabase
+          .from('journal_entry_lines')
+          .select(`
+            account_id,
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              entry_date,
+              description,
+              status
+            )
+          `)
+          .in('account_id', chunk)
+          .eq('journal_entries.status', 'posted')
+          .not('journal_entries.description', 'ilike', '%opening balance%')
+          .lte('journal_entries.entry_date', asOf)
+          .range(from, from + pageSize - 1);
+        if (linesError) throw linesError;
+        const rows = (lines ?? []) as Row[];
+        for (const line of rows) {
+          const previous = movement.get(line.account_id) ?? 0;
+          movement.set(line.account_id, previous + (Number(line.debit_amount) || 0) - (Number(line.credit_amount) || 0));
+        }
+        if (rows.length < pageSize) break;
+      }
+
+      for (const account of (accounts ?? []) as Row[]) {
+        const opening = openingByAccount.has(account.id)
+          ? (openingByAccount.get(account.id) || 0)
+          : (Number(account.opening_balance) || 0);
+        const delta = movement.get(account.id) ?? 0;
+        const debitNormal = account.account_type === 'asset' || account.account_type === 'expense';
+        map.set(account.id, debitNormal ? opening + delta : opening - delta);
+      }
+      for (const id of chunk) {
+        if (!map.has(id)) map.set(id, 0);
+      }
+    }
+    return map;
+  }
+
   // Chunk to keep payload small; the RPC computes opening_balance + posted
   // journal-line movement server-side so we avoid fragile client-side
   // pagination over journal_entry_lines.
@@ -641,11 +721,21 @@ async function loadBalancesCloud(ids: string[]): Promise<Map<string, number>> {
   return map;
 }
 
-async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, number>> {
+async function loadBalancesLocal(db: any, ids: string[], asOf: string | null = null): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (ids.length === 0) return map;
   const unique = Array.from(new Set(ids));
   const ph = unique.map(() => "?").join(",");
+  const lineClauses = [
+    `l.account_id IN (${ph})`,
+    `e.status = 'posted'`,
+    `COALESCE(LOWER(e.description), '') NOT LIKE '%opening balance%'`,
+  ];
+  const lineArgs: unknown[] = [...unique];
+  if (asOf) {
+    lineClauses.push(`e.entry_date <= ?`);
+    lineArgs.push(asOf);
+  }
   // Authoritative balance: opening balance (from contacts for
   // customer/supplier ledgers, else accounts.opening_balance) +
   // sum(debits - credits) from POSTED journal entry lines, excluding
@@ -662,11 +752,9 @@ async function loadBalancesLocal(db: any, ids: string[]): Promise<Map<string, nu
             COALESCE(SUM(l.credit_amount), 0) AS c
      FROM journal_entry_lines l
      JOIN journal_entries e ON e.id = l.journal_entry_id
-     WHERE l.account_id IN (${ph})
-       AND e.status = 'posted'
-       AND COALESCE(LOWER(e.description), '') NOT LIKE '%opening balance%'
+     WHERE ${lineClauses.join(' AND ')}
      GROUP BY l.account_id`,
-    unique,
+    lineArgs,
   );
   const contactOpenRes: any = await db.getAll(
     `SELECT customer_ledger_account_id AS account_id, COALESCE(opening_balance, 0) AS opening
