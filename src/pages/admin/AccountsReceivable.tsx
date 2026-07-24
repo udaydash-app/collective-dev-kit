@@ -9,13 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
-import { readFiscalPeriodBoundsSync } from "@/contexts/FiscalPeriodContext";
+import { useFiscalPeriod } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
-  const fiscalBounds = readFiscalPeriodBoundsSync();
-  const asOfDate = fiscalBounds.effectiveTo ?? new Date().toISOString().split('T')[0];
+  const fiscalPeriod = useFiscalPeriod();
+  const asOfDate = fiscalPeriod.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: receivables, isLoading } = useQuery({
     queryKey: ['accounts-receivable', asOfDate],
