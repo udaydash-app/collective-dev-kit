@@ -65,6 +65,7 @@ import html2canvas from 'html2canvas';
 import { TransactionCart } from '@/components/pos/TransactionCart';
 import { AssignBarcodeDialog } from '@/components/pos/AssignBarcodeDialog';
 import { RefundDialog } from '@/components/pos/RefundDialog';
+import { MarkAsDamageDialog } from '@/components/pos/MarkAsDamageDialog';
 import { CustomPriceDialog } from '@/components/pos/CustomPriceDialog';
 import { WalkieTalkieButton } from '@/components/chat/WalkieTalkie';
 import { JournalEntryViewDialog } from '@/components/pos/JournalEntryViewDialog';
@@ -230,6 +231,7 @@ export default function POS() {
   const [assignBarcodeOpen, setAssignBarcodeOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showRefund, setShowRefund] = useState(false);
+  const [showDamageDialog, setShowDamageDialog] = useState(false);
   const [isWholesaleMode, setIsWholesaleMode] = useState(false);
   const [originalRetailPrices, setOriginalRetailPrices] = useState<Map<string, number>>(new Map());
   const [journalEntryDialogOpen, setJournalEntryDialogOpen] = useState(false);
