@@ -3834,6 +3834,18 @@ export default function POS() {
       },
       shortcut: null
     },
+    {
+      icon: Trash2,
+      label: 'Damage',
+      color: 'bg-destructive',
+      action: () => {
+        if (cart.length === 0) { toast.error('Add products to the cart first'); return; }
+        if (editingOrderId) { toast.error('Finish or cancel the current edit before writing off damage'); return; }
+        if (!selectedStoreId) { toast.error('Select a store first'); return; }
+        setShowDamageDialog(true);
+      },
+      shortcut: null
+    },
     { 
       icon: Package, 
       label: 'Stock & Price', 
