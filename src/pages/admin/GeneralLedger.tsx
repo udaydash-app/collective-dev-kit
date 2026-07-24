@@ -55,7 +55,10 @@ export default function GeneralLedger() {
   const [startDate, setStartDate] = useState(
     _fp.effectiveFrom ?? new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]
   );
-  const [endDate, setEndDate] = useState(_fp.effectiveTo ?? new Date().toISOString().split('T')[0]);
+  // Default end date to today (not fiscal-period end) so General Ledger
+  // balances always match Accounts Receivable/Payable, which show
+  // till-date balances. Users can still narrow the range via the picker.
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
 
   // Set selected account from URL parameter
