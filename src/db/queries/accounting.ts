@@ -586,10 +586,11 @@ export async function fetchPayablesLocal(opts: { asOf?: string | null } = {}): P
 function buildReceivables(contacts: Row[], balances: Map<string, number>): any[] {
   return contacts
     .map((c) => {
-      let bal = balances.get(c.customer_ledger_account_id) ?? 0;
-      if (toBool(c.is_supplier) && c.supplier_ledger_account_id) {
-        bal -= balances.get(c.supplier_ledger_account_id) ?? 0;
-      }
+      // Show the customer ledger balance exactly as it appears in the
+      // General Ledger. Dual-role contacts (also a supplier) keep a
+      // separate supplier ledger — do NOT net them here or AR will
+      // silently diverge from the per-account GL view.
+      const bal = balances.get(c.customer_ledger_account_id) ?? 0;
       return {
         id: c.id,
         name: c.name,
@@ -597,7 +598,7 @@ function buildReceivables(contacts: Row[], balances: Map<string, number>): any[]
         email: c.email,
         credit_limit: c.credit_limit || 0,
         balance: bal,
-        isUnified: toBool(c.is_supplier),
+        isUnified: toBool(c.is_supplier) && !!c.supplier_ledger_account_id,
       };
     })
     .filter((c) => c.balance !== 0);
@@ -606,17 +607,15 @@ function buildReceivables(contacts: Row[], balances: Map<string, number>): any[]
 function buildPayables(contacts: Row[], balances: Map<string, number>): any[] {
   return contacts
     .map((c) => {
-      let bal = balances.get(c.supplier_ledger_account_id) ?? 0;
-      if (toBool(c.is_customer) && c.customer_ledger_account_id) {
-        bal -= balances.get(c.customer_ledger_account_id) ?? 0;
-      }
+      // Match General Ledger 1:1 — show the supplier ledger balance as-is.
+      const bal = balances.get(c.supplier_ledger_account_id) ?? 0;
       return {
         id: c.id,
         name: c.name,
         phone: c.phone,
         email: c.email,
         balance: bal,
-        isUnified: toBool(c.is_customer),
+        isUnified: toBool(c.is_customer) && !!c.customer_ledger_account_id,
       };
     })
     .filter((c) => c.balance > 0);
