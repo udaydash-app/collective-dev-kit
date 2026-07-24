@@ -9,19 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency } from "@/lib/utils";
+import { readFiscalPeriodBoundsSync } from "@/contexts/FiscalPeriodContext";
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
+  const fiscalBounds = readFiscalPeriodBoundsSync();
+  const asOfDate = fiscalBounds.effectiveTo ?? new Date().toISOString().split('T')[0];
 
   const { data: receivables, isLoading } = useQuery({
-    queryKey: ['accounts-receivable'],
+    queryKey: ['accounts-receivable', asOfDate],
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     queryFn: async () => {
       try {
-        return await fetchReceivablesLocal();
+        return await fetchReceivablesLocal({ asOf: asOfDate });
       } catch (e) {
         console.warn('[receivables] local failed, falling back to supabase', e);
       }
