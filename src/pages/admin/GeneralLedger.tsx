@@ -784,52 +784,19 @@ export default function GeneralLedger() {
     ? [...chronologicalLedgerEntries].reverse()
     : chronologicalLedgerEntries;
 
-  // Calculate total debits and credits from all lines
-  // For unified accounts, sum customer debits/credits and supplier debits/credits separately
+  // Calculate total debits and credits from the displayed ledger rows.
+  // Unified customer/supplier views still contain normal debit/credit columns,
+  // so totals must include both sides exactly as shown in the entries table.
   const accountData = ledgerData?.account as any;
-  const isUnified = accountData?.isUnified;
-  
-  let totalDebit = 0;
-  let totalCredit = 0;
-  
-  if (isUnified) {
-    // For unified view: sum all customer account activity and supplier account activity
-    const customerDebits = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.sourceType === 'receivable' ? line.debit_amount : 0),
-      0
-    ) || 0;
-    
-    const customerCredits = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.sourceType === 'receivable' ? line.credit_amount : 0),
-      0
-    ) || 0;
-    
-    const supplierDebits = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.sourceType === 'payable' ? line.debit_amount : 0),
-      0
-    ) || 0;
-    
-    const supplierCredits = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.sourceType === 'payable' ? line.credit_amount : 0),
-      0
-    ) || 0;
-    
-    // Total Debit = Customer opening + all customer debits
-    // Total Credit = Supplier opening + all supplier credits
-    totalDebit = (accountData?.customer_opening_balance || 0) + customerDebits;
-    totalCredit = (accountData?.supplier_opening_balance || 0) + supplierCredits;
-  } else {
-    // For regular accounts, sum all debits and credits
-    totalDebit = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.debit_amount || 0),
-      0
-    ) || 0;
-    
-    totalCredit = (ledgerData?.lines as any[])?.reduce(
-      (sum: number, line: any) => sum + (line.credit_amount || 0),
-      0
-    ) || 0;
-  }
+  const totalDebit = (ledgerData?.lines as any[])?.reduce(
+    (sum: number, line: any) => sum + Number(line.debit_amount || 0),
+    0
+  ) || 0;
+
+  const totalCredit = (ledgerData?.lines as any[])?.reduce(
+    (sum: number, line: any) => sum + Number(line.credit_amount || 0),
+    0
+  ) || 0;
 
   const netChange = totalDebit - totalCredit;
 
