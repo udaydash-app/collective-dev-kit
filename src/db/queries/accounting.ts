@@ -677,11 +677,13 @@ async function loadBalancesCloud(ids: string[], asOf: string | null = null): Pro
           `)
           .in('account_id', chunk)
           .eq('journal_entries.status', 'posted')
-          .not('journal_entries.description', 'ilike', '%opening balance%')
           .lte('journal_entries.entry_date', asOf)
           .range(from, from + pageSize - 1);
         if (linesError) throw linesError;
-        const rows = (lines ?? []) as Row[];
+        const rows = ((lines ?? []) as Row[]).filter((line) => {
+          const description = String(line.journal_entries?.description ?? '').toLowerCase();
+          return !description.includes('opening balance');
+        });
         for (const line of rows) {
           const previous = movement.get(line.account_id) ?? 0;
           movement.set(line.account_id, previous + (Number(line.debit_amount) || 0) - (Number(line.credit_amount) || 0));
