@@ -70,6 +70,7 @@ import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
+import { getContactLedgerBalance } from "@/lib/customerLedgerBalance";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
@@ -574,63 +575,17 @@ export default function AdminOrders() {
     if (!customerName || customerName === 'Walk-in Customer') return undefined;
 
     try {
-      // Find the contact by name - check if they're both customer and supplier
+      // Find the contact by name
       const { data: contact } = await supabase
         .from('contacts')
-        .select('customer_ledger_account_id, supplier_ledger_account_id, is_customer, is_supplier')
+        .select('id')
         .eq('name', customerName)
         .maybeSingle();
-
       if (!contact) return undefined;
 
-      let totalBalance = 0;
-
-      // Fetch customer balance if they are a customer
-      if (contact.is_customer && contact.customer_ledger_account_id) {
-        const { data: customerLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              status
-            )
-          `)
-          .eq('account_id', contact.customer_ledger_account_id)
-          .eq('journal_entries.status', 'posted');
-
-        if (customerLines && customerLines.length > 0) {
-          const customerBalance = customerLines.reduce((sum, line) => {
-            return sum + (line.debit_amount - line.credit_amount);
-          }, 0);
-          totalBalance += customerBalance;
-        }
-      }
-
-      // Fetch supplier balance if they are also a supplier (unified balance)
-      if (contact.is_supplier && contact.supplier_ledger_account_id) {
-        const { data: supplierLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              status
-            )
-          `)
-          .eq('account_id', contact.supplier_ledger_account_id)
-          .eq('journal_entries.status', 'posted');
-
-        if (supplierLines && supplierLines.length > 0) {
-          const supplierBalance = supplierLines.reduce((sum, line) => {
-            return sum + (line.debit_amount - line.credit_amount);
-          }, 0);
-          // Add supplier balance (already negative if we owe them) for unified view
-          totalBalance += supplierBalance;
-        }
-      }
-
-      return totalBalance;
+      // Use the same computation as General Ledger (journal_entry_lines + opening balances)
+      const ledger = await getContactLedgerBalance(contact.id);
+      return ledger?.displayBalance ?? undefined;
     } catch (error) {
       console.error('Error fetching customer balance:', error);
       return undefined;

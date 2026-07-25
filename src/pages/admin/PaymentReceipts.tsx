@@ -20,6 +20,7 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import PendingBillsDialog from '@/components/admin/PendingBillsDialog';
 import { fetchActiveStoresLocal } from '@/db/queries/accounting';
 import { fetchPaymentReceiptsLocal, fetchCustomersLocal } from '@/db/queries/payments';
+import { getContactLedgerBalance } from '@/lib/customerLedgerBalance';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,26 +80,8 @@ export default function PaymentReceipts() {
     queryKey: ['customer-balance', formData.contact_id],
     enabled: !!formData.contact_id,
     queryFn: async () => {
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('customer_ledger_account_id, opening_balance')
-        .eq('id', formData.contact_id)
-        .single();
-
-      if (!contact?.customer_ledger_account_id) {
-        return Number(contact?.opening_balance || 0);
-      }
-
-      const { data: lines } = await supabase
-        .from('journal_entry_lines')
-        .select('debit_amount, credit_amount')
-        .eq('account_id', contact.customer_ledger_account_id);
-
-      const total = (lines || []).reduce(
-        (sum, l: any) => sum + (Number(l.debit_amount) || 0) - (Number(l.credit_amount) || 0),
-        0
-      );
-      return total + Number(contact?.opening_balance || 0);
+      const ledger = await getContactLedgerBalance(formData.contact_id);
+      return ledger?.displayBalance ?? 0;
     },
   });
 

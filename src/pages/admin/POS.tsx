@@ -79,6 +79,7 @@ import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { fetchCompanySettings, resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
+import { getContactLedgerBalance } from "@/lib/customerLedgerBalance";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -3124,38 +3125,11 @@ export default function POS() {
       // Only fetch balance if payment was on credit
       const hasCreditPayment = payments.some(p => p.method === 'credit');
       if (hasCreditPayment && selectedCustomer?.customer_ledger_account_id) {
-        const isUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
-        
-        // Parallel fetch for dual-role customers
-        if (isUnifiedBalance && selectedCustomer.supplier_ledger_account_id) {
-          const [customerResult, supplierResult] = await Promise.all([
-            supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', selectedCustomer.customer_ledger_account_id)
-              .single(),
-            supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', selectedCustomer.supplier_ledger_account_id)
-              .single()
-          ]);
-          
-          if (customerResult.data && supplierResult.data) {
-            transactionDataPrep.customerBalance = customerResult.data.current_balance - supplierResult.data.current_balance;
-            transactionDataPrep.isUnifiedBalance = true;
-          }
-        } else {
-          // Single account fetch
-          const { data: customerAccount } = await supabase
-            .from('accounts')
-            .select('current_balance')
-            .eq('id', selectedCustomer.customer_ledger_account_id)
-            .single();
-          
-          if (customerAccount) {
-            transactionDataPrep.customerBalance = customerAccount.current_balance;
-          }
+        // Authoritative balance from journal_entry_lines (matches General Ledger)
+        const ledger = await getContactLedgerBalance(selectedCustomer.id);
+        if (ledger && ledger.displayBalance !== null) {
+          transactionDataPrep.customerBalance = ledger.displayBalance;
+          transactionDataPrep.isUnifiedBalance = ledger.isUnified;
         }
       }
       
@@ -3440,43 +3414,15 @@ export default function POS() {
           console.log('📄 [LAST RECEIPT] Contact name:', customerName);
           console.log('📄 [LAST RECEIPT] Is unified?', isUnifiedBalance);
           
-          // Fetch current balance directly from accounts table instead of calculating from journal entries
-          if (contact.is_customer && contact.customer_ledger_account_id) {
-            console.log('📄 [LAST RECEIPT] Fetching balance from account:', contact.customer_ledger_account_id);
-            
-            const { data: customerAccount, error: accountError } = await supabase
-              .from('accounts')
-              .select('current_balance, account_name')
-              .eq('id', contact.customer_ledger_account_id)
-              .single();
-
-            console.log('📄 [LAST RECEIPT] Account data:', customerAccount, 'Error:', accountError);
-
-            if (customerAccount) {
-              customerBalance = customerAccount.current_balance;
-              console.log('📄 [LAST RECEIPT] Customer balance from account:', customerBalance);
-              
-              // If dual-role (customer & supplier), calculate unified balance
-              if (contact.is_supplier && contact.supplier_ledger_account_id) {
-                console.log('📄 [LAST RECEIPT] Contact is dual-role, fetching supplier balance from:', contact.supplier_ledger_account_id);
-                
-                const { data: supplierAccount, error: supplierError } = await supabase
-                  .from('accounts')
-                  .select('current_balance, account_name')
-                  .eq('id', contact.supplier_ledger_account_id)
-                  .single();
-
-                console.log('📄 [LAST RECEIPT] Supplier account data:', supplierAccount, 'Error:', supplierError);
-
-                if (supplierAccount) {
-                  const originalBalance = customerBalance;
-                  // Unified balance: customer receivable minus supplier payable
-                  customerBalance = customerBalance - supplierAccount.current_balance;
-                  console.log('📄 [LAST RECEIPT] Unified balance calculated:', originalBalance, '-', supplierAccount.current_balance, '=', customerBalance);
-                }
-              }
+          // Authoritative balance from journal_entry_lines (matches General Ledger)
+          const ledger = await getContactLedgerBalance(transaction.customer_id);
+          if (ledger) {
+            isUnifiedBalance = ledger.isUnified;
+            if (ledger.displayBalance !== null) {
+              customerBalance = ledger.displayBalance;
             }
           }
+          console.log('📄 [LAST RECEIPT] Ledger balance:', customerBalance, 'unified?', isUnifiedBalance);
         }
       }
       

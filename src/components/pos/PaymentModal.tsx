@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { kioskPrintService } from '@/lib/kioskPrint';
+import { getContactLedgerBalance } from '@/lib/customerLedgerBalance';
 
 interface Payment {
   id: string;
@@ -107,59 +108,8 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
     queryKey: ['customer-balance', selectedCustomer],
     queryFn: async () => {
       if (!selectedCustomer) return 0;
-      
-      const customer = customers?.find(c => c.id === selectedCustomer);
-      if (!customer) return 0;
-
-      let totalBalance = 0;
-
-      // Calculate balance from posted journal entries for customer account
-      if (customer.customer_ledger_account_id) {
-        const { data: customerLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              status
-            )
-          `)
-          .eq('account_id', customer.customer_ledger_account_id)
-          .eq('journal_entries.status', 'posted');
-
-        if (customerLines && customerLines.length > 0) {
-          // Customer account balance = debit - credit (receivable)
-          const custReceivableBalance = customerLines.reduce((sum, line) => {
-            return sum + (line.debit_amount - line.credit_amount);
-          }, 0);
-          totalBalance = custReceivableBalance;
-        }
-      }
-
-      // If also a supplier, subtract supplier balance from posted journal entries
-      if (customer.is_supplier && customer.supplier_ledger_account_id) {
-        const { data: supplierLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              status
-            )
-          `)
-          .eq('account_id', customer.supplier_ledger_account_id)
-          .eq('journal_entries.status', 'posted');
-
-        if (supplierLines && supplierLines.length > 0) {
-          // Supplier account balance = credit - debit (payable)
-          const suppPayableBalance = supplierLines.reduce((sum, line) => {
-            return sum + (line.credit_amount - line.debit_amount);
-          }, 0);
-          totalBalance -= suppPayableBalance;
-        }
-      }
-
-      return totalBalance;
+      const ledger = await getContactLedgerBalance(selectedCustomer);
+      return ledger?.displayBalance ?? 0;
     },
     enabled: !!selectedCustomer,
   });
