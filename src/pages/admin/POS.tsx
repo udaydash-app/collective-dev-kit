@@ -79,6 +79,7 @@ import { useReactToPrint } from 'react-to-print';
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { fetchCompanySettings, resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
+import { getContactLedgerBalance } from "@/lib/customerLedgerBalance";
 import {
   DropdownMenu,
   DropdownMenuContent,
