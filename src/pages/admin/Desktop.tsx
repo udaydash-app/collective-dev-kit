@@ -105,6 +105,7 @@ export default function Desktop() {
     } catch {}
     localStorage.removeItem('offline_pos_session');
     sessionStorage.removeItem('current_pos_pin');
+    localStorage.removeItem('current_pos_pin');
     windowActions.closeAll();
     toast.success('Logged out');
     navigate('/pos-login');
