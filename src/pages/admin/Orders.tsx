@@ -70,6 +70,7 @@ import jsPDF from "jspdf";
 import { qzTrayService } from "@/lib/qzTray";
 import { kioskPrintService } from "@/lib/kioskPrint";
 import { resolveLogoForOutput, waitForImagesToLoad } from "@/lib/pdfBranding";
+import { getContactLedgerBalance } from "@/lib/customerLedgerBalance";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { fetchAdminOrdersLocal } from "@/db/queries/orders";
 import { shouldUseLocalData } from "@/lib/localModeHelper";
