@@ -3125,38 +3125,11 @@ export default function POS() {
       // Only fetch balance if payment was on credit
       const hasCreditPayment = payments.some(p => p.method === 'credit');
       if (hasCreditPayment && selectedCustomer?.customer_ledger_account_id) {
-        const isUnifiedBalance = selectedCustomer.is_supplier && selectedCustomer.is_customer;
-        
-        // Parallel fetch for dual-role customers
-        if (isUnifiedBalance && selectedCustomer.supplier_ledger_account_id) {
-          const [customerResult, supplierResult] = await Promise.all([
-            supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', selectedCustomer.customer_ledger_account_id)
-              .single(),
-            supabase
-              .from('accounts')
-              .select('current_balance')
-              .eq('id', selectedCustomer.supplier_ledger_account_id)
-              .single()
-          ]);
-          
-          if (customerResult.data && supplierResult.data) {
-            transactionDataPrep.customerBalance = customerResult.data.current_balance - supplierResult.data.current_balance;
-            transactionDataPrep.isUnifiedBalance = true;
-          }
-        } else {
-          // Single account fetch
-          const { data: customerAccount } = await supabase
-            .from('accounts')
-            .select('current_balance')
-            .eq('id', selectedCustomer.customer_ledger_account_id)
-            .single();
-          
-          if (customerAccount) {
-            transactionDataPrep.customerBalance = customerAccount.current_balance;
-          }
+        // Authoritative balance from journal_entry_lines (matches General Ledger)
+        const ledger = await getContactLedgerBalance(selectedCustomer.id);
+        if (ledger && ledger.displayBalance !== null) {
+          transactionDataPrep.customerBalance = ledger.displayBalance;
+          transactionDataPrep.isUnifiedBalance = ledger.isUnified;
         }
       }
       
