@@ -1,103 +1,94 @@
-# PowerShell script to release a new version with auto-update
-# Usage: .\release.ps1 -Version "1.0.17"
+# PowerShell release runner for Windows.
+# Usage:
+#   powershell -ExecutionPolicy Bypass -File .\release.ps1
+#   powershell -ExecutionPolicy Bypass -File .\release.ps1 -Version "1.1.61"
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$Version = "1.0.17"
+    [string]$Version = ""
 )
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Global Market POS - Version Release" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
 
-# Step 1: Pull latest changes
-Write-Host "Step 1: Pulling latest changes from GitHub..." -ForegroundColor Yellow
-git pull origin main
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to pull from GitHub!" -ForegroundColor Red
-    exit 1
+function Run-Step($Title, [scriptblock]$Command) {
+    Write-Host ""
+    Write-Host $Title -ForegroundColor Yellow
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed: $Title"
+    }
 }
-Write-Host "Successfully pulled latest changes" -ForegroundColor Green
-Write-Host ""
 
-# Step 2: Update version in package.json
-Write-Host "Step 2: Updating version to $Version..." -ForegroundColor Yellow
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host "  Global Market POS - Windows Release Builder" -ForegroundColor Cyan
+Write-Host "============================================" -ForegroundColor Cyan
+
+Run-Step "[1/7] Pulling latest code from git..." {
+    if (Test-Path ".git") {
+        git fetch --all
+        git pull --rebase
+    } else {
+        Write-Host "WARNING: not a git repo - skipping pull" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+Write-Host "[2/7] Updating version in package.json..." -ForegroundColor Yellow
+$CurrentVersion = node -p "require('./package.json').version"
+Write-Host "Current version: $CurrentVersion"
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $parts = $CurrentVersion.Split('.')
+    $parts[2] = ([int]$parts[2] + 1).ToString()
+    $Version = $parts -join '.'
+    Write-Host "Auto-bumped version: $Version"
+} else {
+    Write-Host "Using provided version: $Version"
+}
+
 npm version $Version --no-git-tag-version
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to update version!" -ForegroundColor Red
-    exit 1
-}
-Write-Host "Version updated to $Version" -ForegroundColor Green
-Write-Host ""
+if ($LASTEXITCODE -ne 0) { throw "Failed to update package.json version" }
 
-# Step 3: Install dependencies
-Write-Host "Step 3: Installing dependencies..." -ForegroundColor Yellow
-npm install --legacy-peer-deps
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to install dependencies!" -ForegroundColor Red
-    exit 1
+Run-Step "[3/7] Cleaning previous build artifacts..." {
+    if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+    if (Test-Path "release") { Remove-Item -Recurse -Force "release" }
 }
-Write-Host "Dependencies installed" -ForegroundColor Green
-Write-Host ""
 
-# Step 4: Build web application
-Write-Host "Step 4: Building web application..." -ForegroundColor Yellow
-npm run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to build web application!" -ForegroundColor Red
-    exit 1
+Run-Step "[4/7] Installing dependencies..." {
+    npm install --no-audit --no-fund
 }
-Write-Host "Web application built successfully" -ForegroundColor Green
-Write-Host ""
 
-# Step 5: Build Electron installer
-Write-Host "Step 5: Building Electron installer..." -ForegroundColor Yellow
-npm run electron:build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to build Electron installer!" -ForegroundColor Red
-    exit 1
+Run-Step "[5/7] Building frontend for Electron..." {
+    $env:BUILD_TARGET = "electron"
+    npx vite build
 }
-Write-Host "Electron installer built successfully" -ForegroundColor Green
-Write-Host ""
 
-# Step 6: Commit changes
-Write-Host "Step 6: Committing changes..." -ForegroundColor Yellow
-git add .
-git commit -m "Release version $Version with auto-update fixes"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "WARNING: No changes to commit or commit failed" -ForegroundColor Yellow
+Run-Step "[6/7] Packaging Windows app..." {
+    node scripts/create-electron-builder-optional-stubs.mjs
+    $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+    npx electron-builder --win --x64
 }
-Write-Host "Changes committed" -ForegroundColor Green
-Write-Host ""
 
-# Step 7: Create and push tag
-Write-Host "Step 7: Creating and pushing tag v$Version..." -ForegroundColor Yellow
-git tag -a "v$Version" -m "Release version $Version"
-git push origin main
-git push origin "v$Version"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to push tag to GitHub!" -ForegroundColor Red
-    exit 1
+Write-Host ""
+Write-Host "[7/7] Committing version bump and tagging release..." -ForegroundColor Yellow
+if (Test-Path ".git") {
+    git add package.json
+    git commit -m "chore: release v$Version"
+    if ($LASTEXITCODE -ne 0) { Write-Host "Nothing to commit" -ForegroundColor Yellow }
+    git tag -a "v$Version" -m "Release v$Version"
+    if ($LASTEXITCODE -ne 0) { Write-Host "Tag already exists" -ForegroundColor Yellow }
+    git push origin HEAD
+    if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: git push failed" -ForegroundColor Yellow }
+    git push origin "v$Version"
+    if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: tag push failed" -ForegroundColor Yellow }
 }
-Write-Host "Tag v$Version created and pushed" -ForegroundColor Green
-Write-Host ""
 
-# Success message
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "  RELEASE COMPLETED SUCCESSFULLY!" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Next Steps:" -ForegroundColor Cyan
-Write-Host "1. GitHub Actions will automatically build the release" -ForegroundColor White
-Write-Host "2. Go to: https://github.com/udaydash-app/collective-dev-kit/releases" -ForegroundColor White
-Write-Host "3. Wait for the build to complete (5-10 minutes)" -ForegroundColor White
-Write-Host "4. The release will include:" -ForegroundColor White
-Write-Host "   - Global Market POS-$Version-x64.exe" -ForegroundColor Gray
-Write-Host "   - Global Market POS-$Version-ia32.exe" -ForegroundColor Gray
-Write-Host "   - Global Market POS-$Version-Portable.exe" -ForegroundColor Gray
-Write-Host "   - latest.yml (for auto-update)" -ForegroundColor Gray
+Write-Host "============================================" -ForegroundColor Green
+Write-Host "  Release v$Version built successfully" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
+Write-Host "Output files in: .\release\" -ForegroundColor Cyan
+Get-ChildItem -Path "release" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.(exe|msi|zip|yml)$' } | Select-Object Name, Length
 Write-Host ""
-Write-Host "Build artifacts are also available in release folder" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Auto-update will work for users on version 1.0.0 or higher" -ForegroundColor Green
+Write-Host "Note: macOS DMG builds must be created on a Mac with: bash release.command" -ForegroundColor Yellow
