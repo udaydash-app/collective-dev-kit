@@ -16,7 +16,15 @@
 # =====================================================
 
 set -e
-cd "$(dirname "$0")"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if grep -q $'\r' "$0" 2>/dev/null; then
+  echo "ERROR: release.command has Windows CRLF line endings."
+  echo "Fix it once with: perl -pi -e 's/\r$//' release.command"
+  exit 1
+fi
 
 echo "============================================"
 echo "  Global Market POS - Release Builder"

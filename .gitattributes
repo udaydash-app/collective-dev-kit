@@ -1,0 +1,17 @@
+# Keep shell scripts runnable from Git Bash/macOS after checkout on Windows.
+*.command text eol=lf
+*.sh text eol=lf
+
+# Keep source/config files normalized in git.
+*.js text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+
+# Windows command files may use CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
