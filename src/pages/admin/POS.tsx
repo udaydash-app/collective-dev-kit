@@ -3414,43 +3414,15 @@ export default function POS() {
           console.log('📄 [LAST RECEIPT] Contact name:', customerName);
           console.log('📄 [LAST RECEIPT] Is unified?', isUnifiedBalance);
           
-          // Fetch current balance directly from accounts table instead of calculating from journal entries
-          if (contact.is_customer && contact.customer_ledger_account_id) {
-            console.log('📄 [LAST RECEIPT] Fetching balance from account:', contact.customer_ledger_account_id);
-            
-            const { data: customerAccount, error: accountError } = await supabase
-              .from('accounts')
-              .select('current_balance, account_name')
-              .eq('id', contact.customer_ledger_account_id)
-              .single();
-
-            console.log('📄 [LAST RECEIPT] Account data:', customerAccount, 'Error:', accountError);
-
-            if (customerAccount) {
-              customerBalance = customerAccount.current_balance;
-              console.log('📄 [LAST RECEIPT] Customer balance from account:', customerBalance);
-              
-              // If dual-role (customer & supplier), calculate unified balance
-              if (contact.is_supplier && contact.supplier_ledger_account_id) {
-                console.log('📄 [LAST RECEIPT] Contact is dual-role, fetching supplier balance from:', contact.supplier_ledger_account_id);
-                
-                const { data: supplierAccount, error: supplierError } = await supabase
-                  .from('accounts')
-                  .select('current_balance, account_name')
-                  .eq('id', contact.supplier_ledger_account_id)
-                  .single();
-
-                console.log('📄 [LAST RECEIPT] Supplier account data:', supplierAccount, 'Error:', supplierError);
-
-                if (supplierAccount) {
-                  const originalBalance = customerBalance;
-                  // Unified balance: customer receivable minus supplier payable
-                  customerBalance = customerBalance - supplierAccount.current_balance;
-                  console.log('📄 [LAST RECEIPT] Unified balance calculated:', originalBalance, '-', supplierAccount.current_balance, '=', customerBalance);
-                }
-              }
+          // Authoritative balance from journal_entry_lines (matches General Ledger)
+          const ledger = await getContactLedgerBalance(transaction.customer_id);
+          if (ledger) {
+            isUnifiedBalance = ledger.isUnified;
+            if (ledger.displayBalance !== null) {
+              customerBalance = ledger.displayBalance;
             }
           }
+          console.log('📄 [LAST RECEIPT] Ledger balance:', customerBalance, 'unified?', isUnifiedBalance);
         }
       }
       
