@@ -245,6 +245,10 @@ export default function POSLogin() {
       [sessionType]: true,
     }));
     sessionStorage.setItem('current_pos_pin', pinValue);
+    // Also persist in localStorage so admin-scoped reporting RPCs (e.g. P&L Analysis)
+    // continue to work after a browser refresh or when the page is opened in a new tab
+    // where sessionStorage is empty. Cleared on logout alongside offline_pos_session.
+    try { localStorage.setItem('current_pos_pin', pinValue); } catch {}
     window.dispatchEvent(new Event('offline-pos-session-changed'));
   };
 

@@ -239,7 +239,9 @@ export function getPosAdminSession(): { posUserId: string; pin: string } | null 
   try {
     const raw = localStorage.getItem("offline_pos_session");
     const session = raw ? JSON.parse(raw) : null;
-    const pin = sessionStorage.getItem("current_pos_pin");
+    const pin =
+      sessionStorage.getItem("current_pos_pin") ||
+      localStorage.getItem("current_pos_pin");
     const posUserId = session?.pos_user_id || session?.id;
     return posUserId && pin ? { posUserId, pin } : null;
   } catch {
