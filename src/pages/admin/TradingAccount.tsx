@@ -221,13 +221,9 @@ export default function TradingAccount() {
 
   // Use gross sales for the summary card and profit reconciliation so it aligns
   // with the Daily Summary report (which uses pos_transactions.total).
-  const displayedTotalSales = grossSalesTotal || displayedTotalSales;
+  const displayedTotalSales = grossSalesTotal || totals.totalSales;
   const displayedProfit = displayedTotalSales - totals.totalCost;
   const displayedProfitPct = totals.totalCost > 0 ? (displayedProfit / totals.totalCost) * 100 : 0;
-
-  const displayedProfitPct = totals.totalCost > 0 
-    ? (displayedProfit / totals.totalCost) * 100 
-    : 0;
 
   const exportToExcel = () => {
     const header = includeProfit
