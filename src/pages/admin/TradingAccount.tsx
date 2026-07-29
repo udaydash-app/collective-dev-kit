@@ -221,12 +221,12 @@ export default function TradingAccount() {
 
   // Use gross sales for the summary card and profit reconciliation so it aligns
   // with the Daily Summary report (which uses pos_transactions.total).
-  const displayedTotalSales = grossSalesTotal || totals.totalSales;
+  const displayedTotalSales = grossSalesTotal || displayedTotalSales;
   const displayedProfit = displayedTotalSales - totals.totalCost;
   const displayedProfitPct = totals.totalCost > 0 ? (displayedProfit / totals.totalCost) * 100 : 0;
 
-  const overallProfitLossPercentage = totals.totalCost > 0 
-    ? (totals.totalProfitLoss / totals.totalCost) * 100 
+  const displayedProfitPct = totals.totalCost > 0 
+    ? (displayedProfit / totals.totalCost) * 100 
     : 0;
 
   const exportToExcel = () => {
@@ -238,8 +238,8 @@ export default function TradingAccount() {
       : [item.productName, item.unitsSold, item.salePrice, item.salePrice * item.unitsSold]
     ) || [];
     const footer = includeProfit
-      ? ['TOTAL', totals.totalUnits, totals.totalCost, totals.totalSales, totals.totalProfitLoss, `${overallProfitLossPercentage.toFixed(2)}%`]
-      : ['TOTAL', totals.totalUnits, '', totals.totalSales];
+      ? ['TOTAL', totals.totalUnits, totals.totalCost, displayedTotalSales, displayedProfit, `${displayedProfitPct.toFixed(2)}%`]
+      : ['TOTAL', totals.totalUnits, '', displayedTotalSales];
     const data = [
       ['SALES REPORT'],
       [`Period: ${format(startDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')}`],
@@ -296,15 +296,15 @@ export default function TradingAccount() {
           'TOTAL',
           formatNumberPdf(totals.totalUnits),
           formatCurrencyPdf(totals.totalCost),
-          formatCurrencyPdf(totals.totalSales),
-          formatCurrencyPdf(totals.totalProfitLoss),
-          `${overallProfitLossPercentage.toFixed(2)}%`,
+          formatCurrencyPdf(displayedTotalSales),
+          formatCurrencyPdf(displayedProfit),
+          `${displayedProfitPct.toFixed(2)}%`,
         ]]
       : [[
           'TOTAL',
           formatNumberPdf(totals.totalUnits),
           '',
-          formatCurrencyPdf(totals.totalSales),
+          formatCurrencyPdf(displayedTotalSales),
         ]];
 
     autoTable(doc, {
@@ -465,26 +465,26 @@ export default function TradingAccount() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-sm text-muted-foreground">Total Sales</div>
-              <div className="text-2xl font-bold text-blue-600">{formatCurrency(totals.totalSales)}</div>
+              <div className="text-2xl font-bold text-blue-600">{formatCurrency(displayedTotalSales)}</div>
             </CardContent>
           </Card>
-          <Card className={totals.totalProfitLoss >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
+          <Card className={displayedProfit >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
-                {totals.totalProfitLoss >= 0 ? (
+                {displayedProfit >= 0 ? (
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 ) : (
                   <TrendingDown className="h-4 w-4 text-red-600" />
                 )}
                 <span className="text-sm text-muted-foreground">
-                  {totals.totalProfitLoss >= 0 ? 'Profit' : 'Loss'}
+                  {displayedProfit >= 0 ? 'Profit' : 'Loss'}
                 </span>
               </div>
-              <div className={`text-2xl font-bold ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(Math.abs(totals.totalProfitLoss))}
+              <div className={`text-2xl font-bold ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(Math.abs(displayedProfit))}
               </div>
-              <div className={`text-sm ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {Math.abs(overallProfitLossPercentage).toFixed(2)}%
+              <div className={`text-sm ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {Math.abs(displayedProfitPct).toFixed(2)}%
               </div>
             </CardContent>
           </Card>
@@ -533,12 +533,12 @@ export default function TradingAccount() {
                       <TableCell>TOTAL</TableCell>
                       <TableCell className="text-right">{totals.totalUnits}</TableCell>
                       <TableCell className="text-right">{formatCurrency(totals.totalCost)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(totals.totalSales)}</TableCell>
-                      <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(totals.totalProfitLoss)}
+                      <TableCell className="text-right">{formatCurrency(displayedTotalSales)}</TableCell>
+                      <TableCell className={`text-right ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(displayedProfit)}
                       </TableCell>
-                      <TableCell className={`text-right ${totals.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {overallProfitLossPercentage.toFixed(2)}%
+                      <TableCell className={`text-right ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {displayedProfitPct.toFixed(2)}%
                       </TableCell>
                     </TableRow>
                   </TableBody>
