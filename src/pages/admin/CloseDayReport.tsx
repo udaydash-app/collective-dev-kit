@@ -397,32 +397,57 @@ export default function CloseDayReport() {
 
       // Default: Daily Summary Report
 
+      // Helper: page through PostgREST results to bypass the 1000-row default cap
+      const fetchAllPaged = async <T,>(
+        build: (from: number, to: number) => any,
+      ): Promise<T[]> => {
+        const PAGE = 1000;
+        const out: T[] = [];
+        for (let offset = 0; offset < 500000; offset += PAGE) {
+          const { data, error } = await build(offset, offset + PAGE - 1);
+          if (error) throw error;
+          const rows = (data ?? []) as T[];
+          out.push(...rows);
+          if (rows.length < PAGE) break;
+        }
+        return out;
+      };
+
       // Fetch POS transactions with payment_details for multiple payment support
-      const { data: transactions } = await supabase
-        .from('pos_transactions')
-        .select('total, payment_method, payment_details, created_at')
-        .eq('store_id', selectedStoreId)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lte('created_at', `${endDate}T23:59:59`)
-        .order('created_at', { ascending: false });
+      const transactions = await fetchAllPaged<any>((from, to) =>
+        supabase
+          .from('pos_transactions')
+          .select('total, payment_method, payment_details, created_at')
+          .eq('store_id', selectedStoreId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`)
+          .order('created_at', { ascending: false })
+          .range(from, to),
+      );
 
       // Fetch purchases
-      const { data: purchases } = await supabase
-        .from('purchases')
-        .select('total_amount, payment_method, purchased_at')
-        .eq('store_id', selectedStoreId)
-        .gte('purchased_at', `${startDate}T00:00:00`)
-        .lte('purchased_at', `${endDate}T23:59:59`)
-        .order('purchased_at', { ascending: false });
+      const purchases = await fetchAllPaged<any>((from, to) =>
+        supabase
+          .from('purchases')
+          .select('total_amount, payment_method, purchased_at')
+          .eq('store_id', selectedStoreId)
+          .gte('purchased_at', `${startDate}T00:00:00`)
+          .lte('purchased_at', `${endDate}T23:59:59`)
+          .order('purchased_at', { ascending: false })
+          .range(from, to),
+      );
 
       // Fetch expenses
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount, payment_method, expense_date')
-        .eq('store_id', selectedStoreId)
-        .gte('expense_date', startDate)
-        .lte('expense_date', endDate)
-        .order('expense_date', { ascending: false });
+      const expenses = await fetchAllPaged<any>((from, to) =>
+        supabase
+          .from('expenses')
+          .select('amount, payment_method, expense_date')
+          .eq('store_id', selectedStoreId)
+          .gte('expense_date', startDate)
+          .lte('expense_date', endDate)
+          .order('expense_date', { ascending: false })
+          .range(from, to),
+      );
 
       // Fetch payment method account IDs - SYSCOHADA codes
       const { data: paymentAccounts } = await supabase
@@ -438,21 +463,24 @@ export default function CloseDayReport() {
       // These are already accounted for in their respective data sources (transactions, expenses, purchases)
       // Fetch all journal entries and filter client-side 
       // Multiple .not() filters may not work correctly in Supabase JS client
-      const { data: allJournalEntries } = await supabase
-        .from('journal_entries')
-        .select(`
-          *,
-          journal_entry_lines!inner(
-            account_id,
-            debit_amount,
-            credit_amount,
-            description
-          )
-        `)
-        .eq('status', 'posted')
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lte('created_at', `${endDate}T23:59:59`)
-        .order('created_at', { ascending: false });
+      const allJournalEntries = await fetchAllPaged<any>((from, to) =>
+        supabase
+          .from('journal_entries')
+          .select(`
+            *,
+            journal_entry_lines!inner(
+              account_id,
+              debit_amount,
+              credit_amount,
+              description
+            )
+          `)
+          .eq('status', 'posted')
+          .gte('created_at', `${startDate}T00:00:00`)
+          .lte('created_at', `${endDate}T23:59:59`)
+          .order('created_at', { ascending: false })
+          .range(from, to),
+      );
       
       // Client-side filter to exclude automated journal entries (POS, expenses, purchases, payment receipts, cash register)
       // These are already accounted for in their respective data sources
