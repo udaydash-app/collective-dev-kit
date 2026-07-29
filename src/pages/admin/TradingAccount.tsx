@@ -194,6 +194,37 @@ export default function TradingAccount() {
     { totalUnits: 0, totalCost: 0, totalSales: 0, totalProfitLoss: 0 }
   ) || { totalUnits: 0, totalCost: 0, totalSales: 0, totalProfitLoss: 0 };
 
+  // Authoritative gross sales — matches Daily Summary (sums pos_transactions.total)
+  const { data: grossSalesTotal = 0 } = useQuery({
+    queryKey: ['trading-account-gross-sales', startDate, endDate],
+    queryFn: async () => {
+      const fromISO = startOfDay(startDate).toISOString();
+      const toISO = endOfDay(endDate).toISOString();
+      const PAGE = 1000;
+      let sum = 0;
+      for (let offset = 0; offset < 200000; offset += PAGE) {
+        const { data, error } = await supabase
+          .from('pos_transactions')
+          .select('total')
+          .gte('created_at', fromISO)
+          .lte('created_at', toISO)
+          .order('created_at', { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        const rows = data ?? [];
+        sum += rows.reduce((s: number, r: any) => s + (Number(r.total) || 0), 0);
+        if (rows.length < PAGE) break;
+      }
+      return sum;
+    },
+  });
+
+  // Use gross sales for the summary card and profit reconciliation so it aligns
+  // with the Daily Summary report (which uses pos_transactions.total).
+  const displayedTotalSales = grossSalesTotal || totals.totalSales;
+  const displayedProfit = displayedTotalSales - totals.totalCost;
+  const displayedProfitPct = totals.totalCost > 0 ? (displayedProfit / totals.totalCost) * 100 : 0;
+
   const overallProfitLossPercentage = totals.totalCost > 0 
     ? (totals.totalProfitLoss / totals.totalCost) * 100 
     : 0;
