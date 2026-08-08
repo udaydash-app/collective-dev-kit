@@ -2319,6 +2319,24 @@ export default function POS() {
   const addToCartWithCustomPrice = async (product: any) => {
     // Get base product ID (in case product has variants, we still use base ID for custom pricing)
     const baseProductId = product.id;
+
+    // Block selling items with no stock
+    const variant = product.selectedVariant;
+    const cartItemId = variant?.id || product.id;
+    const availableStock = Number(
+      variant ? (variant.stock_quantity ?? 0) : (product.stock_quantity ?? 0)
+    );
+    const inCartQty = cart.find((i: any) => i.id === cartItemId)?.quantity || 0;
+    const displayName = variant?.label ? `${product.name} (${variant.label})` : product.name;
+
+    if (availableStock <= 0) {
+      toast.error(`${displayName} is out of stock`);
+      return;
+    }
+    if (inCartQty + 1 > availableStock) {
+      toast.error(`Only ${availableStock} left in stock for ${displayName}`);
+      return;
+    }
     
     console.log('🛒 addToCartWithCustomPrice called');
     console.log('🛒 Product:', { id: baseProductId, name: product.name, price: product.price });
