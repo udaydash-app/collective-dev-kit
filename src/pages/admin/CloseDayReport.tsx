@@ -1800,7 +1800,7 @@ export default function CloseDayReport() {
           )}
 
           {/* View Mode toggle — not shown for Daily Summary */}
-          {reportType !== 'daily-summary' && (
+          {reportType !== 'daily-summary' && reportType !== 'fne' && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Output Format</p>
               <div className="flex gap-3">
