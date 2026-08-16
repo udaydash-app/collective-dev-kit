@@ -1122,6 +1122,142 @@ export default function CloseDayReport() {
   const renderReportContent = () => {
     if (!reportData) return null;
 
+    // FNE Report
+    if (reportData.type === 'fne') {
+      const result = (reportData as any).result as FneResult;
+      const meta = { storeName, startDate, endDate };
+
+      if (!result.invoices.length) {
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>FNE Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                No invoice in this period fits the target amount of {formatCurrency(result.target)}. Try a larger amount or a wider period.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle>FNE Report</CardTitle>
+              <div className="flex gap-2 no-print">
+                <Button variant="outline" size="sm" onClick={() => setFneNonce((n) => n + 1)}>
+                  Re-shuffle
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportFnePdf(result, meta)}>
+                  Export PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportFneExcel(result, meta)}>
+                  Export Excel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Target Amount</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.target)}</p>
+                </div>
+                <div className="p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Achieved Total</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.achieved)}</p>
+                </div>
+                <div className="p-4 bg-amber-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Difference</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.difference)}</p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Invoices</p>
+                  <p className="text-xl font-bold">{result.invoices.length}</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b-2">
+                      <th className="text-left p-2">#</th>
+                      <th className="text-left p-2">Invoice No</th>
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-left p-2">Customer</th>
+                      <th className="text-right p-2">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.invoices.map((inv, i) => (
+                      <tr key={inv.id} className="border-b">
+                        <td className="p-2 text-muted-foreground">{i + 1}</td>
+                        <td className="p-2 font-medium">{inv.number}</td>
+                        <td className="p-2">{formatDate(inv.date)}</td>
+                        <td className="p-2">{inv.customerName}</td>
+                        <td className="p-2 text-right font-semibold">{formatCurrency(inv.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 font-bold">
+                      <td className="p-2" colSpan={4}>TOTAL</td>
+                      <td className="p-2 text-right">{formatCurrency(result.achieved)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {result.invoices.map((inv) => (
+            <Card key={`detail-${inv.id}`} className="print-page-break">
+              <CardHeader className="bg-muted/30">
+                <CardTitle className="text-base flex flex-wrap justify-between gap-2">
+                  <span>Invoice {inv.number}</span>
+                  <span className="font-normal text-sm text-muted-foreground">
+                    {formatDateTime(inv.date)} — {inv.customerName}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b-2">
+                        <th className="text-left p-2">Product</th>
+                        <th className="text-right p-2">Qty</th>
+                        <th className="text-right p-2">Unit Price</th>
+                        <th className="text-right p-2">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inv.lines.map((l, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="p-2">{l.name}</td>
+                          <td className="p-2 text-right">{l.quantity}</td>
+                          <td className="p-2 text-right">{formatCurrency(l.unitPrice)}</td>
+                          <td className="p-2 text-right">{formatCurrency(l.lineTotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 ml-auto w-full max-w-xs space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(inv.subtotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>{formatCurrency(inv.discount)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Timbre / Tax</span><span>{formatCurrency(inv.tax)}</span></div>
+                  <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span>{formatCurrency(inv.total)}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
     if (viewMode === 'graph') return renderGraph();
 
     // Sales by Category Report
