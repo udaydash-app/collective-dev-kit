@@ -17,6 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { selectFneInvoices, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -29,7 +30,8 @@ type ReportType =
   | 'sales-by-customer'
   | 'purchases-by-category'
   | 'purchases-by-supplier'
-  | 'purchases-by-product';
+  | 'purchases-by-product'
+  | 'fne';
 
 export default function CloseDayReport() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -44,6 +46,8 @@ export default function CloseDayReport() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
+  const [targetAmount, setTargetAmount] = useState<string>('');
+  const [fneNonce, setFneNonce] = useState(0);
 
 
   const { data: stores } = useQuery({
@@ -84,9 +88,32 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId, targetAmount, fneNonce],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
+
+      // FNE Report — randomly select real invoices to match a target amount
+      if (reportType === 'fne') {
+        const target = parseFloat(targetAmount || '0');
+        const PAGE = 1000;
+        const rows: any[] = [];
+        for (let offset = 0; offset < 500000; offset += PAGE) {
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .select('id, transaction_number, created_at, total, items, customer_id, contacts:customer_id(name)')
+            .eq('store_id', selectedStoreId)
+            .gte('created_at', `${startDate}T00:00:00`)
+            .lte('created_at', `${endDate}T23:59:59`)
+            .order('created_at', { ascending: true })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          const page = data ?? [];
+          rows.push(...page);
+          if (page.length < PAGE) break;
+        }
+
+        return { type: 'fne', result: selectFneInvoices(rows, target) };
+      }
 
       // Sales by Category Report
       if (reportType === 'sales-by-category') {
@@ -663,6 +690,14 @@ export default function CloseDayReport() {
       toast.error('Start date must be before end date');
       return;
     }
+    if (reportType === 'fne') {
+      const amt = parseFloat(targetAmount || '0');
+      if (!amt || amt <= 0) {
+        toast.error('Please enter a target amount');
+        return;
+      }
+      setFneNonce((n) => n + 1);
+    }
     setShowReport(true);
     refetch();
   };
@@ -1086,6 +1121,142 @@ export default function CloseDayReport() {
   // ── Detail table renderer ───────────────────────────────────────
   const renderReportContent = () => {
     if (!reportData) return null;
+
+    // FNE Report
+    if (reportData.type === 'fne') {
+      const result = (reportData as any).result as FneResult;
+      const meta = { storeName, startDate, endDate };
+
+      if (!result.invoices.length) {
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>FNE Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                No invoice in this period fits the target amount of {formatCurrency(result.target)}. Try a larger amount or a wider period.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle>FNE Report</CardTitle>
+              <div className="flex gap-2 no-print">
+                <Button variant="outline" size="sm" onClick={() => setFneNonce((n) => n + 1)}>
+                  Re-shuffle
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportFnePdf(result, meta)}>
+                  Export PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportFneExcel(result, meta)}>
+                  Export Excel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Target Amount</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.target)}</p>
+                </div>
+                <div className="p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Achieved Total</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.achieved)}</p>
+                </div>
+                <div className="p-4 bg-amber-500/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Difference</p>
+                  <p className="text-xl font-bold">{formatCurrency(result.difference)}</p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Invoices</p>
+                  <p className="text-xl font-bold">{result.invoices.length}</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b-2">
+                      <th className="text-left p-2">#</th>
+                      <th className="text-left p-2">Invoice No</th>
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-left p-2">Customer</th>
+                      <th className="text-right p-2">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.invoices.map((inv, i) => (
+                      <tr key={inv.id} className="border-b">
+                        <td className="p-2 text-muted-foreground">{i + 1}</td>
+                        <td className="p-2 font-medium">{inv.number}</td>
+                        <td className="p-2">{formatDate(inv.date)}</td>
+                        <td className="p-2">{inv.customerName}</td>
+                        <td className="p-2 text-right font-semibold">{formatCurrency(inv.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 font-bold">
+                      <td className="p-2" colSpan={4}>TOTAL</td>
+                      <td className="p-2 text-right">{formatCurrency(result.achieved)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {result.invoices.map((inv) => (
+            <Card key={`detail-${inv.id}`} className="print-page-break">
+              <CardHeader className="bg-muted/30">
+                <CardTitle className="text-base flex flex-wrap justify-between gap-2">
+                  <span>Invoice {inv.number}</span>
+                  <span className="font-normal text-sm text-muted-foreground">
+                    {formatDateTime(inv.date)} — {inv.customerName}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b-2">
+                        <th className="text-left p-2">Product</th>
+                        <th className="text-right p-2">Qty</th>
+                        <th className="text-right p-2">Unit Price</th>
+                        <th className="text-right p-2">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inv.lines.map((l, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="p-2">{l.name}</td>
+                          <td className="p-2 text-right">{l.quantity}</td>
+                          <td className="p-2 text-right">{formatCurrency(l.unitPrice)}</td>
+                          <td className="p-2 text-right">{formatCurrency(l.lineTotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 ml-auto w-full max-w-xs space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(inv.subtotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>{formatCurrency(inv.discount)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Timbre / Tax</span><span>{formatCurrency(inv.tax)}</span></div>
+                  <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span>{formatCurrency(inv.total)}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
 
     if (viewMode === 'graph') return renderGraph();
 
@@ -1609,6 +1780,7 @@ export default function CloseDayReport() {
                   <SelectItem value="purchases-by-category">🗂️ Purchases by Category</SelectItem>
                   <SelectItem value="purchases-by-supplier">🏭 Purchases by Supplier</SelectItem>
                   <SelectItem value="purchases-by-product">📋 Purchases by Product</SelectItem>
+                  <SelectItem value="fne">🧾 FNE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1640,6 +1812,26 @@ export default function CloseDayReport() {
               </div>
             </div>
           </div>
+
+          {/* Target amount — FNE only */}
+          {reportType === 'fne' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Target Amount *</p>
+              <Input
+                id="targetAmount"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="Enter amount (FCFA)"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                className="h-10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Real invoices from the period are randomly selected so their total gets as close as possible to this amount without exceeding it.
+              </p>
+            </div>
+          )}
 
           {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
@@ -1744,7 +1936,7 @@ export default function CloseDayReport() {
           )}
 
           {/* View Mode toggle — not shown for Daily Summary */}
-          {reportType !== 'daily-summary' && (
+          {reportType !== 'daily-summary' && reportType !== 'fne' && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Output Format</p>
               <div className="flex gap-3">
@@ -1792,7 +1984,7 @@ export default function CloseDayReport() {
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
             <h2 className="text-3xl font-bold">{storeName}</h2>
-            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
+            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType === 'fne' ? 'FNE Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
               {formatDate(startDate)} {startDate !== endDate && `- ${formatDate(endDate)}`}
             </p>
