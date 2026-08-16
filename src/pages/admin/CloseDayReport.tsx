@@ -48,6 +48,8 @@ export default function CloseDayReport() {
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
   const [targetAmount, setTargetAmount] = useState<string>('');
   const [fneNonce, setFneNonce] = useState(0);
+  const targetAmountRef = useRef<string>('');
+  useEffect(() => { targetAmountRef.current = targetAmount; }, [targetAmount]);
 
 
   const { data: stores } = useQuery({
