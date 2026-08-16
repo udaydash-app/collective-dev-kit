@@ -97,6 +97,25 @@ export default function CloseDayReport() {
       // FNE Report — randomly select real invoices to match a target amount
       if (reportType === 'fne') {
         const target = parseFloat(targetAmountRef.current || '0');
+        const adminSession = getPosAdminSession();
+        if (adminSession) {
+          const { data, error } = await supabase.rpc('get_fne_transactions' as any, {
+            input_pos_user_id: adminSession.posUserId,
+            input_pin: adminSession.pin,
+            store_filter: selectedStoreId,
+            start_ts: new Date(`${startDate}T00:00:00`).toISOString(),
+            end_ts: new Date(`${endDate}T23:59:59`).toISOString(),
+          });
+          if (!error && data) {
+            const enrichedRpc = ((data as any[]) || []).map((r: any) => ({
+              ...r,
+              contacts: r.customer_name ? { name: r.customer_name } : null,
+            }));
+            console.log('[FNE] transactions fetched (secure):', enrichedRpc.length, 'target:', target);
+            return { type: 'fne', result: selectFneInvoices(enrichedRpc, target), fetched: enrichedRpc.length };
+          }
+          console.warn('[FNE] secure fetch failed, falling back to direct reads', error);
+        }
         const PAGE = 1000;
         const rows: any[] = [];
         for (let offset = 0; offset < 500000; offset += PAGE) {
