@@ -1677,6 +1677,26 @@ export default function CloseDayReport() {
             </div>
           </div>
 
+          {/* Target amount — FNE only */}
+          {reportType === 'fne' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Target Amount *</p>
+              <Input
+                id="targetAmount"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="Enter amount (FCFA)"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                className="h-10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Real invoices from the period are randomly selected so their total gets as close as possible to this amount without exceeding it.
+              </p>
+            </div>
+          )}
+
           {/* Product Selector & Customer Filter — shown only for Sales by Product */}
           {reportType === 'sales-by-product' && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
