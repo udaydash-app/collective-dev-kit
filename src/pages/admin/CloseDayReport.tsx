@@ -1644,6 +1644,7 @@ export default function CloseDayReport() {
                   <SelectItem value="purchases-by-category">🗂️ Purchases by Category</SelectItem>
                   <SelectItem value="purchases-by-supplier">🏭 Purchases by Supplier</SelectItem>
                   <SelectItem value="purchases-by-product">📋 Purchases by Product</SelectItem>
+                  <SelectItem value="fne">🧾 FNE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
