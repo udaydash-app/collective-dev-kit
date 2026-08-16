@@ -3826,6 +3826,24 @@ export type Database = {
         Args: { input_pin: string; input_pos_user_id: string; start_ts: string }
         Returns: Json
       }
+      get_fne_transactions: {
+        Args: {
+          end_ts?: string
+          input_pin: string
+          input_pos_user_id: string
+          start_ts?: string
+          store_filter?: string
+        }
+        Returns: {
+          created_at: string
+          customer_id: string
+          customer_name: string
+          id: string
+          items: Json
+          total: number
+          transaction_number: string
+        }[]
+      }
       get_guest_conversation: {
         Args: { p_conversation_id: string; p_session_token: string }
         Returns: {
