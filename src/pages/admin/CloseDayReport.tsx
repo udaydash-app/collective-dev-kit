@@ -17,6 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
+import { selectFneInvoices, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -29,7 +30,8 @@ type ReportType =
   | 'sales-by-customer'
   | 'purchases-by-category'
   | 'purchases-by-supplier'
-  | 'purchases-by-product';
+  | 'purchases-by-product'
+  | 'fne';
 
 export default function CloseDayReport() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -44,6 +46,8 @@ export default function CloseDayReport() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
+  const [targetAmount, setTargetAmount] = useState<string>('');
+  const [fneNonce, setFneNonce] = useState(0);
 
 
   const { data: stores } = useQuery({
@@ -84,9 +88,32 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId, targetAmount, fneNonce],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
+
+      // FNE Report — randomly select real invoices to match a target amount
+      if (reportType === 'fne') {
+        const target = parseFloat(targetAmount || '0');
+        const PAGE = 1000;
+        const rows: any[] = [];
+        for (let offset = 0; offset < 500000; offset += PAGE) {
+          const { data, error } = await supabase
+            .from('pos_transactions')
+            .select('id, transaction_number, created_at, total, items, customer_id, contacts:customer_id(name)')
+            .eq('store_id', selectedStoreId)
+            .gte('created_at', `${startDate}T00:00:00`)
+            .lte('created_at', `${endDate}T23:59:59`)
+            .order('created_at', { ascending: true })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          const page = data ?? [];
+          rows.push(...page);
+          if (page.length < PAGE) break;
+        }
+
+        return { type: 'fne', result: selectFneInvoices(rows, target) };
+      }
 
       // Sales by Category Report
       if (reportType === 'sales-by-category') {
