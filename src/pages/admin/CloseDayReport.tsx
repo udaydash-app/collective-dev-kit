@@ -102,7 +102,7 @@ export default function CloseDayReport() {
         for (let offset = 0; offset < 500000; offset += PAGE) {
           const { data, error } = await supabase
             .from('pos_transactions')
-            .select('id, transaction_number, created_at, total, items, customer_id, contacts:customer_id(name)')
+            .select('id, transaction_number, created_at, total, items, customer_id')
             .eq('store_id', selectedStoreId)
             .gte('created_at', `${startDate}T00:00:00`)
             .lte('created_at', `${endDate}T23:59:59`)
@@ -114,7 +114,23 @@ export default function CloseDayReport() {
           if (page.length < PAGE) break;
         }
 
-        return { type: 'fne', result: selectFneInvoices(rows, target) };
+        // Resolve customer names separately (avoids embed/RLS join failures)
+        const customerIds = [...new Set(rows.map((r: any) => r.customer_id).filter(Boolean))];
+        const nameById = new Map<string, string>();
+        if (customerIds.length) {
+          const { data: cts } = await supabase
+            .from('contacts')
+            .select('id, name')
+            .in('id', customerIds as string[]);
+          (cts || []).forEach((c: any) => nameById.set(c.id, c.name));
+        }
+        const enriched = rows.map((r: any) => ({
+          ...r,
+          contacts: r.customer_id ? { name: nameById.get(r.customer_id) } : null,
+        }));
+
+        console.log('[FNE] transactions fetched:', enriched.length, 'target:', target);
+        return { type: 'fne', result: selectFneInvoices(enriched, target), fetched: enriched.length };
       }
 
       // Sales by Category Report
