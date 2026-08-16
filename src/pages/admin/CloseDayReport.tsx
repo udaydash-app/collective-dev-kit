@@ -1984,7 +1984,7 @@ export default function CloseDayReport() {
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
             <h2 className="text-3xl font-bold">{storeName}</h2>
-            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
+            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType === 'fne' ? 'FNE Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
               {formatDate(startDate)} {startDate !== endDate && `- ${formatDate(endDate)}`}
             </p>
