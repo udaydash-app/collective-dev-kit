@@ -1152,7 +1152,9 @@ export default function CloseDayReport() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                No invoice in this period fits the target amount of {formatCurrency(result.target)}. Try a larger amount or a wider period.
+                {((reportData as any).fetched ?? 0) === 0
+                  ? 'No sales invoices found for this store and period.'
+                  : `Found ${(reportData as any).fetched} invoices in this period, but none fits the target amount of ${formatCurrency(result.target)}. Try a larger amount or a wider period.`}
               </p>
             </CardContent>
           </Card>
