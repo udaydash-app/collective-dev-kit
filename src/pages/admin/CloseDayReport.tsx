@@ -690,6 +690,14 @@ export default function CloseDayReport() {
       toast.error('Start date must be before end date');
       return;
     }
+    if (reportType === 'fne') {
+      const amt = parseFloat(targetAmount || '0');
+      if (!amt || amt <= 0) {
+        toast.error('Please enter a target amount');
+        return;
+      }
+      setFneNonce((n) => n + 1);
+    }
     setShowReport(true);
     refetch();
   };
