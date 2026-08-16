@@ -88,13 +88,13 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId, targetAmount, fneNonce],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
       // FNE Report — randomly select real invoices to match a target amount
       if (reportType === 'fne') {
-        const target = parseFloat(targetAmount || '0');
+        const target = parseFloat(targetAmountRef.current || '0');
         const PAGE = 1000;
         const rows: any[] = [];
         for (let offset = 0; offset < 500000; offset += PAGE) {
@@ -696,7 +696,6 @@ export default function CloseDayReport() {
         toast.error('Please enter a target amount');
         return;
       }
-      setFneNonce((n) => n + 1);
     }
     setShowReport(true);
     refetch();
@@ -1148,7 +1147,7 @@ export default function CloseDayReport() {
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <CardTitle>FNE Report</CardTitle>
               <div className="flex gap-2 no-print">
-                <Button variant="outline" size="sm" onClick={() => setFneNonce((n) => n + 1)}>
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
                   Re-shuffle
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => exportFnePdf(result, meta)}>
