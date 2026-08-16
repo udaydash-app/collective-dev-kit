@@ -1,7 +1,20 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { formatCurrencyCompact, formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime } from '@/lib/utils';
+
+// PDF-safe currency formatting: jsPDF standard fonts cannot render the
+// narrow no-break spaces produced by fr-CI grouping, so use plain spaces.
+const money = (amount: number | null | undefined): string => {
+  const value = amount ?? 0;
+  const hasDecimals = value % 1 !== 0;
+  return value
+    .toLocaleString('fr-FR', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    })
+    .replace(/[\u00A0\u202F\u2009]/g, ' ');
+};
 import { fetchCompanySettings, addPdfHeader } from '@/lib/pdfBranding';
 
 export interface FneLine {
@@ -148,9 +161,9 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     startY: y,
     head: [['Target Amount', 'Achieved Total', 'Difference', 'Invoices']],
     body: [[
-      formatCurrencyCompact(result.target),
-      formatCurrencyCompact(result.achieved),
-      formatCurrencyCompact(result.difference),
+      money(result.target),
+      money(result.achieved),
+      money(result.difference),
       String(result.invoices.length),
     ]],
     styles: { fontSize: 9, cellPadding: 2 },
@@ -168,9 +181,9 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
       inv.number,
       formatDate(inv.date),
       inv.customerName,
-      formatCurrencyCompact(inv.total),
+      money(inv.total),
     ]),
-    foot: [['', '', '', 'TOTAL', formatCurrencyCompact(result.achieved)]],
+    foot: [['', '', '', 'TOTAL', money(result.achieved)]],
     styles: { fontSize: 8, cellPadding: 1.6 },
     headStyles: { fillColor: [30, 41, 59] },
     footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold' },
@@ -202,8 +215,8 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
       body: inv.lines.map((l) => [
         l.name,
         String(l.quantity),
-        formatCurrencyCompact(l.unitPrice),
-        formatCurrencyCompact(l.lineTotal),
+        money(l.unitPrice),
+        money(l.lineTotal),
       ]),
       styles: { fontSize: 8, cellPadding: 1.6 },
       headStyles: { fillColor: [30, 41, 59] },
@@ -222,7 +235,7 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     rows.forEach(([label, value], i) => {
       doc.setFont('helvetica', i === rows.length - 1 ? 'bold' : 'normal');
       doc.text(label, pageWidth - 70, sy);
-      doc.text(formatCurrencyCompact(value), pageWidth - 14, sy, { align: 'right' });
+      doc.text(money(value), pageWidth - 14, sy, { align: 'right' });
       sy += 5;
     });
   }
