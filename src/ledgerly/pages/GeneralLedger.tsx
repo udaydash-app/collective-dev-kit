@@ -171,12 +171,42 @@ const GeneralLedger = () => {
   const balanceTone = (n: number) =>
     n >= 0 ? "text-foreground" : "text-destructive";
 
+  const exportExcel = async () => {
+    if (!account || rows.length === 0) { toast.error("Nothing to export"); return; }
+    const XLSX = await import("xlsx");
+    const debitNatural = isDebitNatural(account.type);
+    const data: any[] = [
+      { Date: from, Reference: "Opening balance", Contact: "", Source: "", Debit: "", Credit: "", Balance: openingDisplay },
+      ...rows.map((r) => ({
+        Date: r.entry?.entry_date ?? "",
+        Reference: r.entry?.reference ?? r.entry?.narration ?? "",
+        Description: r.description ?? "",
+        Contact: r.contact?.name ?? "",
+        Source: r.entry?.source_type ?? "manual",
+        Debit: Number(r.debit) || 0,
+        Credit: Number(r.credit) || 0,
+        Balance: debitNatural ? r.running : -r.running,
+      })),
+      { Date: "", Reference: "TOTAL", Contact: "", Source: "", Debit: totalDebit, Credit: totalCredit, Balance: debitNatural ? closingBalance : -closingBalance },
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "General Ledger");
+    XLSX.writeFile(wb, `general-ledger-${account.code ?? account.name}-${from}-to-${to}.xlsx`);
+  };
+
   return (
     <>
       <PageHeader
         title="General Ledger"
         description="Every journal line for an account, with running balance"
+        actions={
+          <Button variant="outline" size="sm" onClick={exportExcel} disabled={!account || rows.length === 0}>
+            <Download className="h-4 w-4 mr-2" />Export Excel
+          </Button>
+        }
       />
+
       <div className="p-6 space-y-4">
         <Card className="shadow-[var(--shadow-card)]">
           <CardContent className="p-5 grid gap-4 md:grid-cols-4">
