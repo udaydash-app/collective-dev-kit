@@ -17,7 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, selectFneFromInvoices, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
 
 type FneSource = 'sales' | 'purchases' | 'expenses';
 const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
@@ -106,71 +106,137 @@ export default function CloseDayReport() {
       // FNE Report — randomly select real invoices to match a target amount
       if (reportType === 'fne') {
         const target = parseFloat(targetAmountRef.current || '0');
+        const priorEnd = new Date(new Date(`${startDate}T00:00:00`).getTime() - 1000).toISOString();
 
         if (fneSource === 'purchases') {
+          const sel = 'id, purchase_number, purchased_at, created_at, total_amount, supplier_name, purchase_items(quantity, unit_cost, total_cost, products(name))';
           const { data, error } = await supabase
             .from('purchases')
-            .select('id, purchase_number, purchased_at, created_at, total_amount, supplier_name, purchase_items(quantity, unit_cost, total_cost, products(name))')
+            .select(sel)
             .eq('store_id', selectedStoreId)
             .gte('purchased_at', `${startDate}T00:00:00`)
             .lte('purchased_at', `${endDate}T23:59:59`)
             .order('purchased_at', { ascending: true });
           if (error) throw error;
           const invoices = ((data as any[]) || []).map(mapPurchaseToInvoice);
-          return { type: 'fne', result: selectFneFromInvoices(invoices, target), fetched: invoices.length };
+          const { data: prev } = await supabase
+            .from('purchases')
+            .select(sel)
+            .eq('store_id', selectedStoreId)
+            .lt('purchased_at', priorEnd)
+            .order('purchased_at', { ascending: false })
+            .limit(1000);
+          const priorInvoices = ((prev as any[]) || []).map(mapPurchaseToInvoice);
+          return {
+            type: 'fne',
+            result: selectFneWithFallback(invoices, priorInvoices, target, startDate, endDate),
+            fetched: invoices.length,
+          };
         }
 
         if (fneSource === 'expenses') {
+          const sel = 'id, expense_date, created_at, amount, description, category, contact_id, contacts:contact_id(name)';
           const { data, error } = await supabase
             .from('expenses')
-            .select('id, expense_date, created_at, amount, description, category, contact_id, contacts:contact_id(name)')
+            .select(sel)
             .eq('store_id', selectedStoreId)
             .gte('expense_date', startDate)
             .lte('expense_date', endDate)
             .order('expense_date', { ascending: true });
           if (error) throw error;
           const invoices = ((data as any[]) || []).map(mapExpenseToInvoice);
-          return { type: 'fne', result: selectFneFromInvoices(invoices, target), fetched: invoices.length };
+          const { data: prev } = await supabase
+            .from('expenses')
+            .select(sel)
+            .eq('store_id', selectedStoreId)
+            .lt('expense_date', startDate)
+            .order('expense_date', { ascending: false })
+            .limit(1000);
+          const priorInvoices = ((prev as any[]) || []).map(mapExpenseToInvoice);
+          return {
+            type: 'fne',
+            result: selectFneWithFallback(invoices, priorInvoices, target, startDate, endDate),
+            fetched: invoices.length,
+          };
         }
+
+        const enrich = (rows: any[], nameById?: Map<string, string>) =>
+          rows.map((r: any) => ({
+            ...r,
+            contacts: r.customer_name
+              ? { name: r.customer_name }
+              : r.customer_id
+                ? { name: nameById?.get(r.customer_id) }
+                : null,
+          }));
 
         const adminSession = getPosAdminSession();
         if (adminSession) {
-          const { data, error } = await supabase.rpc('get_fne_transactions' as any, {
-            input_pos_user_id: adminSession.posUserId,
-            input_pin: adminSession.pin,
-            store_filter: selectedStoreId,
-            start_ts: new Date(`${startDate}T00:00:00`).toISOString(),
-            end_ts: new Date(`${endDate}T23:59:59`).toISOString(),
-          });
-          if (!error && data) {
-            const enrichedRpc = ((data as any[]) || []).map((r: any) => ({
-              ...r,
-              contacts: r.customer_name ? { name: r.customer_name } : null,
-            }));
-            console.log('[FNE] transactions fetched (secure):', enrichedRpc.length, 'target:', target);
-            return { type: 'fne', result: selectFneInvoices(enrichedRpc, target), fetched: enrichedRpc.length };
+          const rpcFetch = async (from: string, to: string) => {
+            const { data, error } = await supabase.rpc('get_fne_transactions' as any, {
+              input_pos_user_id: adminSession.posUserId,
+              input_pin: adminSession.pin,
+              store_filter: selectedStoreId,
+              start_ts: from,
+              end_ts: to,
+            });
+            if (error) throw error;
+            return enrich(((data as any[]) || []));
+          };
+          try {
+            const current = await rpcFetch(
+              new Date(`${startDate}T00:00:00`).toISOString(),
+              new Date(`${endDate}T23:59:59`).toISOString()
+            );
+            let prior: any[] = [];
+            try {
+              prior = await rpcFetch(new Date('2000-01-01T00:00:00').toISOString(), priorEnd);
+            } catch { /* ignore */ }
+            console.log('[FNE] transactions fetched (secure):', current.length, 'prior:', prior.length, 'target:', target);
+            return {
+              type: 'fne',
+              result: selectFneWithFallback(
+                current.map(mapTransactionToInvoice),
+                prior.map(mapTransactionToInvoice),
+                target,
+                startDate,
+                endDate
+              ),
+              fetched: current.length,
+            };
+          } catch (e) {
+            console.warn('[FNE] secure fetch failed, falling back to direct reads', e);
           }
-          console.warn('[FNE] secure fetch failed, falling back to direct reads', error);
         }
         const PAGE = 1000;
-        const rows: any[] = [];
-        for (let offset = 0; offset < 500000; offset += PAGE) {
-          const { data, error } = await supabase
-            .from('pos_transactions')
-            .select('id, transaction_number, created_at, total, items, customer_id')
-            .eq('store_id', selectedStoreId)
-            .gte('created_at', `${startDate}T00:00:00`)
-            .lte('created_at', `${endDate}T23:59:59`)
-            .order('created_at', { ascending: true })
-            .range(offset, offset + PAGE - 1);
-          if (error) throw error;
-          const page = data ?? [];
-          rows.push(...page);
-          if (page.length < PAGE) break;
-        }
+        const fetchRange = async (gte: string, lt?: string) => {
+          const rows: any[] = [];
+          for (let offset = 0; offset < 500000; offset += PAGE) {
+            let q = supabase
+              .from('pos_transactions')
+              .select('id, transaction_number, created_at, total, items, customer_id')
+              .eq('store_id', selectedStoreId)
+              .gte('created_at', gte)
+              .order('created_at', { ascending: true })
+              .range(offset, offset + PAGE - 1);
+            q = lt ? q.lt('created_at', lt) : q.lte('created_at', `${endDate}T23:59:59`);
+            const { data, error } = await q;
+            if (error) throw error;
+            const page = data ?? [];
+            rows.push(...page);
+            if (page.length < PAGE) break;
+          }
+          return rows;
+        };
+
+        const rows = await fetchRange(`${startDate}T00:00:00`);
+        let priorRows: any[] = [];
+        try {
+          priorRows = await fetchRange('2000-01-01T00:00:00', priorEnd);
+        } catch { /* ignore */ }
 
         // Resolve customer names separately (avoids embed/RLS join failures)
-        const customerIds = [...new Set(rows.map((r: any) => r.customer_id).filter(Boolean))];
+        const customerIds = [...new Set([...rows, ...priorRows].map((r: any) => r.customer_id).filter(Boolean))];
         const nameById = new Map<string, string>();
         if (customerIds.length) {
           const { data: cts } = await supabase
@@ -179,14 +245,21 @@ export default function CloseDayReport() {
             .in('id', customerIds as string[]);
           (cts || []).forEach((c: any) => nameById.set(c.id, c.name));
         }
-        const enriched = rows.map((r: any) => ({
-          ...r,
-          contacts: r.customer_id ? { name: nameById.get(r.customer_id) } : null,
-        }));
 
-        console.log('[FNE] transactions fetched:', enriched.length, 'target:', target);
-        return { type: 'fne', result: selectFneInvoices(enriched, target), fetched: enriched.length };
+        console.log('[FNE] transactions fetched:', rows.length, 'prior:', priorRows.length, 'target:', target);
+        return {
+          type: 'fne',
+          result: selectFneWithFallback(
+            enrich(rows, nameById).map(mapTransactionToInvoice),
+            enrich(priorRows, nameById).map(mapTransactionToInvoice),
+            target,
+            startDate,
+            endDate
+          ),
+          fetched: rows.length,
+        };
       }
+
 
       // Sales by Category Report
       if (reportType === 'sales-by-category') {
