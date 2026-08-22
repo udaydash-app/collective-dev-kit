@@ -17,7 +17,14 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
+
+type FneSource = 'sales' | 'purchases' | 'expenses';
+const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
+  sales: { source: 'Sales', doc: 'Invoice', party: 'Customer' },
+  purchases: { source: 'Purchases', doc: 'Purchase', party: 'Supplier' },
+  expenses: { source: 'Expenses', doc: 'Expense', party: 'Payee' },
+};
 import { getPosAdminSession } from '@/db/queries/accounting';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -49,6 +56,7 @@ export default function CloseDayReport() {
   const [viewMode, setViewMode] = useState<'detail' | 'graph'>('detail');
   const [targetAmount, setTargetAmount] = useState<string>('');
   const [fneNonce, setFneNonce] = useState(0);
+  const [fneSource, setFneSource] = useState<FneSource>('sales');
   const targetAmountRef = useRef<string>('');
   useEffect(() => { targetAmountRef.current = targetAmount; }, [targetAmount]);
 
@@ -91,13 +99,40 @@ export default function CloseDayReport() {
   });
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId],
+    queryKey: ['close-day-report', selectedStoreId, startDate, endDate, reportType, selectedProductId, selectedCustomerId, fneSource],
     queryFn: async () => {
       if (!selectedStoreId || !startDate || !endDate) return null;
 
       // FNE Report — randomly select real invoices to match a target amount
       if (reportType === 'fne') {
         const target = parseFloat(targetAmountRef.current || '0');
+
+        if (fneSource === 'purchases') {
+          const { data, error } = await supabase
+            .from('purchases')
+            .select('id, purchase_number, purchased_at, created_at, total_amount, supplier_name, purchase_items(quantity, unit_cost, total_cost, products(name))')
+            .eq('store_id', selectedStoreId)
+            .gte('purchased_at', `${startDate}T00:00:00`)
+            .lte('purchased_at', `${endDate}T23:59:59`)
+            .order('purchased_at', { ascending: true });
+          if (error) throw error;
+          const invoices = ((data as any[]) || []).map(mapPurchaseToInvoice);
+          return { type: 'fne', result: selectFneFromInvoices(invoices, target), fetched: invoices.length };
+        }
+
+        if (fneSource === 'expenses') {
+          const { data, error } = await supabase
+            .from('expenses')
+            .select('id, expense_date, created_at, amount, description, category, contact_id, contacts:contact_id(name)')
+            .eq('store_id', selectedStoreId)
+            .gte('expense_date', startDate)
+            .lte('expense_date', endDate)
+            .order('expense_date', { ascending: true });
+          if (error) throw error;
+          const invoices = ((data as any[]) || []).map(mapExpenseToInvoice);
+          return { type: 'fne', result: selectFneFromInvoices(invoices, target), fetched: invoices.length };
+        }
+
         const adminSession = getPosAdminSession();
         if (adminSession) {
           const { data, error } = await supabase.rpc('get_fne_transactions' as any, {
@@ -1162,19 +1197,20 @@ export default function CloseDayReport() {
     // FNE Report
     if (reportData.type === 'fne') {
       const result = (reportData as any).result as FneResult;
-      const meta = { storeName, startDate, endDate };
+      const L = FNE_LABELS[fneSource];
+      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source };
 
       if (!result.invoices.length) {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>FNE Report</CardTitle>
+              <CardTitle>FNE Report — {L.source}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
                 {((reportData as any).fetched ?? 0) === 0
-                  ? 'No sales invoices found for this store and period.'
-                  : `Found ${(reportData as any).fetched} invoices in this period, but none fits the target amount of ${formatCurrency(result.target)}. Try a larger amount or a wider period.`}
+                  ? `No ${L.source.toLowerCase()} records found for this store and period.`
+                  : `Found ${(reportData as any).fetched} ${L.doc.toLowerCase()}s in this period, but none fits the target amount of ${formatCurrency(result.target)}. Try a larger amount or a wider period.`}
               </p>
             </CardContent>
           </Card>
@@ -1185,7 +1221,7 @@ export default function CloseDayReport() {
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-3">
-              <CardTitle>FNE Report</CardTitle>
+              <CardTitle>FNE Report — {L.source}</CardTitle>
               <div className="flex gap-2 no-print">
                 <Button variant="outline" size="sm" onClick={() => refetch()}>
                   Re-shuffle
@@ -1213,7 +1249,7 @@ export default function CloseDayReport() {
                   <p className="text-xl font-bold">{formatCurrency(result.difference)}</p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Invoices</p>
+                  <p className="text-sm text-muted-foreground">{L.doc}s</p>
                   <p className="text-xl font-bold">{result.invoices.length}</p>
                 </div>
               </div>
@@ -1223,9 +1259,9 @@ export default function CloseDayReport() {
                   <thead>
                     <tr className="border-b-2">
                       <th className="text-left p-2">#</th>
-                      <th className="text-left p-2">Invoice No</th>
+                      <th className="text-left p-2">{L.doc} No</th>
                       <th className="text-left p-2">Date</th>
-                      <th className="text-left p-2">Customer</th>
+                      <th className="text-left p-2">{L.party}</th>
                       <th className="text-right p-2">Total</th>
                     </tr>
                   </thead>
@@ -1255,7 +1291,7 @@ export default function CloseDayReport() {
             <Card key={`detail-${inv.id}`} className="print-page-break">
               <CardHeader className="bg-muted/30">
                 <CardTitle className="text-base flex flex-wrap justify-between gap-2">
-                  <span>Invoice {inv.number}</span>
+                  <span>{L.doc} {inv.number}</span>
                   <span className="font-normal text-sm text-muted-foreground">
                     {formatDateTime(inv.date)} — {inv.customerName}
                   </span>
@@ -1266,7 +1302,7 @@ export default function CloseDayReport() {
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="border-b-2">
-                        <th className="text-left p-2">Product</th>
+                        <th className="text-left p-2">Description</th>
                         <th className="text-right p-2">Qty</th>
                         <th className="text-right p-2">Unit Price</th>
                         <th className="text-right p-2">Line Total</th>
@@ -1852,6 +1888,23 @@ export default function CloseDayReport() {
             </div>
           </div>
 
+          {/* Data source — FNE only */}
+          {reportType === 'fne' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data Source *</p>
+              <Select value={fneSource} onValueChange={(v) => setFneSource(v as FneSource)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select data source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sales">🧾 Sales</SelectItem>
+                  <SelectItem value="purchases">📦 Purchases</SelectItem>
+                  <SelectItem value="expenses">💸 Expenses</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Target amount — FNE only */}
           {reportType === 'fne' && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
@@ -1867,7 +1920,7 @@ export default function CloseDayReport() {
                 className="h-10"
               />
               <p className="text-xs text-muted-foreground">
-                Real invoices from the period are randomly selected so their total gets as close as possible to this amount without exceeding it.
+                Real records from the period are randomly selected so their total gets as close as possible to this amount without exceeding it.
               </p>
             </div>
           )}
@@ -2023,7 +2076,7 @@ export default function CloseDayReport() {
           {/* Report Header */}
           <div className="text-center space-y-2 print-header">
             <h2 className="text-3xl font-bold">{storeName}</h2>
-            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType === 'fne' ? 'FNE Report' : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
+            <h3 className="text-2xl">{reportType === 'daily-summary' ? 'End Of Day Report' : reportType === 'fne' ? `FNE Report — ${FNE_LABELS[fneSource].source}` : reportType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</h3>
             <p className="text-lg text-muted-foreground">
               {formatDate(startDate)} {startDate !== endDate && `- ${formatDate(endDate)}`}
             </p>
