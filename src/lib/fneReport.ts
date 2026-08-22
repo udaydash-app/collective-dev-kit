@@ -85,14 +85,65 @@ export function mapTransactionToInvoice(t: any): FneInvoice {
   };
 }
 
+/** Map a purchase row (with purchase_items) into the shared invoice shape. */
+export function mapPurchaseToInvoice(p: any): FneInvoice {
+  const rawItems: any[] = Array.isArray(p.purchase_items) ? p.purchase_items : [];
+  const lines: FneLine[] = rawItems.map((i) => {
+    const qty = Math.abs(num(i.quantity));
+    const unitPrice = num(i.unit_cost);
+    return {
+      name: i.products?.name || i.product_name || 'Item',
+      quantity: qty,
+      unitPrice,
+      lineTotal: num(i.total_cost) || unitPrice * qty,
+    };
+  });
+
+  const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
+  const total = num(p.total_amount);
+
+  return {
+    id: p.id,
+    number: p.purchase_number || p.id?.slice(0, 8) || '—',
+    date: p.purchased_at || p.created_at,
+    customerName: p.supplier_name || 'Unknown supplier',
+    lines,
+    subtotal,
+    discount: 0,
+    tax: Math.max(0, total - subtotal),
+    total,
+  };
+}
+
+/** Map an expense row into the shared invoice shape. */
+export function mapExpenseToInvoice(e: any): FneInvoice {
+  const total = num(e.amount);
+  return {
+    id: e.id,
+    number: (e.id as string)?.slice(0, 8).toUpperCase() || '—',
+    date: e.expense_date || e.created_at,
+    customerName: e.contacts?.name || e.category || 'Expense',
+    lines: [
+      {
+        name: e.description || e.category || 'Expense',
+        quantity: 1,
+        unitPrice: total,
+        lineTotal: total,
+      },
+    ],
+    subtotal: total,
+    discount: 0,
+    tax: 0,
+    total,
+  };
+}
+
 /**
- * Randomly select invoices whose total lands as close as possible to the
- * target without exceeding it. Never modifies any invoice amount.
+ * Randomly select records whose total lands as close as possible to the
+ * target without exceeding it. Never modifies any amount.
  */
-export function selectFneInvoices(transactions: any[], target: number): FneResult {
-  const pool = transactions
-    .map(mapTransactionToInvoice)
-    .filter((inv) => inv.total > 0);
+export function selectFneFromInvoices(invoices: FneInvoice[], target: number): FneResult {
+  const pool = invoices.filter((inv) => inv.total > 0);
 
   // Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {
@@ -113,7 +164,7 @@ export function selectFneInvoices(transactions: any[], target: number): FneResul
     }
   }
 
-  // Second pass: fill the leftover gap with the largest invoices that still fit
+  // Second pass: fill the leftover gap with the largest records that still fit
   remaining.sort((a, b) => b.total - a.total);
   for (const inv of remaining) {
     if (achieved + inv.total <= target) {
@@ -127,10 +178,20 @@ export function selectFneInvoices(transactions: any[], target: number): FneResul
   return { invoices: chosen, target, achieved, difference: target - achieved };
 }
 
+export function selectFneInvoices(transactions: any[], target: number): FneResult {
+  return selectFneFromInvoices(transactions.map(mapTransactionToInvoice), target);
+}
+
 export interface FneMeta {
   storeName: string;
   startDate: string;
   endDate: string;
+  /** e.g. "Invoice", "Purchase", "Expense" */
+  docLabel?: string;
+  /** e.g. "Customer", "Supplier", "Payee" */
+  partyLabel?: string;
+  /** Report title suffix, e.g. "Sales" */
+  sourceLabel?: string;
 }
 
 export async function exportFnePdf(result: FneResult, meta: FneMeta) {
