@@ -182,6 +182,65 @@ export function selectFneInvoices(transactions: any[], target: number): FneResul
   return selectFneFromInvoices(transactions.map(mapTransactionToInvoice), target);
 }
 
+/** Random date/time string inside [startDate, endDate] (yyyy-MM-dd inputs). */
+function randomDateInPeriod(startDate: string, endDate: string): string {
+  const s = new Date(`${startDate}T00:00:00`).getTime();
+  const e = new Date(`${endDate}T23:59:59`).getTime();
+  const t = s + Math.random() * Math.max(0, e - s);
+  return new Date(t).toISOString();
+}
+
+/**
+ * Fill the target using in-period records first; if the target is not reached,
+ * borrow older records and display their dates inside the selected period.
+ */
+export function selectFneWithFallback(
+  inPeriod: FneInvoice[],
+  prior: FneInvoice[],
+  target: number,
+  startDate: string,
+  endDate: string
+): FneResult {
+  const base = selectFneFromInvoices(inPeriod, target);
+  if (base.difference <= 0 || !prior.length) return base;
+
+  const used = new Set(base.invoices.map((i) => i.id));
+  const pool = prior.filter((i) => i.total > 0 && !used.has(i.id));
+
+  // Shuffle then greedy-fit, largest-first second pass
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  let achieved = base.achieved;
+  const extra: FneInvoice[] = [];
+  const rest: FneInvoice[] = [];
+  for (const inv of pool) {
+    if (achieved + inv.total <= target) {
+      extra.push(inv);
+      achieved += inv.total;
+    } else {
+      rest.push(inv);
+    }
+  }
+  rest.sort((a, b) => b.total - a.total);
+  for (const inv of rest) {
+    if (achieved + inv.total <= target) {
+      extra.push(inv);
+      achieved += inv.total;
+    }
+  }
+
+  const remapped = extra.map((inv) => ({ ...inv, date: randomDateInPeriod(startDate, endDate) }));
+  const invoices = [...base.invoices, ...remapped].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  return { invoices, target, achieved, difference: target - achieved };
+}
+
+
 export interface FneMeta {
   storeName: string;
   startDate: string;
