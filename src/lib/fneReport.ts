@@ -200,10 +200,13 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   let y = await addPdfHeader(doc, settings, { startY: 10 });
 
   const pageWidth = doc.internal.pageSize.getWidth();
+  const docLabel = meta.docLabel || 'Invoice';
+  const partyLabel = meta.partyLabel || 'Customer';
+  const title = meta.sourceLabel ? `FNE Report - ${meta.sourceLabel}` : 'FNE Report';
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('FNE Report', pageWidth / 2, y, { align: 'center' });
+  doc.text(title, pageWidth / 2, y, { align: 'center' });
   y += 6;
 
   doc.setFontSize(9);
@@ -220,7 +223,7 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Target Amount', 'Achieved Total', 'Difference', 'Invoices']],
+    head: [['Target Amount', 'Achieved Total', 'Difference', `${docLabel}s`]],
     body: [[
       money(result.target),
       money(result.achieved),
@@ -236,7 +239,7 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Invoice No', 'Date', 'Customer', 'Total (FCFA)']],
+    head: [['#', `${docLabel} No`, 'Date', partyLabel, 'Total (FCFA)']],
     body: result.invoices.map((inv, idx) => [
       String(idx + 1),
       inv.number,
@@ -261,18 +264,18 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     doc.text(settings?.company_name || meta.storeName, pageWidth / 2, iy, { align: 'center' });
     iy += 6;
     doc.setFontSize(11);
-    doc.text(`Invoice ${inv.number}`, pageWidth / 2, iy, { align: 'center' });
+    doc.text(`${docLabel} ${inv.number}`, pageWidth / 2, iy, { align: 'center' });
     iy += 8;
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Date: ${formatDateTime(inv.date)}`, 14, iy);
-    doc.text(`Customer: ${inv.customerName}`, pageWidth - 14, iy, { align: 'right' });
+    doc.text(`${partyLabel}: ${inv.customerName}`, pageWidth - 14, iy, { align: 'right' });
     iy += 5;
 
     autoTable(doc, {
       startY: iy,
-      head: [['Product', 'Qty', 'Unit Price', 'Line Total']],
+      head: [['Description', 'Qty', 'Unit Price', 'Line Total']],
       body: inv.lines.map((l) => [
         l.name,
         String(l.quantity),
@@ -301,14 +304,16 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     });
   }
 
-  doc.save(`FNE-Report-${meta.startDate}-to-${meta.endDate}.pdf`);
+  doc.save(`FNE-${meta.sourceLabel || 'Sales'}-Report-${meta.startDate}-to-${meta.endDate}.pdf`);
 }
 
 export function exportFneExcel(result: FneResult, meta: FneMeta) {
   const wb = XLSX.utils.book_new();
+  const docLabel = meta.docLabel || 'Invoice';
+  const partyLabel = meta.partyLabel || 'Customer';
 
   const summaryRows: any[][] = [
-    ['FNE Report'],
+    [meta.sourceLabel ? `FNE Report - ${meta.sourceLabel}` : 'FNE Report'],
     ['Store', meta.storeName],
     ['Period', `${formatDate(meta.startDate)} - ${formatDate(meta.endDate)}`],
     ['Generated', formatDateTime(new Date())],
@@ -316,9 +321,9 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
     ['Target Amount', result.target],
     ['Achieved Total', result.achieved],
     ['Difference', result.difference],
-    ['Invoice Count', result.invoices.length],
+    [`${docLabel} Count`, result.invoices.length],
     [],
-    ['#', 'Invoice No', 'Date', 'Customer', 'Total'],
+    ['#', `${docLabel} No`, 'Date', partyLabel, 'Total'],
     ...result.invoices.map((inv, i) => [
       i + 1,
       inv.number,
@@ -331,7 +336,7 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
 
   const lineRows: any[][] = [
-    ['Invoice No', 'Date', 'Customer', 'Product', 'Qty', 'Unit Price', 'Line Total', 'Invoice Total'],
+    [`${docLabel} No`, 'Date', partyLabel, 'Description', 'Qty', 'Unit Price', 'Line Total', `${docLabel} Total`],
   ];
   result.invoices.forEach((inv) => {
     if (!inv.lines.length) {
@@ -351,7 +356,7 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
       ]);
     });
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lineRows), 'Invoices');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lineRows), `${docLabel}s`);
 
-  XLSX.writeFile(wb, `FNE-Report-${meta.startDate}-to-${meta.endDate}.xlsx`);
+  XLSX.writeFile(wb, `FNE-${meta.sourceLabel || 'Sales'}-Report-${meta.startDate}-to-${meta.endDate}.xlsx`);
 }
