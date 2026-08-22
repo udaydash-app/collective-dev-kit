@@ -17,7 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, selectFneFromInvoices, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
 
 type FneSource = 'sales' | 'purchases' | 'expenses';
 const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
