@@ -846,7 +846,7 @@ export default function GeneralLedger() {
     );
   };
 
-  const handleExport = async () => {
+  const handleExportPdf = async () => {
     if (!ledgerData?.account || !ledgerEntries.length) {
       return;
     }
@@ -955,6 +955,76 @@ export default function GeneralLedger() {
     doc.save(`general-ledger-${accountName}-${startDate}-${endDate}.pdf`);
   };
 
+  const handleExportExcel = async () => {
+    if (!ledgerData?.account || !ledgerEntries.length) {
+      return;
+    }
+
+    const XLSX = await import('xlsx');
+    const accountInfo = ledgerData.account as any;
+    const accountName = accountInfo.isUnified ? 'UNIFIED' : accountInfo.account_code;
+
+    const rows: any[] = [
+      { Date: '', Entry: '', Description: 'General Ledger Report', Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+      { Date: '', Entry: '', Description: `Account: ${accountName} - ${accountInfo.account_name}`, Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+      { Date: '', Entry: '', Description: `Type: ${accountInfo.isUnified ? 'Combined Customer/Supplier' : accountInfo.account_type}`, Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+      { Date: '', Entry: '', Description: `Period: ${startDate} to ${endDate}`, Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+    ];
+
+    if (accountInfo.isUnified) {
+      rows.push(
+        { Date: '', Entry: '', Description: `Customer Balance (A/R): ${accountInfo.customer_balance}`, Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+        { Date: '', Entry: '', Description: `Supplier Balance (A/P): ${accountInfo.supplier_balance}`, Ref: '', Note: '', Debit: '', Credit: '', Balance: '' },
+      );
+    }
+
+    rows.push({ Date: '', Entry: '', Description: '', Ref: '', Note: '', Debit: '', Credit: '', Balance: '' });
+    rows.push({ Date: 'Date', Entry: 'Entry', Description: 'Description', Ref: 'Ref', Note: 'Note', Debit: 'Debit', Credit: 'Credit', Balance: 'Balance' });
+
+    const openingBalance = Number(accountInfo.opening_balance || 0);
+    if (openingBalance !== 0) {
+      rows.push({
+        Date: startDate,
+        Entry: '',
+        Description: 'Opening Balance',
+        Ref: '',
+        Note: '',
+        Debit: openingBalance > 0 ? openingBalance : '',
+        Credit: openingBalance < 0 ? Math.abs(openingBalance) : '',
+        Balance: openingBalance,
+      });
+    }
+
+    ledgerEntries.forEach((entry: any) => {
+      rows.push({
+        Date: formatDate(entry.journal_entries.entry_date),
+        Entry: entry.journal_entries.entry_number,
+        Description: entry.journal_entries.description + (entry.description ? ' - ' + entry.description : ''),
+        Ref: entry.journal_entries.reference || '',
+        Note: entry.display_notes || '',
+        Debit: entry.debit_amount > 0 ? entry.debit_amount : '',
+        Credit: entry.credit_amount > 0 ? entry.credit_amount : '',
+        Balance: entry.running_balance,
+      });
+    });
+
+    const finalBalance = accountInfo.current_balance;
+    rows.push(
+      { Date: '', Entry: '', Description: 'Total', Ref: '', Note: '', Debit: totalDebit, Credit: totalCredit, Balance: '' },
+      { Date: '', Entry: '', Description: 'Current Balance', Ref: '', Note: '', Debit: '', Credit: '', Balance: finalBalance },
+    );
+
+    const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
+    const colWidths = [
+      { wch: 12 }, { wch: 18 }, { wch: 50 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
+    ];
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'General Ledger');
+    XLSX.writeFile(wb, `general-ledger-${accountName}-${startDate}-${endDate}.xlsx`);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -971,11 +1041,19 @@ export default function GeneralLedger() {
           <ReturnToPOSButton inline />
           <Button 
             variant="outline" 
-            onClick={handleExport}
+            onClick={handleExportPdf}
             disabled={!selectedAccount || !ledgerEntries.length}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export PDF
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleExportExcel}
+            disabled={!selectedAccount || !ledgerEntries.length}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
           </Button>
         </div>
       </div>
