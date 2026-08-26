@@ -1041,11 +1041,19 @@ export default function GeneralLedger() {
           <ReturnToPOSButton inline />
           <Button 
             variant="outline" 
-            onClick={handleExport}
+            onClick={handleExportPdf}
             disabled={!selectedAccount || !ledgerEntries.length}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export PDF
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleExportExcel}
+            disabled={!selectedAccount || !ledgerEntries.length}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
           </Button>
         </div>
       </div>
