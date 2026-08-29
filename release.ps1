@@ -47,8 +47,12 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     Write-Host "Using provided version: $Version"
 }
 
-npm version $Version --no-git-tag-version
-if ($LASTEXITCODE -ne 0) { throw "Failed to update package.json version" }
+if ($CurrentVersion -ne $Version) {
+    npm version $Version --no-git-tag-version
+    if ($LASTEXITCODE -ne 0) { throw "Failed to update package.json version" }
+} else {
+    Write-Host "Version already $Version - skipping npm version bump"
+}
 
 Run-Step "[3/7] Cleaning previous build artifacts..." {
     if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
