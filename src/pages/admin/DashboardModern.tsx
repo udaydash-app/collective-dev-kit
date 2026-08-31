@@ -14,7 +14,7 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronDown, Sparkles,
   ShoppingCart, Receipt, Wallet, Package, Users, Boxes, BarChart3, Settings,
   Tags, Tag, Megaphone, CreditCard, FileText, Truck, Layers, Calculator,
-  TrendingUp, BookOpen, ClipboardList, Banknote, PiggyBank, ScrollText,
+  TrendingUp, BookOpen, ClipboardList, Banknote, PiggyBank, ScrollText, AlertTriangle,
   LineChart, Percent, ShoppingBag, FileBarChart, Store, MessagesSquare,
   Building2, HandCoins, BadgePercent, ShieldCheck, Activity,
 } from "lucide-react";

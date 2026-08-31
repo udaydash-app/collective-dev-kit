@@ -46,7 +46,8 @@ import {
   Banknote,
   Factory,
   ScanBarcode as BarcodeIcon,
-  LayoutDashboard
+  LayoutDashboard,
+  AlertTriangle
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
