@@ -26,6 +26,7 @@ const PAYMENT_METHODS = [
 
 export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
@@ -109,6 +110,19 @@ export default function Expenses() {
     enabled: !!selectedStoreId,
   });
 
+  const resetForm = () => {
+    setFormData({
+      description: '',
+      amount: '',
+      payment_method: '',
+      expense_date: format(new Date(), 'yyyy-MM-dd'),
+      notes: '',
+      account_id: '',
+      paid_from_account_id: '',
+    });
+    setEditingExpense(null);
+  };
+
   const createExpense = useMutation({
     mutationFn: async (data: any) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -128,21 +142,48 @@ export default function Expenses() {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense added successfully');
       setShowDialog(false);
-      setFormData({
-        description: '',
-        amount: '',
-        payment_method: '',
-        expense_date: format(new Date(), 'yyyy-MM-dd'),
-        notes: '',
-        account_id: '',
-        paid_from_account_id: '',
-      });
+      resetForm();
     },
     onError: (error: any) => {
       console.error('Error adding expense:', error);
       toast.error('Failed to add expense');
     },
   });
+
+  const updateExpense = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase
+        .from('expenses')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success('Expense updated successfully');
+      setShowDialog(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Error updating expense:', error);
+      toast.error('Failed to update expense');
+    },
+  });
+
+  const openEditDialog = (expense: any) => {
+    setEditingExpense(expense);
+    setFormData({
+      description: expense.description || '',
+      amount: expense.amount?.toString() || '',
+      payment_method: expense.payment_method || '',
+      expense_date: expense.expense_date || format(new Date(), 'yyyy-MM-dd'),
+      notes: expense.notes || '',
+      account_id: expense.account_id || '',
+      paid_from_account_id: expense.paid_from_account_id || '',
+    });
+    setShowDialog(true);
+  };
 
   const deleteExpense = useMutation({
     mutationFn: async (id: string) => {
@@ -179,7 +220,7 @@ export default function Expenses() {
     const ledger = accounts?.find((a: any) => a.id === formData.account_id);
     const derivedCategory = ledger ? `${ledger.account_code} - ${ledger.account_name}` : 'Uncategorized';
 
-    createExpense.mutate({
+    const payload = {
       category: derivedCategory,
       description: formData.description,
       amount: parseFloat(formData.amount),
@@ -188,7 +229,13 @@ export default function Expenses() {
       notes: formData.notes || null,
       account_id: formData.account_id,
       paid_from_account_id: formData.paid_from_account_id || null,
-    });
+    };
+
+    if (editingExpense) {
+      updateExpense.mutate({ id: editingExpense.id, data: payload });
+    } else {
+      createExpense.mutate(payload);
+    }
   };
 
   const filteredExpenses = expenses?.filter((exp) => {
@@ -218,7 +265,7 @@ export default function Expenses() {
             <Search className="h-4 w-4 mr-2" />
             Search
           </Button>
-          <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -227,7 +274,7 @@ export default function Expenses() {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add New Expense</DialogTitle>
+              <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -429,11 +476,13 @@ export default function Expenses() {
               </div>
 
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)} className="flex-1">
+                <Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }} className="flex-1">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createExpense.isPending} className="flex-1">
-                  {createExpense.isPending ? 'Adding...' : 'Add Expense'}
+                <Button type="submit" disabled={createExpense.isPending || updateExpense.isPending} className="flex-1">
+                  {editingExpense
+                    ? (updateExpense.isPending ? 'Saving...' : 'Save Changes')
+                    : (createExpense.isPending ? 'Adding...' : 'Add Expense')}
                 </Button>
               </div>
             </form>
@@ -591,17 +640,26 @@ export default function Expenses() {
                           {formatCurrency(parseFloat(expense.amount.toString()))}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this expense?')) {
-                                deleteExpense.mutate(expense.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(expense)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this expense?')) {
+                                  deleteExpense.mutate(expense.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
