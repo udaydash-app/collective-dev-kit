@@ -1086,14 +1086,23 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
 
+      // Attribute expenses to the session by expense_date (not created_at),
+      // so backdated expenses don't land in today's session.
+      const toLocalDate = (d: string | Date) => new Date(d).toLocaleDateString('en-CA'); // yyyy-MM-dd
+      const sessionDate = toLocalDate(currentCashSession.opened_at);
+      const todayDate = toLocalDate(new Date());
+
       // Use IndexedDB in local mode
       if (isOffline) {
         try {
           const { offlineDB } = await import('@/lib/offlineDB');
           const expenses = await offlineDB.getExpenses();
-          const sessionStart = new Date(currentCashSession.opened_at).getTime();
           return expenses
-            .filter(e => e.store_id === currentCashSession.store_id && new Date(e.created_at).getTime() >= sessionStart)
+            .filter(e => {
+              if (e.store_id !== currentCashSession.store_id) return false;
+              const d = e.expense_date || toLocalDate(e.created_at);
+              return d >= sessionDate && d <= todayDate;
+            })
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } catch (e) {
           console.error('[POS] Error fetching offline expenses:', e);
@@ -1103,10 +1112,10 @@ export default function POS() {
 
       const { data } = await supabase
         .from('expenses')
-        .select('id, amount, payment_method, description, category, created_at')
+        .select('id, amount, payment_method, description, category, created_at, expense_date')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at)
-        .lte('created_at', new Date().toISOString())
+        .gte('expense_date', sessionDate)
+        .lte('expense_date', todayDate)
         .order('created_at', { ascending: false });
 
       return data || [];
