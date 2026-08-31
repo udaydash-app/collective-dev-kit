@@ -42,6 +42,7 @@ const menuGroups: { label: string; items: { title: string; to: string; icon: any
       { title: "Pricing", to: "/admin/pricing", icon: Tag, color: "from-yellow-500 to-amber-500" },
       { title: "Stock & Price", to: "/admin/stock-and-price", icon: Layers, color: "from-cyan-500 to-blue-500" },
       { title: "Stock Adjustment", to: "/admin/stock-adjustment", icon: Boxes, color: "from-sky-500 to-cyan-500" },
+      { title: "Damage Records", to: "/admin/damage-records", icon: AlertTriangle, color: "from-amber-500 to-orange-500" },
       { title: "Barcode", to: "/admin/barcode", icon: ShieldCheck, color: "from-slate-500 to-slate-700" },
       { title: "Production", to: "/admin/production", icon: Activity, color: "from-emerald-500 to-green-600" },
     ],

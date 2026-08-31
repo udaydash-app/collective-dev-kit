@@ -3701,6 +3701,7 @@ export default function POS() {
       { icon: Tags, label: 'Manage Categories', path: '/admin/categories' },
       { icon: BarcodeIcon, label: 'Barcode Management', path: '/admin/barcode' },
       { icon: Edit, label: 'Stock Adjustment', path: '/admin/stock-adjustment' },
+      { icon: AlertTriangle, label: 'Damage Records', path: '/admin/damage-records' },
       { icon: Factory, label: 'Production', path: '/admin/production' },
       { icon: FileText, label: 'Purchase Orders', path: '/admin/purchase-orders' },
       { icon: Package, label: 'Purchases & Stock', path: '/admin/purchases' },
