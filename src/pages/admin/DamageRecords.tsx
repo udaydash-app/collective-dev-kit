@@ -71,9 +71,9 @@ export default function DamageRecords() {
           variant_id,
           store_id,
           adjusted_by,
-          products!inner(name),
+          products(name),
           product_variants(label),
-          stores!inner(name)
+          stores(name)
         `)
         .eq('adjustment_type', 'damage')
         .order('created_at', { ascending: false });
