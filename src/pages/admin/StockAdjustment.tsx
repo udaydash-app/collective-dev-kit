@@ -6,13 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Package, Search, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, Search, Filter, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { formatCurrency } from '@/lib/utils';
 import { ExcelTable, type ExcelColumn } from '@/components/admin/ExcelTable';
 
 export default function StockAdjustment() {
+  const navigate = useNavigate();
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -470,7 +473,13 @@ export default function StockAdjustment() {
           <h1 className="text-3xl font-bold">Stock Adjustment</h1>
           <p className="text-muted-foreground">View and adjust inventory after physical verification</p>
         </div>
-        <ReturnToPOSButton hideDashboard />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/admin/damage-records')}>
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Damage Records
+          </Button>
+          <ReturnToPOSButton hideDashboard />
+        </div>
       </div>
 
       {/* Filters */}
