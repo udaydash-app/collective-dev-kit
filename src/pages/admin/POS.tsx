@@ -1975,12 +1975,16 @@ export default function POS() {
             .filter(p => p.payment_method === 'mobile_money')
             .reduce((sum, p) => sum + parseFloat(p.total_amount?.toString() || '0'), 0);
           
-          // Get expenses
+          // Get expenses — attribute by expense_date so backdated expenses
+          // don't land in today's session
           const expenses = await offlineDB.getExpenses();
-          const sessionExpenses = expenses.filter(e => 
-            e.store_id === currentCashSession.store_id && 
-            new Date(e.created_at).getTime() >= sessionStart
-          );
+          const sessionDate = new Date(currentCashSession.opened_at).toLocaleDateString('en-CA');
+          const todayDate = new Date().toLocaleDateString('en-CA');
+          const sessionExpenses = expenses.filter(e => {
+            if (e.store_id !== currentCashSession.store_id) return false;
+            const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
+            return d >= sessionDate && d <= todayDate;
+          });
           
           cashExpenses = sessionExpenses
             .filter(e => e.payment_method === 'cash')
