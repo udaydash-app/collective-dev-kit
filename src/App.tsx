@@ -55,6 +55,7 @@ import AdminPricing from "./pages/admin/Pricing";
 import AdminCloseDayReport from "./pages/admin/CloseDayReport";
 import AdminInventoryReports from "./pages/admin/InventoryReports";
 import AdminStockAdjustment from "./pages/admin/StockAdjustment";
+import AdminDamageRecords from "./pages/admin/DamageRecords";
 import AdminStockAndPrice from "./pages/admin/StockAndPrice";
 import COGSAnalysis from "./pages/admin/COGSAnalysis";
 import Production from "./pages/admin/Production";
@@ -362,6 +363,7 @@ const AppContent = () => {
           <Route path="/admin/close-day-report" element={<AdminRoute><AdminCloseDayReport /></AdminRoute>} />
           <Route path="/admin/inventory-reports" element={<AdminRoute><AdminInventoryReports /></AdminRoute>} />
           <Route path="/admin/stock-adjustment" element={<AdminRoute><AdminStockAdjustment /></AdminRoute>} />
+          <Route path="/admin/damage-records" element={<AdminRoute><AdminDamageRecords /></AdminRoute>} />
           <Route path="/admin/chart-of-accounts" element={<AdminRoute><AdminChartOfAccounts /></AdminRoute>} />
           <Route path="/admin/journal-entries" element={<AdminRoute><AdminJournalEntries /></AdminRoute>} />
           <Route path="/admin/general-ledger" element={<AdminRoute><AdminGeneralLedger /></AdminRoute>} />
