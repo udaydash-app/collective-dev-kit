@@ -26,6 +26,7 @@ const PAYMENT_METHODS = [
 
 export default function Expenses() {
   const [showDialog, setShowDialog] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
@@ -109,6 +110,19 @@ export default function Expenses() {
     enabled: !!selectedStoreId,
   });
 
+  const resetForm = () => {
+    setFormData({
+      description: '',
+      amount: '',
+      payment_method: '',
+      expense_date: format(new Date(), 'yyyy-MM-dd'),
+      notes: '',
+      account_id: '',
+      paid_from_account_id: '',
+    });
+    setEditingExpense(null);
+  };
+
   const createExpense = useMutation({
     mutationFn: async (data: any) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -128,21 +142,48 @@ export default function Expenses() {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense added successfully');
       setShowDialog(false);
-      setFormData({
-        description: '',
-        amount: '',
-        payment_method: '',
-        expense_date: format(new Date(), 'yyyy-MM-dd'),
-        notes: '',
-        account_id: '',
-        paid_from_account_id: '',
-      });
+      resetForm();
     },
     onError: (error: any) => {
       console.error('Error adding expense:', error);
       toast.error('Failed to add expense');
     },
   });
+
+  const updateExpense = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase
+        .from('expenses')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success('Expense updated successfully');
+      setShowDialog(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Error updating expense:', error);
+      toast.error('Failed to update expense');
+    },
+  });
+
+  const openEditDialog = (expense: any) => {
+    setEditingExpense(expense);
+    setFormData({
+      description: expense.description || '',
+      amount: expense.amount?.toString() || '',
+      payment_method: expense.payment_method || '',
+      expense_date: expense.expense_date || format(new Date(), 'yyyy-MM-dd'),
+      notes: expense.notes || '',
+      account_id: expense.account_id || '',
+      paid_from_account_id: expense.paid_from_account_id || '',
+    });
+    setShowDialog(true);
+  };
 
   const deleteExpense = useMutation({
     mutationFn: async (id: string) => {
