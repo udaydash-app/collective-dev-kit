@@ -476,11 +476,13 @@ export default function Expenses() {
               </div>
 
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)} className="flex-1">
+                <Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }} className="flex-1">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createExpense.isPending} className="flex-1">
-                  {createExpense.isPending ? 'Adding...' : 'Add Expense'}
+                <Button type="submit" disabled={createExpense.isPending || updateExpense.isPending} className="flex-1">
+                  {editingExpense
+                    ? (updateExpense.isPending ? 'Saving...' : 'Save Changes')
+                    : (createExpense.isPending ? 'Adding...' : 'Add Expense')}
                 </Button>
               </div>
             </form>
@@ -638,17 +640,26 @@ export default function Expenses() {
                           {formatCurrency(parseFloat(expense.amount.toString()))}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this expense?')) {
-                                deleteExpense.mutate(expense.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(expense)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this expense?')) {
+                                  deleteExpense.mutate(expense.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
