@@ -2083,12 +2083,14 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
-      // Fetch expenses for this session
+      // Fetch expenses for this session — filter by expense_date so backdated
+      // expenses don't count against today's session
       const { data: expenses } = await supabase
         .from('expenses')
-        .select('amount, payment_method')
+        .select('amount, payment_method, expense_date')
         .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at);
+        .gte('expense_date', new Date(currentCashSession.opened_at).toLocaleDateString('en-CA'))
+        .lte('expense_date', new Date().toLocaleDateString('en-CA'));
 
       cashExpenses = expenses
         ?.filter(e => e.payment_method === 'cash')
