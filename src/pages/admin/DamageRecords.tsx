@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { CalendarIcon, Search, FileSpreadsheet, AlertTriangle, Package, ExternalLink, X } from 'lucide-react';
+import { CalendarIcon, Search, FileSpreadsheet, AlertTriangle, Package, ExternalLink, X, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePageView } from '@/hooks/useAnalytics';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
