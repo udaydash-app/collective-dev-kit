@@ -220,7 +220,7 @@ export default function Expenses() {
     const ledger = accounts?.find((a: any) => a.id === formData.account_id);
     const derivedCategory = ledger ? `${ledger.account_code} - ${ledger.account_name}` : 'Uncategorized';
 
-    createExpense.mutate({
+    const payload = {
       category: derivedCategory,
       description: formData.description,
       amount: parseFloat(formData.amount),
@@ -229,7 +229,13 @@ export default function Expenses() {
       notes: formData.notes || null,
       account_id: formData.account_id,
       paid_from_account_id: formData.paid_from_account_id || null,
-    });
+    };
+
+    if (editingExpense) {
+      updateExpense.mutate({ id: editingExpense.id, data: payload });
+    } else {
+      createExpense.mutate(payload);
+    }
   };
 
   const filteredExpenses = expenses?.filter((exp) => {
@@ -259,7 +265,7 @@ export default function Expenses() {
             <Search className="h-4 w-4 mr-2" />
             Search
           </Button>
-          <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -268,7 +274,7 @@ export default function Expenses() {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add New Expense</DialogTitle>
+              <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
