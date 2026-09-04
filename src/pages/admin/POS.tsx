@@ -1087,10 +1087,9 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
 
-      // Attribute expenses to the session by expense_date (not created_at),
-      // so backdated expenses don't land in today's session.
+      // Expected cash is a daily figure. Count only expenses explicitly dated
+      // today, even when an open cash session began on the previous evening.
       const toLocalDate = (d: string | Date) => new Date(d).toLocaleDateString('en-CA'); // yyyy-MM-dd
-      const sessionDate = toLocalDate(currentCashSession.opened_at);
       const todayDate = toLocalDate(new Date());
 
       // Use IndexedDB in local mode
@@ -1104,7 +1103,7 @@ export default function POS() {
               // Exclude expenses entered before this session was opened
               if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
               const d = e.expense_date || toLocalDate(e.created_at);
-              return d >= sessionDate && d <= todayDate;
+              return d === todayDate;
             })
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } catch (e) {
@@ -1118,8 +1117,7 @@ export default function POS() {
         .select('id, amount, payment_method, description, category, created_at, expense_date')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
-        .gte('expense_date', sessionDate)
-        .lte('expense_date', todayDate)
+        .eq('expense_date', todayDate)
         .order('created_at', { ascending: false });
 
       return data || [];
@@ -1979,16 +1977,15 @@ export default function POS() {
             .filter(p => p.payment_method === 'mobile_money')
             .reduce((sum, p) => sum + parseFloat(p.total_amount?.toString() || '0'), 0);
           
-          // Get expenses — attribute by expense_date so backdated expenses
-          // don't land in today's session
+          // Expected cash is daily: never pull a prior date's expense into
+          // today's figure just because the session spans midnight.
           const expenses = await offlineDB.getExpenses();
-          const sessionDate = new Date(currentCashSession.opened_at).toLocaleDateString('en-CA');
           const todayDate = new Date().toLocaleDateString('en-CA');
           const sessionExpenses = expenses.filter(e => {
             if (e.store_id !== currentCashSession.store_id) return false;
             if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
             const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
-            return d >= sessionDate && d <= todayDate;
+            return d === todayDate;
           });
           
           cashExpenses = sessionExpenses
@@ -2092,15 +2089,14 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
-      // Fetch expenses for this session — filter by expense_date so backdated
-      // expenses don't count against today's session
+      // Expected cash is daily, even if the current session spans midnight.
+      const todayDate = new Date().toLocaleDateString('en-CA');
       const { data: expenses } = await supabase
         .from('expenses')
         .select('amount, payment_method, expense_date')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
-        .gte('expense_date', new Date(currentCashSession.opened_at).toLocaleDateString('en-CA'))
-        .lte('expense_date', new Date().toLocaleDateString('en-CA'));
+        .eq('expense_date', todayDate);
 
       cashExpenses = expenses
         ?.filter(e => e.payment_method === 'cash')
