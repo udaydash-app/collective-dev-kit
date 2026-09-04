@@ -140,6 +140,7 @@ export default function Expenses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['today-all-expenses'] });
       toast.success('Expense added successfully');
       setShowDialog(false);
       resetForm();
@@ -161,6 +162,7 @@ export default function Expenses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['today-all-expenses'] });
       toast.success('Expense updated successfully');
       setShowDialog(false);
       resetForm();
@@ -196,6 +198,7 @@ export default function Expenses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['today-all-expenses'] });
       toast.success('Expense deleted successfully');
     },
     onError: (error: any) => {
