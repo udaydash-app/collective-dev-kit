@@ -770,6 +770,7 @@ export default function CloseDayReport() {
             .from('expenses')
             .select('amount, payment_method, expense_date')
             .eq('store_id', session.store_id)
+            .gte('created_at', sessionStart)
             .gte('expense_date', sessionStart.split('T')[0])
             .lte('expense_date', sessionEnd.split('T')[0]);
 

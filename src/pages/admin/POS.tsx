@@ -1101,6 +1101,8 @@ export default function POS() {
           return expenses
             .filter(e => {
               if (e.store_id !== currentCashSession.store_id) return false;
+              // Exclude expenses entered before this session was opened
+              if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
               const d = e.expense_date || toLocalDate(e.created_at);
               return d >= sessionDate && d <= todayDate;
             })
@@ -1115,6 +1117,7 @@ export default function POS() {
         .from('expenses')
         .select('id, amount, payment_method, description, category, created_at, expense_date')
         .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at)
         .gte('expense_date', sessionDate)
         .lte('expense_date', todayDate)
         .order('created_at', { ascending: false });
@@ -1983,6 +1986,7 @@ export default function POS() {
           const todayDate = new Date().toLocaleDateString('en-CA');
           const sessionExpenses = expenses.filter(e => {
             if (e.store_id !== currentCashSession.store_id) return false;
+            if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
             const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
             return d >= sessionDate && d <= todayDate;
           });
@@ -2094,6 +2098,7 @@ export default function POS() {
         .from('expenses')
         .select('amount, payment_method, expense_date')
         .eq('store_id', currentCashSession.store_id)
+        .gte('created_at', currentCashSession.opened_at)
         .gte('expense_date', new Date(currentCashSession.opened_at).toLocaleDateString('en-CA'))
         .lte('expense_date', new Date().toLocaleDateString('en-CA'));
 
