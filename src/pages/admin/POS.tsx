@@ -1083,7 +1083,7 @@ export default function POS() {
 
   // Get day's expenses from all users
   const { data: dayExpenses } = useQuery({
-    queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.opened_at, isOffline ? 'local' : 'online'],
+    queryKey: ['today-all-expenses', selectedStoreId, currentCashSession?.id, currentCashSession?.opened_at, isOffline ? 'local' : 'online'],
     queryFn: async () => {
       if (!currentCashSession) return [];
 
@@ -1123,7 +1123,7 @@ export default function POS() {
       return data || [];
     },
     enabled: !!currentCashSession,
-    staleTime: isOffline ? Infinity : 30 * 1000,
+    staleTime: 0,
   });
 
   // Get top credit customers with outstanding balances - optimized single query
@@ -2032,7 +2032,7 @@ export default function POS() {
           queryClient.removeQueries({ queryKey: ['active-cash-session'] });
           queryClient.removeQueries({ queryKey: ['today-all-transactions'] });
           queryClient.removeQueries({ queryKey: ['today-all-purchases'] });
-          queryClient.removeQueries({ queryKey: ['today-expenses'] });
+          queryClient.removeQueries({ queryKey: ['today-all-expenses'] });
           queryClient.removeQueries({ queryKey: ['today-payment-receipts'] });
           queryClient.removeQueries({ queryKey: ['session-supplier-payments'] });
           queryClient.removeQueries({ queryKey: ['session-cash-journal-entries'] });
