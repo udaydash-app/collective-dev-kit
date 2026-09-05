@@ -464,7 +464,8 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   let col = 0;
   let cy = topY;
 
-  for (const inv of result.invoices) {
+  for (let idx = 0; idx < result.invoices.length; idx++) {
+    const inv = result.invoices[idx];
     const ops = buildOps(inv);
     const height = ops.reduce((s, o) => s + o.h, 0) + 6;
 
@@ -482,6 +483,23 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     const x = margin + col * (colW + gutter);
     const end = drawOps(ops, x, cy);
     cy = end + 6;
+
+    // dotted double-line separator between receipts
+    if (idx < result.invoices.length - 1) {
+      const left = x + 2;
+      const right = x + colW - 2;
+      doc.setDrawColor(120, 120, 120);
+      doc.setLineWidth(0.2);
+      if ((doc as any).setLineDashPattern) {
+        (doc as any).setLineDashPattern([0.8, 0.8], 0);
+      }
+      doc.line(left, cy - 4, right, cy - 4);
+      doc.line(left, cy - 2.6, right, cy - 2.6);
+      if ((doc as any).setLineDashPattern) {
+        (doc as any).setLineDashPattern([], 0);
+      }
+      cy += 2;
+    }
   }
 
 
