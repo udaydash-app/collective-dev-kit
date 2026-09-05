@@ -430,6 +430,11 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
       doc.text(money(value), pageWidth - 14, sy, { align: 'right' });
       sy += 5;
     });
+    // If autoTable paginated mid-invoice, resume below its final position
+    cy = Math.max(sy, (doc as any).lastAutoTable.finalY + 6) + 6;
+    // Divider between invoices on the same page
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, cy - 4, pageWidth - 14, cy - 4);
   }
 
   doc.save(`FNE-${meta.sourceLabel || 'Sales'}-Report-${meta.startDate}-to-${meta.endDate}.pdf`);
