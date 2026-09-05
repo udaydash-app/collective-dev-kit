@@ -463,7 +463,6 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   doc.addPage();
   let col = 0;
   let cy = topY;
-  let rowMaxBottom = topY;
 
   for (const inv of result.invoices) {
     const ops = buildOps(inv);
@@ -483,7 +482,6 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     const x = margin + col * (colW + gutter);
     const end = drawOps(ops, x, cy);
     cy = end + 6;
-    rowMaxBottom = Math.max(rowMaxBottom, cy);
   }
 
 
