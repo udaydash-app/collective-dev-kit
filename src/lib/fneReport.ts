@@ -461,6 +461,22 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
 
+  const groups = buildFneGroups(result.invoices, meta.groupBy || 'none');
+  if (groups.length) {
+    const byProduct = meta.groupBy === 'product';
+    const groupRows: any[][] = [
+      ['#', byProduct ? 'Product' : partyLabel, 'Qty', byProduct ? `${docLabel} Lines` : `${docLabel}s`, 'Total'],
+      ...groups.map((g, i) => [i + 1, g.name, g.quantity, g.count, g.total]),
+      ['', 'TOTAL', '', '', groups.reduce((s, g) => s + g.total, 0)],
+    ];
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(groupRows),
+      byProduct ? 'By Product' : `By ${partyLabel}`,
+    );
+  }
+
+
   const lineRows: any[][] = [
     [`${docLabel} No`, 'Date', partyLabel, 'Description', 'Qty', 'Unit Price', 'Line Total', `${docLabel} Total`],
   ];
