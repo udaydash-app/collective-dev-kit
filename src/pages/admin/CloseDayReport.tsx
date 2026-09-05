@@ -1366,6 +1366,52 @@ export default function CloseDayReport() {
             </CardContent>
           </Card>
 
+          {fneGroups.length > 0 && (
+            <Card className="print-page-break">
+              <CardHeader>
+                <CardTitle>
+                  {activeGroupBy === 'product' ? 'Grouped by Product' : `Grouped by ${L.party}`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b-2">
+                        <th className="text-left p-2">#</th>
+                        <th className="text-left p-2">{activeGroupBy === 'product' ? 'Product' : L.party}</th>
+                        <th className="text-right p-2">Qty</th>
+                        <th className="text-right p-2">{activeGroupBy === 'product' ? `${L.doc} Lines` : `${L.doc}s`}</th>
+                        <th className="text-right p-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fneGroups.map((g, i) => (
+                        <tr key={g.name} className="border-b">
+                          <td className="p-2 text-muted-foreground">{i + 1}</td>
+                          <td className="p-2 font-medium">{g.name}</td>
+                          <td className="p-2 text-right">{g.quantity}</td>
+                          <td className="p-2 text-right">{g.count}</td>
+                          <td className="p-2 text-right font-semibold">{formatCurrency(g.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 font-bold">
+                        <td className="p-2" colSpan={4}>TOTAL</td>
+                        <td className="p-2 text-right">
+                          {formatCurrency(fneGroups.reduce((s, g) => s + g.total, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
+
           {result.invoices.map((inv) => (
             <Card key={`detail-${inv.id}`} className="print-page-break">
               <CardHeader className="bg-muted/30">
