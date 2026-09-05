@@ -241,6 +241,45 @@ export function selectFneWithFallback(
 }
 
 
+export type FneGroupBy = 'none' | 'customer' | 'product';
+
+export interface FneGroupRow {
+  name: string;
+  quantity: number;
+  count: number;
+  total: number;
+}
+
+/** Group the selected records by customer/party or by product line. */
+export function buildFneGroups(invoices: FneInvoice[], by: FneGroupBy): FneGroupRow[] {
+  if (by === 'none') return [];
+  const map = new Map<string, FneGroupRow>();
+
+  if (by === 'customer') {
+    for (const inv of invoices) {
+      const key = inv.customerName || 'Unknown';
+      const row = map.get(key) || { name: key, quantity: 0, count: 0, total: 0 };
+      row.count += 1;
+      row.quantity += inv.lines.reduce((s, l) => s + l.quantity, 0);
+      row.total += inv.total;
+      map.set(key, row);
+    }
+  } else {
+    for (const inv of invoices) {
+      for (const l of inv.lines) {
+        const key = l.name || 'Item';
+        const row = map.get(key) || { name: key, quantity: 0, count: 0, total: 0 };
+        row.count += 1;
+        row.quantity += l.quantity;
+        row.total += l.lineTotal;
+        map.set(key, row);
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
 export interface FneMeta {
   storeName: string;
   startDate: string;
@@ -251,7 +290,10 @@ export interface FneMeta {
   partyLabel?: string;
   /** Report title suffix, e.g. "Sales" */
   sourceLabel?: string;
+  /** Optional grouped breakdown to include in exports */
+  groupBy?: FneGroupBy;
 }
+
 
 export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   const doc = new jsPDF('p', 'mm', 'a4');
