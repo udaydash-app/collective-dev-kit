@@ -1982,6 +1982,25 @@ export default function CloseDayReport() {
             </div>
           )}
 
+          {/* Group by — FNE sales only */}
+          {reportType === 'fne' && fneSource === 'sales' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Group By</p>
+              <Select value={fneGroupBy} onValueChange={(v) => setFneGroupBy(v as FneGroupBy)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="No grouping" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grouping (invoice list)</SelectItem>
+                  <SelectItem value="customer">👤 Group by customer</SelectItem>
+                  <SelectItem value="product">📦 Group by product</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+
+
           {/* Target amount — FNE only */}
           {reportType === 'fne' && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
