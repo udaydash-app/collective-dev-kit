@@ -375,11 +375,18 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     });
   }
 
-  // One page per invoice
+  // Invoices flow continuously — only break the page when one won't fit
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let cy = ((doc as any).lastAutoTable?.finalY ?? 6) + 10;
 
   for (const inv of result.invoices) {
-    doc.addPage();
-    let iy = 16;
+    // Estimate height: header (~22) + line rows (~5 each + 6 head) + summary (~26)
+    const estimated = 22 + (inv.lines.length + 1) * 5 + 26;
+    if (cy + estimated > pageHeight - 12) {
+      doc.addPage();
+      cy = 16;
+    }
+    let iy = cy;
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
     doc.text(settings?.company_name || meta.storeName, pageWidth / 2, iy, { align: 'center' });
