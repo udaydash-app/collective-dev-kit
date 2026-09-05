@@ -1275,7 +1275,9 @@ export default function CloseDayReport() {
     if (reportData.type === 'fne') {
       const result = (reportData as any).result as FneResult;
       const L = FNE_LABELS[fneSource];
-      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source };
+      const activeGroupBy: FneGroupBy = fneSource === 'sales' ? fneGroupBy : 'none';
+      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy };
+      const fneGroups = buildFneGroups(result.invoices, activeGroupBy);
 
       if (!result.invoices.length) {
         return (
