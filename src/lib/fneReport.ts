@@ -375,67 +375,115 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     });
   }
 
-  // Invoices flow continuously — only break the page when one won't fit
+  // ---- Receipt-style slips (same look as POS bills), tiled on A4 ----
   const pageHeight = doc.internal.pageSize.getHeight();
-  let cy = ((doc as any).lastAutoTable?.finalY ?? 6) + 10;
+  const margin = 8;
+  const gutter = 5;
+  const cols = 3;
+  const colW = (pageWidth - margin * 2 - gutter * (cols - 1)) / cols;
+  const topY = 14;
+  const bottomY = pageHeight - 10;
+  const storeTitle = (settings?.company_name || meta.storeName || '').toUpperCase();
+
+  // Build the drawing instructions for one receipt so height can be measured
+  type Op =
+    | { t: 'text'; s: string; align: 'left' | 'center' | 'right'; bold?: boolean; size: number; h: number }
+    | { t: 'row'; l: string; r: string; bold?: boolean; size: number; h: number }
+    | { t: 'line'; dashed?: boolean; h: number };
+
+  const buildOps = (inv: FneInvoice): Op[] => {
+    const ops: Op[] = [];
+    const wrap = (s: string, size: number) => {
+      doc.setFontSize(size);
+      return doc.splitTextToSize(s, colW - 4) as string[];
+    };
+
+    wrap(storeTitle, 9).forEach((s) =>
+      ops.push({ t: 'text', s, align: 'center', bold: true, size: 9, h: 4 })
+    );
+    ops.push({ t: 'text', s: `${docLabel}: ${inv.number}`, align: 'center', bold: false, size: 7, h: 3.4 });
+    ops.push({ t: 'text', s: formatDateTime(inv.date), align: 'center', bold: false, size: 7, h: 3.4 });
+    wrap(`${partyLabel}: ${inv.customerName}`, 7).forEach((s) =>
+      ops.push({ t: 'text', s, align: 'center', bold: true, size: 7, h: 3.4 })
+    );
+    ops.push({ t: 'line', h: 3 });
+
+    inv.lines.forEach((l) => {
+      wrap(l.name, 7).forEach((s) => ops.push({ t: 'text', s, align: 'left', size: 7, h: 3.4 }));
+      ops.push({
+        t: 'row',
+        l: `${l.quantity} x ${money(l.unitPrice)}`,
+        r: money(l.lineTotal),
+        bold: true,
+        size: 7,
+        h: 3.6,
+      });
+    });
+
+    ops.push({ t: 'line', h: 3 });
+    ops.push({ t: 'row', l: 'Subtotal:', r: money(inv.subtotal), size: 7, h: 3.6 });
+    if (inv.tax > 0) ops.push({ t: 'row', l: 'Timbre:', r: money(inv.tax), size: 7, h: 3.6 });
+    if (inv.discount > 0)
+      ops.push({ t: 'row', l: 'Discount:', r: `-${money(inv.discount)}`, size: 7, h: 3.6 });
+    ops.push({ t: 'line', h: 2.5 });
+    ops.push({ t: 'row', l: 'TOTAL:', r: money(inv.total), bold: true, size: 9, h: 5 });
+    ops.push({ t: 'line', dashed: true, h: 3 });
+    ops.push({ t: 'text', s: 'Thank you for shopping with us!', align: 'center', size: 6, h: 3 });
+    return ops;
+  };
+
+  const drawOps = (ops: Op[], x: number, y: number): number => {
+    let cy2 = y;
+    const left = x + 2;
+    const right = x + colW - 2;
+    for (const op of ops) {
+      if (op.t === 'line') {
+        doc.setDrawColor(120, 120, 120);
+        doc.setLineWidth(0.2);
+        if (op.dashed && (doc as any).setLineDashPattern) (doc as any).setLineDashPattern([0.8, 0.8], 0);
+        doc.line(left, cy2, right, cy2);
+        if (op.dashed && (doc as any).setLineDashPattern) (doc as any).setLineDashPattern([], 0);
+        cy2 += op.h;
+        continue;
+      }
+      doc.setFontSize(op.size);
+      doc.setFont('courier', op.bold ? 'bold' : 'normal');
+      if (op.t === 'text') {
+        const tx = op.align === 'center' ? x + colW / 2 : op.align === 'right' ? right : left;
+        doc.text(op.s, tx, cy2, { align: op.align });
+      } else {
+        doc.text(op.l, left, cy2);
+        doc.text(op.r, right, cy2, { align: 'right' });
+      }
+      cy2 += op.h;
+    }
+    return cy2;
+  };
+
+  doc.addPage();
+  let col = 0;
+  let cy = topY;
 
   for (const inv of result.invoices) {
-    // Estimate height: header (~22) + line rows (~5 each + 6 head) + summary (~26)
-    const estimated = 22 + (inv.lines.length + 1) * 5 + 26;
-    if (cy + estimated > pageHeight - 12) {
-      doc.addPage();
-      cy = 16;
+    const ops = buildOps(inv);
+    const height = ops.reduce((s, o) => s + o.h, 0) + 6;
+
+    if (cy + height > bottomY) {
+      // move to next column, or next page when the row is full
+      col += 1;
+      if (col >= cols) {
+        doc.addPage();
+        col = 0;
+        rowMaxBottom = topY;
+      }
+      cy = topY;
     }
-    let iy = cy;
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text(settings?.company_name || meta.storeName, pageWidth / 2, iy, { align: 'center' });
-    iy += 6;
-    doc.setFontSize(11);
-    doc.text(`${docLabel} ${inv.number}`, pageWidth / 2, iy, { align: 'center' });
-    iy += 8;
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${formatDateTime(inv.date)}`, 14, iy);
-    doc.text(`${partyLabel}: ${inv.customerName}`, pageWidth - 14, iy, { align: 'right' });
-    iy += 5;
-
-    autoTable(doc, {
-      startY: iy,
-      head: [['Description', 'Qty', 'Unit Price', 'Line Total']],
-      body: inv.lines.map((l) => [
-        l.name,
-        String(l.quantity),
-        money(l.unitPrice),
-        money(l.lineTotal),
-      ]),
-      styles: { fontSize: 8, cellPadding: 1.6 },
-      headStyles: { fillColor: [30, 41, 59] },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
-      theme: 'grid',
-    });
-
-    let sy = (doc as any).lastAutoTable.finalY + 6;
-    const rows: Array<[string, number]> = [
-      ['Subtotal', inv.subtotal],
-      ['Discount', inv.discount],
-      ['Timbre / Tax', inv.tax],
-      ['Total', inv.total],
-    ];
-    doc.setFontSize(9);
-    rows.forEach(([label, value], i) => {
-      doc.setFont('helvetica', i === rows.length - 1 ? 'bold' : 'normal');
-      doc.text(label, pageWidth - 70, sy);
-      doc.text(money(value), pageWidth - 14, sy, { align: 'right' });
-      sy += 5;
-    });
-    // If autoTable paginated mid-invoice, resume below its final position
-    cy = Math.max(sy, (doc as any).lastAutoTable.finalY + 6) + 6;
-    // Divider between invoices on the same page
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, cy - 4, pageWidth - 14, cy - 4);
+    const x = margin + col * (colW + gutter);
+    const end = drawOps(ops, x, cy);
+    cy = end + 6;
   }
+
 
   doc.save(`FNE-${meta.sourceLabel || 'Sales'}-Report-${meta.startDate}-to-${meta.endDate}.pdf`);
 }
