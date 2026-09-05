@@ -356,7 +356,32 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     theme: 'grid',
   });
 
+  // Optional grouped breakdown
+  const groups = buildFneGroups(result.invoices, meta.groupBy || 'none');
+  if (groups.length) {
+    const byProduct = meta.groupBy === 'product';
+    doc.addPage();
+    autoTable(doc, {
+      startY: 16,
+      head: [[
+        '#',
+        byProduct ? 'Product' : partyLabel,
+        'Qty',
+        byProduct ? `${docLabel} Lines` : `${docLabel}s`,
+        'Total (FCFA)',
+      ]],
+      body: groups.map((g, i) => [String(i + 1), g.name, String(g.quantity), String(g.count), money(g.total)]),
+      foot: [['', 'TOTAL', '', '', money(groups.reduce((s, g) => s + g.total, 0))]],
+      styles: { fontSize: 8, cellPadding: 1.6 },
+      headStyles: { fillColor: [34, 197, 94] },
+      footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      theme: 'grid',
+    });
+  }
+
   // One page per invoice
+
   for (const inv of result.invoices) {
     doc.addPage();
     let iy = 16;
