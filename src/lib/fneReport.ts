@@ -474,8 +474,8 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
       if (col >= cols) {
         doc.addPage();
         col = 0;
-        rowMaxBottom = topY;
       }
+
       cy = topY;
     }
 
