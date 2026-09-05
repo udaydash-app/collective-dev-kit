@@ -57,6 +57,8 @@ export default function CloseDayReport() {
   const [targetAmount, setTargetAmount] = useState<string>('');
   const [fneNonce, setFneNonce] = useState(0);
   const [fneSource, setFneSource] = useState<FneSource>('sales');
+  const [fneGroupBy, setFneGroupBy] = useState<FneGroupBy>('none');
+
   const targetAmountRef = useRef<string>('');
   useEffect(() => { targetAmountRef.current = targetAmount; }, [targetAmount]);
 
