@@ -17,7 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, type FneResult } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, buildFneGroups, type FneResult, type FneGroupBy } from '@/lib/fneReport';
 
 type FneSource = 'sales' | 'purchases' | 'expenses';
 const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
@@ -57,6 +57,8 @@ export default function CloseDayReport() {
   const [targetAmount, setTargetAmount] = useState<string>('');
   const [fneNonce, setFneNonce] = useState(0);
   const [fneSource, setFneSource] = useState<FneSource>('sales');
+  const [fneGroupBy, setFneGroupBy] = useState<FneGroupBy>('none');
+
   const targetAmountRef = useRef<string>('');
   useEffect(() => { targetAmountRef.current = targetAmount; }, [targetAmount]);
 
@@ -1273,7 +1275,9 @@ export default function CloseDayReport() {
     if (reportData.type === 'fne') {
       const result = (reportData as any).result as FneResult;
       const L = FNE_LABELS[fneSource];
-      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source };
+      const activeGroupBy: FneGroupBy = fneSource === 'sales' ? fneGroupBy : 'none';
+      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy };
+      const fneGroups = buildFneGroups(result.invoices, activeGroupBy);
 
       if (!result.invoices.length) {
         return (
@@ -1361,6 +1365,52 @@ export default function CloseDayReport() {
               </div>
             </CardContent>
           </Card>
+
+          {fneGroups.length > 0 && (
+            <Card className="print-page-break">
+              <CardHeader>
+                <CardTitle>
+                  {activeGroupBy === 'product' ? 'Grouped by Product' : `Grouped by ${L.party}`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b-2">
+                        <th className="text-left p-2">#</th>
+                        <th className="text-left p-2">{activeGroupBy === 'product' ? 'Product' : L.party}</th>
+                        <th className="text-right p-2">Qty</th>
+                        <th className="text-right p-2">{activeGroupBy === 'product' ? `${L.doc} Lines` : `${L.doc}s`}</th>
+                        <th className="text-right p-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fneGroups.map((g, i) => (
+                        <tr key={g.name} className="border-b">
+                          <td className="p-2 text-muted-foreground">{i + 1}</td>
+                          <td className="p-2 font-medium">{g.name}</td>
+                          <td className="p-2 text-right">{g.quantity}</td>
+                          <td className="p-2 text-right">{g.count}</td>
+                          <td className="p-2 text-right font-semibold">{formatCurrency(g.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 font-bold">
+                        <td className="p-2" colSpan={4}>TOTAL</td>
+                        <td className="p-2 text-right">
+                          {formatCurrency(fneGroups.reduce((s, g) => s + g.total, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
 
           {result.invoices.map((inv) => (
             <Card key={`detail-${inv.id}`} className="print-page-break">
@@ -1979,6 +2029,25 @@ export default function CloseDayReport() {
               </Select>
             </div>
           )}
+
+          {/* Group by — FNE sales only */}
+          {reportType === 'fne' && fneSource === 'sales' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Group By</p>
+              <Select value={fneGroupBy} onValueChange={(v) => setFneGroupBy(v as FneGroupBy)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="No grouping" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grouping (invoice list)</SelectItem>
+                  <SelectItem value="customer">👤 Group by customer</SelectItem>
+                  <SelectItem value="product">📦 Group by product</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+
 
           {/* Target amount — FNE only */}
           {reportType === 'fne' && (

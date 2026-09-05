@@ -241,6 +241,45 @@ export function selectFneWithFallback(
 }
 
 
+export type FneGroupBy = 'none' | 'customer' | 'product';
+
+export interface FneGroupRow {
+  name: string;
+  quantity: number;
+  count: number;
+  total: number;
+}
+
+/** Group the selected records by customer/party or by product line. */
+export function buildFneGroups(invoices: FneInvoice[], by: FneGroupBy): FneGroupRow[] {
+  if (by === 'none') return [];
+  const map = new Map<string, FneGroupRow>();
+
+  if (by === 'customer') {
+    for (const inv of invoices) {
+      const key = inv.customerName || 'Unknown';
+      const row = map.get(key) || { name: key, quantity: 0, count: 0, total: 0 };
+      row.count += 1;
+      row.quantity += inv.lines.reduce((s, l) => s + l.quantity, 0);
+      row.total += inv.total;
+      map.set(key, row);
+    }
+  } else {
+    for (const inv of invoices) {
+      for (const l of inv.lines) {
+        const key = l.name || 'Item';
+        const row = map.get(key) || { name: key, quantity: 0, count: 0, total: 0 };
+        row.count += 1;
+        row.quantity += l.quantity;
+        row.total += l.lineTotal;
+        map.set(key, row);
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
 export interface FneMeta {
   storeName: string;
   startDate: string;
@@ -251,7 +290,10 @@ export interface FneMeta {
   partyLabel?: string;
   /** Report title suffix, e.g. "Sales" */
   sourceLabel?: string;
+  /** Optional grouped breakdown to include in exports */
+  groupBy?: FneGroupBy;
 }
+
 
 export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   const doc = new jsPDF('p', 'mm', 'a4');
@@ -314,7 +356,32 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     theme: 'grid',
   });
 
+  // Optional grouped breakdown
+  const groups = buildFneGroups(result.invoices, meta.groupBy || 'none');
+  if (groups.length) {
+    const byProduct = meta.groupBy === 'product';
+    doc.addPage();
+    autoTable(doc, {
+      startY: 16,
+      head: [[
+        '#',
+        byProduct ? 'Product' : partyLabel,
+        'Qty',
+        byProduct ? `${docLabel} Lines` : `${docLabel}s`,
+        'Total (FCFA)',
+      ]],
+      body: groups.map((g, i) => [String(i + 1), g.name, String(g.quantity), String(g.count), money(g.total)]),
+      foot: [['', 'TOTAL', '', '', money(groups.reduce((s, g) => s + g.total, 0))]],
+      styles: { fontSize: 8, cellPadding: 1.6 },
+      headStyles: { fillColor: [34, 197, 94] },
+      footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      theme: 'grid',
+    });
+  }
+
   // One page per invoice
+
   for (const inv of result.invoices) {
     doc.addPage();
     let iy = 16;
@@ -393,6 +460,22 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
     ['', '', '', 'TOTAL', result.achieved],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
+
+  const groups = buildFneGroups(result.invoices, meta.groupBy || 'none');
+  if (groups.length) {
+    const byProduct = meta.groupBy === 'product';
+    const groupRows: any[][] = [
+      ['#', byProduct ? 'Product' : partyLabel, 'Qty', byProduct ? `${docLabel} Lines` : `${docLabel}s`, 'Total'],
+      ...groups.map((g, i) => [i + 1, g.name, g.quantity, g.count, g.total]),
+      ['', 'TOTAL', '', '', groups.reduce((s, g) => s + g.total, 0)],
+    ];
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(groupRows),
+      byProduct ? 'By Product' : `By ${partyLabel}`,
+    );
+  }
+
 
   const lineRows: any[][] = [
     [`${docLabel} No`, 'Date', partyLabel, 'Description', 'Qty', 'Unit Price', 'Line Total', `${docLabel} Total`],
