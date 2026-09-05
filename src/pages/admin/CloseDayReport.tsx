@@ -1315,18 +1315,6 @@ export default function CloseDayReport() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Target Amount</p>
-                  <p className="text-xl font-bold">{formatCurrency(result.target)}</p>
-                </div>
-                <div className="p-4 bg-green-500/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Achieved Total</p>
-                  <p className="text-xl font-bold">{formatCurrency(result.achieved)}</p>
-                </div>
-                <div className="p-4 bg-amber-500/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Difference</p>
-                  <p className="text-xl font-bold">{formatCurrency(result.difference)}</p>
-                </div>
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">{L.doc}s</p>
                   <p className="text-xl font-bold">{result.invoices.length}</p>

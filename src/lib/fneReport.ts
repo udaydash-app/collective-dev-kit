@@ -324,13 +324,8 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Target Amount', 'Achieved Total', 'Difference', `${docLabel}s`]],
-    body: [[
-      money(result.target),
-      money(result.achieved),
-      money(result.difference),
-      String(result.invoices.length),
-    ]],
+    head: [[`${docLabel}s Selected`]],
+    body: [[String(result.invoices.length)]],
     styles: { fontSize: 9, cellPadding: 2 },
     headStyles: { fillColor: [34, 197, 94] },
     theme: 'grid',
@@ -444,9 +439,6 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
     ['Period', `${formatDate(meta.startDate)} - ${formatDate(meta.endDate)}`],
     ['Generated', formatDateTime(new Date())],
     [],
-    ['Target Amount', result.target],
-    ['Achieved Total', result.achieved],
-    ['Difference', result.difference],
     [`${docLabel} Count`, result.invoices.length],
     [],
     ['#', `${docLabel} No`, 'Date', partyLabel, 'Total'],
