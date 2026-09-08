@@ -1908,16 +1908,29 @@ export default function POS() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !selectedStoreId) return;
 
-      const { error } = await supabase
+      // Guard: never create a second open session for the same store
+      const { data: existingOpen } = await supabase
         .from('cash_sessions')
-        .insert({
-          store_id: selectedStoreId,
-          cashier_id: user.id,
-          opening_cash: openingCash,
-          status: 'open',
-        });
+        .select('id')
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingOpen) {
+        console.log('[POS] Open session already exists, reusing it');
+      } else {
+        const { error } = await supabase
+          .from('cash_sessions')
+          .insert({
+            store_id: selectedStoreId,
+            cashier_id: user.id,
+            opening_cash: openingCash,
+            status: 'open',
+          });
+
+        if (error) throw error;
+      }
 
       console.log('Cash register opened successfully');
       setShowCashIn(false);
@@ -2166,6 +2179,22 @@ export default function POS() {
         .eq('id', currentCashSession.id);
 
       if (error) throw error;
+
+      // Close any other stray open sessions for this store so the register
+      // is really closed and the next day asks to open it again
+      await supabase
+        .from('cash_sessions')
+        .update({
+          closing_cash: 0,
+          expected_cash: 0,
+          cash_difference: 0,
+          closed_at: new Date().toISOString(),
+          status: 'closed',
+          notes: 'Auto-closed with end of day',
+        })
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .neq('id', currentCashSession.id);
 
       // Journal entry for cash register closing is created automatically by database trigger
       // (create_cash_register_closing_entry) - no frontend journal creation needed
