@@ -2185,7 +2185,7 @@ export default function POS() {
       await supabase
         .from('cash_sessions')
         .update({
-          closing_cash: closingCash,
+          closing_cash: 0,
           expected_cash: 0,
           cash_difference: 0,
           closed_at: new Date().toISOString(),
