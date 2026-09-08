@@ -1908,16 +1908,29 @@ export default function POS() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !selectedStoreId) return;
 
-      const { error } = await supabase
+      // Guard: never create a second open session for the same store
+      const { data: existingOpen } = await supabase
         .from('cash_sessions')
-        .insert({
-          store_id: selectedStoreId,
-          cashier_id: user.id,
-          opening_cash: openingCash,
-          status: 'open',
-        });
+        .select('id')
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingOpen) {
+        console.log('[POS] Open session already exists, reusing it');
+      } else {
+        const { error } = await supabase
+          .from('cash_sessions')
+          .insert({
+            store_id: selectedStoreId,
+            cashier_id: user.id,
+            opening_cash: openingCash,
+            status: 'open',
+          });
+
+        if (error) throw error;
+      }
 
       console.log('Cash register opened successfully');
       setShowCashIn(false);
