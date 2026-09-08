@@ -2180,6 +2180,22 @@ export default function POS() {
 
       if (error) throw error;
 
+      // Close any other stray open sessions for this store so the register
+      // is really closed and the next day asks to open it again
+      await supabase
+        .from('cash_sessions')
+        .update({
+          closing_cash: closingCash,
+          expected_cash: 0,
+          cash_difference: 0,
+          closed_at: new Date().toISOString(),
+          status: 'closed',
+          notes: 'Auto-closed with end of day',
+        })
+        .eq('store_id', selectedStoreId)
+        .eq('status', 'open')
+        .neq('id', currentCashSession.id);
+
       // Journal entry for cash register closing is created automatically by database trigger
       // (create_cash_register_closing_entry) - no frontend journal creation needed
 
