@@ -1129,7 +1129,7 @@ export default function POS() {
   // Register cash account ID (SYSCOHADA 571). Personal/sub-cash accounts such
   // as 5711 and 5712 are separate ledgers and must not affect the POS till.
   const { data: cashAccountIds } = useQuery({
-    queryKey: ['cash-account-ids', isOffline ? 'local' : 'online'],
+    queryKey: ['register-cash-account-id-v2', isOffline ? 'local' : 'online'],
     queryFn: async () => {
       if (isOffline) {
         try {
