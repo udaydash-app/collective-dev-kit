@@ -2150,15 +2150,26 @@ export default function POS() {
 
       // Expected cash is daily, even if the current session spans midnight.
       const todayDate = new Date().toLocaleDateString('en-CA');
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount, payment_method, expense_date')
-        .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at)
-        .eq('expense_date', todayDate);
+      const [{ data: expenses }, { data: cashAccounts }] = await Promise.all([
+        supabase
+          .from('expenses')
+          .select('amount, payment_method, expense_date, paid_from_account_id')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .eq('expense_date', todayDate),
+        supabase
+          .from('accounts')
+          .select('id')
+          .like('account_code', '571%'),
+      ]);
+      const cashIds = new Set((cashAccounts || []).map((a: any) => a.id as string));
 
+      // Only expenses paid from a cash (571x) account touch the till;
+      // bank-paid expenses are excluded even if marked 'cash'.
       cashExpenses = expenses
-        ?.filter(e => e.payment_method === 'cash')
+        ?.filter(e => e.paid_from_account_id
+          ? cashIds.has(e.paid_from_account_id)
+          : e.payment_method === 'cash')
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
       
       mobileMoneyExpenses = expenses
