@@ -1245,7 +1245,7 @@ export default function POS() {
     expenses: dayExpenses
       ?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
     cashExpenses: dayExpenses
-      ?.filter(e => e.payment_method === 'cash')
+      ?.filter(expenseAffectsCash)
       .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
     creditExpenses: dayExpenses
       ?.filter(e => e.payment_method === 'credit')
