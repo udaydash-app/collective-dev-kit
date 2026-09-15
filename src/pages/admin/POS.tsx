@@ -1114,7 +1114,7 @@ export default function POS() {
 
       const { data } = await supabase
         .from('expenses')
-        .select('id, amount, payment_method, description, category, created_at, expense_date')
+        .select('id, amount, payment_method, description, category, created_at, expense_date, paid_from_account_id')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
         .eq('expense_date', todayDate)
@@ -1125,6 +1125,44 @@ export default function POS() {
     enabled: !!currentCashSession,
     staleTime: 0,
   });
+
+  // Cash account IDs (SYSCOHADA 571x) — an expense only hits the till when it
+  // is paid from one of these. If no paid-from account is set, payment_method
+  // is used as the fallback signal.
+  const { data: cashAccountIds } = useQuery({
+    queryKey: ['cash-account-ids', isOffline ? 'local' : 'online'],
+    queryFn: async () => {
+      if (isOffline) {
+        try {
+          const { offlineDB } = await import('@/lib/offlineDB');
+          const accounts = await offlineDB.getAccounts();
+          return new Set(
+            accounts.filter((a: any) => a.account_code?.startsWith('571')).map((a: any) => a.id as string)
+          );
+        } catch {
+          return new Set<string>();
+        }
+      }
+      const { data } = await supabase
+        .from('accounts')
+        .select('id')
+        .like('account_code', '571%');
+      return new Set((data || []).map((a: any) => a.id as string));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // True when the expense actually took money out of the cash drawer:
+  // explicit non-cash paid-from account (e.g. bank) never affects the session.
+  const expenseAffectsCash = (e: any) => {
+    if (e.paid_from_account_id) {
+      // If the cash accounts list hasn't loaded yet, keep previous behaviour
+      // (trust payment_method) rather than dropping expenses.
+      if (!cashAccountIds) return e.payment_method === 'cash';
+      return cashAccountIds.has(e.paid_from_account_id);
+    }
+    return e.payment_method === 'cash';
+  };
 
   // Get top credit customers with outstanding balances - optimized single query
   const { data: topCreditCustomers, isLoading: creditCustomersLoading } = useQuery({
@@ -1207,7 +1245,7 @@ export default function POS() {
     expenses: dayExpenses
       ?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
     cashExpenses: dayExpenses
-      ?.filter(e => e.payment_method === 'cash')
+      ?.filter(expenseAffectsCash)
       .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0,
     creditExpenses: dayExpenses
       ?.filter(e => e.payment_method === 'credit')
@@ -1994,15 +2032,23 @@ export default function POS() {
           // today's figure just because the session spans midnight.
           const expenses = await offlineDB.getExpenses();
           const todayDate = new Date().toLocaleDateString('en-CA');
+          const offlineAccounts = await offlineDB.getAccounts();
+          const offlineCashIds = new Set(
+            offlineAccounts.filter((a: any) => a.account_code?.startsWith('571')).map((a: any) => a.id as string)
+          );
           const sessionExpenses = expenses.filter(e => {
             if (e.store_id !== currentCashSession.store_id) return false;
             if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
             const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
             return d === todayDate;
           });
-          
+
+          // Only expenses paid from a cash (571x) account touch the till;
+          // bank-paid expenses are excluded even if marked 'cash'.
           cashExpenses = sessionExpenses
-            .filter(e => e.payment_method === 'cash')
+            .filter(e => e.paid_from_account_id
+              ? offlineCashIds.has(e.paid_from_account_id)
+              : e.payment_method === 'cash')
             .reduce((sum, e) => sum + parseFloat(e.amount?.toString() || '0'), 0);
           mobileMoneyExpenses = sessionExpenses
             .filter(e => e.payment_method === 'mobile_money')
@@ -2104,15 +2150,26 @@ export default function POS() {
 
       // Expected cash is daily, even if the current session spans midnight.
       const todayDate = new Date().toLocaleDateString('en-CA');
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount, payment_method, expense_date')
-        .eq('store_id', currentCashSession.store_id)
-        .gte('created_at', currentCashSession.opened_at)
-        .eq('expense_date', todayDate);
+      const [{ data: expenses }, { data: cashAccounts }] = await Promise.all([
+        supabase
+          .from('expenses')
+          .select('amount, payment_method, expense_date, paid_from_account_id')
+          .eq('store_id', currentCashSession.store_id)
+          .gte('created_at', currentCashSession.opened_at)
+          .eq('expense_date', todayDate),
+        supabase
+          .from('accounts')
+          .select('id')
+          .like('account_code', '571%'),
+      ]);
+      const cashIds = new Set((cashAccounts || []).map((a: any) => a.id as string));
 
+      // Only expenses paid from a cash (571x) account touch the till;
+      // bank-paid expenses are excluded even if marked 'cash'.
       cashExpenses = expenses
-        ?.filter(e => e.payment_method === 'cash')
+        ?.filter(e => e.paid_from_account_id
+          ? cashIds.has(e.paid_from_account_id)
+          : e.payment_method === 'cash')
         .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
       
       mobileMoneyExpenses = expenses
