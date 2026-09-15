@@ -768,17 +768,28 @@ export default function CloseDayReport() {
             .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
           // Get cash expenses from ALL users during this period
-          const { data: sessionExpenses } = await supabase
-            .from('expenses')
-            .select('amount, payment_method, expense_date')
-            .eq('store_id', session.store_id)
-            .gte('created_at', sessionStart)
-            .lte('created_at', sessionEnd)
-            .gte('expense_date', sessionStart.split('T')[0])
-            .lte('expense_date', sessionEnd.split('T')[0]);
+          const [{ data: sessionExpenses }, { data: cashAccounts }] = await Promise.all([
+            supabase
+              .from('expenses')
+              .select('amount, payment_method, expense_date, paid_from_account_id')
+              .eq('store_id', session.store_id)
+              .gte('created_at', sessionStart)
+              .lte('created_at', sessionEnd)
+              .gte('expense_date', sessionStart.split('T')[0])
+              .lte('expense_date', sessionEnd.split('T')[0]),
+            supabase
+              .from('accounts')
+              .select('id')
+              .like('account_code', '571%'),
+          ]);
+          const cashIds = new Set((cashAccounts || []).map((a: any) => a.id as string));
 
+          // Only expenses paid from a cash (571x) account reduce expected
+          // cash; bank-paid expenses are excluded even if marked 'cash'.
           const cashExpenses = sessionExpenses
-            ?.filter(e => e.payment_method === 'cash')
+            ?.filter(e => e.paid_from_account_id
+              ? cashIds.has(e.paid_from_account_id)
+              : e.payment_method === 'cash')
             .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
 
           // Get manual journal entries affecting cash during this period - use created_at for precise session filtering
