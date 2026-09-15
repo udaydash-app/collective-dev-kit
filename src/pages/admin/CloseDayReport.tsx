@@ -780,12 +780,12 @@ export default function CloseDayReport() {
             supabase
               .from('accounts')
               .select('id')
-              .like('account_code', '571%'),
+              .eq('account_code', '571'),
           ]);
           const cashIds = new Set((cashAccounts || []).map((a: any) => a.id as string));
 
-          // Only expenses paid from a cash (571x) account reduce expected
-          // cash; bank-paid expenses are excluded even if marked 'cash'.
+          // Only expenses paid from register cash (571) reduce expected cash.
+          // Personal/sub-cash accounts such as 5711 and 5712 are excluded.
           const cashExpenses = sessionExpenses
             ?.filter(e => e.paid_from_account_id
               ? cashIds.has(e.paid_from_account_id)
