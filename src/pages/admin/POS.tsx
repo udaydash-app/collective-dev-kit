@@ -2032,15 +2032,23 @@ export default function POS() {
           // today's figure just because the session spans midnight.
           const expenses = await offlineDB.getExpenses();
           const todayDate = new Date().toLocaleDateString('en-CA');
+          const offlineAccounts = await offlineDB.getAccounts();
+          const offlineCashIds = new Set(
+            offlineAccounts.filter((a: any) => a.account_code?.startsWith('571')).map((a: any) => a.id as string)
+          );
           const sessionExpenses = expenses.filter(e => {
             if (e.store_id !== currentCashSession.store_id) return false;
             if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
             const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
             return d === todayDate;
           });
-          
+
+          // Only expenses paid from a cash (571x) account touch the till;
+          // bank-paid expenses are excluded even if marked 'cash'.
           cashExpenses = sessionExpenses
-            .filter(e => e.payment_method === 'cash')
+            .filter(e => e.paid_from_account_id
+              ? offlineCashIds.has(e.paid_from_account_id)
+              : e.payment_method === 'cash')
             .reduce((sum, e) => sum + parseFloat(e.amount?.toString() || '0'), 0);
           mobileMoneyExpenses = sessionExpenses
             .filter(e => e.payment_method === 'mobile_money')
