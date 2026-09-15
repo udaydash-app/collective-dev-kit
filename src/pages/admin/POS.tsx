@@ -5212,7 +5212,11 @@ export default function POS() {
           expectedMobileMoney={expectedMobileMoneyAtClose}
           transactions={sessionTransactions || []}
           purchases={dayPurchases || []}
-          expenses={dayExpenses || []}
+          expenses={(dayExpenses || []).filter(expense =>
+            !expense.paid_from_account_id ||
+            expense.payment_method !== 'cash' ||
+            expenseAffectsCash(expense)
+          )}
           paymentReceipts={paymentReceipts || []}
           supplierPayments={supplierPayments || []}
           journalEntries={cashJournalEntries || []}
