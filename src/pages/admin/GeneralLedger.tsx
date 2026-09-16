@@ -1,4 +1,25 @@
 import { useState, useEffect } from 'react';
+
+/**
+ * PostgREST returns at most 1000 rows per request. Accounts with more journal
+ * lines than that were silently truncated, so totals / current balance were wrong.
+ * This pages through every matching row.
+ */
+const GL_PAGE_SIZE = 1000;
+async function fetchAllLines(
+  build: (from: number, to: number) => any,
+): Promise<any[]> {
+  const all: any[] = [];
+  for (let page = 0; page < 200; page++) {
+    const from = page * GL_PAGE_SIZE;
+    const { data, error } = await build(from, from + GL_PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (data || []) as any[];
+    all.push(...rows);
+    if (rows.length < GL_PAGE_SIZE) break;
+  }
+  return all;
+}
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSearchParams } from 'react-router-dom';
@@ -237,7 +258,7 @@ export default function GeneralLedger() {
 
         // Fetch lines from both customer and supplier accounts (including prior period)
         // Exclude opening balance entries since we already have opening_balance in contacts table
-        const { data: customerLines } = await supabase
+        const customerLines = await fetchAllLines((from, to) => supabase
           .from('journal_entry_lines')
           .select(`
             *,
@@ -253,9 +274,11 @@ export default function GeneralLedger() {
           .eq('account_id', customerAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lte('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate)
+          .order('id', { ascending: true })
+          .range(from, to));
 
-        const { data: supplierLines } = await supabase
+        const supplierLines = await fetchAllLines((from, to) => supabase
           .from('journal_entry_lines')
           .select(`
             *,
@@ -271,7 +294,9 @@ export default function GeneralLedger() {
           .eq('account_id', supplierAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lte('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate)
+          .order('id', { ascending: true })
+          .range(from, to));
 
         // Fetch related payment records based on references
         const customerRefs = customerLines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
@@ -464,7 +489,7 @@ export default function GeneralLedger() {
       }
 
       // Exclude opening balance entries from display since opening balance is shown separately
-      const { data: lines, error } = await supabase
+      const lines = await fetchAllLines((from, to) => supabase
         .from('journal_entry_lines')
         .select(`
           *,
@@ -481,9 +506,9 @@ export default function GeneralLedger() {
         .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .gte('journal_entries.entry_date', startDate)
-        .lte('journal_entries.entry_date', endDate);
-
-      if (error) throw error;
+        .lte('journal_entries.entry_date', endDate)
+        .order('id', { ascending: true })
+        .range(from, to));
 
       // Fetch related payment records based on references
       const refs = lines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
