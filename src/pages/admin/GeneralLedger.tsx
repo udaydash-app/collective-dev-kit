@@ -489,7 +489,7 @@ export default function GeneralLedger() {
       }
 
       // Exclude opening balance entries from display since opening balance is shown separately
-      const { data: lines, error } = await supabase
+      const lines = await fetchAllLines((from, to) => supabase
         .from('journal_entry_lines')
         .select(`
           *,
@@ -506,9 +506,9 @@ export default function GeneralLedger() {
         .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%')
         .gte('journal_entries.entry_date', startDate)
-        .lte('journal_entries.entry_date', endDate);
-
-      if (error) throw error;
+        .lte('journal_entries.entry_date', endDate)
+        .order('id', { ascending: true })
+        .range(from, to));
 
       // Fetch related payment records based on references
       const refs = lines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
