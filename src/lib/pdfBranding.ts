@@ -58,10 +58,18 @@ async function imageUrlToDataUrl(url: string): Promise<string | null> {
   }
 }
 
+const resolvedLogoCache = new Map<string, Promise<string | undefined>>();
+
 export async function resolveLogoForOutput(url?: string | null): Promise<string | undefined> {
   if (!url) return undefined;
-  const logo = await loadLogoTransparent(url);
-  return logo?.dataUrl || (await imageUrlToDataUrl(url)) || url;
+  const cached = resolvedLogoCache.get(url);
+  if (cached) return cached;
+  const promise = (async () => {
+    const logo = await loadLogoTransparent(url);
+    return logo?.dataUrl || (await imageUrlToDataUrl(url)) || url;
+  })();
+  resolvedLogoCache.set(url, promise);
+  return promise;
 }
 
 export async function waitForImagesToLoad(container: HTMLElement, timeoutMs = 3000): Promise<void> {
