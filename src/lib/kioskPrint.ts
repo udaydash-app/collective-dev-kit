@@ -63,6 +63,23 @@ class KioskPrintService {
     return this.printQueue;
   }
 
+  private printFrame: HTMLIFrameElement | null = null;
+
+  private getPrintFrame(): HTMLIFrameElement {
+    if (this.printFrame && this.printFrame.isConnected) return this.printFrame;
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    this.printFrame = iframe;
+    return iframe;
+  }
+
   private async doPrint(data: KioskReceiptData): Promise<void> {
     try {
       const printableData = {
@@ -70,21 +87,15 @@ class KioskPrintService {
         logoUrl: await resolveLogoForOutput(data.logoUrl),
       };
       const html = this.generateReceiptHTML(printableData);
-      
+
       // Check if we're in Electron environment
       if (window.electron?.print) {
         await window.electron.print(html);
         return;
       }
 
-      // Use hidden iframe for browser printing
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-
+      // Reuse a single hidden iframe so repeated prints stay fast
+      const iframe = this.getPrintFrame();
       const iframeDoc = iframe.contentWindow?.document;
       if (!iframeDoc) throw new Error('Failed to access iframe document');
 
@@ -92,43 +103,21 @@ class KioskPrintService {
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Wait for iframe content to fully load before printing
-      await new Promise<void>((resolve) => {
-        iframe.onload = () => resolve();
-        // Fallback if onload already fired
-        setTimeout(resolve, 200);
-      });
+      // Only wait for the logo image if there is one; otherwise print right away
+      const img = iframeDoc.querySelector('img');
+      if (img && !(img as HTMLImageElement).complete) {
+        await new Promise<void>((resolve) => {
+          const done = () => resolve();
+          img.addEventListener('load', done, { once: true });
+          img.addEventListener('error', done, { once: true });
+          setTimeout(done, 400);
+        });
+      }
 
-      await new Promise<void>((resolve) => {
-        const iframeWindow = iframe.contentWindow;
-        if (!iframeWindow) {
-          try { document.body.removeChild(iframe); } catch {}
-          resolve();
-          return;
-        }
-        
-        let cleaned = false;
-        const cleanup = () => {
-          if (cleaned) return;
-          cleaned = true;
-          try { document.body.removeChild(iframe); } catch {}
-          resolve();
-        };
-        
-        // Multiple ways to detect print end for maximum compatibility
-        iframeWindow.addEventListener('afterprint', cleanup, { once: true });
-        iframeWindow.onafterprint = cleanup;
-        
-        // Also listen on focus return (some browsers refocus after print dialog closes)
-        window.addEventListener('focus', () => setTimeout(cleanup, 300), { once: true });
-        
-        // Fallback: clean up after 3 seconds so the next print isn't blocked
-        setTimeout(cleanup, 3000);
-        
-        iframeWindow.focus();
-        iframeWindow.print();
-      });
-
+      const iframeWindow = iframe.contentWindow;
+      if (!iframeWindow) return;
+      iframeWindow.focus();
+      iframeWindow.print();
     } catch (error) {
       throw new Error('Print failed: ' + (error as Error).message);
     }
