@@ -258,7 +258,7 @@ export default function GeneralLedger() {
 
         // Fetch lines from both customer and supplier accounts (including prior period)
         // Exclude opening balance entries since we already have opening_balance in contacts table
-        const { data: customerLines } = await supabase
+        const customerLines = await fetchAllLines((from, to) => supabase
           .from('journal_entry_lines')
           .select(`
             *,
@@ -274,9 +274,11 @@ export default function GeneralLedger() {
           .eq('account_id', customerAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lte('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate)
+          .order('id', { ascending: true })
+          .range(from, to));
 
-        const { data: supplierLines } = await supabase
+        const supplierLines = await fetchAllLines((from, to) => supabase
           .from('journal_entry_lines')
           .select(`
             *,
@@ -292,7 +294,9 @@ export default function GeneralLedger() {
           .eq('account_id', supplierAccountId)
           .eq('journal_entries.status', 'posted')
           .not('journal_entries.description', 'ilike', '%opening balance%')
-          .lte('journal_entries.entry_date', endDate);
+          .lte('journal_entries.entry_date', endDate)
+          .order('id', { ascending: true })
+          .range(from, to));
 
         // Fetch related payment records based on references
         const customerRefs = customerLines?.map(l => l.journal_entries.reference).filter(Boolean) || [];
