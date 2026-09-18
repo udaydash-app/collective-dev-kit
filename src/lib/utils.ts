@@ -17,6 +17,12 @@ export function formatCurrency(amount: number | null | undefined): string {
   })} FCFA`;
 }
 
+// PDF-safe currency formatting: plain spaces/commas only (jsPDF fonts can't render
+// the fr-CI narrow no-break space U+202F used as thousands separator)
+export function formatCurrencyPdf(amount: number | null | undefined): string {
+  return formatCurrency(amount).replace(/[\u202F\u00A0]/g, ' ');
+}
+
 // Currency formatting without currency sign for compact displays
 export function formatCurrencyCompact(amount: number | null | undefined): string {
   const value = amount ?? 0;
