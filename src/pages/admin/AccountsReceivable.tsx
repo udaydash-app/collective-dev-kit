@@ -14,6 +14,10 @@ import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { addPdfHeader, fetchCompanySettings } from "@/lib/pdfBranding";
+import { FileDown } from "lucide-react";
 
 const BUCKET_KEYS: BucketKey[] = ["current", "b30", "b60", "b90", "b90plus"];
 
