@@ -292,7 +292,7 @@ export default function InventoryReports() {
     // jsPDF's Helvetica lacks narrow no-break space (U+202F) / NBSP (U+00A0)
     // used by fr-CI locale, which render as slashes. Normalize to ASCII space.
     const fmtPdf = (n: number) =>
-      formatCurrency(n).replace(/[\u202F\u00A0]/g, ' ');
+      formatCurrencyPdf(n).replace(/[\u202F\u00A0]/g, ' ');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const settings = await fetchCompanySettings();
@@ -443,7 +443,7 @@ export default function InventoryReports() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Inventory Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+                  <p className="text-2xl font-bold">{formatCurrencyPdf(totalValue)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Categories</p>
@@ -472,7 +472,7 @@ export default function InventoryReports() {
                   }`}>
                     {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
                   </div>
-                  <div className="text-right font-semibold">{formatCurrency(item.totalValue)}</div>
+                  <div className="text-right font-semibold">{formatCurrencyPdf(item.totalValue)}</div>
                   <div className="text-right text-muted-foreground">
                     {((item.totalValue / totalValue) * 100).toFixed(1)}%
                   </div>
@@ -500,7 +500,7 @@ export default function InventoryReports() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+                  <p className="text-2xl font-bold">{formatCurrencyPdf(totalValue)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Stock</p>
@@ -541,8 +541,8 @@ export default function InventoryReports() {
                   }`}>
                     {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
                   </div>
-                  <div className="text-right">{formatCurrency(item.price)}</div>
-                  <div className="text-right font-semibold">{formatCurrency(item.value)}</div>
+                  <div className="text-right">{formatCurrencyPdf(item.price)}</div>
+                  <div className="text-right font-semibold">{formatCurrencyPdf(item.value)}</div>
                 </div>
               ))}
             </div>
@@ -661,7 +661,7 @@ export default function InventoryReports() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Inventory Value</p>
-                  <p className="text-3xl font-bold">{formatCurrency(grandTotalValue)}</p>
+                  <p className="text-3xl font-bold">{formatCurrencyPdf(grandTotalValue)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Stock Units</p>
@@ -702,7 +702,7 @@ export default function InventoryReports() {
                   }`}>
                     {item.totalStock < 0 ? '-' : ''}{Math.abs(item.totalStock)}
                   </div>
-                  <div className="text-right font-semibold">{formatCurrency(item.totalValue)}</div>
+                  <div className="text-right font-semibold">{formatCurrencyPdf(item.totalValue)}</div>
                   <div className="text-right text-muted-foreground">
                     {((item.totalValue / grandTotalValue) * 100).toFixed(1)}%
                   </div>

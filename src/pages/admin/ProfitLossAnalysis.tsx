@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, TrendingUp, TrendingDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { format, startOfYear, endOfYear } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrencyPdf } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -215,17 +215,17 @@ export default function ProfitLossAnalysis() {
       body: (rows || []).map((r) => [
         r.label,
         r.units.toString(),
-        formatCurrency(r.sales),
-        formatCurrency(r.cost),
-        formatCurrency(r.profit),
+        formatCurrencyPdf(r.sales),
+        formatCurrencyPdf(r.cost),
+        formatCurrencyPdf(r.profit),
         `${r.margin.toFixed(2)}%`,
       ]),
       foot: [[
         'TOTAL',
         totals.units.toString(),
-        formatCurrency(totals.sales),
-        formatCurrency(totals.cost),
-        formatCurrency(totals.profit),
+        formatCurrencyPdf(totals.sales),
+        formatCurrencyPdf(totals.cost),
+        formatCurrencyPdf(totals.profit),
         `${totals.margin.toFixed(2)}%`,
       ]],
       theme: 'striped',
@@ -290,11 +290,11 @@ export default function ProfitLossAnalysis() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card><CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Total Sales</div>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(totals.sales)}</div>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrencyPdf(totals.sales)}</div>
           </CardContent></Card>
           <Card><CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Total Cost</div>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totals.cost)}</div>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrencyPdf(totals.cost)}</div>
           </CardContent></Card>
           <Card className={totals.profit >= 0 ? 'border-green-200' : 'border-red-200'}>
             <CardContent className="pt-6">
@@ -303,7 +303,7 @@ export default function ProfitLossAnalysis() {
                 <span className="text-sm text-muted-foreground">{totals.profit >= 0 ? 'Profit' : 'Loss'}</span>
               </div>
               <div className={`text-2xl font-bold ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(Math.abs(totals.profit))}
+                {formatCurrencyPdf(Math.abs(totals.profit))}
               </div>
             </CardContent>
           </Card>
@@ -340,10 +340,10 @@ export default function ProfitLossAnalysis() {
                       <TableRow key={r.key}>
                         <TableCell className="font-medium">{r.label}</TableCell>
                         <TableCell className="text-right">{r.units}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(r.sales)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(r.cost)}</TableCell>
+                        <TableCell className="text-right">{formatCurrencyPdf(r.sales)}</TableCell>
+                        <TableCell className="text-right">{formatCurrencyPdf(r.cost)}</TableCell>
                         <TableCell className={`text-right font-medium ${r.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(r.profit)}
+                          {formatCurrencyPdf(r.profit)}
                         </TableCell>
                         <TableCell className={`text-right ${r.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {r.margin.toFixed(2)}%
@@ -353,10 +353,10 @@ export default function ProfitLossAnalysis() {
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>TOTAL</TableCell>
                       <TableCell className="text-right">{totals.units}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(totals.sales)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(totals.cost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyPdf(totals.sales)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyPdf(totals.cost)}</TableCell>
                       <TableCell className={`text-right ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(totals.profit)}
+                        {formatCurrencyPdf(totals.profit)}
                       </TableCell>
                       <TableCell className={`text-right ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {totals.margin.toFixed(2)}%

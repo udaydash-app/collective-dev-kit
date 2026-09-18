@@ -820,13 +820,13 @@ export default function Quotations() {
                                     </div>
                                     <div className="flex flex-wrap gap-1">
                                       <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, variant, 'selling')}>
-                                        Sell: {formatCurrency(sell)}
+                                        Sell: {formatCurrencyPdf(sell)}
                                       </Button>
                                       <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, variant, 'cost')}>
-                                        Cost: {formatCurrency(cost)}
+                                        Cost: {formatCurrencyPdf(cost)}
                                       </Button>
                                       <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, variant, 'wholesale')}>
-                                        Wholesale: {formatCurrency(whole)}
+                                        Wholesale: {formatCurrencyPdf(whole)}
                                       </Button>
                                     </div>
                                   </div>
@@ -842,13 +842,13 @@ export default function Quotations() {
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   <Button type="button" size="sm" variant="default" onClick={() => addProductToQuotationWithPrice(product, undefined, 'selling')}>
-                                    Sell: {formatCurrency(Number(product.price ?? 0))}
+                                    Sell: {formatCurrencyPdf(Number(product.price ?? 0))}
                                   </Button>
                                   <Button type="button" size="sm" variant="secondary" onClick={() => addProductToQuotationWithPrice(product, undefined, 'cost')}>
-                                    Cost: {formatCurrency(Number(product.cost_price ?? 0))}
+                                    Cost: {formatCurrencyPdf(Number(product.cost_price ?? 0))}
                                   </Button>
                                   <Button type="button" size="sm" variant="outline" onClick={() => addProductToQuotationWithPrice(product, undefined, 'wholesale')}>
-                                    Wholesale: {formatCurrency(Number(product.wholesale_price ?? 0))}
+                                    Wholesale: {formatCurrencyPdf(Number(product.wholesale_price ?? 0))}
                                   </Button>
                                 </div>
                               </div>
@@ -908,7 +908,7 @@ export default function Quotations() {
                               />
                             </TableCell>
                             <TableCell className="font-medium">
-                              {formatCurrency(item.total)}
+                              {formatCurrencyPdf(item.total)}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -927,17 +927,17 @@ export default function Quotations() {
                     <div className="p-4 border-t space-y-2">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span className="font-medium">{formatCurrency(subtotal)}</span>
+                        <span className="font-medium">{formatCurrencyPdf(subtotal)}</span>
                       </div>
                       {discount > 0 && (
                         <div className="flex justify-between text-green-600">
                           <span>Discount:</span>
-                          <span className="font-medium">-{formatCurrency(discount)}</span>
+                          <span className="font-medium">-{formatCurrencyPdf(discount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold">
                         <span>Total:</span>
-                        <span>{formatCurrency(total)}</span>
+                        <span>{formatCurrencyPdf(total)}</span>
                       </div>
                     </div>
                   </Card>
@@ -1022,7 +1022,7 @@ export default function Quotations() {
                     <TableCell>
                       {quotation.valid_until ? format(new Date(quotation.valid_until), 'dd/MM/yyyy') : '-'}
                     </TableCell>
-                    <TableCell className="font-medium">{formatCurrency(quotation.total)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrencyPdf(quotation.total)}</TableCell>
                     <TableCell>{getStatusBadge(quotation.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -1206,12 +1206,12 @@ export default function Quotations() {
                             <td className="py-2">
                               <div className="font-medium print:text-black">{item.productName}</div>
                               <div className="text-[10px] print:text-black">
-                                {formatCurrency(item.price)} x {item.quantity}
-                                {item.discount > 0 && ` (-${formatCurrency(item.discount)})`}
+                                {formatCurrencyPdf(item.price)} x {item.quantity}
+                                {item.discount > 0 && ` (-${formatCurrencyPdf(item.discount)})`}
                               </div>
                             </td>
                             <td className="text-center py-2 print:text-black">{item.quantity}</td>
-                            <td className="text-right py-2 font-bold print:text-black">{formatCurrency(item.total)}</td>
+                            <td className="text-right py-2 font-bold print:text-black">{formatCurrencyPdf(item.total)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1221,17 +1221,17 @@ export default function Quotations() {
                   <div className="border-t-2 border-black pt-2 space-y-1 text-xs">
                     <div className="flex justify-between print:text-black">
                       <span>Subtotal:</span>
-                      <span className="font-medium">{formatCurrency(selectedQuotation.subtotal)}</span>
+                      <span className="font-medium">{formatCurrencyPdf(selectedQuotation.subtotal)}</span>
                     </div>
                     {selectedQuotation.discount > 0 && (
                       <div className="flex justify-between print:text-black">
                         <span>Discount:</span>
-                        <span className="font-medium">-{formatCurrency(selectedQuotation.discount)}</span>
+                        <span className="font-medium">-{formatCurrencyPdf(selectedQuotation.discount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-sm border-t border-black pt-1 mt-1 print:text-black">
                       <span>TOTAL:</span>
-                      <span>{formatCurrency(selectedQuotation.total)}</span>
+                      <span>{formatCurrencyPdf(selectedQuotation.total)}</span>
                     </div>
                   </div>
 
