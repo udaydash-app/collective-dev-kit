@@ -32,6 +32,10 @@ export interface AgingRow {
   total: number;
   buckets: Record<BucketKey, number>;
   docs: AgingDoc[];
+  lastBillDate: string | null;
+  lastPaymentDate: string | null;
+  daysSinceLastBill: number | null;
+  daysSinceLastPayment: number | null;
 }
 
 export interface AgingResult {
@@ -143,6 +147,8 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
     }
 
     let credit = 0;
+    let lastBillDate: string | null = null;
+    let lastPaymentDate: string | null = null;
     for (const l of lines) {
       const d = Number(l.debit_amount || 0);
       const cr = Number(l.credit_amount || 0);
@@ -159,7 +165,16 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
           bucket: bucketFor(days),
         });
       }
-      if (cr > 0) credit += cr;
+      const entryDate: string | null = l.journal_entries?.entry_date ?? null;
+      if (d > 0 && entryDate && (!lastBillDate || entryDate > lastBillDate)) {
+        lastBillDate = entryDate;
+      }
+      if (cr > 0) {
+        credit += cr;
+        if (entryDate && (!lastPaymentDate || entryDate > lastPaymentDate)) {
+          lastPaymentDate = entryDate;
+        }
+      }
     }
 
     // Apply all credits FIFO against the oldest open debits.
@@ -188,6 +203,10 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
       total,
       buckets,
       docs: remaining,
+      lastBillDate,
+      lastPaymentDate,
+      daysSinceLastBill: lastBillDate ? daysBetween(asOf, lastBillDate) : null,
+      daysSinceLastPayment: lastPaymentDate ? daysBetween(asOf, lastPaymentDate) : null,
     });
 
     (Object.keys(buckets) as BucketKey[]).forEach((k) => {

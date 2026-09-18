@@ -93,6 +93,10 @@ export default function AccountsReceivable() {
     const summary = aging.rows.map(r => ({
       Customer: r.name,
       Phone: r.phone || '',
+      'Last Bill Date': r.lastBillDate ? formatDate(r.lastBillDate) : '',
+      'Days Since Last Bill': r.daysSinceLastBill ?? '',
+      'Last Payment Date': r.lastPaymentDate ? formatDate(r.lastPaymentDate) : 'No payment',
+      'Days Since Last Payment': r.daysSinceLastPayment ?? '',
       Current: r.buckets.current,
       '1-30 days': r.buckets.b30,
       '31-60 days': r.buckets.b60,
@@ -296,6 +300,8 @@ export default function AccountsReceivable() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Customer</TableHead>
+                      <TableHead className="whitespace-nowrap">Last Bill</TableHead>
+                      <TableHead className="whitespace-nowrap">Last Payment</TableHead>
                       {BUCKET_KEYS.map((k) => (
                         <TableHead key={k} className="text-right">{BUCKET_LABELS[k]}</TableHead>
                       ))}
@@ -315,6 +321,22 @@ export default function AccountsReceivable() {
                               {r.name}
                             </span>
                           </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {r.lastBillDate ? formatDate(r.lastBillDate) : '-'}
+                            {r.daysSinceLastBill !== null && (
+                              <span className="block text-xs text-muted-foreground">
+                                {r.daysSinceLastBill <= 0 ? 'Today' : `${r.daysSinceLastBill} days ago`}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {r.lastPaymentDate ? formatDate(r.lastPaymentDate) : <span className="text-red-600">No payment</span>}
+                            {r.daysSinceLastPayment !== null && (
+                              <span className="block text-xs text-muted-foreground">
+                                {r.daysSinceLastPayment <= 0 ? 'Today' : `${r.daysSinceLastPayment} days ago`}
+                              </span>
+                            )}
+                          </TableCell>
                           {BUCKET_KEYS.map((k) => (
                             <TableCell key={k} className="text-right">
                               {r.buckets[k] > 0 ? formatCurrency(r.buckets[k]) : '-'}
@@ -330,7 +352,7 @@ export default function AccountsReceivable() {
                                 {d.date ? `${formatDate(d.date)} · ${d.days <= 0 ? 'Current' : `${d.days} days`}` : 'Opening balance'}
                               </span>
                             </TableCell>
-                            <TableCell colSpan={4} className="text-muted-foreground">{d.description}</TableCell>
+                            <TableCell colSpan={6} className="text-muted-foreground">{d.description}</TableCell>
                             <TableCell className="text-right">{BUCKET_LABELS[d.bucket]}</TableCell>
                             <TableCell className="text-right">{formatCurrency(d.amount)}</TableCell>
                           </TableRow>
@@ -338,7 +360,7 @@ export default function AccountsReceivable() {
                       </Fragment>
                     ))}
                     <TableRow className="font-bold">
-                      <TableCell>Total</TableCell>
+                      <TableCell colSpan={3}>Total</TableCell>
                       {BUCKET_KEYS.map((k) => (
                         <TableCell key={k} className="text-right">{formatCurrency(aging?.totals[k] ?? 0)}</TableCell>
                       ))}
