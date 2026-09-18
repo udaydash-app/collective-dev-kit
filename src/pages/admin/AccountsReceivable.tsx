@@ -1,14 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchReceivablesLocal } from "@/db/queries/accounting";
+import { fetchReceivablesAging, BUCKET_LABELS, type BucketKey } from "@/db/queries/arAging";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, FileSpreadsheet, Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
+
+const BUCKET_KEYS: BucketKey[] = ["current", "b30", "b60", "b90", "b90plus"];
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
