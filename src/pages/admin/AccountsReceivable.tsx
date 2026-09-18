@@ -348,7 +348,11 @@ export default function AccountsReceivable() {
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Export Excel
                 </Button>
-                <Button variant="outline" onClick={handlePrint}>
+                <Button variant="outline" onClick={exportAgingPDF} disabled={!aging || aging.rows.length === 0}>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
+                <Button variant="outline" onClick={() => window.print()}>
                   <Printer className="h-4 w-4 mr-2" />
                   Print
                 </Button>
