@@ -183,6 +183,33 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
       }
     }
 
+    // Dual role: net the supplier (A/P) balance against A/R, exactly as the
+    // General Ledger unified view does (A/R - A/P).
+    if (c.is_supplier && c.supplier_ledger_account_id) {
+      const supLines = linesByAccount.get(c.supplier_ledger_account_id) ?? [];
+      let supDebit = 0;
+      let supCredit = 0;
+      for (const l of supLines) {
+        supDebit += Number(l.debit_amount || 0);
+        supCredit += Number(l.credit_amount || 0);
+      }
+      const payable =
+        Number(c.supplier_opening_balance || 0) + supCredit - supDebit;
+      if (payable > 0) {
+        credit += payable;
+      } else if (payable < 0) {
+        open.push({
+          id: `${c.id}-supplier-advance`,
+          date: asOf,
+          reference: "Supplier balance",
+          description: "Supplier side debit balance (dual role)",
+          amount: -payable,
+          days: 0,
+          bucket: "current",
+        });
+      }
+    }
+
     // Apply all credits FIFO against the oldest open debits.
     for (const doc of open) {
       if (credit <= 0) break;
