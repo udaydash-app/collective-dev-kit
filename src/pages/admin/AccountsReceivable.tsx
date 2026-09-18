@@ -352,7 +352,7 @@ export default function AccountsReceivable() {
                                 {d.date ? `${formatDate(d.date)} · ${d.days <= 0 ? 'Current' : `${d.days} days`}` : 'Opening balance'}
                               </span>
                             </TableCell>
-                            <TableCell colSpan={4} className="text-muted-foreground">{d.description}</TableCell>
+                            <TableCell colSpan={6} className="text-muted-foreground">{d.description}</TableCell>
                             <TableCell className="text-right">{BUCKET_LABELS[d.bucket]}</TableCell>
                             <TableCell className="text-right">{formatCurrency(d.amount)}</TableCell>
                           </TableRow>
