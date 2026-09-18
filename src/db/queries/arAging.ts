@@ -76,13 +76,19 @@ export const BUCKET_LABELS: Record<BucketKey, string> = {
 export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> {
   const { data: contacts, error: cErr } = await supabase
     .from("contacts")
-    .select("id, name, phone, opening_balance, customer_ledger_account_id")
+    .select(
+      "id, name, phone, is_supplier, opening_balance, supplier_opening_balance, customer_ledger_account_id, supplier_ledger_account_id",
+    )
     .eq("is_customer", true)
     .order("name");
   if (cErr) throw cErr;
 
+  // Dual-role contacts net their supplier (A/P) side against A/R, same as GL.
   const accountIds = (contacts ?? [])
-    .map((c: any) => c.customer_ledger_account_id)
+    .flatMap((c: any) => [
+      c.customer_ledger_account_id,
+      c.is_supplier ? c.supplier_ledger_account_id : null,
+    ])
     .filter(Boolean) as string[];
   if (accountIds.length === 0) {
     return { rows: [], totals: { ...emptyBuckets(), total: 0 } };
