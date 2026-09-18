@@ -147,6 +147,8 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
     }
 
     let credit = 0;
+    let lastBillDate: string | null = null;
+    let lastPaymentDate: string | null = null;
     for (const l of lines) {
       const d = Number(l.debit_amount || 0);
       const cr = Number(l.credit_amount || 0);
