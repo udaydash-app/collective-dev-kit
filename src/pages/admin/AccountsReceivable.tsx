@@ -72,8 +72,85 @@ export default function AccountsReceivable() {
   const totalPayable = Math.abs(receivables?.filter(r => r.balance < 0).reduce((sum, r) => sum + Number(r.balance), 0) || 0);
   const netBalance = totalReceivable - totalPayable;
 
-  const handlePrint = () => {
-    window.print();
+  const exportBalancesPDF = async () => {
+    const rows = filteredReceivables ?? [];
+    if (rows.length === 0) { toast.error('Nothing to export'); return; }
+    const doc = new jsPDF();
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Accounts Receivable - Customer Balances', 105, yPos, { align: 'center' });
+    yPos += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`As of ${formatDate(new Date().toISOString())}`, 105, yPos, { align: 'center' });
+    yPos += 4;
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Customer', 'Phone', 'Credit Limit', 'Balance', 'Type']],
+      body: rows.map((r) => [
+        r.name + (r.isUnified ? ' (Dual Role)' : ''),
+        r.phone || '-',
+        formatCurrency(r.credit_limit),
+        formatCurrency(Math.abs(Number(r.balance))),
+        Number(r.balance) >= 0 ? 'Receivable' : 'Payable',
+      ]),
+      foot: [['TOTAL', '', '', formatCurrency(netBalance), netBalance >= 0 ? 'Receivable' : 'Payable']],
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [34, 197, 94] },
+      footStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+    });
+    doc.save(`ar-balances-${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success('PDF created');
+  };
+
+  const exportAgingPDF = async () => {
+    if (!aging || agingRows.length === 0) { toast.error('Nothing to export'); return; }
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const settings = await fetchCompanySettings();
+    let yPos = await addPdfHeader(doc, settings);
+    const pageW = doc.internal.pageSize.getWidth();
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Accounts Receivable - Aging Report', pageW / 2, yPos, { align: 'center' });
+    yPos += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`As of ${formatDate(asOf)}`, pageW / 2, yPos, { align: 'center' });
+    yPos += 4;
+    autoTable(doc, {
+      startY: yPos,
+      head: [[
+        'Customer', 'Last Bill', 'Days', 'Last Payment', 'Days',
+        ...BUCKET_KEYS.map((k) => BUCKET_LABELS[k]), 'Total',
+      ]],
+      body: agingRows.map((r) => [
+        r.name,
+        r.lastBillDate ? formatDate(r.lastBillDate) : '-',
+        r.daysSinceLastBill ?? '-',
+        r.lastPaymentDate ? formatDate(r.lastPaymentDate) : 'No payment',
+        r.daysSinceLastPayment ?? '-',
+        ...BUCKET_KEYS.map((k) => formatCurrency(r.buckets[k])),
+        formatCurrency(r.total),
+      ]),
+      foot: [[
+        'TOTAL', '', '', '', '',
+        ...BUCKET_KEYS.map((k) => formatCurrency(aging.totals[k])),
+        formatCurrency(aging.totals.total),
+      ]],
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [34, 197, 94] },
+      footStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      columnStyles: {
+        2: { halign: 'right' }, 4: { halign: 'right' },
+        5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+        8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' },
+      },
+    });
+    doc.save(`ar-aging-${asOf}.pdf`);
+    toast.success('PDF created');
   };
 
   // ----- Aging -----
