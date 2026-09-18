@@ -93,6 +93,10 @@ export default function AccountsReceivable() {
     const summary = aging.rows.map(r => ({
       Customer: r.name,
       Phone: r.phone || '',
+      'Last Bill Date': r.lastBillDate ? formatDate(r.lastBillDate) : '',
+      'Days Since Last Bill': r.daysSinceLastBill ?? '',
+      'Last Payment Date': r.lastPaymentDate ? formatDate(r.lastPaymentDate) : 'No payment',
+      'Days Since Last Payment': r.daysSinceLastPayment ?? '',
       Current: r.buckets.current,
       '1-30 days': r.buckets.b30,
       '31-60 days': r.buckets.b60,
