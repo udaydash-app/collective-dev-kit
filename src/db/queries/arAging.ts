@@ -32,6 +32,10 @@ export interface AgingRow {
   total: number;
   buckets: Record<BucketKey, number>;
   docs: AgingDoc[];
+  lastBillDate: string | null;
+  lastPaymentDate: string | null;
+  daysSinceLastBill: number | null;
+  daysSinceLastPayment: number | null;
 }
 
 export interface AgingResult {
