@@ -203,6 +203,10 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
       total,
       buckets,
       docs: remaining,
+      lastBillDate,
+      lastPaymentDate,
+      daysSinceLastBill: lastBillDate ? daysBetween(asOf, lastBillDate) : null,
+      daysSinceLastPayment: lastPaymentDate ? daysBetween(asOf, lastPaymentDate) : null,
     });
 
     (Object.keys(buckets) as BucketKey[]).forEach((k) => {
