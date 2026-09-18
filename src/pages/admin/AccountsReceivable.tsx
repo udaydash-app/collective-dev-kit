@@ -321,6 +321,22 @@ export default function AccountsReceivable() {
                               {r.name}
                             </span>
                           </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {r.lastBillDate ? formatDate(r.lastBillDate) : '-'}
+                            {r.daysSinceLastBill !== null && (
+                              <span className="block text-xs text-muted-foreground">
+                                {r.daysSinceLastBill <= 0 ? 'Today' : `${r.daysSinceLastBill} days ago`}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {r.lastPaymentDate ? formatDate(r.lastPaymentDate) : <span className="text-red-600">No payment</span>}
+                            {r.daysSinceLastPayment !== null && (
+                              <span className="block text-xs text-muted-foreground">
+                                {r.daysSinceLastPayment <= 0 ? 'Today' : `${r.daysSinceLastPayment} days ago`}
+                              </span>
+                            )}
+                          </TableCell>
                           {BUCKET_KEYS.map((k) => (
                             <TableCell key={k} className="text-right">
                               {r.buckets[k] > 0 ? formatCurrency(r.buckets[k]) : '-'}
