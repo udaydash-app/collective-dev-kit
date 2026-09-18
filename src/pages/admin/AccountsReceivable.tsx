@@ -72,6 +72,52 @@ export default function AccountsReceivable() {
     window.print();
   };
 
+  // ----- Aging -----
+  const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10));
+  const [agingSearch, setAgingSearch] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const { data: aging, isLoading: agingLoading } = useQuery({
+    queryKey: ['ar-aging', asOf],
+    staleTime: 0,
+    queryFn: () => fetchReceivablesAging(asOf),
+  });
+
+  const agingRows = (aging?.rows ?? []).filter(r =>
+    r.name.toLowerCase().includes(agingSearch.toLowerCase()) ||
+    (r.phone ?? '').toLowerCase().includes(agingSearch.toLowerCase())
+  );
+
+  const exportAging = () => {
+    if (!aging || aging.rows.length === 0) return;
+    const summary = aging.rows.map(r => ({
+      Customer: r.name,
+      Phone: r.phone || '',
+      Current: r.buckets.current,
+      '1-30 days': r.buckets.b30,
+      '31-60 days': r.buckets.b60,
+      '61-90 days': r.buckets.b90,
+      '90+ days': r.buckets.b90plus,
+      Total: r.total,
+    }));
+    const detail = aging.rows.flatMap(r =>
+      r.docs.map(d => ({
+        Customer: r.name,
+        Date: d.date ? formatDate(d.date) : 'Opening balance',
+        Reference: d.reference,
+        Description: d.description,
+        Days: d.date ? d.days : '',
+        Bucket: BUCKET_LABELS[d.bucket],
+        Balance: d.amount,
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Aging Summary');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detail), 'Aging Detail');
+    XLSX.writeFile(wb, `ar-aging-${asOf}.xlsx`);
+    toast.success('Aging report exported');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
