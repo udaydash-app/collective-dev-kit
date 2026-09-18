@@ -76,13 +76,19 @@ export const BUCKET_LABELS: Record<BucketKey, string> = {
 export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> {
   const { data: contacts, error: cErr } = await supabase
     .from("contacts")
-    .select("id, name, phone, opening_balance, customer_ledger_account_id")
+    .select(
+      "id, name, phone, is_supplier, opening_balance, supplier_opening_balance, customer_ledger_account_id, supplier_ledger_account_id",
+    )
     .eq("is_customer", true)
     .order("name");
   if (cErr) throw cErr;
 
+  // Dual-role contacts net their supplier (A/P) side against A/R, same as GL.
   const accountIds = (contacts ?? [])
-    .map((c: any) => c.customer_ledger_account_id)
+    .flatMap((c: any) => [
+      c.customer_ledger_account_id,
+      c.is_supplier ? c.supplier_ledger_account_id : null,
+    ])
     .filter(Boolean) as string[];
   if (accountIds.length === 0) {
     return { rows: [], totals: { ...emptyBuckets(), total: 0 } };
@@ -174,6 +180,33 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
         if (entryDate && (!lastPaymentDate || entryDate > lastPaymentDate)) {
           lastPaymentDate = entryDate;
         }
+      }
+    }
+
+    // Dual role: net the supplier (A/P) balance against A/R, exactly as the
+    // General Ledger unified view does (A/R - A/P).
+    if (c.is_supplier && c.supplier_ledger_account_id) {
+      const supLines = linesByAccount.get(c.supplier_ledger_account_id) ?? [];
+      let supDebit = 0;
+      let supCredit = 0;
+      for (const l of supLines) {
+        supDebit += Number(l.debit_amount || 0);
+        supCredit += Number(l.credit_amount || 0);
+      }
+      const payable =
+        Number(c.supplier_opening_balance || 0) + supCredit - supDebit;
+      if (payable > 0) {
+        credit += payable;
+      } else if (payable < 0) {
+        open.push({
+          id: `${c.id}-supplier-advance`,
+          date: asOf,
+          reference: "Supplier balance",
+          description: "Supplier side debit balance (dual role)",
+          amount: -payable,
+          days: 0,
+          bucket: "current",
+        });
       }
     }
 
