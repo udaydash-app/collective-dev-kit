@@ -1,14 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchReceivablesLocal } from "@/db/queries/accounting";
+import { fetchReceivablesAging, BUCKET_LABELS, type BucketKey } from "@/db/queries/arAging";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, FileSpreadsheet, Printer, Search } from "lucide-react";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
+
+const BUCKET_KEYS: BucketKey[] = ["current", "b30", "b60", "b90", "b90plus"];
 
 export default function AccountsReceivable() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +72,52 @@ export default function AccountsReceivable() {
     window.print();
   };
 
+  // ----- Aging -----
+  const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10));
+  const [agingSearch, setAgingSearch] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const { data: aging, isLoading: agingLoading } = useQuery({
+    queryKey: ['ar-aging', asOf],
+    staleTime: 0,
+    queryFn: () => fetchReceivablesAging(asOf),
+  });
+
+  const agingRows = (aging?.rows ?? []).filter(r =>
+    r.name.toLowerCase().includes(agingSearch.toLowerCase()) ||
+    (r.phone ?? '').toLowerCase().includes(agingSearch.toLowerCase())
+  );
+
+  const exportAging = () => {
+    if (!aging || aging.rows.length === 0) return;
+    const summary = aging.rows.map(r => ({
+      Customer: r.name,
+      Phone: r.phone || '',
+      Current: r.buckets.current,
+      '1-30 days': r.buckets.b30,
+      '31-60 days': r.buckets.b60,
+      '61-90 days': r.buckets.b90,
+      '90+ days': r.buckets.b90plus,
+      Total: r.total,
+    }));
+    const detail = aging.rows.flatMap(r =>
+      r.docs.map(d => ({
+        Customer: r.name,
+        Date: d.date ? formatDate(d.date) : 'Opening balance',
+        Reference: d.reference,
+        Description: d.description,
+        Days: d.date ? d.days : '',
+        Bucket: BUCKET_LABELS[d.bucket],
+        Balance: d.amount,
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Aging Summary');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detail), 'Aging Detail');
+    XLSX.writeFile(wb, `ar-aging-${asOf}.xlsx`);
+    toast.success('Aging report exported');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
@@ -81,6 +134,13 @@ export default function AccountsReceivable() {
         </div>
       </div>
 
+      <Tabs defaultValue="balances" className="space-y-6">
+        <TabsList className="no-print">
+          <TabsTrigger value="balances">Balances</TabsTrigger>
+          <TabsTrigger value="aging">Aging</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="balances" className="space-y-6">
       <Card className="no-print">
         <CardHeader>
           <CardTitle>Summary</CardTitle>
@@ -173,6 +233,124 @@ export default function AccountsReceivable() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="aging" className="space-y-6">
+          <Card className="no-print">
+            <CardContent className="p-5 grid gap-4 md:grid-cols-3 items-end">
+              <div className="space-y-2">
+                <Label>As of</Label>
+                <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Search customer</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={agingSearch}
+                    onChange={(e) => setAgingSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={exportAging} disabled={!aging || aging.rows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Excel
+                </Button>
+                <Button variant="outline" onClick={handlePrint}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-6">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Total outstanding</p>
+              <p className="text-lg font-bold">{formatCurrency(aging?.totals.total ?? 0)}</p>
+            </CardContent></Card>
+            {BUCKET_KEYS.map((k) => (
+              <Card key={k}><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{BUCKET_LABELS[k]}</p>
+                <p className={`text-lg font-bold ${k === 'b90plus' ? 'text-red-600' : k === 'b60' || k === 'b90' ? 'text-amber-600' : ''}`}>
+                  {formatCurrency(aging?.totals[k] ?? 0)}
+                </p>
+              </CardContent></Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Aging by customer</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {agingLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              ) : agingRows.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No outstanding receivables as of {formatDate(asOf)}</div>
+              ) : (
+                <Table fixedScroll>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      {BUCKET_KEYS.map((k) => (
+                        <TableHead key={k} className="text-right">{BUCKET_LABELS[k]}</TableHead>
+                      ))}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {agingRows.map((r) => (
+                      <Fragment key={r.contact_id}>
+                        <TableRow
+                          className="cursor-pointer"
+                          onClick={() => setExpanded((p) => ({ ...p, [r.contact_id]: !p[r.contact_id] }))}
+                        >
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-1">
+                              {expanded[r.contact_id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              {r.name}
+                            </span>
+                          </TableCell>
+                          {BUCKET_KEYS.map((k) => (
+                            <TableCell key={k} className="text-right">
+                              {r.buckets[k] > 0 ? formatCurrency(r.buckets[k]) : '-'}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-semibold">{formatCurrency(r.total)}</TableCell>
+                        </TableRow>
+                        {expanded[r.contact_id] && r.docs.map((d) => (
+                          <TableRow key={d.id} className="text-sm bg-muted/30">
+                            <TableCell className="pl-10">
+                              {d.reference}
+                              <span className="block text-xs text-muted-foreground">
+                                {d.date ? `${formatDate(d.date)} · ${d.days <= 0 ? 'Current' : `${d.days} days`}` : 'Opening balance'}
+                              </span>
+                            </TableCell>
+                            <TableCell colSpan={4} className="text-muted-foreground">{d.description}</TableCell>
+                            <TableCell className="text-right">{BUCKET_LABELS[d.bucket]}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(d.amount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))}
+                    <TableRow className="font-bold">
+                      <TableCell>Total</TableCell>
+                      {BUCKET_KEYS.map((k) => (
+                        <TableCell key={k} className="text-right">{formatCurrency(aging?.totals[k] ?? 0)}</TableCell>
+                      ))}
+                      <TableCell className="text-right">{formatCurrency(aging?.totals.total ?? 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
