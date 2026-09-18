@@ -233,6 +233,124 @@ export default function AccountsReceivable() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="aging" className="space-y-6">
+          <Card className="no-print">
+            <CardContent className="p-5 grid gap-4 md:grid-cols-3 items-end">
+              <div className="space-y-2">
+                <Label>As of</Label>
+                <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Search customer</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={agingSearch}
+                    onChange={(e) => setAgingSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={exportAging} disabled={!aging || aging.rows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Excel
+                </Button>
+                <Button variant="outline" onClick={handlePrint}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-6">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Total outstanding</p>
+              <p className="text-lg font-bold">{formatCurrency(aging?.totals.total ?? 0)}</p>
+            </CardContent></Card>
+            {BUCKET_KEYS.map((k) => (
+              <Card key={k}><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{BUCKET_LABELS[k]}</p>
+                <p className={`text-lg font-bold ${k === 'b90plus' ? 'text-red-600' : k === 'b60' || k === 'b90' ? 'text-amber-600' : ''}`}>
+                  {formatCurrency(aging?.totals[k] ?? 0)}
+                </p>
+              </CardContent></Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Aging by customer</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {agingLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              ) : agingRows.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No outstanding receivables as of {formatDate(asOf)}</div>
+              ) : (
+                <Table fixedScroll>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      {BUCKET_KEYS.map((k) => (
+                        <TableHead key={k} className="text-right">{BUCKET_LABELS[k]}</TableHead>
+                      ))}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {agingRows.map((r) => (
+                      <Fragment key={r.contact_id}>
+                        <TableRow
+                          className="cursor-pointer"
+                          onClick={() => setExpanded((p) => ({ ...p, [r.contact_id]: !p[r.contact_id] }))}
+                        >
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-1">
+                              {expanded[r.contact_id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              {r.name}
+                            </span>
+                          </TableCell>
+                          {BUCKET_KEYS.map((k) => (
+                            <TableCell key={k} className="text-right">
+                              {r.buckets[k] > 0 ? formatCurrency(r.buckets[k]) : '-'}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-semibold">{formatCurrency(r.total)}</TableCell>
+                        </TableRow>
+                        {expanded[r.contact_id] && r.docs.map((d) => (
+                          <TableRow key={d.id} className="text-sm bg-muted/30">
+                            <TableCell className="pl-10">
+                              {d.reference}
+                              <span className="block text-xs text-muted-foreground">
+                                {d.date ? `${formatDate(d.date)} · ${d.days <= 0 ? 'Current' : `${d.days} days`}` : 'Opening balance'}
+                              </span>
+                            </TableCell>
+                            <TableCell colSpan={4} className="text-muted-foreground">{d.description}</TableCell>
+                            <TableCell className="text-right">{BUCKET_LABELS[d.bucket]}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(d.amount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))}
+                    <TableRow className="font-bold">
+                      <TableCell>Total</TableCell>
+                      {BUCKET_KEYS.map((k) => (
+                        <TableCell key={k} className="text-right">{formatCurrency(aging?.totals[k] ?? 0)}</TableCell>
+                      ))}
+                      <TableCell className="text-right">{formatCurrency(aging?.totals.total ?? 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
