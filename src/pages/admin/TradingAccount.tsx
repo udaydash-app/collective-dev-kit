@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { CalendarIcon, ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfDay, endOfDay } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrencyPdf } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -22,7 +22,7 @@ import { getPosAdminSession } from '@/db/queries/accounting';
 // (U+202F/U+00A0) that some browsers emit for fr-CI grouping. Normalize to
 // plain ASCII spaces so numbers render as "2 323 456" instead of "2/323/456".
 const formatCurrencyPdf = (amount: number | null | undefined): string =>
-  formatCurrency(amount).replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
+  formatCurrencyPdf(amount).replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
 const formatNumberPdf = (n: number): string =>
   (n ?? 0).toLocaleString('fr-CI').replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
 
@@ -455,13 +455,13 @@ export default function TradingAccount() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-sm text-muted-foreground">Total Cost</div>
-              <div className="text-2xl font-bold text-orange-600">{formatCurrency(totals.totalCost)}</div>
+              <div className="text-2xl font-bold text-orange-600">{formatCurrencyPdf(totals.totalCost)}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-sm text-muted-foreground">Total Sales</div>
-              <div className="text-2xl font-bold text-blue-600">{formatCurrency(displayedTotalSales)}</div>
+              <div className="text-2xl font-bold text-blue-600">{formatCurrencyPdf(displayedTotalSales)}</div>
             </CardContent>
           </Card>
           <Card className={displayedProfit >= 0 ? 'border-green-200 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 bg-red-50/50 dark:bg-red-900/10'}>
@@ -477,7 +477,7 @@ export default function TradingAccount() {
                 </span>
               </div>
               <div className={`text-2xl font-bold ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(Math.abs(displayedProfit))}
+                {formatCurrencyPdf(Math.abs(displayedProfit))}
               </div>
               <div className={`text-sm ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {Math.abs(displayedProfitPct).toFixed(2)}%
@@ -514,10 +514,10 @@ export default function TradingAccount() {
                       <TableRow key={item.productId}>
                         <TableCell className="font-medium">{item.productName}</TableCell>
                         <TableCell className="text-right">{item.unitsSold}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.salePrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrencyPdf(item.costPrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrencyPdf(item.salePrice)}</TableCell>
                         <TableCell className={`text-right font-medium ${item.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(item.profitLoss)}
+                          {formatCurrencyPdf(item.profitLoss)}
                         </TableCell>
                         <TableCell className={`text-right ${item.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {item.profitLossPercentage.toFixed(2)}%
@@ -528,10 +528,10 @@ export default function TradingAccount() {
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>TOTAL</TableCell>
                       <TableCell className="text-right">{totals.totalUnits}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(totals.totalCost)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(displayedTotalSales)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyPdf(totals.totalCost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyPdf(displayedTotalSales)}</TableCell>
                       <TableCell className={`text-right ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(displayedProfit)}
+                        {formatCurrencyPdf(displayedProfit)}
                       </TableCell>
                       <TableCell className={`text-right ${displayedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {displayedProfitPct.toFixed(2)}%

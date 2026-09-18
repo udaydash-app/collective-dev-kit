@@ -15,7 +15,7 @@ import {
   fetchSuppliersLocal,
   fetchPurchasesLocal,
 } from '@/db/queries/accounting';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrencyPdf, formatDate } from '@/lib/utils';
 import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter, ShoppingBag } from 'lucide-react';
 import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -782,7 +782,7 @@ export default function Purchases() {
     // Helvetica in jsPDF can't render narrow no-break spaces (U+202F) that fr-CI locale emits,
     // which renders as "/" — normalize to plain ASCII spaces for PDF output.
     const fmtPdf = (n: number | null | undefined) =>
-      formatCurrency(n).replace(/[\u202F\u00A0]/g, ' ');
+      formatCurrencyPdf(n).replace(/[\u202F\u00A0]/g, ' ');
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
@@ -1077,7 +1077,7 @@ export default function Purchases() {
                   <div className="text-right">
                     <div className="text-xs text-muted-foreground">Grand Total</div>
                     <div className="text-xl font-bold text-primary">
-                      {formatCurrency(
+                      {formatCurrencyPdf(
                         (selectedPurchases.size > 0
                           ? filteredPurchases.filter((p: any) => selectedPurchases.has(p.id))
                           : filteredPurchases
@@ -1102,7 +1102,7 @@ export default function Purchases() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-lg">{formatCurrency(purchase.total_amount)}</p>
+                        <p className="font-bold text-lg">{formatCurrencyPdf(purchase.total_amount)}</p>
                         <p className="text-sm text-muted-foreground capitalize">
                           {purchase.payment_status}
                         </p>
@@ -1316,7 +1316,7 @@ export default function Purchases() {
                               />
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="font-semibold">{formatCurrency(item.total_cost)}</span>
+                              <span className="font-semibold">{formatCurrencyPdf(item.total_cost)}</span>
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
@@ -1367,7 +1367,7 @@ export default function Purchases() {
           <div className="border-t pt-4 mt-4 bg-background space-y-4">
             <div className="flex justify-between items-center px-2">
               <span className="text-lg font-semibold">Total Amount:</span>
-              <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrencyPdf(totalAmount)}</span>
             </div>
 
             <div className="flex gap-3">
@@ -1551,7 +1551,7 @@ export default function Purchases() {
                               />
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="font-semibold">{formatCurrency(item.total_cost)}</span>
+                              <span className="font-semibold">{formatCurrencyPdf(item.total_cost)}</span>
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
@@ -1602,7 +1602,7 @@ export default function Purchases() {
           <div className="border-t pt-4 mt-4 bg-background space-y-4">
             <div className="flex justify-between items-center px-2">
               <span className="text-lg font-semibold">Total Amount:</span>
-              <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrencyPdf(totalAmount)}</span>
             </div>
 
             <div className="flex gap-3">
@@ -1685,7 +1685,7 @@ export default function Purchases() {
                             onClick={() => addProductToItems(product, variant)}
                           >
                             <span>{variant.label || `${variant.quantity}${variant.unit}`}</span>
-                            <span>{formatCurrency(variant.cost_price || variant.price)}</span>
+                            <span>{formatCurrencyPdf(variant.cost_price || variant.price)}</span>
                           </Button>
                         ))}
                       </div>
@@ -1696,7 +1696,7 @@ export default function Purchases() {
                         className="w-full mt-2"
                         onClick={() => addProductToItems(product)}
                       >
-                        Add - {formatCurrency(product.cost_price || product.price)}
+                        Add - {formatCurrencyPdf(product.cost_price || product.price)}
                       </Button>
                     )}
                   </div>
@@ -1769,10 +1769,10 @@ export default function Purchases() {
                           </p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × {formatCurrency(item.unit_cost)}{item.local_charges > 0 ? ` + ${formatCurrency(item.local_charges)} local` : ''}
+                          Qty: {item.quantity} × {formatCurrencyPdf(item.unit_cost)}{item.local_charges > 0 ? ` + ${formatCurrencyPdf(item.local_charges)} local` : ''}
                         </p>
                       </div>
-                      <p className="font-semibold">{formatCurrency(item.total_cost)}</p>
+                      <p className="font-semibold">{formatCurrencyPdf(item.total_cost)}</p>
                     </div>
                   ))}
                   {selectedPurchase.purchase_items
@@ -1797,7 +1797,7 @@ export default function Purchases() {
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total Amount:</span>
-                  <span>{formatCurrency(selectedPurchase.total_amount)}</span>
+                  <span>{formatCurrencyPdf(selectedPurchase.total_amount)}</span>
                 </div>
               </div>
 

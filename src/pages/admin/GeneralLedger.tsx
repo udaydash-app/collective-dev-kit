@@ -49,7 +49,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ArrowDown, ArrowUp, BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency, cn, formatDate } from '@/lib/utils';
+import { formatCurrencyPdf, cn, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {
@@ -846,7 +846,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold">
-          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
+          {formatCurrencyPdf(Math.abs(Number((ledgerData?.account as any)?.opening_balance)))}
           {Number((ledgerData?.account as any)?.opening_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -864,7 +864,7 @@ export default function GeneralLedger() {
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right">-</TableCell>
         <TableCell className="text-right font-mono font-bold text-primary">
-          {formatCurrency(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
+          {formatCurrencyPdf(Math.abs(Number((ledgerData?.account as any)?.current_balance)))}
           {Number((ledgerData?.account as any)?.current_balance) < 0 && ' CR'}
         </TableCell>
       </TableRow>
@@ -1212,26 +1212,26 @@ export default function GeneralLedger() {
                   Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {formatCurrency(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
+                {formatCurrencyPdf(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
                 {Number((ledgerData.account as any).current_balance || 0) < 0 && ' CR'}
               </p>
               {(ledgerData.account as any).isUnified && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  A/R: {formatCurrency(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
-                  A/P: {formatCurrency(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
+                  A/R: {formatCurrencyPdf(Math.abs((ledgerData.account as any).customer_balance || 0))}{(ledgerData.account as any).customer_balance < 0 ? ' CR' : ' DR'} | 
+                  A/P: {formatCurrencyPdf(Math.abs((ledgerData.account as any).supplier_balance || 0))}{(ledgerData.account as any).supplier_balance > 0 ? ' CR' : ' DR'}
                 </p>
               )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Debits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(Number(totalDebit))}
+                {formatCurrencyPdf(Number(totalDebit))}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Credits</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrency(Number(totalCredit))}
+                {formatCurrencyPdf(Number(totalCredit))}
               </p>
             </div>
           </div>
@@ -1308,16 +1308,16 @@ export default function GeneralLedger() {
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.debit_amount > 0
-                            ? formatCurrency(entry.debit_amount)
+                            ? formatCurrencyPdf(entry.debit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {entry.credit_amount > 0
-                            ? formatCurrency(entry.credit_amount)
+                            ? formatCurrencyPdf(entry.credit_amount)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold">
-                          {formatCurrency(Math.abs(entry.running_balance))}
+                          {formatCurrencyPdf(Math.abs(entry.running_balance))}
                           {entry.running_balance < 0 && ' CR'}
                         </TableCell>
                       </TableRow>

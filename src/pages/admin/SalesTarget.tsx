@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addPdfHeader, fetchCompanySettings } from "@/lib/pdfBranding";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrencyPdf } from "@/lib/utils";
 import { getPosAdminSession } from "@/db/queries/accounting";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
@@ -266,7 +266,7 @@ export default function SalesTarget() {
     // jsPDF's default font doesn't render narrow/non-breaking spaces correctly,
     // so normalize them to regular spaces for the PDF output.
     const fc = (n: number) =>
-      formatCurrency(r0(n)).replace(/[\u00A0\u202F\u2009]/g, " ");
+      formatCurrencyPdf(r0(n)).replace(/[\u00A0\u202F\u2009]/g, " ");
     const tableStyle = {
       theme: "grid" as const,
       headStyles: { fillColor: [34, 197, 94] as [number, number, number], textColor: 255, fontStyle: "bold" as const },
@@ -403,11 +403,11 @@ export default function SalesTarget() {
               <Separator />
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total monthly expenses</span>
-                <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
+                <span className="font-semibold">{formatCurrencyPdf(totalExpenses)}</span>
               </div>
               <div className="flex justify-between text-base">
                 <span className="text-muted-foreground">Margin target (2× expenses)</span>
-                <span className="font-bold text-primary">{formatCurrency(marginTarget)}</span>
+                <span className="font-bold text-primary">{formatCurrencyPdf(marginTarget)}</span>
               </div>
             </CardContent>
           </Card>
@@ -486,9 +486,9 @@ export default function SalesTarget() {
               </p>
             ) : (
               <div className="grid gap-4 md:grid-cols-3">
-                <Stat label="Required monthly sales" value={formatCurrency(requiredRevenue)} highlight />
-                <Stat label="Required daily sales (÷30)" value={formatCurrency(dailyTarget)} />
-                <Stat label="Expected gross profit" value={formatCurrency(marginTarget)} />
+                <Stat label="Required monthly sales" value={formatCurrencyPdf(requiredRevenue)} highlight />
+                <Stat label="Required daily sales (÷30)" value={formatCurrencyPdf(dailyTarget)} />
+                <Stat label="Expected gross profit" value={formatCurrencyPdf(marginTarget)} />
               </div>
             )}
           </CardContent>
@@ -512,10 +512,10 @@ export default function SalesTarget() {
             ) : (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <Stat label="Total revenue" value={formatCurrency(history.total_revenue)} />
-                  <Stat label="Gross profit" value={formatCurrency(history.gross_profit)} />
-                  <Stat label="Avg monthly revenue" value={formatCurrency(history.avg_monthly_revenue)} />
-                  <Stat label="Avg monthly profit" value={formatCurrency(history.avg_monthly_profit)} />
+                  <Stat label="Total revenue" value={formatCurrencyPdf(history.total_revenue)} />
+                  <Stat label="Gross profit" value={formatCurrencyPdf(history.gross_profit)} />
+                  <Stat label="Avg monthly revenue" value={formatCurrencyPdf(history.avg_monthly_revenue)} />
+                  <Stat label="Avg monthly profit" value={formatCurrencyPdf(history.avg_monthly_profit)} />
                 </div>
                 {marginTarget > 0 && effectiveMarginRatio > 0 && (
                   <div className="p-4 rounded-lg bg-muted/40 text-sm space-y-1">
@@ -523,13 +523,13 @@ export default function SalesTarget() {
                       <span>Required vs avg monthly sales</span>
                       <span className={gapVsAvg > 0 ? "text-destructive font-semibold" : "text-emerald-600 font-semibold"}>
                         {gapVsAvg > 0 ? "+" : ""}
-                        {formatCurrency(gapVsAvg)} ({gapPct > 0 ? "+" : ""}{gapPct.toFixed(1)}%)
+                        {formatCurrencyPdf(gapVsAvg)} ({gapPct > 0 ? "+" : ""}{gapPct.toFixed(1)}%)
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {gapVsAvg > 0
-                        ? `You need to sell ${formatCurrency(gapVsAvg)} more per month than your 3-month average to hit the target.`
-                        : `Your 3-month average already exceeds the required target by ${formatCurrency(-gapVsAvg)}.`}
+                        ? `You need to sell ${formatCurrencyPdf(gapVsAvg)} more per month than your 3-month average to hit the target.`
+                        : `Your 3-month average already exceeds the required target by ${formatCurrencyPdf(-gapVsAvg)}.`}
                     </p>
                   </div>
                 )}

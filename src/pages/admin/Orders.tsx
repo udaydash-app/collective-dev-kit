@@ -53,7 +53,7 @@ import { Label } from "@/components/ui/label";
 import { Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
 import { SearchAllSalesDialog } from "@/components/pos/SearchAllSalesDialog";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrencyPdf, formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
@@ -1865,13 +1865,13 @@ export default function AdminOrders() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
                   <div className="bg-muted/50 rounded p-2">
                     <p className="text-xs text-muted-foreground">Total Sales</p>
-                    <p className="text-lg font-bold">{formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
+                    <p className="text-lg font-bold">{formatCurrencyPdf(orders.reduce((sum, o) => sum + (o.total || 0), 0))}</p>
                     <p className="text-xs text-muted-foreground">{orders.length} orders</p>
                   </div>
                   {Object.entries(paymentTotals).map(([method, data]: [string, { count: number; total: number }]) => (
                     <div key={method} className={`rounded p-2 ${methodColors[method] || methodColors.unknown}`}>
                       <p className="text-xs opacity-80">{methodLabels[method] || method}</p>
-                      <p className="text-lg font-bold">{formatCurrency(data.total)}</p>
+                      <p className="text-lg font-bold">{formatCurrencyPdf(data.total)}</p>
                       <p className="text-xs opacity-70">{data.count} orders</p>
                     </div>
                   ))}
@@ -1957,7 +1957,7 @@ export default function AdminOrders() {
                             </Badge>
                           </TableCell>
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs font-semibold">
-                            {formatCurrency(Number(order.total))}
+                            {formatCurrencyPdf(Number(order.total))}
                           </TableCell>
                           <TableCell className="border-r border-border/60 px-2 py-1 text-xs">
                             <div className="flex flex-col gap-1">
@@ -2156,7 +2156,7 @@ export default function AdminOrders() {
                                             <div className="flex-1">
                                               <p className="font-medium">{item.name}</p>
                                               <p className="text-sm text-muted-foreground">
-                                                Original: {formatCurrency(Number(item.price))} each
+                                                Original: {formatCurrencyPdf(Number(item.price))} each
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2191,7 +2191,7 @@ export default function AdminOrders() {
                                             </div>
                                             <div className="w-32 text-right">
                                               <p className="font-semibold">
-                                                {formatCurrency((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
+                                                {formatCurrencyPdf((Number(item.customPrice ?? item.price) * item.quantity) - (Number(item.itemDiscount ?? 0)))}
                                               </p>
                                             </div>
                                             <Button
@@ -2268,7 +2268,7 @@ export default function AdminOrders() {
                                             <div className="flex-1">
                                               <p className="font-medium">{item.products?.name || 'Unknown Product'}</p>
                                               <p className="text-sm text-muted-foreground">
-                                                {formatCurrency(Number(item.unit_price))} / {item.products?.unit}
+                                                {formatCurrencyPdf(Number(item.unit_price))} / {item.products?.unit}
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -2303,7 +2303,7 @@ export default function AdminOrders() {
                                             </div>
                                             <div className="w-32 text-right">
                                               <p className="font-semibold">
-                                                {formatCurrency(Number(item.subtotal))}
+                                                {formatCurrencyPdf(Number(item.subtotal))}
                                               </p>
                                             </div>
                                             <Button
@@ -2395,7 +2395,7 @@ export default function AdminOrders() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Order Subtotal</label>
-              <p className="text-lg font-semibold">{formatCurrency(Number(orderToConfirm?.subtotal || 0))}</p>
+              <p className="text-lg font-semibold">{formatCurrencyPdf(Number(orderToConfirm?.subtotal || 0))}</p>
             </div>
 
             <div className="space-y-2">
@@ -2432,20 +2432,20 @@ export default function AdminOrders() {
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal:</span>
-                <span>{formatCurrency(Number(orderToConfirm?.subtotal || 0))}</span>
+                <span>{formatCurrencyPdf(Number(orderToConfirm?.subtotal || 0))}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Delivery Fee:</span>
-                <span>{formatCurrency(Number(deliveryFee || 0))}</span>
+                <span>{formatCurrencyPdf(Number(deliveryFee || 0))}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax ({taxRate}%):</span>
-                <span>{formatCurrency(Number(orderToConfirm?.subtotal || 0) * (Number(taxRate || 0) / 100))}</span>
+                <span>{formatCurrencyPdf(Number(orderToConfirm?.subtotal || 0) * (Number(taxRate || 0) / 100))}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total:</span>
                 <span className="text-primary">
-                  {formatCurrency(
+                  {formatCurrencyPdf(
                     Number(orderToConfirm?.subtotal || 0) + 
                     Number(deliveryFee || 0) + 
                     (Number(orderToConfirm?.subtotal || 0) * (Number(taxRate || 0) / 100))
@@ -2520,7 +2520,7 @@ export default function AdminOrders() {
                   <div className="flex-1">
                     <p className="font-medium">{product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {formatCurrency(Number(product.price))} / {product.unit}
+                      {formatCurrencyPdf(Number(product.price))} / {product.unit}
                     </p>
                   </div>
                   <Button size="sm">

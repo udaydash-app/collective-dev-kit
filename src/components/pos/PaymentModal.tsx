@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrencyPdf, formatDateTime } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Receipt } from './Receipt';
@@ -360,7 +360,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
 
   const handleConfirm = async () => {
     if (totalPaid < total) {
-      console.error(`Insufficient payment: need ${formatCurrency(remaining)} more`);
+      console.error(`Insufficient payment: need ${formatCurrencyPdf(remaining)} more`);
       return;
     }
 
@@ -411,18 +411,18 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
           <div className="p-4 bg-primary/10 rounded-lg">
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(total)}</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrencyPdf(total)}</p>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Paid</span>
               <span className={totalPaid >= total ? 'text-green-600 font-semibold' : 'font-semibold'}>
-                {formatCurrency(totalPaid)}
+                {formatCurrencyPdf(totalPaid)}
               </span>
             </div>
             {remaining > 0.01 && (
               <div className="flex justify-between items-center text-sm mt-1">
                 <span className="text-muted-foreground">Remaining</span>
-                <span className="text-destructive font-semibold">{formatCurrency(remaining)}</span>
+                <span className="text-destructive font-semibold">{formatCurrencyPdf(remaining)}</span>
               </div>
             )}
           </div>
@@ -546,7 +546,7 @@ export const PaymentModal = ({ isOpen, onClose, total, onConfirm, selectedCustom
               {cashReceived && change >= 0 && (
                 <div className="p-3 bg-accent rounded-lg">
                   <p className="text-sm text-muted-foreground">Change to Return</p>
-                  <p className="text-xl font-bold text-primary">{formatCurrency(change)}</p>
+                  <p className="text-xl font-bold text-primary">{formatCurrencyPdf(change)}</p>
                 </div>
               )}
               {cashReceived && change < 0 && (

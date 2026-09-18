@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
 import { barcodeCache } from '@/hooks/useBarcodeCache';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrencyPdf, formatDateTime } from '@/lib/utils';
 import { 
   Search, 
   User, 
@@ -4326,10 +4326,10 @@ export default function POS() {
           if (selectedItem) {
             const itemTotal = selectedItem.price * selectedItem.quantity;
             discountAmount = (itemTotal * value) / 100;
-            console.log(`Discount updated to ${value}% (${formatCurrency(discountAmount)})`);
+            console.log(`Discount updated to ${value}% (${formatCurrencyPdf(discountAmount)})`);
           }
         } else {
-          console.log(`Discount updated to ${formatCurrency(value)}`);
+          console.log(`Discount updated to ${formatCurrencyPdf(value)}`);
         }
         updateItemDiscount(selectedCartItemId, discountAmount);
         break;
@@ -4339,7 +4339,7 @@ export default function POS() {
           return;
         }
         updateItemPrice(selectedCartItemId, value);
-        console.log(`Price updated to ${formatCurrency(value)}`);
+        console.log(`Price updated to ${formatCurrencyPdf(value)}`);
         break;
       case 'cartDiscount':
         // Calculate cart discount
@@ -4347,9 +4347,9 @@ export default function POS() {
         if (isPercentMode) {
           const cartSubtotal = calculateSubtotal();
           cartDiscountAmount = (cartSubtotal * value) / 100;
-          console.log(`Cart discount applied: ${value}% (${formatCurrency(cartDiscountAmount)})`);
+          console.log(`Cart discount applied: ${value}% (${formatCurrencyPdf(cartDiscountAmount)})`);
         } else {
-          console.log(`Cart discount applied: ${formatCurrency(value)}`);
+          console.log(`Cart discount applied: ${formatCurrencyPdf(value)}`);
         }
         // Update the discount state for transaction processing
         setDiscount(cartDiscountAmount);
@@ -4486,20 +4486,20 @@ export default function POS() {
           {timbreTax > 0 && (
             <div className="flex justify-between items-center text-xs px-3">
               <span className="text-muted-foreground">Timbre</span>
-              <span className="font-medium text-orange-600 dark:text-orange-400">+{formatCurrency(timbreTax)}</span>
+              <span className="font-medium text-orange-600 dark:text-orange-400">+{formatCurrencyPdf(timbreTax)}</span>
             </div>
           )}
           <div className="flex justify-between items-center py-2 px-3 bg-primary/5 rounded-lg border border-primary/20">
             <span className="text-lg font-bold">TOTAL</span>
             <span className="text-3xl font-bold text-primary">
-              {formatCurrency(total)}
+              {formatCurrencyPdf(total)}
             </span>
           </div>
           {selectedOfferItemIds.length > 0 && (
             <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2 text-xs">
               <div>
                 <p className="font-medium">{selectedOfferUnitCount} units selected for offer</p>
-                <p className="text-muted-foreground">Current: {formatCurrency(selectedOfferTotal)}</p>
+                <p className="text-muted-foreground">Current: {formatCurrencyPdf(selectedOfferTotal)}</p>
               </div>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedOfferItemIds([])}>
@@ -4805,7 +4805,7 @@ export default function POS() {
                         {product.name}
                       </p>
                       <p className="text-xs font-bold">
-                        {displayPrice ? formatCurrency(Number(displayPrice)) : 'N/A'}
+                        {displayPrice ? formatCurrencyPdf(Number(displayPrice)) : 'N/A'}
                       </p>
                       {availableVariants.length > 1 && (
                         <span className="text-[8px] text-muted-foreground">
@@ -4979,7 +4979,7 @@ export default function POS() {
                           <div className="flex-1">
                             <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100 block mb-1">Sales</span>
                             <p className={`text-xl font-bold ${textColor}`}>
-                              {formatCurrency(totalSales)}
+                              {formatCurrencyPdf(totalSales)}
                             </p>
                           </div>
                         </div>
@@ -5029,7 +5029,7 @@ export default function POS() {
                               {analyticsData?.topCustomers?.[0]?.name || 'N/A'}
                             </p>
                             <p className={`text-xs font-semibold ${amountColor}`}>
-                              {formatCurrency(customerTotal)}
+                              {formatCurrencyPdf(customerTotal)}
                             </p>
                           </div>
                         </div>
@@ -5077,7 +5077,7 @@ export default function POS() {
                                   ? "text-emerald-600 dark:text-emerald-400" 
                                   : "text-red-600 dark:text-red-400"
                               )}>
-                                {formatCurrency(customer.balance)}
+                                {formatCurrencyPdf(customer.balance)}
                               </p>
                             </div>
                           </div>
@@ -5461,7 +5461,7 @@ export default function POS() {
             <AlertDialogDescription>
               {pendingSpecialOffer && (
                 <>
-                  Cart total matches <strong>{pendingSpecialOffer.name}</strong> ({formatCurrency(pendingSpecialOffer.threshold)}).
+                  Cart total matches <strong>{pendingSpecialOffer.name}</strong> ({formatCurrencyPdf(pendingSpecialOffer.threshold)}).
                   <br />
                   Convert to special offer and apply a <strong>{pendingSpecialOffer.percentage}%</strong> cart discount?
                 </>
@@ -5501,7 +5501,7 @@ export default function POS() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={(entry) => `${entry.name}: ${formatCurrency(entry.value)}`}
+                          label={(entry) => `${entry.name}: ${formatCurrencyPdf(entry.value)}`}
                           outerRadius={80}
                           fill="hsl(var(--primary))"
                           dataKey="value"
@@ -5511,7 +5511,7 @@ export default function POS() {
                           ))}
                         </Pie>
                         <RechartsTooltip 
-                          formatter={(value: any) => formatCurrency(Number(value))}
+                          formatter={(value: any) => formatCurrencyPdf(Number(value))}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -5530,13 +5530,13 @@ export default function POS() {
                             />
                             <span className="text-sm font-medium">{item.name}</span>
                           </div>
-                          <span className="text-sm font-bold">{formatCurrency(item.value)}</span>
+                          <span className="text-sm font-bold">{formatCurrencyPdf(item.value)}</span>
                         </div>
                       ))}
                       <div className="flex justify-between items-center pt-2 border-t-2">
                         <span className="text-sm font-bold">Total Sales</span>
                         <span className="text-lg font-bold text-primary">
-                          {formatCurrency(analyticsData.paymentMethodData.reduce((sum: number, item: any) => sum + item.value, 0))}
+                          {formatCurrencyPdf(analyticsData.paymentMethodData.reduce((sum: number, item: any) => sum + item.value, 0))}
                         </span>
                       </div>
                     </div>
@@ -5556,7 +5556,7 @@ export default function POS() {
                     <YAxis />
                     <RechartsTooltip 
                       formatter={(value: any, name: string) => {
-                        if (name === 'revenue') return [formatCurrency(Number(value)), 'Revenue'];
+                        if (name === 'revenue') return [formatCurrencyPdf(Number(value)), 'Revenue'];
                         return [value, 'Quantity'];
                       }}
                     />
@@ -5579,7 +5579,7 @@ export default function POS() {
                     <YAxis />
                     <RechartsTooltip 
                       formatter={(value: any, name: string) => {
-                        if (name === 'total') return [formatCurrency(Number(value)), 'Total Spent'];
+                        if (name === 'total') return [formatCurrencyPdf(Number(value)), 'Total Spent'];
                         return [value, 'Orders'];
                       }}
                     />
@@ -5629,7 +5629,7 @@ export default function POS() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Current total</span>
-                <span className="font-medium">{formatCurrency(selectedOfferTotal)}</span>
+                <span className="font-medium">{formatCurrencyPdf(selectedOfferTotal)}</span>
               </div>
             </div>
             <div className="space-y-1">
