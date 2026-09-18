@@ -300,6 +300,8 @@ export default function AccountsReceivable() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Customer</TableHead>
+                      <TableHead className="whitespace-nowrap">Last Bill</TableHead>
+                      <TableHead className="whitespace-nowrap">Last Payment</TableHead>
                       {BUCKET_KEYS.map((k) => (
                         <TableHead key={k} className="text-right">{BUCKET_LABELS[k]}</TableHead>
                       ))}
