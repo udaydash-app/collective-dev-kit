@@ -15,7 +15,7 @@ import {
   fetchSuppliersLocal,
   fetchPurchasesLocal,
 } from '@/db/queries/accounting';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrencyPdf, formatDate } from '@/lib/utils';
 import { Plus, Trash2, Package, Search, Eye, Edit, X, Upload, Download, FileSpreadsheet, FileText, CalendarIcon, Filter, ShoppingBag } from 'lucide-react';
 import { MinimizableDialog } from '@/components/ui/minimizable-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

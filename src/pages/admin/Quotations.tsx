@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProductPricesLocal, fetchVariantPricesLocal } from '@/db/queries/accounting';
 import { toast } from 'sonner';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrencyPdf, cn } from '@/lib/utils';
 import { 
   Plus, 
   Trash2, 

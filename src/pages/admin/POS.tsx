@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePOSTransaction } from '@/hooks/usePOSTransaction';
 import { barcodeCache } from '@/hooks/useBarcodeCache';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrencyPdf, formatDateTime } from '@/lib/utils';
 import { 
   Search, 
   User, 

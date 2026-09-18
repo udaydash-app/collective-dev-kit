@@ -53,7 +53,7 @@ import { Label } from "@/components/ui/label";
 import { Package, Eye, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, MessageCircle, Edit, Calendar, Database, Search } from "lucide-react";
 import { SearchAllSalesDialog } from "@/components/pos/SearchAllSalesDialog";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrencyPdf, formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";

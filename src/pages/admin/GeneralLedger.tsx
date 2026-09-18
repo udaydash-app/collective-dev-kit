@@ -49,7 +49,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ArrowDown, ArrowUp, BookOpen, Download, Check, ChevronsUpDown } from 'lucide-react';
 import { usePageView } from '@/hooks/useAnalytics';
-import { formatCurrency, cn, formatDate } from '@/lib/utils';
+import { formatCurrencyPdf, cn, formatDate } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import {

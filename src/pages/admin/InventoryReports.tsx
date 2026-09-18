@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrencyPdf, formatDateTime } from '@/lib/utils';
 import { FileText, Package, AlertTriangle, TrendingUp, Printer, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
