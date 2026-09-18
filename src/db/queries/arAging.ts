@@ -165,7 +165,16 @@ export async function fetchReceivablesAging(asOf: string): Promise<AgingResult> 
           bucket: bucketFor(days),
         });
       }
-      if (cr > 0) credit += cr;
+      const entryDate: string | null = l.journal_entries?.entry_date ?? null;
+      if (d > 0 && entryDate && (!lastBillDate || entryDate > lastBillDate)) {
+        lastBillDate = entryDate;
+      }
+      if (cr > 0) {
+        credit += cr;
+        if (entryDate && (!lastPaymentDate || entryDate > lastPaymentDate)) {
+          lastPaymentDate = entryDate;
+        }
+      }
     }
 
     // Apply all credits FIFO against the oldest open debits.
