@@ -212,9 +212,13 @@ export default function AccountsReceivable() {
         </div>
         <div className="flex items-center gap-2">
           <ReturnToPOSButton />
-          <Button onClick={handlePrint}>
+          <Button variant="outline" onClick={exportBalancesPDF}>
+            <FileDown className="h-4 w-4 mr-2" />
+            Balances PDF
+          </Button>
+          <Button onClick={exportAgingPDF}>
             <Printer className="h-4 w-4 mr-2" />
-            Print Report
+            Aging PDF
           </Button>
         </div>
       </div>
