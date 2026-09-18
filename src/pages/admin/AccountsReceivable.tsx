@@ -360,7 +360,7 @@ export default function AccountsReceivable() {
                       </Fragment>
                     ))}
                     <TableRow className="font-bold">
-                      <TableCell>Total</TableCell>
+                      <TableCell colSpan={3}>Total</TableCell>
                       {BUCKET_KEYS.map((k) => (
                         <TableCell key={k} className="text-right">{formatCurrency(aging?.totals[k] ?? 0)}</TableCell>
                       ))}
