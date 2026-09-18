@@ -134,6 +134,13 @@ export default function AccountsReceivable() {
         </div>
       </div>
 
+      <Tabs defaultValue="balances" className="space-y-6">
+        <TabsList className="no-print">
+          <TabsTrigger value="balances">Balances</TabsTrigger>
+          <TabsTrigger value="aging">Aging</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="balances" className="space-y-6">
       <Card className="no-print">
         <CardHeader>
           <CardTitle>Summary</CardTitle>
