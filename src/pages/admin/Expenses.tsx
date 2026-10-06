@@ -13,9 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown, Search, X } from 'lucide-react';
+import { formatCurrency, formatCurrencyPdf, formatDate } from '@/lib/utils';
+import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown, Search, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { fetchCompanySettings, addPdfHeader } from '@/lib/pdfBranding';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 const PAYMENT_METHODS = [
@@ -32,6 +35,8 @@ export default function Expenses() {
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
