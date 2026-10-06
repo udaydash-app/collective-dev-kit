@@ -21,8 +21,6 @@ import { getPosAdminSession } from '@/db/queries/accounting';
 // jsPDF's built-in Helvetica (WinAnsi) can't render narrow no-break spaces
 // (U+202F/U+00A0) that some browsers emit for fr-CI grouping. Normalize to
 // plain ASCII spaces so numbers render as "2 323 456" instead of "2/323/456".
-const formatCurrencyPdf = (amount: number | null | undefined): string =>
-  formatCurrencyPdf(amount).replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
 const formatNumberPdf = (n: number): string =>
   (n ?? 0).toLocaleString('fr-CI').replace(/[\u00A0\u202F\u2007\u2009]/g, ' ');
 
