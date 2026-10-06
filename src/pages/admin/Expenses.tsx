@@ -273,7 +273,12 @@ export default function Expenses() {
     const doc = new jsPDF();
     const settings = await fetchCompanySettings();
     const storeName = stores?.find((s) => s.id === selectedStoreId)?.name || '';
-    let y = await addPdfHeader(doc, settings, 'Daily Expenses Report');
+    let y = await addPdfHeader(doc, settings);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Daily Expenses Report', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     const period = startDate || endDate
       ? `Period: ${startDate ? formatDate(startDate) : '...'} - ${endDate ? formatDate(endDate) : '...'}`
