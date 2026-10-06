@@ -247,6 +247,8 @@ export default function Expenses() {
   };
 
   const filteredExpenses = expenses?.filter((exp) => {
+    if (startDate && exp.expense_date < startDate) return false;
+    if (endDate && exp.expense_date > endDate) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
