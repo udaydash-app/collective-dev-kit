@@ -265,6 +265,45 @@ export default function Expenses() {
   const totalCredit = filteredExpenses.filter(e => e.payment_method === 'credit').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
   const totalMobileMoney = filteredExpenses.filter(e => e.payment_method === 'mobile_money').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
 
+  const exportPDF = async () => {
+    if (!filteredExpenses.length) {
+      toast.error('No expenses to export');
+      return;
+    }
+    const doc = new jsPDF();
+    const settings = await fetchCompanySettings();
+    const storeName = stores?.find((s) => s.id === selectedStoreId)?.name || '';
+    let y = await addPdfHeader(doc, settings, 'Daily Expenses Report');
+    doc.setFontSize(10);
+    const period = startDate || endDate
+      ? `Period: ${startDate ? formatDate(startDate) : '...'} - ${endDate ? formatDate(endDate) : '...'}`
+      : 'Period: All dates';
+    doc.text(`${period}   Store: ${storeName}`, 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Date', 'Ledger Account', 'Description', 'Payment Method', 'Amount']],
+      body: filteredExpenses.map((exp) => [
+        formatDate(exp.expense_date),
+        exp.category || '-',
+        exp.description || '-',
+        PAYMENT_METHODS.find((m) => m.value === exp.payment_method)?.label || exp.payment_method || '-',
+        formatCurrencyPdf(parseFloat(exp.amount.toString())),
+      ]),
+      foot: [[
+        { content: 'Total', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatCurrencyPdf(totalExpenses), styles: { fontStyle: 'bold' } },
+      ]],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [30, 41, 59] },
+      columnStyles: { 4: { halign: 'right' } },
+    });
+
+    doc.save(`expenses-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF exported');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -274,6 +313,10 @@ export default function Expenses() {
           <Button variant="outline" onClick={() => setShowSearch((v) => !v)}>
             <Search className="h-4 w-4 mr-2" />
             Search
+          </Button>
+          <Button variant="outline" onClick={exportPDF} disabled={!selectedStoreId || !filteredExpenses.length}>
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
           </Button>
           <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
