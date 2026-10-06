@@ -591,6 +591,42 @@ export default function Expenses() {
         </CardContent>
       </Card>
 
+      {/* Date Filter */}
+      {selectedStoreId && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="filter-start">From Date</Label>
+                <Input
+                  id="filter-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="filter-end">To Date</Label>
+                <Input
+                  id="filter-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button variant="ghost" size="sm" onClick={() => { setStartDate(''); setEndDate(''); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear dates
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       {selectedStoreId && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
