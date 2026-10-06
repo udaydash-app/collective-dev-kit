@@ -13,9 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown, Search, X } from 'lucide-react';
+import { formatCurrency, formatCurrencyPdf, formatDate } from '@/lib/utils';
+import { Plus, TrendingDown, Edit, Trash2, DollarSign, CreditCard, Smartphone, Check, ChevronsUpDown, Search, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { fetchCompanySettings, addPdfHeader } from '@/lib/pdfBranding';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 const PAYMENT_METHODS = [
@@ -32,6 +35,8 @@ export default function Expenses() {
   const [paidFromPickerOpen, setPaidFromPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -242,6 +247,8 @@ export default function Expenses() {
   };
 
   const filteredExpenses = expenses?.filter((exp) => {
+    if (startDate && exp.expense_date < startDate) return false;
+    if (endDate && exp.expense_date > endDate) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -258,6 +265,50 @@ export default function Expenses() {
   const totalCredit = filteredExpenses.filter(e => e.payment_method === 'credit').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
   const totalMobileMoney = filteredExpenses.filter(e => e.payment_method === 'mobile_money').reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
 
+  const exportPDF = async () => {
+    if (!filteredExpenses.length) {
+      toast.error('No expenses to export');
+      return;
+    }
+    const doc = new jsPDF();
+    const settings = await fetchCompanySettings();
+    const storeName = stores?.find((s) => s.id === selectedStoreId)?.name || '';
+    let y = await addPdfHeader(doc, settings);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Daily Expenses Report', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const period = startDate || endDate
+      ? `Period: ${startDate ? formatDate(startDate) : '...'} - ${endDate ? formatDate(endDate) : '...'}`
+      : 'Period: All dates';
+    doc.text(`${period}   Store: ${storeName}`, 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Date', 'Ledger Account', 'Description', 'Payment Method', 'Amount']],
+      body: filteredExpenses.map((exp) => [
+        formatDate(exp.expense_date),
+        exp.category || '-',
+        exp.description || '-',
+        PAYMENT_METHODS.find((m) => m.value === exp.payment_method)?.label || exp.payment_method || '-',
+        formatCurrencyPdf(parseFloat(exp.amount.toString())),
+      ]),
+      foot: [[
+        { content: 'Total', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatCurrencyPdf(totalExpenses), styles: { fontStyle: 'bold' } },
+      ]],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [30, 41, 59] },
+      columnStyles: { 4: { halign: 'right' } },
+    });
+
+    doc.save(`expenses-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF exported');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -267,6 +318,10 @@ export default function Expenses() {
           <Button variant="outline" onClick={() => setShowSearch((v) => !v)}>
             <Search className="h-4 w-4 mr-2" />
             Search
+          </Button>
+          <Button variant="outline" onClick={exportPDF} disabled={!selectedStoreId || !filteredExpenses.length}>
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
           </Button>
           <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
@@ -540,6 +595,42 @@ export default function Expenses() {
           </Select>
         </CardContent>
       </Card>
+
+      {/* Date Filter */}
+      {selectedStoreId && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="filter-start">From Date</Label>
+                <Input
+                  id="filter-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="filter-end">To Date</Label>
+                <Input
+                  id="filter-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button variant="ghost" size="sm" onClick={() => { setStartDate(''); setEndDate(''); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear dates
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       {selectedStoreId && (
