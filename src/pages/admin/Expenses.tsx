@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fetchCompanySettings, addPdfHeader } from '@/lib/pdfBranding';
+import { PdfPreviewDialog } from '@/components/pdf/PdfPreviewDialog';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 
 const PAYMENT_METHODS = [
@@ -37,6 +38,9 @@ export default function Expenses() {
   const [showSearch, setShowSearch] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewFileName, setPreviewFileName] = useState('expenses.pdf');
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -305,8 +309,10 @@ export default function Expenses() {
       columnStyles: { 4: { halign: 'right' } },
     });
 
-    doc.save(`expenses-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-    toast.success('PDF exported');
+    const blob = doc.output('blob');
+    setPreviewBlob(blob);
+    setPreviewFileName(`expenses-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    setPreviewOpen(true);
   };
 
   return (
@@ -764,6 +770,13 @@ export default function Expenses() {
           </CardContent>
         </Card>
       )}
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        blob={previewBlob}
+        fileName={previewFileName}
+        title="Daily Expenses Report — Preview"
+      />
     </div>
   );
 }
