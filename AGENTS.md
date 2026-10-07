@@ -1,0 +1,3 @@
+# Architecture rules
+- General Ledger computes cumulative summaries from all paginated posted lines through the selected end date, independently of displayed-period totals, so date filters cannot truncate account summaries.
+- Shared generalLedgerSummary helpers total journal amounts and classify 521-family accounts as debit-normal regardless of legacy account-type metadata, keeping online/local calculations and running balances consistent.
