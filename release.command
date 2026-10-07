@@ -82,16 +82,19 @@ echo "[5/7] Building frontend (Vite)..."
 export BUILD_TARGET=electron
 npx vite build
 
-# -------- 6. Package desktop apps (Win + Mac) --------
+# -------- 6. Package desktop app (macOS only) --------
+# Windows installers cannot be built on a Mac (electron-builder needs Wine,
+# which does not run on Apple Silicon: "bad CPU type in executable").
+# GitHub Actions builds the Windows installers automatically once the tag is pushed.
 echo ""
-echo "[6/7] Packaging Windows + macOS apps (unsigned)..."
+echo "[6/7] Packaging macOS app (unsigned)..."
 
 # Workaround: electron-builder scans optional native dependencies listed in
 # package-lock.json, even when npm skipped those platform folders for this OS.
 node scripts/create-electron-builder-optional-stubs.mjs
 
 export CSC_IDENTITY_AUTO_DISCOVERY=false
-npx electron-builder --mac --win --arm64 --x64
+npx electron-builder --mac --arm64 --x64 || echo "WARNING: macOS packaging failed - continuing so the tag is still pushed (GitHub Actions will build installers)"
 
 echo ""
 echo "Stripping macOS quarantine attributes from built artifacts..."
@@ -119,6 +122,10 @@ echo "============================================"
 echo ""
 echo "Output files in: ./release/"
 ls -la release/ 2>/dev/null | grep -E "\.(dmg|zip|exe)$" || true
+echo ""
+echo "Windows installers are being built by GitHub Actions:"
+echo "  https://github.com/udaydash-app/collective-dev-kit/actions"
+echo "  (ready in ~10 min at .../releases)"
 echo ""
 echo "If macOS blocks the installed app, run:"
 echo "  sudo xattr -cr \"/Applications/Global Market POS.app\""
