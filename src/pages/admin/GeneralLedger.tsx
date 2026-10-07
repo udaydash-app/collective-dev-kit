@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isDebitNormalAccount, sumLedgerAmounts } from '@/lib/generalLedgerSummary';
 
 /**
  * PostgREST returns at most 1000 rows per request. Accounts with more journal
@@ -16,9 +17,9 @@ async function fetchAllLines(
     if (error) throw error;
     const rows = (data || []) as any[];
     all.push(...rows);
-    if (rows.length < GL_PAGE_SIZE) break;
+    if (rows.length < GL_PAGE_SIZE) return all;
   }
-  return all;
+  throw new Error('Ledger exceeds the safe pagination limit; narrow the end date.');
 }
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -387,6 +388,7 @@ export default function GeneralLedger() {
 
         return { 
           lines: allLines, 
+          cumulativeTotals: sumLedgerAmounts([...customerLines, ...supplierLines]),
           account: { 
             account_name: selectedAccountInfo.account_name,
             account_type: 'unified',
@@ -447,7 +449,7 @@ export default function GeneralLedger() {
 
             const priorBalance = (() => {
               const t = localAccount.account_type;
-              if (t === 'asset' || t === 'expense') return sumDR(priorLines) - sumCR(priorLines);
+              if (isDebitNormalAccount(localAccount)) return sumDR(priorLines) - sumCR(priorLines);
               return sumCR(priorLines) - sumDR(priorLines);
             })();
 
@@ -465,7 +467,7 @@ export default function GeneralLedger() {
               currentBalance = localAccount.account_type === 'asset'
                 ? contactOpeningBalance + allDebits - allCredits
                 : contactOpeningBalance + allCredits - allDebits;
-            } else if (['asset', 'expense'].includes(localAccount.account_type)) {
+            } else if (isDebitNormalAccount(localAccount)) {
               currentBalance = accountOpeningBalance + allDebits - allCredits;
             } else {
               currentBalance = accountOpeningBalance + allCredits - allDebits;
@@ -480,6 +482,7 @@ export default function GeneralLedger() {
 
             return {
               lines: sorted,
+              cumulativeTotals: sumLedgerAmounts(allLines),
               account: { ...localAccount, opening_balance: openingBalance, current_balance: currentBalance, isContactAccount },
             };
           }
@@ -561,7 +564,7 @@ export default function GeneralLedger() {
 
       // Calculate opening balance from transactions before start date
       // Exclude opening balance entries since we use contacts.opening_balance
-      const { data: priorLines } = await supabase
+      const priorLines = await fetchAllLines((from, to) => supabase
         .from('journal_entry_lines')
         .select(`
           debit_amount,
@@ -575,7 +578,10 @@ export default function GeneralLedger() {
         .eq('account_id', selectedAccount)
         .eq('journal_entries.status', 'posted')
         .not('journal_entries.description', 'ilike', '%opening balance%')
-        .lt('journal_entries.entry_date', startDate);
+        .lt('journal_entries.entry_date', startDate)
+        .lte('journal_entries.entry_date', endDate)
+        .order('id', { ascending: true })
+        .range(from, to));
 
       // Get opening balance from contact if this is a customer/supplier account
       const { data: contact } = await supabase
@@ -590,23 +596,9 @@ export default function GeneralLedger() {
       // For dual-role contacts viewing individual accounts
       if (isDualRole) {
         // Get all lines including prior period, excluding opening balance entries
-        const { data: allLines } = await supabase
-          .from('journal_entry_lines')
-          .select(`
-            debit_amount,
-            credit_amount,
-            journal_entries!inner (
-              entry_date,
-              description,
-              status
-            )
-          `)
-          .eq('account_id', selectedAccount)
-          .eq('journal_entries.status', 'posted')
-          .not('journal_entries.description', 'ilike', '%opening balance%');
-
-        const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const cumulativeTotals = sumLedgerAmounts([...priorLines, ...lines]);
+        const { debits: allDebits, credits: allCredits } = cumulativeTotals;
+        const priorTotals = sumLedgerAmounts(priorLines);
         
         // Determine if this is customer or supplier account
         const isCustomerAccount = contact.customer_ledger_account_id === selectedAccount;
@@ -622,11 +614,11 @@ export default function GeneralLedger() {
         
         if (isCustomerAccount) {
           // Customer A/R = opening + debits - credits
-          openingBalance = customerOpeningBal;
+          openingBalance = customerOpeningBal + priorTotals.debits - priorTotals.credits;
           currentBalance = customerOpeningBal + allDebits - allCredits;
         } else if (isSupplierAccount) {
           // Supplier A/P = opening + credits - debits
-          openingBalance = supplierOpeningBal;
+          openingBalance = supplierOpeningBal + priorTotals.credits - priorTotals.debits;
           currentBalance = supplierOpeningBal + allCredits - allDebits;
         } else {
           // Fallback
@@ -636,6 +628,7 @@ export default function GeneralLedger() {
         
         return { 
           lines: sortedLines, 
+          cumulativeTotals,
           account: { 
             ...account, 
             opening_balance: openingBalance,
@@ -667,8 +660,7 @@ export default function GeneralLedger() {
       
       // Calculate balance from prior transactions
       const priorBalance = (priorLines || []).reduce((balance, line: any) => {
-        const accountType = account?.account_type;
-        if (accountType === 'asset' || accountType === 'expense') {
+        if (isDebitNormalAccount(account || {})) {
           return balance + line.debit_amount - line.credit_amount;
         } else {
           return balance + line.credit_amount - line.debit_amount;
@@ -689,22 +681,8 @@ export default function GeneralLedger() {
       }
 
       // Calculate current balance from all transactions, excluding opening balance entries
-      const { data: allLines } = await supabase
-        .from('journal_entry_lines')
-        .select(`
-          debit_amount,
-          credit_amount,
-          journal_entries!inner (
-            description,
-            status
-          )
-        `)
-        .eq('account_id', selectedAccount)
-        .eq('journal_entries.status', 'posted')
-        .not('journal_entries.description', 'ilike', '%opening balance%');
-
-      const allDebits = (allLines || []).reduce((sum, line: any) => sum + line.debit_amount, 0);
-      const allCredits = (allLines || []).reduce((sum, line: any) => sum + line.credit_amount, 0);
+      const cumulativeTotals = sumLedgerAmounts([...priorLines, ...lines]);
+      const { debits: allDebits, credits: allCredits } = cumulativeTotals;
       
       let currentBalance;
       
@@ -720,14 +698,14 @@ export default function GeneralLedger() {
         }
       } else {
         // For non-contact accounts, use account opening balance
-        if (['asset', 'expense'].includes(account?.account_type || '')) {
+        if (isDebitNormalAccount(account || {})) {
           currentBalance = accountOpeningBalance + allDebits - allCredits;
         } else {
           currentBalance = accountOpeningBalance + allCredits - allDebits;
         }
       }
 
-      return { lines: sortedLines, account: { ...account, opening_balance: openingBalance, current_balance: currentBalance, isContactAccount } };
+      return { lines: sortedLines, cumulativeTotals, account: { ...account, opening_balance: openingBalance, current_balance: currentBalance, isContactAccount } };
     },
     enabled: !!selectedAccount,
   });
@@ -789,7 +767,7 @@ export default function GeneralLedger() {
         }
       }
       // For non-contact accounts, use standard accounting rules
-      else if (['asset', 'expense'].includes(accountType)) {
+      else if (isDebitNormalAccount(ledgerData.account)) {
         // Asset/Expense: debits increase, credits decrease
         balance += line.debit_amount - line.credit_amount;
       } else {
@@ -813,6 +791,8 @@ export default function GeneralLedger() {
   // Unified customer/supplier views still contain normal debit/credit columns,
   // so totals must include both sides exactly as shown in the entries table.
   const accountData = ledgerData?.account as any;
+  const summaryDebit = ledgerData?.cumulativeTotals.debits || 0;
+  const summaryCredit = ledgerData?.cumulativeTotals.credits || 0;
   const totalDebit = (ledgerData?.lines as any[])?.reduce(
     (sum: number, line: any) => sum + Number(line.debit_amount || 0),
     0
@@ -1209,7 +1189,7 @@ export default function GeneralLedger() {
               <p className="text-sm text-muted-foreground">Current Balance</p>
               <p
                 className={`text-lg font-bold font-mono ${
-                  Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                   Number((ledgerData.account as any).current_balance || 0) >= 0 ? 'text-success' : 'text-destructive'
                 }`}
               >
                 {formatCurrencyPdf(Math.abs(Number((ledgerData.account as any).current_balance || 0)))}
@@ -1223,15 +1203,15 @@ export default function GeneralLedger() {
               )}
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Debits</p>
+               <p className="text-sm text-muted-foreground">Total Debits (from beginning)</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrencyPdf(Number(totalDebit))}
+                 {formatCurrencyPdf(summaryDebit)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Credits</p>
+               <p className="text-sm text-muted-foreground">Total Credits (from beginning)</p>
               <p className="text-lg font-bold font-mono">
-                {formatCurrencyPdf(Number(totalCredit))}
+                 {formatCurrencyPdf(summaryCredit)}
               </p>
             </div>
           </div>
