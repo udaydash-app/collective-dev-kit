@@ -352,15 +352,15 @@ export default function GeneralLedger() {
         const currentSupplierLines = supplierLines?.filter(l => l.journal_entries.entry_date >= startDate) || [];
 
         // Calculate all debits and credits (including manual journals) for both customer and supplier
-        const priorCustomerDebits = priorCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const priorCustomerCredits = priorCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const currentCustomerCredits = currentCustomerLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const priorCustomerDebits = priorCustomerLines.reduce((sum, line: any) => sum + Number(line.debit_amount || 0), 0);
+        const priorCustomerCredits = priorCustomerLines.reduce((sum, line: any) => sum + Number(line.credit_amount || 0), 0);
+        const currentCustomerDebits = currentCustomerLines.reduce((sum, line: any) => sum + Number(line.debit_amount || 0), 0);
+        const currentCustomerCredits = currentCustomerLines.reduce((sum, line: any) => sum + Number(line.credit_amount || 0), 0);
         
-        const priorSupplierDebits = priorSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const priorSupplierCredits = priorSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
-        const currentSupplierDebits = currentSupplierLines.reduce((sum, line: any) => sum + line.debit_amount, 0);
-        const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + line.credit_amount, 0);
+        const priorSupplierDebits = priorSupplierLines.reduce((sum, line: any) => sum + Number(line.debit_amount || 0), 0);
+        const priorSupplierCredits = priorSupplierLines.reduce((sum, line: any) => sum + Number(line.credit_amount || 0), 0);
+        const currentSupplierDebits = currentSupplierLines.reduce((sum, line: any) => sum + Number(line.debit_amount || 0), 0);
+        const currentSupplierCredits = currentSupplierLines.reduce((sum, line: any) => sum + Number(line.credit_amount || 0), 0);
         
         // A/R = customer opening + all customer debits (sales + manual journals) - all customer credits (payments + manual journals)
         // A/P = supplier opening + all supplier credits (purchases + manual journals) - all supplier debits (payments + manual journals)
@@ -388,7 +388,12 @@ export default function GeneralLedger() {
 
         return { 
           lines: allLines, 
-          cumulativeTotals: sumLedgerAmounts([...customerLines, ...supplierLines]),
+          cumulativeTotals: sumLedgerAmounts([
+            ...customerLines, ...supplierLines,
+            // Opening balances live on the contact, include them so Debits - Credits = balance
+            customerOpeningBalance >= 0 ? { debit_amount: customerOpeningBalance } : { credit_amount: -customerOpeningBalance },
+            supplierOpeningBalance >= 0 ? { credit_amount: supplierOpeningBalance } : { debit_amount: -supplierOpeningBalance },
+          ]),
           account: { 
             account_name: selectedAccountInfo.account_name,
             account_type: 'unified',
