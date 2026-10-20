@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS snapshot_pos_product_tva ON public.pos_transactions; DROP FUNCTION IF EXISTS public.snapshot_pos_product_tva();
