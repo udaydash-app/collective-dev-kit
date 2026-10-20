@@ -2137,6 +2137,7 @@ export type Database = {
           store_id: string
           supplier_id: string | null
           tags: string[] | null
+          tva_rate: number | null
           unit: string
           updated_at: string
           vip_price: number | null
@@ -2163,6 +2164,7 @@ export type Database = {
           store_id: string
           supplier_id?: string | null
           tags?: string[] | null
+          tva_rate?: number | null
           unit: string
           updated_at?: string
           vip_price?: number | null
@@ -2189,6 +2191,7 @@ export type Database = {
           store_id?: string
           supplier_id?: string | null
           tags?: string[] | null
+          tva_rate?: number | null
           unit?: string
           updated_at?: string
           vip_price?: number | null

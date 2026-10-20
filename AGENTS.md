@@ -1,3 +1,4 @@
 # Architecture rules
+- FNE TVA calculations share line-level helpers across screen/PDF/Excel, use percentage rates saved on products (snapshot on new POS inserts), resolve legacy rates from product IDs, and block TVA exports for missing rates; never assume a tax category from a product name.
 - General Ledger computes cumulative summaries from all paginated posted lines through the selected end date, independently of displayed-period totals, so date filters cannot truncate account summaries.
 - Shared generalLedgerSummary helpers total journal amounts and classify 521-family accounts as debit-normal regardless of legacy account-type metadata, keeping online/local calculations and running balances consistent.
