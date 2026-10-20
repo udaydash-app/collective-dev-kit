@@ -48,6 +48,15 @@ const num = (v: any) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** Ivory Coast standard VAT rate (SYSCOHADA). */
+export const TVA_RATE = 0.18;
+
+/** Split a tax-inclusive (TTC) amount into HT + TVA at the CI standard rate. */
+export function splitTva(ttc: number): { ht: number; tva: number } {
+  const ht = ttc / (1 + TVA_RATE);
+  return { ht, tva: ttc - ht };
+}
+
 /** Map a raw pos_transactions row into a full invoice with line items. */
 export function mapTransactionToInvoice(t: any): FneInvoice {
   const rawItems: any[] = Array.isArray(t.items) ? t.items : [];
@@ -292,6 +301,8 @@ export interface FneMeta {
   sourceLabel?: string;
   /** Optional grouped breakdown to include in exports */
   groupBy?: FneGroupBy;
+  /** When true, totals are treated as TTC and split into HT + TVA 18% (CI) */
+  tvaApplicable?: boolean;
 }
 
 
