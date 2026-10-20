@@ -17,7 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, buildFneGroups, splitTva, type FneResult, type FneGroupBy } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, buildFneGroups, invoiceTva, reportTva, type FneResult, type FneGroupBy } from '@/lib/fneReport';
 
 type FneSource = 'sales' | 'purchases' | 'expenses';
 const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
@@ -173,6 +173,25 @@ export default function CloseDayReport() {
                 : null,
           }));
 
+        const mapSales = async (rows: any[]) => {
+          const invoices = rows.map(mapTransactionToInvoice);
+          const ids = [...new Set(invoices.flatMap(inv => inv.lines.filter(line => line.tvaRate == null).map(line => line.productId)).filter((id): id is string => !!id && /^[0-9a-f-]{36}$/i.test(id)))];
+          const rates = new Map<string, number | null>();
+          for (let offset = 0; offset < ids.length; offset += 200) {
+            const batch = ids.slice(offset, offset + 200);
+            const { data, error } = await supabase.from('products').select('id, tva_rate').in('id', batch);
+            if (error) throw error;
+            (data || []).forEach(p => rates.set(p.id, p.tva_rate));
+            const unresolved = batch.filter(id => !rates.has(id));
+            if (unresolved.length) {
+              const { data: variants, error: variantError } = await supabase.from('product_variants').select('id, products(tva_rate)').in('id', unresolved);
+              if (variantError) throw variantError;
+              (variants || []).forEach(v => rates.set(v.id, (v.products as { tva_rate: number | null } | null)?.tva_rate ?? null));
+            }
+          }
+          return invoices.map(inv => ({ ...inv, lines: inv.lines.map(line => ({ ...line, tvaRate: line.tvaRate ?? rates.get(line.productId || '') })) }));
+        };
+
         const adminSession = getPosAdminSession();
         if (adminSession) {
           const rpcFetch = async (from: string, to: string) => {
@@ -199,8 +218,8 @@ export default function CloseDayReport() {
             return {
               type: 'fne',
               result: selectFneWithFallback(
-                current.map(mapTransactionToInvoice),
-                prior.map(mapTransactionToInvoice),
+                await mapSales(current),
+                await mapSales(prior),
                 target,
                 startDate,
                 endDate
@@ -253,8 +272,8 @@ export default function CloseDayReport() {
         return {
           type: 'fne',
           result: selectFneWithFallback(
-            enrich(rows, nameById).map(mapTransactionToInvoice),
-            enrich(priorRows, nameById).map(mapTransactionToInvoice),
+            await mapSales(enrich(rows, nameById)),
+            await mapSales(enrich(priorRows, nameById)),
             target,
             startDate,
             endDate
@@ -1291,8 +1310,9 @@ export default function CloseDayReport() {
       const tvaOn = fneSource === 'sales' && fneTvaApplicable;
       const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy, tvaApplicable: tvaOn };
       const fneGroups = buildFneGroups(result.invoices, activeGroupBy);
-      const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
-      const totalTva = tvaOn ? result.achieved - totalHt : 0;
+      const taxSummary = reportTva(result.invoices);
+      const totalHt = tvaOn ? taxSummary.ht : 0;
+      const totalTva = tvaOn ? taxSummary.tva : 0;
 
       if (!result.invoices.length) {
         return (
@@ -1320,15 +1340,16 @@ export default function CloseDayReport() {
                 <Button variant="outline" size="sm" onClick={() => refetch()}>
                   Re-shuffle
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => exportFnePdf(result, meta)}>
+                <Button variant="outline" size="sm" disabled={tvaOn && taxSummary.missing} onClick={() => exportFnePdf(result, meta).catch(() => toast.error('PDF export failed'))}>
                   Export PDF
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => exportFneExcel(result, meta)}>
+                <Button variant="outline" size="sm" disabled={tvaOn && taxSummary.missing} onClick={() => exportFneExcel(result, meta)}>
                   Export Excel
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
+              {tvaOn && taxSummary.missing && <p className="text-destructive mb-4">TVA rates are missing for selected products. Set their TVA Rate (%) in Products before exporting; 0% means exempt. TVA totals are incomplete.</p>}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">{L.doc}s</p>
@@ -1341,7 +1362,7 @@ export default function CloseDayReport() {
                       <p className="text-xl font-bold">{formatCurrency(totalHt)}</p>
                     </div>
                     <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">TVA 18%</p>
+                      <p className="text-sm text-muted-foreground">TVA</p>
                       <p className="text-xl font-bold">{formatCurrency(totalTva)}</p>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg">
@@ -1361,13 +1382,13 @@ export default function CloseDayReport() {
                       <th className="text-left p-2">Date</th>
                       <th className="text-left p-2">{L.party}</th>
                       {tvaOn && <th className="text-right p-2">Total HT</th>}
-                      {tvaOn && <th className="text-right p-2">TVA 18%</th>}
+                      {tvaOn && <th className="text-right p-2">TVA</th>}
                       <th className="text-right p-2">{tvaOn ? 'Total TTC' : 'Total'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.invoices.map((inv, i) => {
-                      const { ht, tva } = tvaOn ? splitTva(inv.total) : { ht: 0, tva: 0 };
+                      const { ht, tva } = tvaOn ? invoiceTva(inv) : { ht: 0, tva: 0 };
                       return (
                         <tr key={inv.id} className="border-b">
                           <td className="p-2 text-muted-foreground">{i + 1}</td>
@@ -1459,15 +1480,17 @@ export default function CloseDayReport() {
                         <th className="text-right p-2">Qty</th>
                         <th className="text-right p-2">Unit Price</th>
                         <th className="text-right p-2">Line Total</th>
+                        {tvaOn && <><th className="text-right p-2">TVA Rate</th><th className="text-right p-2">Line HT</th><th className="text-right p-2">Line TVA</th></>}
                       </tr>
                     </thead>
                     <tbody>
-                      {inv.lines.map((l, idx) => (
+                      {invoiceTva(inv).lines.map((l, idx) => (
                         <tr key={idx} className="border-b">
                           <td className="p-2">{l.name}</td>
                           <td className="p-2 text-right">{l.quantity}</td>
                           <td className="p-2 text-right">{formatCurrency(l.unitPrice)}</td>
                           <td className="p-2 text-right">{formatCurrency(l.lineTotal)}</td>
+                          {tvaOn && <><td className="p-2 text-right">{l.missing ? 'Not set' : `${l.tvaRate}%`}</td><td className="p-2 text-right">{l.missing ? '—' : formatCurrency(l.ht)}</td><td className="p-2 text-right">{l.missing ? '—' : formatCurrency(l.tva)}</td></>}
                         </tr>
                       ))}
                     </tbody>
@@ -1479,8 +1502,8 @@ export default function CloseDayReport() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Timbre / Tax</span><span>{formatCurrency(inv.tax)}</span></div>
                   {tvaOn && (
                     <>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span>{formatCurrency(splitTva(inv.total).ht)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">TVA 18%</span><span>{formatCurrency(splitTva(inv.total).tva)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span>{formatCurrency(invoiceTva(inv).ht)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{formatCurrency(invoiceTva(inv).tva)}</span></div>
                     </>
                   )}
                   <div className="flex justify-between font-bold border-t pt-1"><span>{tvaOn ? 'Total TTC' : 'Total'}</span><span>{formatCurrency(inv.total)}</span></div>
@@ -1488,6 +1511,14 @@ export default function CloseDayReport() {
               </CardContent>
             </Card>
           ))}
+          {tvaOn && <section className="space-y-3">
+            <h3 className="font-semibold">TVA Summary by Rate</h3>
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead><tr className="border-b"><th className="p-2 text-left">Rate</th><th className="p-2 text-right">Total HT</th><th className="p-2 text-right">TVA</th><th className="p-2 text-right">Products TTC</th></tr></thead>
+              <tbody>{taxSummary.rates.map(row => <tr key={row.rate} className="border-b"><td className="p-2">{row.rate}%</td><td className="p-2 text-right">{formatCurrency(row.ht)}</td><td className="p-2 text-right">{formatCurrency(row.tva)}</td><td className="p-2 text-right">{formatCurrency(row.ttc)}</td></tr>)}</tbody>
+              <tfoot><tr className="font-bold border-t"><td className="p-2">TOTAL</td><td className="p-2 text-right">{formatCurrency(totalHt)}</td><td className="p-2 text-right">{formatCurrency(totalTva)}</td><td className="p-2 text-right">{formatCurrency(totalHt + totalTva)}</td></tr></tfoot>
+            </table></div>
+          </section>}
         </div>
       );
     }
@@ -2091,12 +2122,9 @@ export default function CloseDayReport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no">No — amounts without TVA</SelectItem>
-                  <SelectItem value="yes">Yes — TVA 18% (Côte d'Ivoire)</SelectItem>
+                  <SelectItem value="yes">Yes — product TVA rates</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                When enabled, invoice totals are treated as TTC and split into Total HT + TVA 18% per SYSCOHADA (Côte d'Ivoire).
-              </p>
             </div>
           )}
 

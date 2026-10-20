@@ -391,12 +391,12 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   autoTable(doc, {
     startY: y,
     head: [tvaOn
-      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA 18%', 'Total TTC']
+      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA', 'Total TTC']
       : ['#', `${docLabel} No`, 'Date', partyLabel, 'Total (FCFA)']],
     body: result.invoices.map((inv, idx) => {
       const base = [String(idx + 1), inv.number, formatDate(inv.date), inv.customerName];
       if (!tvaOn) return [...base, money(inv.total)];
-      const { ht, tva } = splitTva(inv.total);
+      const { ht, tva } = invoiceTva(inv);
       return [...base, money(ht), money(tva), money(inv.total)];
     }),
     foot: [tvaOn
@@ -468,7 +468,7 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     );
     ops.push({ t: 'line', h: 3 });
 
-    inv.lines.forEach((l) => {
+    invoiceTva(inv).lines.forEach((l) => {
       wrap(l.name, 7).forEach((s) => ops.push({ t: 'text', s, align: 'left', size: 7, h: 3.4 }));
       ops.push({
         t: 'row',
@@ -480,15 +480,18 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
       });
     });
 
+    if (tvaOn) {
+      invoiceTva(inv).lines.forEach((line) => ops.push({ t: 'row', l: `TVA ${line.tvaRate}%`, r: money(line.tva), size: 7, h: 3.6 }));
+    }
     ops.push({ t: 'line', h: 3 });
     ops.push({ t: 'row', l: 'Subtotal:', r: money(inv.subtotal), size: 7, h: 3.6 });
     if (inv.tax > 0) ops.push({ t: 'row', l: 'Timbre:', r: money(inv.tax), size: 7, h: 3.6 });
     if (inv.discount > 0)
       ops.push({ t: 'row', l: 'Discount:', r: `-${money(inv.discount)}`, size: 7, h: 3.6 });
     if (tvaOn) {
-      const { ht, tva } = splitTva(inv.total);
+      const { ht, tva } = invoiceTva(inv);
       ops.push({ t: 'row', l: 'Total HT:', r: money(ht), size: 7, h: 3.6 });
-      ops.push({ t: 'row', l: 'TVA 18%:', r: money(tva), size: 7, h: 3.6 });
+      ops.push({ t: 'row', l: 'TVA:', r: money(tva), size: 7, h: 3.6 });
     }
     ops.push({ t: 'line', h: 2.5 });
     ops.push({ t: 'row', l: tvaOn ? 'TOTAL TTC:' : 'TOTAL:', r: money(inv.total), bold: true, size: 9, h: 5 });
@@ -568,6 +571,11 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   }
 
 
+  if (tvaOn) {
+    doc.addPage();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('TVA Summary by Rate', 14, 14);
+    autoTable(doc, { startY: 20, head: [['Rate', 'Total HT', 'TVA', 'Products TTC']], body: taxSummary.rates.map(r => [`${r.rate}%`, money(r.ht), money(r.tva), money(r.ttc)]), foot: [['TOTAL', money(totalHt), money(totalTva), money(totalHt + totalTva)]], styles: { fontSize: 9 }, theme: 'grid' });
+  }
   doc.save(`FNE-${meta.sourceLabel || 'Sales'}-Report-${meta.startDate}-to-${meta.endDate}.pdf`);
 }
 
@@ -576,25 +584,27 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
   const docLabel = meta.docLabel || 'Invoice';
   const partyLabel = meta.partyLabel || 'Customer';
   const tvaOn = !!meta.tvaApplicable;
-  const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
-  const totalTva = tvaOn ? result.achieved - totalHt : 0;
+  const taxSummary = reportTva(result.invoices);
+  if (tvaOn && taxSummary.missing) throw new Error('Set TVA rates for all selected products before exporting.');
+  const totalHt = tvaOn ? taxSummary.ht : 0;
+  const totalTva = tvaOn ? taxSummary.tva : 0;
 
   const summaryRows: any[][] = [
     [meta.sourceLabel ? `FNE Report - ${meta.sourceLabel}` : 'FNE Report'],
     ['Store', meta.storeName],
     ['Period', `${formatDate(meta.startDate)} - ${formatDate(meta.endDate)}`],
     ['Generated', formatDateTime(new Date())],
-    ...(tvaOn ? [['TVA', '18% (Côte d\'Ivoire)']] : []),
+    ...(tvaOn ? [['TVA', 'Product rates']] : []),
     [],
     [`${docLabel} Count`, result.invoices.length],
     [],
     tvaOn
-      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA 18%', 'Total TTC']
+      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA', 'Total TTC']
       : ['#', `${docLabel} No`, 'Date', partyLabel, 'Total'],
     ...result.invoices.map((inv, i) => {
       const base = [i + 1, inv.number, formatDate(inv.date), inv.customerName];
       if (!tvaOn) return [...base, inv.total];
-      const { ht, tva } = splitTva(inv.total);
+      const { ht, tva } = invoiceTva(inv);
       return [...base, ht, tva, inv.total];
     }),
     tvaOn
@@ -619,15 +629,18 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
   }
 
 
+  if (tvaOn) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Rate (%)', 'Total HT', 'TVA', 'Products TTC'], ...taxSummary.rates.map(r => [r.rate, r.ht, r.tva, r.ttc]), ['TOTAL', totalHt, totalTva, totalHt + totalTva]]), 'TVA Summary');
+  }
   const lineRows: any[][] = [
-    [`${docLabel} No`, 'Date', partyLabel, 'Description', 'Qty', 'Unit Price', 'Line Total', `${docLabel} Total`],
+    [`${docLabel} No`, 'Date', partyLabel, 'Description', 'Qty', 'Unit Price', 'Line Total', `${docLabel} Total`, ...(tvaOn ? ['TVA Rate (%)', 'Line HT', 'Line TVA', 'Line TTC'] : [])],
   ];
   result.invoices.forEach((inv) => {
     if (!inv.lines.length) {
       lineRows.push([inv.number, formatDate(inv.date), inv.customerName, '—', 0, 0, 0, inv.total]);
       return;
     }
-    inv.lines.forEach((l) => {
+    invoiceTva(inv).lines.forEach((l) => {
       lineRows.push([
         inv.number,
         formatDate(inv.date),
@@ -637,6 +650,7 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
         l.unitPrice,
         l.lineTotal,
         inv.total,
+        ...(tvaOn ? [l.tvaRate, l.ht, l.tva, l.ttc] : []),
       ]);
     });
   });
