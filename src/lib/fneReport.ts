@@ -344,21 +344,30 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
 
   y = (doc as any).lastAutoTable.finalY + 8;
 
+  const tvaOn = !!meta.tvaApplicable;
+  const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
+  const totalTva = tvaOn ? result.achieved - totalHt : 0;
+
   autoTable(doc, {
     startY: y,
-    head: [['#', `${docLabel} No`, 'Date', partyLabel, 'Total (FCFA)']],
-    body: result.invoices.map((inv, idx) => [
-      String(idx + 1),
-      inv.number,
-      formatDate(inv.date),
-      inv.customerName,
-      money(inv.total),
-    ]),
-    foot: [['', '', '', 'TOTAL', money(result.achieved)]],
+    head: [tvaOn
+      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA 18%', 'Total TTC']
+      : ['#', `${docLabel} No`, 'Date', partyLabel, 'Total (FCFA)']],
+    body: result.invoices.map((inv, idx) => {
+      const base = [String(idx + 1), inv.number, formatDate(inv.date), inv.customerName];
+      if (!tvaOn) return [...base, money(inv.total)];
+      const { ht, tva } = splitTva(inv.total);
+      return [...base, money(ht), money(tva), money(inv.total)];
+    }),
+    foot: [tvaOn
+      ? ['', '', '', 'TOTAL', money(totalHt), money(totalTva), money(result.achieved)]
+      : ['', '', '', 'TOTAL', money(result.achieved)]],
     styles: { fontSize: 8, cellPadding: 1.6 },
     headStyles: { fillColor: [30, 41, 59] },
     footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 10 }, 4: { halign: 'right' } },
+    columnStyles: tvaOn
+      ? { 0: { cellWidth: 10 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
+      : { 0: { cellWidth: 10 }, 4: { halign: 'right' } },
     theme: 'grid',
   });
 
@@ -436,8 +445,13 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
     if (inv.tax > 0) ops.push({ t: 'row', l: 'Timbre:', r: money(inv.tax), size: 7, h: 3.6 });
     if (inv.discount > 0)
       ops.push({ t: 'row', l: 'Discount:', r: `-${money(inv.discount)}`, size: 7, h: 3.6 });
+    if (tvaOn) {
+      const { ht, tva } = splitTva(inv.total);
+      ops.push({ t: 'row', l: 'Total HT:', r: money(ht), size: 7, h: 3.6 });
+      ops.push({ t: 'row', l: 'TVA 18%:', r: money(tva), size: 7, h: 3.6 });
+    }
     ops.push({ t: 'line', h: 2.5 });
-    ops.push({ t: 'row', l: 'TOTAL:', r: money(inv.total), bold: true, size: 9, h: 5 });
+    ops.push({ t: 'row', l: tvaOn ? 'TOTAL TTC:' : 'TOTAL:', r: money(inv.total), bold: true, size: 9, h: 5 });
     ops.push({ t: 'line', dashed: true, h: 3 });
     ops.push({ t: 'text', s: 'Thank you for shopping with us!', align: 'center', size: 6, h: 3 });
     return ops;
