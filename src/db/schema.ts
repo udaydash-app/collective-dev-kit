@@ -16,6 +16,7 @@ export const AppSchema = new Schema({
     images: column.text, // text[] -> JSON text
     tags: column.text,
     price: column.real,
+    tva_rate: column.real,
     original_price: column.real,
     cost_price: column.real,
     local_charges: column.real,

@@ -57,6 +57,7 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
+  tva_rate?: number | null;
   cost_price?: number;
   local_charges?: number;
   wholesale_price?: number;
@@ -530,7 +531,13 @@ export default function Products() {
 
     try {
       const formData = new FormData(e.currentTarget);
+      const rawTva = String(formData.get('tva_rate') ?? '').trim();
+      const tvaRate = rawTva === '' ? null : Number(rawTva);
+      if (tvaRate !== null && (!Number.isFinite(tvaRate) || tvaRate < 0 || tvaRate > 100)) {
+        throw new Error('TVA rate must be between 0 and 100');
+      }
       const productData: any = {
+        tva_rate: tvaRate,
         name: formData.get("name") as string,
         description: formData.get("description") as string,
         price: parseFloat(formData.get("price") as string) || 0,
@@ -1779,6 +1786,10 @@ export default function Products() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                      <div>
+                        <Label htmlFor="tva_rate" className="text-xs">TVA Rate (%)</Label>
+                        <Input id="tva_rate" name="tva_rate" type="number" min="0" max="100" step="0.01" defaultValue={editingProduct.tva_rate ?? ''} placeholder="Not set" className="h-9 text-sm" />
+                      </div>
                       <div>
                         <Label htmlFor="price" className="text-xs">Retail Price *</Label>
                         <Input

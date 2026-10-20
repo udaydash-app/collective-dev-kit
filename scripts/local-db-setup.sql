@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   description TEXT,
   barcode TEXT,
   price NUMERIC,
+  tva_rate NUMERIC,
   original_price NUMERIC,
   cost_price NUMERIC,
   wholesale_price NUMERIC,
@@ -163,6 +164,9 @@ CREATE TABLE IF NOT EXISTS public.products (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Product Variants table
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS tva_rate NUMERIC;
 
 -- Product Variants table
 CREATE TABLE IF NOT EXISTS public.product_variants (
