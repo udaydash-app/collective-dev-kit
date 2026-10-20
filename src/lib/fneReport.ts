@@ -535,24 +535,31 @@ export function exportFneExcel(result: FneResult, meta: FneMeta) {
   const wb = XLSX.utils.book_new();
   const docLabel = meta.docLabel || 'Invoice';
   const partyLabel = meta.partyLabel || 'Customer';
+  const tvaOn = !!meta.tvaApplicable;
+  const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
+  const totalTva = tvaOn ? result.achieved - totalHt : 0;
 
   const summaryRows: any[][] = [
     [meta.sourceLabel ? `FNE Report - ${meta.sourceLabel}` : 'FNE Report'],
     ['Store', meta.storeName],
     ['Period', `${formatDate(meta.startDate)} - ${formatDate(meta.endDate)}`],
     ['Generated', formatDateTime(new Date())],
+    ...(tvaOn ? [['TVA', '18% (Côte d\'Ivoire)']] : []),
     [],
     [`${docLabel} Count`, result.invoices.length],
     [],
-    ['#', `${docLabel} No`, 'Date', partyLabel, 'Total'],
-    ...result.invoices.map((inv, i) => [
-      i + 1,
-      inv.number,
-      formatDate(inv.date),
-      inv.customerName,
-      inv.total,
-    ]),
-    ['', '', '', 'TOTAL', result.achieved],
+    tvaOn
+      ? ['#', `${docLabel} No`, 'Date', partyLabel, 'Total HT', 'TVA 18%', 'Total TTC']
+      : ['#', `${docLabel} No`, 'Date', partyLabel, 'Total'],
+    ...result.invoices.map((inv, i) => {
+      const base = [i + 1, inv.number, formatDate(inv.date), inv.customerName];
+      if (!tvaOn) return [...base, inv.total];
+      const { ht, tva } = splitTva(inv.total);
+      return [...base, ht, tva, inv.total];
+    }),
+    tvaOn
+      ? ['', '', '', 'TOTAL', totalHt, totalTva, result.achieved]
+      : ['', '', '', 'TOTAL', result.achieved],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
 
