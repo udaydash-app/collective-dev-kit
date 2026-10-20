@@ -2081,6 +2081,25 @@ export default function CloseDayReport() {
             </div>
           )}
 
+          {/* TVA — FNE sales only */}
+          {reportType === 'fne' && fneSource === 'sales' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA Applicable?</p>
+              <Select value={fneTvaApplicable ? 'yes' : 'no'} onValueChange={(v) => setFneTvaApplicable(v === 'yes')}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">No — amounts without TVA</SelectItem>
+                  <SelectItem value="yes">Yes — TVA 18% (Côte d'Ivoire)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                When enabled, invoice totals are treated as TTC and split into Total HT + TVA 18% per SYSCOHADA (Côte d'Ivoire).
+              </p>
+            </div>
+          )}
+
 
 
           {/* Target amount — FNE only */}
