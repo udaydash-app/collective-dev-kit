@@ -18,6 +18,9 @@ const money = (amount: number | null | undefined): string => {
 import { fetchCompanySettings, addPdfHeader } from '@/lib/pdfBranding';
 
 export interface FneLine {
+  productId?: string;
+  /** Percentage, not fraction. Null/undefined means unconfigured. */
+  tvaRate?: number | null;
   name: string;
   quantity: number;
   unitPrice: number;
@@ -57,11 +60,44 @@ export function splitTva(ttc: number): { ht: number; tva: number } {
   return { ht, tva: ttc - ht };
 }
 
+export function invoiceTva(inv: FneInvoice) {
+  const subtotal = inv.lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const netProducts = Math.max(0, inv.total - inv.tax);
+  const lines = inv.lines.map((line) => {
+    const rate = line.tvaRate;
+    const missing = rate == null || !Number.isFinite(rate) || rate < 0 || rate > 100;
+    const ttc = subtotal > 0 ? line.lineTotal * netProducts / subtotal : 0;
+    const ht = ttc / (1 + (missing ? 0 : rate) / 100);
+    return { ...line, ttc, ht, tva: ttc - ht, missing };
+  });
+  const tva = lines.reduce((sum, line) => sum + line.tva, 0);
+  return { lines, ht: inv.total - inv.tax - tva, tva, missing: !lines.length || lines.some((line) => line.missing) };
+}
+
+export function reportTva(invoices: FneInvoice[]) {
+  const rates = new Map<number, { rate: number; ht: number; tva: number; ttc: number }>();
+  let ht = 0, tva = 0, missing = false;
+  for (const inv of invoices) {
+    const detail = invoiceTva(inv);
+    ht += detail.ht;
+    tva += detail.tva;
+    missing ||= detail.missing;
+    for (const line of detail.lines) {
+      if (line.missing) continue;
+      const rate = line.tvaRate ?? 0;
+      const row = rates.get(rate) ?? { rate, ht: 0, tva: 0, ttc: 0 };
+      row.ht += line.ht; row.tva += line.tva; row.ttc += line.ttc;
+      rates.set(rate, row);
+    }
+  }
+  return { ht, tva, missing, rates: [...rates.values()].sort((a, b) => a.rate - b.rate) };
+}
+
 /** Map a raw pos_transactions row into a full invoice with line items. */
 export function mapTransactionToInvoice(t: any): FneInvoice {
   const rawItems: any[] = Array.isArray(t.items) ? t.items : [];
   const lines: FneLine[] = rawItems
-    .filter((i) => i && (i.name || i.productName))
+    .filter((i) => i && (i.name || i.productName) && i.id !== 'cart-discount' && i.productId !== 'cart-discount')
     .map((i) => {
       const qty = Math.abs(num(i.quantity));
       const base =
@@ -70,6 +106,8 @@ export function mapTransactionToInvoice(t: any): FneInvoice {
           : num(i.price ?? i.unit_price);
       const unitPrice = Math.max(0, base - Math.abs(num(i.itemDiscount)));
       return {
+        productId: i.productId || i.product_id || i.id,
+        tvaRate: i.tvaRate == null ? undefined : Number(i.tvaRate),
         name: i.name || i.productName || 'Item',
         quantity: qty,
         unitPrice,
@@ -301,12 +339,14 @@ export interface FneMeta {
   sourceLabel?: string;
   /** Optional grouped breakdown to include in exports */
   groupBy?: FneGroupBy;
-  /** When true, totals are treated as TTC and split into HT + TVA 18% (CI) */
+  /** When true, each product's TTC is split using its configured TVA percentage. */
   tvaApplicable?: boolean;
 }
 
 
 export async function exportFnePdf(result: FneResult, meta: FneMeta) {
+  const taxSummary = reportTva(result.invoices);
+  if (meta.tvaApplicable && taxSummary.missing) throw new Error('Set TVA rates for all selected products before exporting.');
   const doc = new jsPDF('p', 'mm', 'a4');
   const settings = await fetchCompanySettings();
   let y = await addPdfHeader(doc, settings, { startY: 10 });
@@ -345,8 +385,8 @@ export async function exportFnePdf(result: FneResult, meta: FneMeta) {
   y = (doc as any).lastAutoTable.finalY + 8;
 
   const tvaOn = !!meta.tvaApplicable;
-  const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
-  const totalTva = tvaOn ? result.achieved - totalHt : 0;
+  const totalHt = tvaOn ? taxSummary.ht : 0;
+  const totalTva = tvaOn ? taxSummary.tva : 0;
 
   autoTable(doc, {
     startY: y,
