@@ -17,7 +17,7 @@ import { FileText, DollarSign, CreditCard, Smartphone, ShoppingBag, TrendingDown
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
-import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, buildFneGroups, type FneResult, type FneGroupBy } from '@/lib/fneReport';
+import { selectFneInvoices, selectFneFromInvoices, selectFneWithFallback, mapTransactionToInvoice, mapPurchaseToInvoice, mapExpenseToInvoice, exportFnePdf, exportFneExcel, buildFneGroups, splitTva, type FneResult, type FneGroupBy } from '@/lib/fneReport';
 
 type FneSource = 'sales' | 'purchases' | 'expenses';
 const FNE_LABELS: Record<FneSource, { source: string; doc: string; party: string }> = {
@@ -58,6 +58,7 @@ export default function CloseDayReport() {
   const [fneNonce, setFneNonce] = useState(0);
   const [fneSource, setFneSource] = useState<FneSource>('sales');
   const [fneGroupBy, setFneGroupBy] = useState<FneGroupBy>('none');
+  const [fneTvaApplicable, setFneTvaApplicable] = useState(false);
 
   const targetAmountRef = useRef<string>('');
   useEffect(() => { targetAmountRef.current = targetAmount; }, [targetAmount]);
@@ -1287,8 +1288,11 @@ export default function CloseDayReport() {
       const result = (reportData as any).result as FneResult;
       const L = FNE_LABELS[fneSource];
       const activeGroupBy: FneGroupBy = fneSource === 'sales' ? fneGroupBy : 'none';
-      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy };
+      const tvaOn = fneSource === 'sales' && fneTvaApplicable;
+      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy, tvaApplicable: tvaOn };
       const fneGroups = buildFneGroups(result.invoices, activeGroupBy);
+      const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
+      const totalTva = tvaOn ? result.achieved - totalHt : 0;
 
       if (!result.invoices.length) {
         return (
@@ -1330,6 +1334,22 @@ export default function CloseDayReport() {
                   <p className="text-sm text-muted-foreground">{L.doc}s</p>
                   <p className="text-xl font-bold">{result.invoices.length}</p>
                 </div>
+                {tvaOn && (
+                  <>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total HT</p>
+                      <p className="text-xl font-bold">{formatCurrency(totalHt)}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">TVA 18%</p>
+                      <p className="text-xl font-bold">{formatCurrency(totalTva)}</p>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total TTC</p>
+                      <p className="text-xl font-bold">{formatCurrency(result.achieved)}</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="overflow-x-auto">
@@ -1340,23 +1360,32 @@ export default function CloseDayReport() {
                       <th className="text-left p-2">{L.doc} No</th>
                       <th className="text-left p-2">Date</th>
                       <th className="text-left p-2">{L.party}</th>
-                      <th className="text-right p-2">Total</th>
+                      {tvaOn && <th className="text-right p-2">Total HT</th>}
+                      {tvaOn && <th className="text-right p-2">TVA 18%</th>}
+                      <th className="text-right p-2">{tvaOn ? 'Total TTC' : 'Total'}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.invoices.map((inv, i) => (
-                      <tr key={inv.id} className="border-b">
-                        <td className="p-2 text-muted-foreground">{i + 1}</td>
-                        <td className="p-2 font-medium">{inv.number}</td>
-                        <td className="p-2">{formatDate(inv.date)}</td>
-                        <td className="p-2">{inv.customerName}</td>
-                        <td className="p-2 text-right font-semibold">{formatCurrency(inv.total)}</td>
-                      </tr>
-                    ))}
+                    {result.invoices.map((inv, i) => {
+                      const { ht, tva } = tvaOn ? splitTva(inv.total) : { ht: 0, tva: 0 };
+                      return (
+                        <tr key={inv.id} className="border-b">
+                          <td className="p-2 text-muted-foreground">{i + 1}</td>
+                          <td className="p-2 font-medium">{inv.number}</td>
+                          <td className="p-2">{formatDate(inv.date)}</td>
+                          <td className="p-2">{inv.customerName}</td>
+                          {tvaOn && <td className="p-2 text-right">{formatCurrency(ht)}</td>}
+                          {tvaOn && <td className="p-2 text-right">{formatCurrency(tva)}</td>}
+                          <td className="p-2 text-right font-semibold">{formatCurrency(inv.total)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 font-bold">
                       <td className="p-2" colSpan={4}>TOTAL</td>
+                      {tvaOn && <td className="p-2 text-right">{formatCurrency(totalHt)}</td>}
+                      {tvaOn && <td className="p-2 text-right">{formatCurrency(totalTva)}</td>}
                       <td className="p-2 text-right">{formatCurrency(result.achieved)}</td>
                     </tr>
                   </tfoot>
@@ -1448,7 +1477,13 @@ export default function CloseDayReport() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(inv.subtotal)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>{formatCurrency(inv.discount)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Timbre / Tax</span><span>{formatCurrency(inv.tax)}</span></div>
-                  <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span>{formatCurrency(inv.total)}</span></div>
+                  {tvaOn && (
+                    <>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span>{formatCurrency(splitTva(inv.total).ht)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">TVA 18%</span><span>{formatCurrency(splitTva(inv.total).tva)}</span></div>
+                    </>
+                  )}
+                  <div className="flex justify-between font-bold border-t pt-1"><span>{tvaOn ? 'Total TTC' : 'Total'}</span><span>{formatCurrency(inv.total)}</span></div>
                 </div>
               </CardContent>
             </Card>
@@ -2043,6 +2078,25 @@ export default function CloseDayReport() {
                   <SelectItem value="product">📦 Group by product</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* TVA — FNE sales only */}
+          {reportType === 'fne' && fneSource === 'sales' && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA Applicable?</p>
+              <Select value={fneTvaApplicable ? 'yes' : 'no'} onValueChange={(v) => setFneTvaApplicable(v === 'yes')}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">No — amounts without TVA</SelectItem>
+                  <SelectItem value="yes">Yes — TVA 18% (Côte d'Ivoire)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                When enabled, invoice totals are treated as TTC and split into Total HT + TVA 18% per SYSCOHADA (Côte d'Ivoire).
+              </p>
             </div>
           )}
 
