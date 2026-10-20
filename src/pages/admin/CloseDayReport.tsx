@@ -1288,8 +1288,11 @@ export default function CloseDayReport() {
       const result = (reportData as any).result as FneResult;
       const L = FNE_LABELS[fneSource];
       const activeGroupBy: FneGroupBy = fneSource === 'sales' ? fneGroupBy : 'none';
-      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy };
+      const tvaOn = fneSource === 'sales' && fneTvaApplicable;
+      const meta = { storeName, startDate, endDate, docLabel: L.doc, partyLabel: L.party, sourceLabel: L.source, groupBy: activeGroupBy, tvaApplicable: tvaOn };
       const fneGroups = buildFneGroups(result.invoices, activeGroupBy);
+      const totalHt = tvaOn ? result.invoices.reduce((s, inv) => s + splitTva(inv.total).ht, 0) : 0;
+      const totalTva = tvaOn ? result.achieved - totalHt : 0;
 
       if (!result.invoices.length) {
         return (
@@ -1331,6 +1334,22 @@ export default function CloseDayReport() {
                   <p className="text-sm text-muted-foreground">{L.doc}s</p>
                   <p className="text-xl font-bold">{result.invoices.length}</p>
                 </div>
+                {tvaOn && (
+                  <>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total HT</p>
+                      <p className="text-xl font-bold">{formatCurrency(totalHt)}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">TVA 18%</p>
+                      <p className="text-xl font-bold">{formatCurrency(totalTva)}</p>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total TTC</p>
+                      <p className="text-xl font-bold">{formatCurrency(result.achieved)}</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="overflow-x-auto">
