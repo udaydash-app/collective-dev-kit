@@ -6,13 +6,32 @@ import SearchPage from '@/pages/SearchPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock Supabase client
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    functions: {
-      invoke: vi.fn()
+vi.mock('@/integrations/supabase/client', () => {
+  // Any query-builder call resolves to an empty result set
+  const chain: Record<string | symbol, unknown> = new Proxy(
+    {},
+    {
+      get: (_target, prop) => {
+        if (prop === 'then') {
+          return (onFulfilled?: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) =>
+            Promise.resolve({ data: [], error: null }).then(onFulfilled, onRejected);
+        }
+        return () => chain;
+      },
     }
-  }
-}));
+  );
+  return {
+    supabase: {
+      functions: { invoke: vi.fn() },
+      from: vi.fn(() => chain),
+      auth: {
+        getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+        onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      },
+    },
+    getLocalSupabaseConfigStatus: vi.fn(() => null),
+  };
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,15 +72,18 @@ describe('SearchPage', () => {
   });
 
   it('clears search query when X button clicked', () => {
-    renderWithProviders(<SearchPage />);
+    const { container } = renderWithProviders(<SearchPage />);
     const searchInput = screen.getByPlaceholderText(/search for products or ask anything/i) as HTMLInputElement;
-    
+
     fireEvent.change(searchInput, { target: { value: 'test query' } });
     expect(searchInput.value).toBe('test query');
-    
-    const clearButton = screen.getByRole('button', { name: '' });
+
+    const clearButton = container
+      .querySelector('svg.lucide-x')
+      ?.closest('button') as HTMLButtonElement;
+    expect(clearButton).toBeTruthy();
     fireEvent.click(clearButton);
-    
+
     expect(searchInput.value).toBe('');
   });
 });
