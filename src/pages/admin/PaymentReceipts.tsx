@@ -124,48 +124,54 @@ export default function PaymentReceipts() {
     }
   });
 
-  // Fetch payment receipts
+  // Fetch payment receipts — read the live server list when online so deletes,
+  // edits and new receipts show immediately; fall back to the offline copy.
   const { data: receipts, isLoading } = useQuery({
     queryKey: ['payment-receipts', searchTerm],
     queryFn: async () => {
-      try {
+      const readLocal = async () => {
         const local = await fetchPaymentReceiptsLocal(searchTerm);
-        if (local && local.length > 0) return local as PaymentReceipt[];
-      } catch (e) {
-        console.warn('[PaymentReceipts] receipts local read failed', e);
-      }
-      let query = supabase
-        .from('payment_receipts')
-        .select(`
-          *,
-          contacts(name)
-        `)
-        .order('created_at', { ascending: false });
+        return (local || []) as PaymentReceipt[];
+      };
 
-      if (searchTerm) {
-        query = query.or(`receipt_number.ilike.%${searchTerm}%,reference.ilike.%${searchTerm}%`);
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return readLocal();
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      try {
+        let query = supabase
+          .from('payment_receipts')
+          .select(`
+            *,
+            contacts(name)
+          `)
+          .order('created_at', { ascending: false });
 
-      // Fetch user profiles separately
-      const receiptsWithProfiles = await Promise.all(
-        (data || []).map(async (receipt) => {
-          const { data: profile } = await supabase
+        if (searchTerm) {
+          query = query.or(`receipt_number.ilike.%${searchTerm}%,reference.ilike.%${searchTerm}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const userIds = Array.from(new Set((data || []).map((r) => r.received_by).filter(Boolean)));
+        const profileMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
             .from('profiles')
-            .select('full_name')
-            .eq('id', receipt.received_by)
-            .single();
-          
-          return {
-            ...receipt,
-            profiles: profile || { full_name: '' }
-          };
-        })
-      );
+            .select('id, full_name')
+            .in('id', userIds);
+          (profiles || []).forEach((p: any) => profileMap.set(p.id, p.full_name || ''));
+        }
 
-      return receiptsWithProfiles as PaymentReceipt[];
+        return (data || []).map((receipt) => ({
+          ...receipt,
+          profiles: { full_name: profileMap.get(receipt.received_by) || '' },
+        })) as PaymentReceipt[];
+      } catch (e) {
+        console.warn('[PaymentReceipts] server read failed, using offline copy', e);
+        return readLocal();
+      }
     }
   });
 
@@ -391,6 +397,7 @@ export default function PaymentReceipts() {
       queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['today-payment-receipts'] });
       toast.success(editingReceipt ? 'Payment receipt updated successfully' : 'Payment receipt created successfully');
       handleClose();
     },
@@ -402,16 +409,24 @@ export default function PaymentReceipts() {
   // Delete payment receipt mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('payment_receipts')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Receipt was not deleted — you may not have permission, or it was already removed.');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-receipts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      // Refresh the open cash session so expected cash / mobile money drop the deleted receipt
+      queryClient.invalidateQueries({ queryKey: ['today-payment-receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-balance'] });
       toast.success('Payment receipt deleted successfully');
       setDeleteDialogOpen(false);
       setReceiptToDelete(null);
