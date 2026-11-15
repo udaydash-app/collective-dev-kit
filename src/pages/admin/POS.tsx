@@ -1087,10 +1087,10 @@ export default function POS() {
     queryFn: async () => {
       if (!currentCashSession) return [];
 
-      // Expected cash is a daily figure. Count only expenses explicitly dated
-      // today, even when an open cash session began on the previous evening.
-      const toLocalDate = (d: string | Date) => new Date(d).toLocaleDateString('en-CA'); // yyyy-MM-dd
-      const todayDate = toLocalDate(new Date());
+      // Count expenses entered during this session and dated on/after the
+      // day it opened (sessions may run past midnight).
+      const { isExpenseInSession, sessionStartDate } = await import('@/lib/sessionExpenses');
+      const todayDate = new Date().toLocaleDateString('en-CA');
 
       // Use IndexedDB in local mode
       if (isOffline) {
@@ -1098,13 +1098,7 @@ export default function POS() {
           const { offlineDB } = await import('@/lib/offlineDB');
           const expenses = await offlineDB.getExpenses();
           return expenses
-            .filter(e => {
-              if (e.store_id !== currentCashSession.store_id) return false;
-              // Exclude expenses entered before this session was opened
-              if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
-              const d = e.expense_date || toLocalDate(e.created_at);
-              return d === todayDate;
-            })
+            .filter(e => e.store_id === currentCashSession.store_id && isExpenseInSession(e, currentCashSession))
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } catch (e) {
           console.error('[POS] Error fetching offline expenses:', e);
@@ -1117,7 +1111,8 @@ export default function POS() {
         .select('id, amount, payment_method, description, category, created_at, expense_date, paid_from_account_id')
         .eq('store_id', currentCashSession.store_id)
         .gte('created_at', currentCashSession.opened_at)
-        .eq('expense_date', todayDate)
+        .gte('expense_date', sessionStartDate(currentCashSession))
+        .lte('expense_date', todayDate)
         .order('created_at', { ascending: false });
 
       return data || [];
@@ -2027,20 +2022,16 @@ export default function POS() {
             .filter(p => p.payment_method === 'mobile_money')
             .reduce((sum, p) => sum + parseFloat(p.total_amount?.toString() || '0'), 0);
           
-          // Expected cash is daily: never pull a prior date's expense into
-          // today's figure just because the session spans midnight.
+          // Expenses entered during this session, dated on/after its opening day.
           const expenses = await offlineDB.getExpenses();
-          const todayDate = new Date().toLocaleDateString('en-CA');
+          const { isExpenseInSession } = await import('@/lib/sessionExpenses');
           const offlineAccounts = await offlineDB.getAccounts();
           const offlineCashIds = new Set(
             offlineAccounts.filter((a: any) => a.account_code === '571').map((a: any) => a.id as string)
           );
-          const sessionExpenses = expenses.filter(e => {
-            if (e.store_id !== currentCashSession.store_id) return false;
-            if (new Date(e.created_at).getTime() < new Date(currentCashSession.opened_at).getTime()) return false;
-            const d = e.expense_date || new Date(e.created_at).toLocaleDateString('en-CA');
-            return d === todayDate;
-          });
+          const sessionExpenses = expenses.filter(e =>
+            e.store_id === currentCashSession.store_id && isExpenseInSession(e, currentCashSession)
+          );
 
           // Only expenses paid from the register cash account (571) touch the
           // till. Personal/sub-cash accounts such as 5711 are excluded.
@@ -2147,15 +2138,17 @@ export default function POS() {
         ?.filter(p => p.payment_method === 'mobile_money')
         .reduce((sum, p) => sum + parseFloat(p.total_amount.toString()), 0) || 0;
 
-      // Expected cash is daily, even if the current session spans midnight.
+      // Expenses entered during this session, dated on/after its opening day.
       const todayDate = new Date().toLocaleDateString('en-CA');
+      const { sessionStartDate } = await import('@/lib/sessionExpenses');
       const [{ data: expenses }, { data: cashAccounts }] = await Promise.all([
         supabase
           .from('expenses')
           .select('amount, payment_method, expense_date, paid_from_account_id')
           .eq('store_id', currentCashSession.store_id)
           .gte('created_at', currentCashSession.opened_at)
-          .eq('expense_date', todayDate),
+          .gte('expense_date', sessionStartDate(currentCashSession))
+          .lte('expense_date', todayDate),
         supabase
           .from('accounts')
           .select('id')
