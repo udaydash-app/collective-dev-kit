@@ -3800,6 +3800,10 @@ export type Database = {
           unit_cost: number
         }[]
       }
+      delete_payment_receipt: {
+        Args: { p_receipt_id: string }
+        Returns: string
+      }
       find_similar_products: {
         Args: {
           p_search_name: string

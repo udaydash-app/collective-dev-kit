@@ -20,6 +20,7 @@ import { ReturnToPOSButton } from '@/components/layout/ReturnToPOSButton';
 import PendingBillsDialog from '@/components/admin/PendingBillsDialog';
 import { fetchActiveStoresLocal } from '@/db/queries/accounting';
 import { fetchPaymentReceiptsLocal, fetchCustomersLocal } from '@/db/queries/payments';
+import { connectPowerSync } from '@/db/powersync';
 import { getContactLedgerBalance } from '@/lib/customerLedgerBalance';
 import {
   AlertDialog,
@@ -409,15 +410,25 @@ export default function PaymentReceipts() {
   // Delete payment receipt mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('payment_receipts')
-        .delete()
-        .eq('id', id)
-        .select('id');
-
+      // Server-side delete removes the receipt and its journal entry together,
+      // and raises a clear reason when it cannot (not signed in / no permission).
+      const { error } = await (supabase as any).rpc('delete_payment_receipt', { p_receipt_id: id });
       if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error('Receipt was not deleted — you may not have permission, or it was already removed.');
+
+      // Drop the stale offline copies so the receipt doesn't reappear when offline.
+      try {
+        const db = await connectPowerSync();
+        await db.writeTransaction(async (tx) => {
+          await tx.execute('DELETE FROM payment_receipts WHERE id = ?', [id]);
+        });
+        // The row is already gone on the server; discard any queued upload for it.
+        let crud = await db.getNextCrudTransaction();
+        while (crud && crud.crud.every((op) => op.table === 'payment_receipts' && op.id === id)) {
+          await crud.complete();
+          crud = await db.getNextCrudTransaction();
+        }
+      } catch (e) {
+        console.warn('[PaymentReceipts] offline copy cleanup skipped', e);
       }
     },
     onSuccess: () => {
