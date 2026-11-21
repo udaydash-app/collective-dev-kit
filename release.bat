@@ -1,9 +1,12 @@
 @echo off
 REM Batch script to release a new version with auto-update
-REM Usage: release.bat 1.0.16
+REM Usage: release.bat 1.1.83
 
 set VERSION=%1
-if "%VERSION%"=="" set VERSION=1.0.16
+if "%VERSION%"=="" (
+    echo ERROR: Please give a version number, e.g. release.bat 1.1.83
+    exit /b 1
+)
 
 echo ========================================
 echo   Global Market POS - Version Release
@@ -22,7 +25,7 @@ echo.
 
 REM Step 2: Update version in package.json
 echo Step 2: Updating version to %VERSION%...
-call npm version %VERSION% --no-git-tag-version
+call npm version %VERSION% --no-git-tag-version --allow-same-version
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to update version!
     exit /b 1
