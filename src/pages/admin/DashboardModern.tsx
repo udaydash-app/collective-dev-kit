@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReturnToPOSButton } from "@/components/layout/ReturnToPOSButton";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import {
@@ -114,6 +115,7 @@ const menuGroups: { label: string; items: { title: string; to: string; icon: any
 
 export default function DashboardModern() {
   const [recentOpen, setRecentOpen] = useState(true);
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
   const offlineSession = (() => {
     try {
       const storedSession = localStorage.getItem('offline_pos_session');
@@ -185,6 +187,19 @@ export default function DashboardModern() {
   const journals = dashboardData?.journal_entries || [];
   const accounts = dashboardData?.accounts || [];
 
+  // Customer names for the POS transactions loaded above (for the Recent Sales filter)
+  const txCustomerIds = Array.from(new Set((tx || []).map((t: any) => t.customer_id).filter(Boolean))) as string[];
+  const { data: customerRows } = useQuery({
+    queryKey: ["dash-customer-names", txCustomerIds.join(",")],
+    enabled: txCustomerIds.length > 0 && navigator.onLine,
+    queryFn: async () => {
+      const { data } = await supabase.from("contacts").select("id, name").in("id", txCustomerIds);
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const customerNameMap = new Map<string, string>((customerRows || []).map((c: any) => [c.id, (c.name || "").trim() || "Customer"]));
+
   const purchasesTotal = (purchases || []).reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0);
   const expensesTotal = (expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
 
@@ -248,20 +263,33 @@ export default function DashboardModern() {
   const pieData = Object.entries(paymentMix).map(([name, value]) => ({ name, value }));
   const pieColors = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))", "#f59e0b", "#ec4899", "#06b6d4"];
 
-  const recent = [
+  const recentAll = [
     ...((tx || []).map((t: any) => ({
       id: t.id, ref: t.transaction_number, total: Number(t.total) || 0,
-      date: t.created_at, type: "POS" as const, customer: "Walk-in",
+      date: t.created_at, type: "POS" as const,
+      customerKey: t.customer_id || "walkin",
+      customer: t.customer_id ? (customerNameMap.get(t.customer_id) || "Customer") : "Walk-in",
       items: Array.isArray(t.items) ? t.items.length : 0,
       user: userMap.get(t.cashier_id || "")?.name || "—",
     }))),
     ...((orders || []).map((o: any) => ({
       id: o.id, ref: o.order_number, total: Number(o.total) || 0,
-      date: o.created_at, type: "Online" as const, customer: "Guest",
+      date: o.created_at, type: "Online" as const, customerKey: "online", customer: "Guest",
       items: 0, status: o.status,
       user: "Online",
     }))),
-  ].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 25);
+  ].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+
+  // Customers present in the recent sales, for the filter dropdown
+  const customerOptions = Array.from(
+    recentAll.reduce((m, r) => (m.has(r.customerKey) ? m : m.set(r.customerKey, r.customer)), new Map<string, string>())
+  ).map(([key, name]) => ({ key, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const recent = (customerFilter === "all"
+    ? recentAll
+    : recentAll.filter((r) => r.customerKey === customerFilter)
+  ).slice(0, 25);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
@@ -383,10 +411,29 @@ export default function DashboardModern() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="pt-0">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                    <SelectTrigger className="w-full sm:w-72">
+                      <SelectValue placeholder="Filter by customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All customers</SelectItem>
+                      {customerOptions.map((c) => (
+                        <SelectItem key={c.key} value={c.key}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {customerFilter !== "all" && (
+                    <Button variant="ghost" size="sm" onClick={() => setCustomerFilter("all")}>Clear</Button>
+                  )}
+                </div>
                 <ScrollArea className="h-[420px] pr-2">
                   <div className="space-y-2">
                     {recent.length === 0 && (
-                      <div className="text-center py-12 text-muted-foreground text-sm">No recent sales</div>
+                      <div className="text-center py-12 text-muted-foreground text-sm">
+                        {customerFilter === "all" ? "No recent sales" : "No sales for this customer in the last 14 days"}
+                      </div>
                     )}
                     {recent.map((r) => (
                       <Link
