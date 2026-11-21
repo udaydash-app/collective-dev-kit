@@ -432,9 +432,25 @@ export default function POSLogin() {
       let data: VerifyPinResult[] | null = null;
       
       try {
-        const result = await withLoginTimeout(
-          supabase.rpc('verify_pin', { input_pin: pinValue }) as PromiseLike<{ data: VerifyPinResult[] | null; error: any }>
-        );
+        // Cloud: the PIN lookup is server-only, so check it through the
+        // verify-pos-pin function. LAN database: call the lookup directly.
+        const verifyPin = async (): Promise<{ data: VerifyPinResult[] | null; error: any }> => {
+          if (getSupabaseConfig().isLocal) {
+            return await (supabase.rpc('verify_pin', { input_pin: pinValue }) as PromiseLike<{ data: VerifyPinResult[] | null; error: any }>);
+          }
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('verify-pos-pin', {
+            body: { pin: pinValue },
+          });
+          if (fnError) {
+            // Unreachable function = network problem, so offline login can take over.
+            if ((fnError as any)?.name === 'FunctionsFetchError') {
+              return { data: null, error: new TypeError('Failed to fetch') };
+            }
+            return { data: null, error: fnError };
+          }
+          return { data: (fnData?.users ?? []) as VerifyPinResult[], error: null };
+        };
+        const result = await withLoginTimeout(verifyPin(), 12000);
         
         if (result.error) {
           throw result.error;
