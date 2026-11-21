@@ -77,6 +77,7 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
         c?.name,
         c?.phone,
         c?.email,
+        ...(itemsByOrder.get(o.id) ?? []).map((it: any) => it.products?.name || it.product_name || it.name),
       ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     })
@@ -107,7 +108,8 @@ export async function fetchAdminOrdersLocal(filter: LocalOrdersFilter) {
     .filter((t: any) => {
       if (!q) return true;
       const c = contactById.get(t.customer_id);
-      const hay = [t.transaction_number, c?.name, c?.phone]
+      const itemNames = Array.isArray(t.items) ? t.items.map((it: any) => it?.name) : [];
+      const hay = [t.transaction_number, c?.name, c?.phone, ...itemNames]
         .filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     })

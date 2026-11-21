@@ -206,7 +206,7 @@ export default function AdminOrders() {
   };
 
   const { data: allOrders, isLoading, error: queryError } = useQuery({
-    queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim()],
+    queryKey: ['admin-orders', statusFilter, periodFilter, startDate, endDate, searchQuery.trim(), customerFilter],
     queryFn: async () => {
       const dateRange = getDateRange();
       const isSearchingTop = searchQuery.trim().length > 0;
@@ -228,14 +228,32 @@ export default function AdminOrders() {
       // ---- Supabase fallback (legacy path) ----
       try {
       const isSearching = searchQuery.trim().length > 0;
+      // Customer filter is pushed down to the database so a selected customer's
+      // whole history is scanned, and the text search (product names etc.) is
+      // then applied client-side on that small set. This avoids building huge
+      // `id.in.(...)` URLs that fail silently and return "No orders found".
+      const selectedCustomerId =
+        customerFilter !== 'all' && customerFilter !== 'walkin' ? customerFilter : null;
+      const walkinOnly = customerFilter === 'walkin';
+      const pushSearchToDb = isSearching && !selectedCustomerId;
+      const CHUNK = 100;
+      const chunks = <T,>(arr: T[], size: number) => {
+        const out: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+        return out;
+      };
+      const dedupeById = (rows: any[]) => {
+        const m = new Map<string, any>();
+        rows.forEach((r) => { if (r?.id && !m.has(r.id)) m.set(r.id, r); });
+        return [...m.values()];
+      };
 
-      // When searching, pre-resolve contact IDs whose name/phone match the query
-      // so we can push the search down to the database (covers ALL historical orders).
+      // When searching (without a selected customer), pre-resolve contact IDs and
+      // product IDs matching the query so the search covers ALL historical orders.
       let matchingContactIds: string[] = [];
       let matchingProductIds: string[] = [];
       let orderIdsWithMatchingProducts: string[] = [];
-      let posIdsWithMatchingProducts: string[] = [];
-      if (isSearching) {
+      if (pushSearchToDb) {
         const q = searchQuery.trim();
         const { data: matchedContacts } = await supabase
           .from('contacts')
@@ -244,9 +262,6 @@ export default function AdminOrders() {
           .limit(500);
         matchingContactIds = (matchedContacts || []).map((c: any) => c.id);
 
-        // Resolve product IDs matching the query, then look up which
-        // orders / POS transactions contain them so we can push the
-        // product-name search down to the database.
         const { data: matchedProducts } = await supabase
           .from('products')
           .select('id')
@@ -255,89 +270,72 @@ export default function AdminOrders() {
         matchingProductIds = (matchedProducts || []).map((p: any) => p.id);
 
         if (matchingProductIds.length > 0) {
-          const { data: matchedOrderItems } = await supabase
-            .from('order_items')
-            .select('order_id')
-            .in('product_id', matchingProductIds)
-            .limit(5000);
+          const itemResults = await Promise.all(
+            chunks(matchingProductIds, CHUNK).map((ids) =>
+              supabase.from('order_items').select('order_id').in('product_id', ids).limit(5000)
+            )
+          );
           orderIdsWithMatchingProducts = [
-            ...new Set((matchedOrderItems || []).map((i: any) => i.order_id).filter(Boolean)),
-          ];
-
-          // POS items are stored as JSONB. Build a single OR of `cs` clauses
-          // for all matching product ids so we scan ALL historical POS sales
-          // in one round-trip (previous per-id loop capped at 25 and often
-          // returned empty, hiding POS results in searches like "atta").
-          const posIdSet = new Set<string>();
-          const chunkSize = 40;
-          for (let i = 0; i < matchingProductIds.length; i += chunkSize) {
-            const chunk = matchingProductIds.slice(i, i + chunkSize);
-            const orClauses = chunk
-              .map((pid) => `items.cs.[{"id":"${pid}"}]`)
-              .join(',');
-            const { data: posMatches, error: posMatchErr } = await supabase
-              .from('pos_transactions')
-              .select('id')
-              .or(orClauses)
-              .limit(5000);
-            if (posMatchErr) {
-              console.warn('[orders] POS product-match query failed', posMatchErr);
-            }
-            (posMatches || []).forEach((r: any) => posIdSet.add(r.id));
-          }
-          posIdsWithMatchingProducts = [...posIdSet];
+            ...new Set(
+              itemResults.flatMap((r: any) => (r.data || []).map((i: any) => i.order_id)).filter(Boolean)
+            ),
+          ] as string[];
         }
       }
 
-      // Fetch online orders
-      let ordersQuery = supabase
-        .from('orders')
-        .select(`
+      // Fetch online orders (walk-in filter = POS sales only, so skip them)
+      const ORDER_SELECT = `
           *,
           stores(name),
           addresses(address_line1, city, phone),
           payment_methods(type, label),
           contacts(id, name, phone, email)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (statusFilter !== 'all') {
-        ordersQuery = ordersQuery.eq('status', statusFilter);
-      }
-
-      if (dateRange) {
-        // Use OR to include orders created OR updated within the date range
-        // This ensures edited/converted orders appear under today's view
-        ordersQuery = ordersQuery.or(
-          `and(created_at.gte.${dateRange.start.toISOString()},created_at.lte.${dateRange.end.toISOString()}),and(updated_at.gte.${dateRange.start.toISOString()},updated_at.lte.${dateRange.end.toISOString()})`
-        );
-      }
-
-      if (isSearching) {
-        const q = searchQuery.trim();
-        const orParts = [
-          `order_number.ilike.%${q}%`,
-          `delivery_instructions.ilike.%${q}%`,
-        ];
-        if (matchingContactIds.length > 0) {
-          orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
+        `;
+      const buildOrdersQuery = () => {
+        let qb: any = supabase
+          .from('orders')
+          .select(ORDER_SELECT)
+          .order('created_at', { ascending: false });
+        if (statusFilter !== 'all') qb = qb.eq('status', statusFilter);
+        if (selectedCustomerId) qb = qb.eq('customer_id', selectedCustomerId);
+        if (dateRange) {
+          // Include orders created OR updated within the date range so
+          // edited/converted orders appear under today's view
+          qb = qb.or(
+            `and(created_at.gte.${dateRange.start.toISOString()},created_at.lte.${dateRange.end.toISOString()}),and(updated_at.gte.${dateRange.start.toISOString()},updated_at.lte.${dateRange.end.toISOString()})`
+          );
         }
-        if (orderIdsWithMatchingProducts.length > 0) {
-          orParts.push(`id.in.(${orderIdsWithMatchingProducts.join(',')})`);
+        return qb;
+      };
+
+      let onlineOrders: any[] = [];
+      if (!walkinOnly) {
+        if (pushSearchToDb) {
+          const q = searchQuery.trim();
+          const requests: any[] = [
+            buildOrdersQuery().or(`order_number.ilike.%${q}%,delivery_instructions.ilike.%${q}%`).limit(5000),
+            ...chunks(matchingContactIds, CHUNK).map((ids) => buildOrdersQuery().in('customer_id', ids).limit(5000)),
+            ...chunks(orderIdsWithMatchingProducts, CHUNK).map((ids) => buildOrdersQuery().in('id', ids).limit(5000)),
+          ];
+          const results = await Promise.all(requests);
+          const firstErr = results.find((r: any) => r.error)?.error;
+          if (firstErr) {
+            console.error('Error fetching orders:', firstErr);
+            throw firstErr;
+          }
+          onlineOrders = dedupeById(results.flatMap((r: any) => r.data || []));
+        } else {
+          const { data, error: ordersError } = await buildOrdersQuery().limit(5000);
+          if (ordersError) {
+            console.error('Error fetching orders:', ordersError);
+            throw ordersError;
+          }
+          onlineOrders = data || [];
         }
-        ordersQuery = ordersQuery.or(orParts.join(',')).limit(5000);
       }
 
-      const { data: onlineOrders, error: ordersError } = await ordersQuery;
-      if (ordersError) {
-        console.error('Error fetching orders:', ordersError);
-        throw ordersError;
-      }
-      
       // Fetch POS transactions
-      let posQuery = supabase
-        .from('pos_transactions')
-        .select(`
+      const POS_SELECT = `
           id,
           transaction_number,
           total,
@@ -353,30 +351,57 @@ export default function AdminOrders() {
           items,
           metadata,
           stores(name)
-        `)
-        .order('created_at', { ascending: false });
+        `;
+      const buildPosQuery = () => {
+        let qb: any = supabase
+          .from('pos_transactions')
+          .select(POS_SELECT)
+          .order('created_at', { ascending: false });
+        if (selectedCustomerId) qb = qb.eq('customer_id', selectedCustomerId);
+        if (walkinOnly) qb = qb.is('customer_id', null);
+        if (dateRange) {
+          qb = qb
+            .gte('created_at', dateRange.start.toISOString())
+            .lte('created_at', dateRange.end.toISOString());
+        }
+        return qb;
+      };
 
-      if (dateRange) {
-        posQuery = posQuery
-          .gte('created_at', dateRange.start.toISOString())
-          .lte('created_at', dateRange.end.toISOString());
+      let posTransactions: any[] = [];
+      let posError: any = null;
+      if (dateRange || selectedCustomerId) {
+        // Bounded set (period or one customer): load it and filter client-side
+        const res = await buildPosQuery().limit(dateRange ? 20000 : 5000);
+        posTransactions = res.data || [];
+        posError = res.error;
       } else if (isSearching) {
-        // Push search to the DB so ALL historical transactions are scanned (no recent-cap cutoff)
+        // Push search to the DB in small batches so ALL historical sales are
+        // scanned without exceeding request size limits.
         const q = searchQuery.trim();
-        const orParts = [`transaction_number.ilike.%${q}%`];
-        if (matchingContactIds.length > 0) {
-          orParts.push(`customer_id.in.(${matchingContactIds.join(',')})`);
-        }
-        if (posIdsWithMatchingProducts.length > 0) {
-          orParts.push(`id.in.(${posIdsWithMatchingProducts.join(',')})`);
-        }
-        posQuery = posQuery.or(orParts.join(',')).limit(5000);
+        const requests: any[] = [
+          buildPosQuery().ilike('transaction_number', `%${q}%`).limit(5000),
+          ...(walkinOnly
+            ? []
+            : chunks(matchingContactIds, CHUNK).map((ids) => buildPosQuery().in('customer_id', ids).limit(5000))),
+          ...chunks(matchingProductIds, 30).map((ids) =>
+            buildPosQuery()
+              .or(
+                ids
+                  .flatMap((pid) => [`items.cs.[{"id":"${pid}"}]`, `items.cs.[{"productId":"${pid}"}]`])
+                  .join(',')
+              )
+              .limit(5000)
+          ),
+        ];
+        const results = await Promise.all(requests);
+        posError = results.find((r: any) => r.error)?.error ?? null;
+        posTransactions = dedupeById(results.flatMap((r: any) => r.data || []));
       } else {
         // When no date filter, limit to most recent 500 to avoid loading entire history
-        posQuery = posQuery.limit(500);
+        const res = await buildPosQuery().limit(500);
+        posTransactions = res.data || [];
+        posError = res.error;
       }
-
-      const { data: posTransactions, error: posError } = await posQuery;
 
       if (posError) {
         console.error('Error fetching POS transactions:', posError);
