@@ -83,6 +83,7 @@ export default function AdminOrders() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
   
   // Sync statusFilter with URL parameter
   useEffect(() => {
@@ -520,8 +521,27 @@ export default function AdminOrders() {
     }
   });
 
-  // Filter orders based on search query across all columns
+  // Customer list for the filter dropdown
+  const { data: customerOptions } = useQuery({
+    queryKey: ['order-customer-options'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .eq('is_customer', true)
+        .order('name');
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Filter orders based on customer and search query across all columns
   const orders = allOrders?.filter(order => {
+    if (customerFilter === 'walkin') {
+      if (order.type !== 'pos' || order.customer_id) return false;
+    } else if (customerFilter !== 'all') {
+      if (order.customer_id !== customerFilter) return false;
+    }
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase();
@@ -1757,7 +1777,7 @@ export default function AdminOrders() {
           <div className="mb-4 space-y-3">
             <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Period</Label>
                     <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -1814,6 +1834,21 @@ export default function AdminOrders() {
                         <SelectItem value="delivered">Delivered</SelectItem>
                         <SelectItem value="completed">Completed (POS)</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Customer</Label>
+                    <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Filter by customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Customers</SelectItem>
+                        <SelectItem value="walkin">Walk-in Customer</SelectItem>
+                        {(customerOptions || []).map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
