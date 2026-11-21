@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fetchPublicBranding } from '@/lib/publicBranding';
 import { MapPin, Bell, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
@@ -34,11 +35,7 @@ export const Header = () => {
 
     // Load company settings
     const loadSettings = async () => {
-      const { data } = await supabase
-        .from('settings')
-        .select('logo_url, company_name')
-        .limit(1)
-        .maybeSingle();
+      const data = await fetchPublicBranding();
       
       if (data) {
         if (data.logo_url) setCompanyLogo(data.logo_url);

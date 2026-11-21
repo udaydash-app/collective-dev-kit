@@ -1261,3 +1261,13 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.delete_payment_receipt(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.delete_payment_receipt(uuid) TO authenticated, service_role;
+
+-- Public branding (shop name/logo/icon) for pre-sign-in screens; full settings rows are staff-only.
+CREATE OR REPLACE FUNCTION public.get_public_branding()
+RETURNS TABLE(company_name text, logo_url text, favicon_url text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT s.company_name::text, s.logo_url::text, s.favicon_url::text
+  FROM public.settings s ORDER BY s.created_at LIMIT 1
+$$;
+GRANT EXECUTE ON FUNCTION public.get_public_branding() TO anon, authenticated, service_role;

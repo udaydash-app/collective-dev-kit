@@ -3967,6 +3967,14 @@ export type Database = {
           units: number
         }[]
       }
+      get_public_branding: {
+        Args: never
+        Returns: {
+          company_name: string
+          favicon_url: string
+          logo_url: string
+        }[]
+      }
       get_purchase_order_by_share_token: {
         Args: { _token: string }
         Returns: Json

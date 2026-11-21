@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { fetchPublicBranding } from '@/lib/publicBranding';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getSupabaseConfig, setLocalSupabaseConfig, clearLocalSupabaseConfig } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -44,11 +45,7 @@ export default function POSLogin() {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('settings')
-          .select('company_name, logo_url, favicon_url')
-          .limit(1)
-          .maybeSingle();
+        const data = await fetchPublicBranding();
         if (cancelled || !data) return;
         const next = {
           name: data.company_name || 'POS System',
