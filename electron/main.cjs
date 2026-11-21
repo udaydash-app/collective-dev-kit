@@ -156,7 +156,13 @@ if (autoUpdater) {
       });
     }
     
-    dialog.showMessageBox({
+    const updateParent = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+    if (updateParent) {
+      if (updateParent.isMinimized()) updateParent.restore();
+      updateParent.focus();
+    }
+    const showAvailable = (opts) => updateParent ? dialog.showMessageBox(updateParent, opts) : dialog.showMessageBox(opts);
+    showAvailable({
       type: 'info',
       title: 'Update Available',
       message: `A new version ${info.version} is available. Do you want to download it now?`,
@@ -389,12 +395,16 @@ if (autoUpdater) {
       }
     }
     
-    dialog.showMessageBox({
+    const readyOpts = {
       type: 'info',
       title: 'Update Ready',
       message: 'Update downloaded. The application will restart to install the update.',
       buttons: ['Restart Now', 'Later']
-    }).then((result) => {
+    };
+    (mainWindow && !mainWindow.isDestroyed()
+      ? dialog.showMessageBox(mainWindow, readyOpts)
+      : dialog.showMessageBox(readyOpts)
+    ).then((result) => {
       if (result.response === 0) {
         console.log('[AUTO-UPDATE] Restarting to install...');
         autoUpdater.quitAndInstall(false, true);
@@ -438,12 +448,14 @@ if (autoUpdater) {
     }
     
     // Show error dialog only for unexpected errors
-    dialog.showMessageBox({
+    const errOpts = {
       type: 'error',
-      title: 'Update Check Error',
-      message: `Failed to check for updates: ${err.message}`,
+      title: 'Update Error',
+      message: `Update failed: ${err.message}`,
       buttons: ['OK']
-    });
+    };
+    if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, errOpts);
+    else dialog.showMessageBox(errOpts);
   });
 }
 
@@ -456,7 +468,14 @@ ipcMain.handle('check-for-updates', async () => {
   if (!isDev) {
     try {
       const result = await autoUpdater.checkForUpdates();
-      return { success: true, updateInfo: result?.updateInfo };
+      const latestVersion = result?.updateInfo?.version || null;
+      const currentVersion = app.getVersion();
+      // updateInfo is returned even when already up to date — only report an
+      // update when the release on GitHub is actually newer than this install.
+      const isUpdateAvailable = typeof result?.isUpdateAvailable === 'boolean'
+        ? result.isUpdateAvailable
+        : !!latestVersion && latestVersion !== currentVersion;
+      return { success: true, isUpdateAvailable, latestVersion, currentVersion };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -559,7 +578,7 @@ app.whenReady().then(() => {
       try {
         const result = await autoUpdater.checkForUpdates();
         if (result) {
-          console.log('[AUTO-UPDATE] Check complete. Update available:', !!result.updateInfo);
+          console.log('[AUTO-UPDATE] Check complete. Update available:', !!result.isUpdateAvailable, 'latest:', result.updateInfo?.version);
         }
       } catch (err) {
         console.error('[AUTO-UPDATE] Automatic check failed:', err.message);

@@ -5,6 +5,10 @@ interface Window {
     getPath: (name: string) => Promise<string>;
     checkForUpdates: () => Promise<{
       success: boolean;
+      isUpdateAvailable?: boolean;
+      latestVersion?: string | null;
+      currentVersion?: string;
+      /** Returned by desktop builds before 1.1.83 (always set, even when up to date). */
       updateInfo?: any;
       error?: string;
     }>;

@@ -26,10 +26,15 @@ export function UpdateButton({ showVersion = false, compact = false }: UpdateBut
       const result = await window.electron.checkForUpdates();
       
       if (result.success) {
-        if (result.updateInfo) {
-          toast.success('Update available! Download will start automatically.', { id: 'update-check' });
+        const current = result.currentVersion || version;
+        const latest = result.latestVersion ?? result.updateInfo?.version ?? null;
+        const available = typeof result.isUpdateAvailable === 'boolean'
+          ? result.isUpdateAvailable
+          : !!latest && latest !== current;
+        if (available) {
+          toast.success(`Version ${latest} is available — click "Download" in the window that opens.`, { id: 'update-check', duration: 8000 });
         } else {
-          toast.success(`You are running the latest version (v${version})`, { id: 'update-check' });
+          toast.success(`You are running the latest version (v${current})`, { id: 'update-check' });
         }
       } else {
         toast.error(result.error || 'Failed to check for updates', { id: 'update-check' });
